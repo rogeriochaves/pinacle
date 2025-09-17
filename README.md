@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pinacle
 
-## Getting Started
+Pinacle delivers long-running AI development pods powered by gVisor-backed sandboxes. Each pod ships with Claude Code, Vibe Kanban, and Code Server pre-installed so your coding agents can keep working even when you close your laptop.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** with the App Router, React Server Components, and Turbopack dev server
+- **TypeScript** + **Tailwind CSS** (shadcn/ui components)
+- **Drizzle ORM** with PostgreSQL and drizzle-kit migrations
+- **tRPC v11** for typesafe API routes paired with TanStack Query on the client
+- **NextAuth.js** for GitHub OAuth and credentials-based authentication
+- **next-themes** for light/dark support
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The first install requires network access to npm. If the sandbox blocks outbound requests you will need to run the command locally.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file in the project root and supply at least:
 
-## Learn More
+```
+DATABASE_URL=postgres://user:password@host:5432/pinacle
+NEXTAUTH_SECRET=generate-a-long-random-string
+NEXTAUTH_URL=http://localhost:3000
+GITHUB_CLIENT_ID=your-client-id # optional, enables GitHub Sign-in
+GITHUB_CLIENT_SECRET=your-client-secret # optional
+```
 
-To learn more about Next.js, take a look at the following resources:
+> `DATABASE_URL` and `NEXTAUTH_SECRET` are required for local development. The GitHub credentials are optional until you configure OAuth.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Database migrations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Generate migrations after editing `src/server/db/schema.ts`:
 
-## Deploy on Vercel
+```bash
+pnpm db:generate
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Apply migrations (the command targets the database pointed to by `DATABASE_URL`):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm db:migrate
+```
+
+Drizzle outputs SQL into the `drizzle/` folder which can be checked into source control.
+
+### Development scripts
+
+- `pnpm dev` – start the Next.js dev server on [http://localhost:3000](http://localhost:3000)
+- `pnpm build` – create a production build
+- `pnpm start` – run the production server
+- `pnpm lint` – run Biome format & lint checks
+
+## Feature map
+
+- Landing page that explains Pinacle pods, pricing tiers, and the always-on AI workflow.
+- Auth pages (`/signin`, `/signup`) supporting credential sign-in today and GitHub OAuth once keys are provided.
+- Authenticated dashboard at `/dashboard` with a team switcher stub, pod list, and placeholders for provisioning and invites.
+- tRPC router for fetching teams, members, and pods; ready to expand for mutations when the provisioning backend is wired in.
+- Skeleton pages for invitations, new team wizard, pod provisioning, and settings with clear “coming soon” messaging.
+
+## Next steps
+
+1. **Hook up gVisor provisioning** – implement the `/pods/new` form to call your control plane and persist machine records through tRPC mutations.
+2. **Team invitations** – create email/token flows using the `team_invite` table and expose actions through tRPC and the UI.
+3. **Billing integration** – connect Stripe or Paddle, enforce plan limits (pods per team, CPU/RAM ceilings), and surface plan status in the dashboard.
+4. **Secrets manager** – add CRUD screens for API keys / environment variables per pod with encrypted storage.
+5. **Monitoring** – stream pod metrics into the dashboard (CPU, RAM, status heartbeats) via WebSockets or polling routes.
+
+## Testing
+
+- Run `pnpm lint` for syntax and formatting.
+- Once migrations exist, add integration tests around auth & tRPC via your preferred runner (Vitest/Jest).
+- Add end-to-end coverage with Playwright after the provisioning flow is wired up.
+
+## Notes
+
+- Several linked pages (`/pods/new`, `/teams/invite`, etc.) are intentional placeholders so navigation remains coherent while backend services are still under construction.
+- The project currently expects an accessible PostgreSQL instance. Local development pairs well with Dockerized Postgres.
+- Node modules were not reinstalled in this environment because outbound network calls are blocked; run `pnpm install` locally to refresh the lockfile and dependencies.
