@@ -118,8 +118,8 @@ export const Hero = () => {
               dev box for your coding agents to run 24/7
             </h1>
             <h2>
-              Stop using AI just for vibe coding prototypes, start using it for
-              real software development
+              Stop using AI just for vibe coding prototypes, start using it with
+              real tools for real software development
             </h2>
             <div className="flex gap-4 pt-4">
               <Button>
