@@ -1,0 +1,39 @@
+FROM pinacle/base:latest
+
+USER root
+
+# Install Node.js 20 LTS
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+USER developer
+
+# Install global Next.js tools
+RUN npm install -g create-next-app@latest
+
+# Pre-create a Next.js template for faster pod creation
+RUN mkdir -p /tmp/nextjs-template && \
+    cd /tmp/nextjs-template && \
+    npx create-next-app@latest . \
+        --typescript \
+        --tailwind \
+        --eslint \
+        --app \
+        --src-dir \
+        --import-alias "@/*" \
+        --yes && \
+    rm -rf node_modules && \
+    rm -rf .git
+
+# Copy VS Code settings for Next.js development
+COPY --chown=developer:developer docker/config/nextjs-vscode-settings.json /home/developer/.config/code-server/User/settings.json
+
+# Expose Next.js development ports
+EXPOSE 3000 3001
+
+# Create a startup script
+COPY --chown=developer:developer docker/scripts/start-nextjs.sh /home/developer/start-nextjs.sh
+RUN chmod +x /home/developer/start-nextjs.sh
+
+CMD ["/home/developer/start-nextjs.sh"]
+
