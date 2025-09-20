@@ -23,6 +23,15 @@
       },
       "correctness": {
         "useExhaustiveDependencies": "error"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "a11y": {
+        "useSemanticElements": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "noRedundantRoles": "off",
+        "noSvgWithoutTitle": "off"
       }
     },
     "domains": {

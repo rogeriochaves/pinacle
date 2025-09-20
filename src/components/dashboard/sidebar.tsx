@@ -44,16 +44,16 @@ export const Sidebar = () => {
   return (
     <>
       {/* Mobile menu button */}
-      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-white px-4 py-4 shadow-sm sm:px-6 lg:hidden">
-        <button
-          type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-background border-b-2 border-border-contrast px-4 py-4 lg:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setSidebarOpen(true)}
         >
-          <Menu className="h-6 w-6" />
-        </button>
-        <div className="flex-1 text-sm font-semibold leading-6 text-gray-900">
-          Dashboard
+          <Menu className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 text-sm font-bold font-mono leading-6 text-foreground">
+          DASHBOARD
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -131,18 +131,20 @@ export const Sidebar = () => {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r-2 border-border-contrast bg-background px-6">
           <div className="flex h-16 shrink-0 items-center">
-            <Code className="h-8 w-8 text-blue-600" />
-            <span className="ml-2 font-bold text-xl text-gray-900">Pinacle</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
+              <Code className="h-4 w-4 text-orange-900" />
+            </div>
+            <span className="ml-2 font-bold font-mono text-xl text-foreground">PINACLE</span>
           </div>
 
           {/* Create Pod Button */}
           <div className="flex">
-            <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+            <Button asChild variant="accent" className="w-full">
               <Link href="/dashboard/pods/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Create Pod
+                CREATE POD
               </Link>
             </Button>
           </div>
@@ -158,14 +160,14 @@ export const Sidebar = () => {
                       <li key={item.name}>
                         <Link
                           href={item.href}
-                          className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold ${
+                          className={`group flex gap-x-3 rounded-sm p-3 text-sm leading-6 font-bold font-mono border-2 transition-all ${
                             isActive
-                              ? "bg-gray-50 text-blue-600"
-                              : "text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                              ? "bg-orange-200 text-orange-950 border-border-contrast shadow-btn"
+                              : "text-foreground border-transparent hover:border-border-contrast hover:bg-slate-100"
                           }`}
                         >
-                          <Icon className="h-6 w-6 shrink-0" />
-                          {item.name}
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {item.name.toUpperCase()}
                         </Link>
                       </li>
                     );
@@ -173,17 +175,16 @@ export const Sidebar = () => {
                 </ul>
               </li>
               <li className="-mx-6 mt-auto">
-                <div className="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 text-gray-900">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
-                    <AvatarFallback>
+                <div className="flex items-center gap-x-4 px-6 py-3 text-sm font-bold font-mono leading-6 text-foreground border-t-2 border-border-contrast">
+                  <div className="h-8 w-8 rounded-sm bg-slate-200 border-2 border-border-contrast flex items-center justify-center">
+                    <span className="text-slate-900 font-bold text-xs">
                       {session?.user?.name?.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                    </span>
+                  </div>
                   <span className="sr-only">Your profile</span>
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{session?.user?.name}</div>
-                    <div className="text-xs text-gray-500">{session?.user?.email}</div>
+                    <div className="text-sm font-bold">{session?.user?.name?.toUpperCase()}</div>
+                    <div className="text-xs text-muted-foreground">{session?.user?.email}</div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

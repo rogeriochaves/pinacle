@@ -70,72 +70,64 @@ const tiers = [
 
 export const Pricing = () => {
   return (
-    <section id="pricing" className="bg-white py-24 sm:py-32">
+    <section id="pricing" className="bg-background py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-base font-semibold leading-7 text-blue-600">
-            Pricing
-          </h2>
-          <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            Choose your development power
+          <div className="mb-4 inline-flex items-center rounded-sm border-2 border-border-contrast bg-orange-200 px-4 py-2 text-sm font-mono font-bold text-orange-950 shadow-btn">
+            PRICING
+          </div>
+          <p className="mt-2 text-4xl font-bold font-mono tracking-tight text-foreground sm:text-5xl">
+            CHOOSE YOUR DEVELOPMENT POWER
           </p>
-          <p className="mt-6 text-lg leading-8 text-gray-600">
+          <p className="mt-6 text-lg leading-8 text-muted-foreground font-mono">
             Simple, transparent pricing that scales with your needs.
             All plans include our core AI development stack.
           </p>
         </div>
 
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-center gap-y-6 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-3">
-          {tiers.map((tier, tierIdx) => {
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-8 sm:mt-20 lg:max-w-none lg:grid-cols-3">
+          {tiers.map((tier) => {
             const Icon = tier.icon;
             return (
-              <Card
-                key={tier.id}
-                className={`
-                  relative
-                  ${tier.popular
-                    ? "ring-2 ring-blue-600 scale-105 shadow-xl"
-                    : "ring-1 ring-gray-200"
-                  }
-                  ${tierIdx === 0 ? "lg:rounded-r-none" : ""}
-                  ${tierIdx === 1 ? "lg:rounded-none" : ""}
-                  ${tierIdx === 2 ? "lg:rounded-l-none" : ""}
-                `}
-              >
+              <Card key={tier.id} className={tier.popular ? "ring-2 ring-orange-400" : ""}>
                 {tier.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-blue-600 text-white">
-                      Most Popular
+                    <Badge className="bg-orange-300 text-orange-950 border-2 border-border-contrast font-mono font-bold shadow-btn">
+                      MOST POPULAR
                     </Badge>
                   </div>
                 )}
 
-                <CardHeader className="pb-6">
+                <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-semibold text-gray-900">
-                      {tier.name}
+                    <CardTitle className="text-lg font-bold font-mono text-foreground">
+                      {tier.name.toUpperCase()}
                     </CardTitle>
-                    <Icon className="h-6 w-6 text-blue-600" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-slate-200 border border-border-contrast">
+                      <Icon className="h-4 w-4 text-slate-900" />
+                    </div>
                   </div>
-                  <CardDescription className="mt-2">
+                  <CardDescription className="mt-2 font-mono text-muted-foreground">
                     {tier.description}
                   </CardDescription>
                   <div className="mt-6 flex items-baseline gap-x-1">
-                    <span className="text-4xl font-bold tracking-tight text-gray-900">
+                    <span className="text-4xl font-bold font-mono tracking-tight text-foreground">
                       ${tier.price}
                     </span>
-                    <span className="text-sm font-semibold leading-6 text-gray-600">
-                      /month
+                    <span className="text-sm font-bold font-mono leading-6 text-muted-foreground">
+                      /MONTH
                     </span>
                   </div>
                 </CardHeader>
 
-                <CardContent className="pb-6">
+                <CardContent>
                   <ul className="space-y-3">
                     {tier.features.map((feature) => (
                       <li key={feature} className="flex items-center">
-                        <Check className="h-4 w-4 text-green-500 mr-3 flex-shrink-0" />
-                        <span className="text-sm text-gray-600">{feature}</span>
+                        <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-3 flex-shrink-0">
+                          <Check className="h-2 w-2 text-green-900" />
+                        </div>
+                        <span className="text-sm font-mono text-muted-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -144,14 +136,11 @@ export const Pricing = () => {
                 <CardFooter>
                   <Button
                     asChild
-                    className={`w-full ${
-                      tier.popular
-                        ? "bg-blue-600 hover:bg-blue-700"
-                        : "bg-gray-900 hover:bg-gray-800"
-                    }`}
+                    variant={tier.popular ? "accent" : "default"}
+                    className="w-full font-mono font-bold"
                   >
                     <Link href="/auth/signup">
-                      {tier.cta}
+                      {tier.cta.toUpperCase()}
                     </Link>
                   </Button>
                 </CardFooter>
@@ -161,21 +150,27 @@ export const Pricing = () => {
         </div>
 
         <div className="mt-16 text-center">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm font-mono text-muted-foreground">
             All plans include a 7-day free trial. No credit card required to start.
           </p>
           <div className="mt-6 flex justify-center space-x-6 text-sm">
             <div className="flex items-center">
-              <Check className="h-4 w-4 text-green-500 mr-2" />
-              <span className="text-gray-600">Cancel anytime</span>
+              <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
+                <Check className="h-2 w-2 text-green-900" />
+              </div>
+              <span className="font-mono text-muted-foreground">CANCEL ANYTIME</span>
             </div>
             <div className="flex items-center">
-              <Check className="h-4 w-4 text-green-500 mr-2" />
-              <span className="text-gray-600">No setup fees</span>
+              <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
+                <Check className="h-2 w-2 text-green-900" />
+              </div>
+              <span className="font-mono text-muted-foreground">NO SETUP FEES</span>
             </div>
             <div className="flex items-center">
-              <Check className="h-4 w-4 text-green-500 mr-2" />
-              <span className="text-gray-600">24/7 support</span>
+              <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
+                <Check className="h-2 w-2 text-green-900" />
+              </div>
+              <span className="font-mono text-muted-foreground">24/7 SUPPORT</span>
             </div>
           </div>
         </div>

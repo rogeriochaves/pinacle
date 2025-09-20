@@ -51,32 +51,34 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-            <Code className="h-8 w-8 text-blue-600" />
-            <span className="font-bold text-2xl text-gray-900">Pinacle</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
+              <Code className="h-4 w-4 text-orange-900" />
+            </div>
+            <span className="font-bold font-mono text-2xl text-foreground">PINACLE</span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900">
-            Sign in to your account
+          <h2 className="text-3xl font-bold font-mono text-foreground">
+            SIGN IN TO YOUR ACCOUNT
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Or{" "}
+          <p className="mt-2 text-sm font-mono text-muted-foreground">
+            OR{" "}
             <Link
               href="/auth/signup"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-bold text-orange-600 hover:text-orange-700 underline"
             >
-              create a new account
+              CREATE A NEW ACCOUNT
             </Link>
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-mono font-bold">WELCOME BACK</CardTitle>
+            <CardDescription className="font-mono">
               Sign in to access your development environments
             </CardDescription>
           </CardHeader>
@@ -85,32 +87,32 @@ export default function SignIn() {
             <Button
               onClick={handleGithubSignIn}
               variant="outline"
-              className="w-full"
+              className="w-full font-mono font-bold"
               disabled={isLoading}
             >
               <Github className="mr-2 h-4 w-4" />
-              Sign in with GitHub
+              SIGN IN WITH GITHUB
             </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-300" />
+                <span className="w-full border-t-2 border-border-contrast" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                <span className="bg-background px-2 text-muted-foreground font-mono font-bold">OR CONTINUE WITH</span>
               </div>
             </div>
 
             {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="bg-red-200 border-2 border-red-800 rounded-sm p-3">
+                  <p className="text-sm font-mono font-bold text-red-900">{error}</p>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="font-mono font-bold">EMAIL ADDRESS</Label>
                 <Input
                   id="email"
                   name="email"
@@ -119,12 +121,12 @@ export default function SignIn() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  placeholder="ENTER YOUR EMAIL"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="font-mono font-bold">PASSWORD</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -134,19 +136,21 @@ export default function SignIn() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="ENTER YOUR PASSWORD"
                   />
-                  <button
+                  <Button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute inset-y-0 right-0 h-full w-10"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-4 w-4" />
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -154,32 +158,33 @@ export default function SignIn() {
                 <div className="text-sm">
                   <Link
                     href="/auth/forgot-password"
-                    className="font-medium text-blue-600 hover:text-blue-500"
+                    className="font-mono font-bold text-orange-600 hover:text-orange-700 underline"
                   >
-                    Forgot your password?
+                    FORGOT YOUR PASSWORD?
                   </Link>
                 </div>
               </div>
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                variant="accent"
+                className="w-full font-mono font-bold"
                 disabled={isLoading}
               >
-                {isLoading ? "Signing in..." : "Sign in"}
+                {isLoading ? "SIGNING IN..." : "SIGN IN"}
               </Button>
             </form>
           </CardContent>
         </Card>
 
         <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
+          <p className="text-sm font-mono text-muted-foreground">
+            DON'T HAVE AN ACCOUNT?{" "}
             <Link
               href="/auth/signup"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-bold text-orange-600 hover:text-orange-700 underline"
             >
-              Sign up for free
+              SIGN UP FOR FREE
             </Link>
           </p>
         </div>

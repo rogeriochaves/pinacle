@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "mcp__browser-tools__getConsoleErrors",
+      "mcp__browser-tools__takeScreenshot",
+      "mcp__browser-tools__wipeLogs"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

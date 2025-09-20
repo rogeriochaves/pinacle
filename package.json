@@ -8,11 +8,11 @@
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:generate": "dotenv -c -- drizzle-kit generate",
+    "db:migrate": "dotenv -c -- drizzle-kit migrate",
+    "db:push": "dotenv -c -- drizzle-kit push",
+    "db:studio": "dotenv -c -- drizzle-kit studio",
+    "db:seed": "dotenv -c -- tsx scripts/seed.ts"
   },
   "dependencies": {
     "@auth/core": "^0.40.0",
@@ -38,6 +38,7 @@
     "bcryptjs": "3.0.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "dotenv-cli": "^10.0.0",
     "drizzle-kit": "0.31.4",
     "drizzle-orm": "0.44.5",
     "lucide-react": "0.544.0",

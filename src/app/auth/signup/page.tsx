@@ -79,32 +79,34 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-            <Code className="h-8 w-8 text-blue-600" />
-            <span className="font-bold text-2xl text-gray-900">Pinacle</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
+              <Code className="h-4 w-4 text-orange-900" />
+            </div>
+            <span className="font-bold font-mono text-2xl text-foreground">PINACLE</span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900">
-            Create your account
+          <h2 className="text-3xl font-bold font-mono text-foreground">
+            CREATE YOUR ACCOUNT
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Already have an account?{" "}
+          <p className="mt-2 text-sm font-mono text-muted-foreground">
+            ALREADY HAVE AN ACCOUNT?{" "}
             <Link
               href="/auth/signin"
-              className="font-medium text-blue-600 hover:text-blue-500"
+              className="font-bold text-orange-600 hover:text-orange-700 underline"
             >
-              Sign in
+              SIGN IN
             </Link>
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Get started for free</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-mono font-bold">GET STARTED FOR FREE</CardTitle>
+            <CardDescription className="font-mono">
               Create your account to access AI development environments
             </CardDescription>
           </CardHeader>

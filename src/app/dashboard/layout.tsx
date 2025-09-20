@@ -20,8 +20,11 @@ export default function DashboardLayout({
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="border-2 border-border-contrast bg-card p-8 text-card-foreground relative flex flex-col items-center rounded-sm after:absolute after:-bottom-2 after:-right-2 after:left-2 after:top-2 after:-z-10 after:content-[''] after:bg-dotted">
+          <div className="animate-pulse h-8 w-8 bg-orange-200 border-2 border-border-contrast rounded-sm"></div>
+          <p className="mt-4 font-mono font-bold text-foreground">LOADING...</p>
+        </div>
       </div>
     );
   }
@@ -31,7 +34,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div>
+    <div className="bg-background min-h-screen">
       <Sidebar />
       <main className="lg:pl-72">
         <div className="px-4 sm:px-6 lg:px-8 py-8">

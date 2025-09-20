@@ -1,7 +1,7 @@
 "use client";
 
+import { Code, Github, Linkedin, Twitter } from "lucide-react";
 import Link from "next/link";
-import { Code, Github, Twitter, Linkedin } from "lucide-react";
 
 const navigation = {
   main: [
@@ -62,8 +62,8 @@ export const Footer = () => {
               <span className="font-bold text-xl text-white">Pinacle</span>
             </Link>
             <p className="text-sm leading-6 text-gray-300">
-              Secure, scalable AI development environments.
-              Build the future with confidence.
+              Secure, scalable AI development environments. Build the future
+              with confidence.
             </p>
             <div className="flex space-x-6">
               {navigation.social.map((item) => {
@@ -148,4 +148,3 @@ export const Footer = () => {
     </footer>
   );
 };
-
