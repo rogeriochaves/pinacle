@@ -6,7 +6,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import { z } from "zod";
 import { db } from "./db";
-import { users } from "./db/schema";
+import { teamMembers, teams, users } from "./db/schema";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -25,6 +25,11 @@ export const authOptions: NextAuthOptions = {
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID || "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+      authorization: {
+        params: {
+          scope: "read:user user:email",
+        },
+      },
     }),
     CredentialsProvider({
       name: "credentials",
@@ -65,17 +70,77 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+      }
+      if (account?.provider === "github") {
+        token.githubAccessToken = account.access_token;
+        token.githubId = account.providerAccountId;
       }
       return token;
     },
     async session({ session, token }) {
       if (token.id && session.user) {
         (session.user as any).id = token.id as string;
+        (session.user as any).githubAccessToken = token.githubAccessToken;
+        (session.user as any).githubId = token.githubId;
       }
       return session;
+    },
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "github" && profile) {
+        // Update user with GitHub information
+        try {
+          const updatedUser = await db
+            .update(users)
+            .set({
+              githubId: account.providerAccountId,
+              githubUsername: (profile as any).login,
+              name: profile.name || (profile as any).login,
+              image: (profile as any).avatar_url,
+            })
+            .where(eq(users.email, user.email!))
+            .returning();
+
+          // Create personal team for new users (check if user already has teams)
+          if (updatedUser[0]) {
+            const existingTeams = await db
+              .select()
+              .from(teamMembers)
+              .where(eq(teamMembers.userId, updatedUser[0].id))
+              .limit(1);
+
+            if (existingTeams.length === 0) {
+              const teamName = `${(profile as any).login}'s Team`;
+              const teamSlug = `${(profile as any).login}-team`.toLowerCase();
+
+              const [team] = await db
+                .insert(teams)
+                .values({
+                  name: teamName,
+                  slug: teamSlug,
+                  description: `Personal team for ${profile.name || (profile as any).login}`,
+                  ownerId: updatedUser[0].id,
+                })
+                .returning();
+
+              // Add user as team owner
+              await db.insert(teamMembers).values({
+                teamId: team.id,
+                userId: updatedUser[0].id,
+                role: "owner",
+              });
+            }
+          }
+        } catch (error) {
+          console.error(
+            "Failed to update user GitHub info or create team:",
+            error,
+          );
+        }
+      }
+      return true;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,

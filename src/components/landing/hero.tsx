@@ -122,14 +122,17 @@ export const Hero = () => {
               real tools for real software development
             </h2>
             <div className="flex gap-4 pt-4">
-              <Button>
-                {/* <Folder size={16} /> */}
-                <GithubIcon size={16} />
-                Open Repository
+              <Button asChild>
+                <a href="/setup?type=repository">
+                  <GithubIcon size={16} />
+                  Open Repository
+                </a>
               </Button>
-              <Button variant="accent">
-                <Plus size={16} />
-                New Project
+              <Button variant="accent" asChild>
+                <a href="/setup?type=new">
+                  <Plus size={16} />
+                  New Project
+                </a>
               </Button>
             </div>
           </div>

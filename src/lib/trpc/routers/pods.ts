@@ -1,16 +1,34 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { podTemplates, pods, teamMembers } from "../../db/schema";
-import { createTRPCRouter, protectedProcedure, publicProcedure } from "../server";
+import { pods, podTemplates, teamMembers } from "../../db/schema";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  publicProcedure,
+} from "../server";
 
 const createPodSchema = z.object({
   name: z.string().min(2).max(255),
   description: z.string().optional(),
   templateId: z.string().uuid().optional(),
   teamId: z.string().uuid(),
+
+  // GitHub repository information
+  githubRepo: z.string().optional(), // owner/repo format
+  githubBranch: z.string().default("main"),
+  isNewProject: z.boolean().default(false),
+
+  // Resource specifications
+  tier: z
+    .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
+    .default("dev.small"),
   cpuCores: z.number().min(1).max(8).default(1),
   memoryMb: z.number().min(512).max(16384).default(1024),
   storageMb: z.number().min(1024).max(100000).default(10240),
+
+  // Configuration
+  config: z.record(z.string(), z.any()).optional(), // pinacle.yaml config as object
+  envVars: z.record(z.string(), z.string()).optional(), // environment variables
 });
 
 export const podsRouter = createTRPCRouter({
@@ -31,9 +49,15 @@ export const podsRouter = createTRPCRouter({
         description,
         templateId,
         teamId,
+        githubRepo,
+        githubBranch,
+        isNewProject,
+        tier,
         cpuCores,
         memoryMb,
         storageMb,
+        config,
+        envVars,
       } = input;
       const userId = (ctx.session.user as any).id;
 
@@ -42,7 +66,7 @@ export const podsRouter = createTRPCRouter({
         .select()
         .from(teamMembers)
         .where(
-          and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId))
+          and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)),
         )
         .limit(1);
 
@@ -50,8 +74,16 @@ export const podsRouter = createTRPCRouter({
         throw new Error("Team not found or access denied");
       }
 
-      // Calculate monthly price (simplified pricing: $8 per GB RAM)
-      const monthlyPrice = Math.ceil((memoryMb / 1024) * 8 * 100); // in cents
+      // Calculate pricing based on tier
+      const tierPricing = {
+        "dev.small": { hourly: 0.008, monthly: 6 },
+        "dev.medium": { hourly: 0.017, monthly: 12 },
+        "dev.large": { hourly: 0.033, monthly: 24 },
+        "dev.xlarge": { hourly: 0.067, monthly: 48 },
+      };
+
+      const pricing = tierPricing[tier];
+      const monthlyPrice = pricing.monthly * 100; // in cents
 
       // Generate slug from name
       const slug = name
@@ -68,15 +100,29 @@ export const podsRouter = createTRPCRouter({
           templateId,
           teamId,
           ownerId: userId,
+          githubRepo,
+          githubBranch,
+          isNewProject,
+          tier,
           cpuCores,
           memoryMb,
           storageMb,
+          config: config ? JSON.stringify(config) : null,
+          envVars: envVars ? JSON.stringify(envVars) : null,
           monthlyPrice,
           status: "creating",
         })
         .returning();
 
-      // TODO: Actually create the container/VM here
+      // TODO: Queue pod provisioning job
+      // This will:
+      // 1. Generate SSH key pair
+      // 2. Add deploy key to GitHub repo
+      // 3. Create gVisor container
+      // 4. Clone repository
+      // 5. Set up services
+      // 6. Start everything
+
       // For now, we'll just simulate it
       setTimeout(async () => {
         try {
@@ -134,9 +180,7 @@ export const podsRouter = createTRPCRouter({
         .select()
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
-        .where(
-          and(eq(pods.id, input.id), eq(teamMembers.userId, userId))
-        )
+        .where(and(eq(pods.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
       if (!pod) {
@@ -156,9 +200,7 @@ export const podsRouter = createTRPCRouter({
         .select()
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
-        .where(
-          and(eq(pods.id, input.id), eq(teamMembers.userId, userId))
-        )
+        .where(and(eq(pods.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
       if (!pod) {
@@ -202,9 +244,7 @@ export const podsRouter = createTRPCRouter({
         .select()
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
-        .where(
-          and(eq(pods.id, input.id), eq(teamMembers.userId, userId))
-        )
+        .where(and(eq(pods.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
       if (!pod) {
@@ -252,8 +292,8 @@ export const podsRouter = createTRPCRouter({
           and(
             eq(pods.id, input.id),
             eq(teamMembers.userId, userId),
-            eq(pods.ownerId, userId) // Only owner can delete
-          )
+            eq(pods.ownerId, userId), // Only owner can delete
+          ),
         )
         .limit(1);
 

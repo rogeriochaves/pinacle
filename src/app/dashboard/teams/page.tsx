@@ -1,10 +1,16 @@
 "use client";
 
+import { Crown, Plus, Shield, User, Users } from "lucide-react";
 import Link from "next/link";
-import { Users, Plus, Crown, Shield, User } from "lucide-react";
-import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
+import { Button } from "../../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card";
 import { api } from "../../../lib/trpc/client";
 
 const RoleIcon = ({ role }: { role: string }) => {
@@ -28,7 +34,10 @@ export default function TeamsPage() {
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={`team-loading-${i}`} className="h-48 bg-gray-200 rounded"></div>
+              <div
+                key={`team-loading-${i}`}
+                className="h-48 bg-gray-200 rounded"
+              ></div>
             ))}
           </div>
         </div>
@@ -41,7 +50,9 @@ export default function TeamsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Teams</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Teams
+          </h1>
           <p className="mt-2 text-gray-600">
             Collaborate with your team members on development projects
           </p>
@@ -65,7 +76,10 @@ export default function TeamsPage() {
                     <Users className="h-5 w-5 text-gray-400" />
                     <CardTitle className="text-lg">{team.name}</CardTitle>
                   </div>
-                  <Badge variant="outline" className="flex items-center space-x-1">
+                  <Badge
+                    variant="outline"
+                    className="flex items-center space-x-1"
+                  >
                     <RoleIcon role={team.role} />
                     <span className="capitalize">{team.role}</span>
                   </Badge>
@@ -98,7 +112,9 @@ export default function TeamsPage() {
       ) : (
         <div className="text-center py-12">
           <Users className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No teams yet</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            No teams yet
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
             Create a team to collaborate with others on development projects.
           </p>

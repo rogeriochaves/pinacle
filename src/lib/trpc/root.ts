@@ -1,13 +1,16 @@
-import { createTRPCRouter } from "./server";
 import { authRouter } from "./routers/auth";
-import { teamsRouter } from "./routers/teams";
+import { githubRouter } from "./routers/github";
+import { githubAppRouter } from "./routers/github-app";
 import { podsRouter } from "./routers/pods";
+import { teamsRouter } from "./routers/teams";
+import { createTRPCRouter } from "./server";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
   teams: teamsRouter,
   pods: podsRouter,
+  github: githubRouter,
+  githubApp: githubAppRouter,
 });
 
 export type AppRouter = typeof appRouter;
-

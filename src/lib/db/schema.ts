@@ -1,3 +1,4 @@
+import type { AdapterAccount } from "@auth/core/adapters";
 import { relations } from "drizzle-orm";
 import {
   boolean,
@@ -9,7 +10,6 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import type { AdapterAccount } from "@auth/core/adapters";
 
 // Users table
 export const users = pgTable("user", {
@@ -19,6 +19,8 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   password: text("password"),
+  githubId: varchar("github_id", { length: 255 }),
+  githubUsername: varchar("github_username", { length: 255 }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -47,7 +49,7 @@ export const accounts = pgTable(
     compoundKey: primaryKey({
       columns: [account.provider, account.providerAccountId],
     }),
-  })
+  }),
 );
 
 export const sessions = pgTable("session", {
@@ -67,7 +69,7 @@ export const verificationTokens = pgTable(
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
-  })
+  }),
 );
 
 // Teams table
@@ -128,12 +130,19 @@ export const pods = pgTable("pod", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
 
+  // GitHub repository information
+  githubRepo: varchar("github_repo", { length: 500 }), // owner/repo format
+  githubBranch: varchar("github_branch", { length: 255 }).default("main"),
+  isNewProject: boolean("is_new_project").default(false),
+
   // Resource specifications
+  tier: varchar("tier", { length: 50 }).notNull().default("dev.small"), // dev.small, dev.medium, etc.
   cpuCores: integer("cpu_cores").notNull().default(1),
   memoryMb: integer("memory_mb").notNull().default(1024),
   storageMb: integer("storage_mb").notNull().default(10240), // 10GB default
 
   // Configuration
+  config: text("config"), // JSON string of pinacle.yaml config
   ports: text("ports"), // JSON string of port mappings
   envVars: text("env_vars"), // JSON string of environment variables
 
@@ -165,6 +174,32 @@ export const podUsage = pgTable("pod_usage", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// GitHub App installations
+export const githubInstallations = pgTable("github_installation", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  installationId: integer("installation_id").notNull().unique(),
+  accountId: integer("account_id").notNull(),
+  accountLogin: varchar("account_login", { length: 255 }).notNull(),
+  accountType: varchar("account_type", { length: 50 }).notNull(), // "User" or "Organization"
+  permissions: text("permissions"), // JSON string of permissions
+  repositorySelection: varchar("repository_selection", { length: 50 }), // "all" or "selected"
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// User access to GitHub installations
+export const userGithubInstallations = pgTable("user_github_installation", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  installationId: uuid("installation_id")
+    .notNull()
+    .references(() => githubInstallations.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 50 }).notNull().default("member"), // "admin", "member"
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
@@ -172,6 +207,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   ownedTeams: many(teams),
   teamMemberships: many(teamMembers),
   ownedPods: many(pods),
+  githubInstallations: many(userGithubInstallations),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -233,3 +269,17 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
+export const githubInstallationsRelations = relations(githubInstallations, ({ many }) => ({
+  userAccess: many(userGithubInstallations),
+}));
+
+export const userGithubInstallationsRelations = relations(userGithubInstallations, ({ one }) => ({
+  user: one(users, {
+    fields: [userGithubInstallations.userId],
+    references: [users.id],
+  }),
+  installation: one(githubInstallations, {
+    fields: [userGithubInstallations.installationId],
+    references: [githubInstallations.id],
+  }),
+}));
