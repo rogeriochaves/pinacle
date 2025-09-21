@@ -8,7 +8,7 @@ hello, so, I'm starting a new startup called Pinacle. Basically I will sell litt
 
 we are going to expose to them an interface for bash commands of course (after all claude code runs on the terminal), while vibe-kanban and code-server will be accessible via the browser, so they can use those to control their agents/look into the code directly to see how is it going, and of course their own project, for example if they are building a nextjs app and need to see their localhost 3000
 
-we will charge them $8 per month for 1GB, 1vcpu machines, but of course those won't be fully fledged VMs, as that's heavy, but lightweight long-running gvisors for them to do whatever they want inside while still easy for us to manage. More RAM and CPU for high tiered "pods" or however we want to call them.
+we will charge them $6 per month for 1GB, 1vcpu machines, but of course those won't be fully fledged VMs, as that's heavy, but lightweight long-running gvisors for them to do whatever they want inside while still easy for us to manage. More RAM and CPU for high tiered "pods" or however we want to call them.
 
 the llm costs and api keys etc of course come from them, we just have a little form before creating the pinacle AI dev machine, asking if what they want to start building, we could have some templates like a nextjs app, or a mastra AI agent, that would allow us to already hook them up correctly and expose the right ports, option of claude code or openai codex and the llm keys so their coding assisant will work inside
 
