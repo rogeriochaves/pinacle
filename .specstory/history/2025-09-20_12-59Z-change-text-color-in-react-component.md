@@ -741,3 +741,182 @@ The browser tab now looks like a classic startup landing page with all the typic
 
 ---
 
+_**User (2025-09-21 16:21Z)**_
+
+there are two type errors can you check
+
+---
+
+_**Assistant**_
+
+I'll check for type errors in the hero component.
+
+---
+
+
+
+---
+
+Let me check the current file to see if there are any TypeScript errors that might not be showing up in the linter:
+
+---
+
+Read file: undefined
+
+---
+
+_**User (2025-09-21 16:21Z)**_
+
+wut no, on setup-form
+
+---
+
+_**Assistant**_
+
+Ah, you're referring to type errors in the setup-form.tsx file! Let me check that file for type errors.
+
+---
+
+
+
+---
+
+I can see the two type errors! Let me read the setup-form.tsx file to understand the context and fix them:
+
+---
+
+Read file: undefined
+
+---
+
+Let me also check around line 109, 124, and 148 to understand the context better:
+
+---
+
+Read file: undefined
+
+---
+
+Read file: undefined
+
+---
+
+Read file: undefined
+
+---
+
+Now let me check the types to understand what's expected. Let me look at the imports and type definitions:
+
+---
+
+Read file: undefined
+
+---
+
+Now I need to find the GitHubOrg type definition and see what's missing. Let me search for it:
+
+---
+
+
+
+---
+
+Let me check the GitHubOrg type definition:
+
+---
+
+Read file: undefined
+
+---
+
+Now I can see the issue! The `GitHubOrg` type requires a `description` property, but `appAccounts` doesn't have it. Let me also check what `appAccounts` contains and the `installationUrl` type issue:
+
+---
+
+
+
+---
+
+Let me check what the API returns for `getAccountsFromInstallations`:
+
+---
+
+<details>
+                <summary>Searched codebase "getAccountsFromInstallations API endpoint return type" • **10** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/lib/trpc/routers/github-app.ts` | L12-210 |
+| `src/lib/trpc/routers/github-app.ts` | Lundefined-210 |
+| `src/lib/trpc/routers/github.ts` | Lundefined-174 |
+| `src/lib/trpc/routers/pods.ts` | L31-310 |
+| `src/lib/trpc/routers/teams.ts` | Lundefined-166 |
+| `src/lib/trpc/routers/auth.ts` | Lundefined-48 |
+| `src/lib/trpc/routers/teams.ts` | L10-166 |
+| `src/lib/trpc/routers/pods.ts` | L9-310 |
+| `src/lib/trpc/routers/pods.ts` | Lundefined-310 |
+| `src/lib/trpc/routers/github.ts` | L2-174 |
+
+</details>
+
+---
+
+Perfect! Now I can see the issue. The `getAccountsFromInstallations` API returns objects with `{ id, login, avatar_url, type }` but the `GitHubOrg` type expects a `description` property. Let me also check the `installationUrl` issue:
+
+---
+
+
+
+---
+
+Now I can see that `installationUrl` comes from `getInstallationUrl` which returns `string | null` (as seen in the API code), but the component expects `string | null`. The issue is that TypeScript is inferring it as `string | null | undefined` because of the query state.
+
+Let me fix both issues:
+
+---
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+undefined
+
+**Chunk 1**
+Lines added: 5, lines removed: 2
+
+```diff
+@@ -222,6 +222,9 @@
+            form={form}
+            repositories={appRepositories}
+-           organizations={appAccounts}
+-           installationUrl={installationUrl}
++           organizations={appAccounts.map(account => ({
++             ...account,
++             description: null
++           }))}
++           installationUrl={installationUrl ?? null}
+            onContinue={handleProjectContinue}
+          />
+```
+
+</details>
+
+---
+
+Now let me check if the type errors are resolved:
+
+---
+
+
+
+---
+
+Great! The two type errors are now fixed. The remaining warnings are about using `any` types, but those are already acknowledged with eslint-disable comments and are not the errors you were referring to.
+
+## Fixed Issues:
+
+1. **Line 224**: Fixed the `GitHubOrg[]` type mismatch by mapping `appAccounts` to include the required `description: null` property
+2. **Line 225**: Fixed the `installationUrl` type issue by using the nullish coalescing operator (`?? null`) to convert `undefined` to `null`
+
+The two type errors you mentioned are now resolved!
+
+---
+
