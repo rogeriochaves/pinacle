@@ -52,9 +52,8 @@ export const ConfigureStep = ({
   const selectedRepo = form.watch("selectedRepo");
   const selectedOrg = form.watch("selectedOrg");
   const newRepoName = form.watch("newRepoName");
-  const selectedBundle = form.watch("selectedBundle");
   const podName = form.watch("podName");
-  const bundle = form.watch("bundle") || selectedBundle;
+  const bundle = form.watch("bundle");
 
   // Get selected bundle data
   const selectedBundleData = bundles.find((b) => b.id === bundle);

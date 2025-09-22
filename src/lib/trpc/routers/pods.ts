@@ -1,6 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { pods, podTemplates, teamMembers } from "../../db/schema";
+import {
+  githubInstallations,
+  pods,
+  podTemplates,
+  teamMembers,
+  userGithubInstallations,
+} from "../../db/schema";
+import { getInstallationOctokit } from "../../github-app";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -17,6 +24,10 @@ const createPodSchema = z.object({
   githubRepo: z.string().optional(), // owner/repo format
   githubBranch: z.string().default("main"),
   isNewProject: z.boolean().default(false),
+
+  // New repository creation fields (when isNewProject is true)
+  newRepoName: z.string().optional(), // name for new repository
+  selectedOrg: z.string().optional(), // organization to create repo in
 
   // Resource specifications
   tier: z
@@ -52,6 +63,8 @@ export const podsRouter = createTRPCRouter({
         githubRepo,
         githubBranch,
         isNewProject,
+        newRepoName,
+        selectedOrg,
         tier,
         cpuCores,
         memoryMb,
@@ -72,6 +85,91 @@ export const podsRouter = createTRPCRouter({
 
       if (membership.length === 0) {
         throw new Error("Team not found or access denied");
+      }
+
+      // Handle repository creation for new projects
+      let finalGithubRepo = githubRepo;
+      if (isNewProject && newRepoName && selectedOrg) {
+        try {
+          // Get user's installations to find the right one for the organization
+          const userInstallations = await ctx.db
+            .select({
+              installationId: githubInstallations.installationId,
+              accountLogin: githubInstallations.accountLogin,
+              accountType: githubInstallations.accountType,
+            })
+            .from(userGithubInstallations)
+            .innerJoin(
+              githubInstallations,
+              eq(
+                userGithubInstallations.installationId,
+                githubInstallations.id,
+              ),
+            )
+            .where(eq(userGithubInstallations.userId, userId));
+
+          // Find the installation for the target organization (or user)
+          const targetInstallation = userInstallations.find(
+            (inst) => inst.accountLogin === selectedOrg,
+          );
+
+          if (!targetInstallation) {
+            throw new Error(
+              `GitHub App is not installed on ${selectedOrg}. Please install the app first.`,
+            );
+          }
+
+          // Get installation octokit
+          const octokit = await getInstallationOctokit(
+            targetInstallation.installationId,
+          );
+
+          const repoData = {
+            name: newRepoName,
+            description: `Development project created with Pinacle`,
+            private: false,
+            auto_init: true, // Initialize with README
+          };
+
+          let repository: any;
+          if (targetInstallation.accountType === "Organization") {
+            // Create in organization
+            const { data } = await octokit.request("POST /orgs/{org}/repos", {
+              org: selectedOrg,
+              ...repoData,
+            });
+            repository = data;
+          } else {
+            // Create in user account
+            const { data } = await octokit.request(
+              "POST /user/repos",
+              repoData,
+            );
+            repository = data;
+          }
+
+          finalGithubRepo = repository.full_name;
+        } catch (error: any) {
+          console.error("Failed to create repository:", error);
+
+          if (error.status === 403) {
+            throw new Error(
+              `Cannot create repository. The GitHub App needs 'Contents' and 'Administration' permissions. ` +
+                `Please update the app permissions and reinstall it.`,
+            );
+          }
+
+          if (error.status === 404) {
+            throw new Error(
+              `Cannot create repository. This might be because: ` +
+                `1) The GitHub App doesn't have 'Contents' or 'Administration' permissions, ` +
+                `2) The app is not installed on ${selectedOrg}, or ` +
+                `3) The organization doesn't exist.`,
+            );
+          }
+
+          throw new Error(`Failed to create repository: ${error.message}`);
+        }
       }
 
       // Calculate pricing based on tier
@@ -100,7 +198,7 @@ export const podsRouter = createTRPCRouter({
           templateId,
           teamId,
           ownerId: userId,
-          githubRepo,
+          githubRepo: finalGithubRepo,
           githubBranch,
           isNewProject,
           tier,

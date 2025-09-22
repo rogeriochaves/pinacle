@@ -59,7 +59,7 @@ export const ProjectSelectionStep = ({
   const selectedRepo = form.watch("selectedRepo");
   const selectedOrg = form.watch("selectedOrg");
   const newRepoName = form.watch("newRepoName");
-  const selectedBundle = form.watch("selectedBundle");
+  const selectedBundle = form.watch("bundle");
 
   // Filter repositories by organization and search
   const filteredRepositories = repositories.filter((repo: GitHubRepo) => {
@@ -91,7 +91,7 @@ export const ProjectSelectionStep = ({
         setupType,
         newRepoName,
         selectedOrg,
-        selectedBundle,
+        bundle: selectedBundle,
       });
     }
   };
@@ -348,7 +348,7 @@ export const ProjectSelectionStep = ({
                 <BundleSelector
                   selectedBundle={selectedBundle}
                   onBundleChange={(bundleId: string) =>
-                    form.setValue("selectedBundle", bundleId)
+                    form.setValue("bundle", bundleId)
                   }
                   showPricing={false}
                 />

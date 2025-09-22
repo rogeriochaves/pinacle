@@ -16,7 +16,6 @@ const setupFormSchema = z.object({
   selectedRepo: z.string().optional(),
   selectedOrg: z.string().optional(),
   newRepoName: z.string().optional(),
-  selectedBundle: z.string().optional(),
   podName: z.string().min(1, "Pod name is required"),
   bundle: z.string().min(1, "Bundle selection is required"),
   envVars: z.record(z.string(), z.string()),
@@ -37,7 +36,6 @@ const SetupForm = () => {
       selectedRepo: "",
       selectedOrg: "",
       newRepoName: "",
-      selectedBundle: "",
       podName: "",
       bundle: "",
       envVars: {},
@@ -59,7 +57,6 @@ const SetupForm = () => {
   // tRPC mutations
   const { data: teams } = api.teams.getUserTeams.useQuery();
   const createPodMutation = api.pods.create.useMutation();
-  const createRepoMutation = api.github.createRepository.useMutation();
 
   // Initialize form from URL params
   useEffect(() => {
@@ -67,6 +64,7 @@ const SetupForm = () => {
     const repo = searchParams.get("repo");
     const org = searchParams.get("org");
     const name = searchParams.get("name");
+    const bundle = searchParams.get("bundle");
 
     if (type) {
       form.setValue("setupType", type);
@@ -82,6 +80,9 @@ const SetupForm = () => {
     if (name) {
       form.setValue("newRepoName", name);
       form.setValue("podName", name);
+    }
+    if (bundle) {
+      form.setValue("bundle", bundle);
     }
 
     // Determine current step based on URL params
@@ -125,6 +126,7 @@ const SetupForm = () => {
       }
     });
 
+
     // Navigate to configure step
     const setupType = form.getValues("setupType");
     if (setupType === "repository") {
@@ -136,7 +138,7 @@ const SetupForm = () => {
     } else {
       const selectedOrg = form.getValues("selectedOrg");
       const newRepoName = form.getValues("newRepoName");
-      const selectedBundle = form.getValues("selectedBundle");
+      const selectedBundle = form.getValues("bundle");
       router.push(
         `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedBundle!)}`
       );
@@ -144,62 +146,43 @@ const SetupForm = () => {
   };
 
   const handleFinalSubmit = async (data: SetupFormValues) => {
-    try {
-      const user = session!.user as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-      const personalTeam = teams?.find((team) => team.role === "owner");
+    const personalTeam = teams?.find((team) => team.role === "owner");
 
-      if (!personalTeam) {
-        throw new Error("No team found. Please contact support.");
-      }
-
-      let finalGithubRepo = "";
-
-      // Create repository if it's a new project
-      if (data.setupType === "new" && data.selectedOrg && data.newRepoName) {
-        const newRepo = await createRepoMutation.mutateAsync({
-          name: data.newRepoName,
-          organization: data.selectedOrg === user.githubUsername ? undefined : data.selectedOrg,
-          description: `Development project created with Pinacle`,
-          private: false,
-        });
-        finalGithubRepo = newRepo.full_name;
-      } else if (data.setupType === "repository" && data.selectedRepo) {
-        finalGithubRepo = data.selectedRepo;
-      }
-
-      // Get bundle configuration
-      const { bundles } = await import("../../config/bundles");
-      const selectedBundleData = bundles.find((b) => b.id === data.bundle);
-
-      if (!selectedBundleData) {
-        throw new Error("Invalid bundle selection");
-      }
-
-      // Create the pod
-      await createPodMutation.mutateAsync({
-        name: data.podName,
-        description: `Development environment for ${finalGithubRepo || "new project"}`,
-        teamId: personalTeam.id,
-        githubRepo: finalGithubRepo || undefined,
-        githubBranch: "main",
-        isNewProject: data.setupType === "new",
-        tier: selectedBundleData.tier,
-        cpuCores: selectedBundleData.cpuCores,
-        memoryMb: selectedBundleData.memoryGb * 1024,
-        storageMb: selectedBundleData.storageGb * 1024,
-        envVars: data.envVars,
-        config: {
-          template: selectedBundleData.template,
-          services: selectedBundleData.services,
-        },
-      });
-
-      // Redirect to dashboard
-      router.push(`/dashboard/pods`);
-    } catch (error) {
-      console.error("Failed to create pod:", error);
-      // TODO: Show error message to user
+    if (!personalTeam) {
+      throw new Error("No team found. Please contact support.");
     }
+
+    // Get bundle configuration
+    const { bundles } = await import("../../config/bundles");
+    const selectedBundleData = bundles.find((b) => b.id === data.bundle);
+
+    if (!selectedBundleData) {
+      throw new Error("Invalid bundle selection");
+    }
+
+    // Create the pod (this handles repository creation internally if needed)
+    await createPodMutation.mutateAsync({
+      name: data.podName,
+      description: `Development environment for ${data.setupType === "new" ? `${data.selectedOrg}/${data.newRepoName}` : data.selectedRepo || "project"}`,
+      teamId: personalTeam.id,
+      githubRepo: data.setupType === "repository" ? data.selectedRepo : undefined,
+      githubBranch: "main",
+      isNewProject: data.setupType === "new",
+      newRepoName: data.newRepoName,
+      selectedOrg: data.selectedOrg,
+      tier: selectedBundleData.tier,
+      cpuCores: selectedBundleData.cpuCores,
+      memoryMb: selectedBundleData.memoryGb * 1024,
+      storageMb: selectedBundleData.storageGb * 1024,
+      envVars: data.envVars,
+      config: {
+        template: selectedBundleData.template,
+        services: selectedBundleData.services,
+      },
+    });
+
+    // Redirect to dashboard
+    router.push(`/dashboard/pods`);
   };
 
   if (status === "loading" || installationsLoading) {

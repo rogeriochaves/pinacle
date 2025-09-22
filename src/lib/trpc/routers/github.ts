@@ -86,11 +86,24 @@ export const githubRouter = createTRPCRouter({
 
         let repository: any;
         if (input.organization) {
-          const { data } = await octokit.rest.repos.createInOrg({
-            org: input.organization,
-            ...repoData,
-          });
-          repository = data;
+          try {
+            const { data } = await octokit.rest.repos.createInOrg({
+              org: input.organization,
+              ...repoData,
+            });
+            repository = data;
+          } catch (orgError: any) {
+            // If organization creation fails (likely due to permissions),
+            // provide a more helpful error message
+            if (orgError.status === 404) {
+              throw new Error(
+                `Cannot create repository in organization "${input.organization}". ` +
+                `This might be because: 1) You don't have permission to create repositories in this organization, ` +
+                `2) The organization doesn't exist, or 3) You need to use a GitHub App installation instead of personal access token.`
+              );
+            }
+            throw orgError;
+          }
         } else {
           const { data } = await octokit.rest.repos.createForAuthenticatedUser(repoData);
           repository = data;

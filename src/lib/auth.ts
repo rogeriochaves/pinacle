@@ -8,6 +8,45 @@ import { z } from "zod";
 import { db } from "./db";
 import { teamMembers, teams, users } from "./db/schema";
 
+// Helper function to ensure every user has a personal team
+async function ensureUserHasPersonalTeam(userId: string, username: string, displayName?: string | null) {
+  try {
+    // Check if user already has teams
+    const existingTeams = await db
+      .select()
+      .from(teamMembers)
+      .where(eq(teamMembers.userId, userId))
+      .limit(1);
+
+    if (existingTeams.length === 0) {
+      const teamName = `${displayName || username}'s Team`;
+      const teamSlug = `${username}-team`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+      const [team] = await db
+        .insert(teams)
+        .values({
+          name: teamName,
+          slug: teamSlug,
+          description: `Personal team for ${displayName || username}`,
+          ownerId: userId,
+        })
+        .returning();
+
+      // Add user as team owner
+      await db.insert(teamMembers).values({
+        teamId: team.id,
+        userId: userId,
+        role: "owner",
+      });
+
+      console.log(`Successfully created personal team ${team.id} for user ${userId}`);
+    }
+  } catch (error) {
+    console.error(`Failed to ensure personal team for user ${userId}:`, error);
+    throw error;
+  }
+}
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -70,9 +109,18 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id;
+
+        // Ensure personal team exists (user is guaranteed to exist in DB at this point)
+        if (account?.provider === "github" && profile) {
+          console.log("Creating personal team for GitHub user:", user.id);
+          await ensureUserHasPersonalTeam(user.id, (profile as any).login, profile.name);
+        } else if (user.name) {
+          console.log("Creating personal team for credentials user:", user.id);
+          await ensureUserHasPersonalTeam(user.id, user.name, user.name);
+        }
       }
       if (account?.provider === "github") {
         token.githubAccessToken = account.access_token;
@@ -87,60 +135,6 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).githubId = token.githubId;
       }
       return session;
-    },
-    async signIn({ user, account, profile }) {
-      if (account?.provider === "github" && profile) {
-        // Update user with GitHub information
-        try {
-          const updatedUser = await db
-            .update(users)
-            .set({
-              githubId: account.providerAccountId,
-              githubUsername: (profile as any).login,
-              name: profile.name || (profile as any).login,
-              image: (profile as any).avatar_url,
-            })
-            .where(eq(users.email, user.email!))
-            .returning();
-
-          // Create personal team for new users (check if user already has teams)
-          if (updatedUser[0]) {
-            const existingTeams = await db
-              .select()
-              .from(teamMembers)
-              .where(eq(teamMembers.userId, updatedUser[0].id))
-              .limit(1);
-
-            if (existingTeams.length === 0) {
-              const teamName = `${(profile as any).login}'s Team`;
-              const teamSlug = `${(profile as any).login}-team`.toLowerCase();
-
-              const [team] = await db
-                .insert(teams)
-                .values({
-                  name: teamName,
-                  slug: teamSlug,
-                  description: `Personal team for ${profile.name || (profile as any).login}`,
-                  ownerId: updatedUser[0].id,
-                })
-                .returning();
-
-              // Add user as team owner
-              await db.insert(teamMembers).values({
-                teamId: team.id,
-                userId: updatedUser[0].id,
-                role: "owner",
-              });
-            }
-          }
-        } catch (error) {
-          console.error(
-            "Failed to update user GitHub info or create team:",
-            error,
-          );
-        }
-      }
-      return true;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
