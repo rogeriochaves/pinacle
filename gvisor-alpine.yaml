@@ -1,0 +1,49 @@
+images:
+- location: "https://github.com/lima-vm/alpine-lima/releases/download/v0.2.44/alpine-lima-std-3.21.3-aarch64.iso"
+  arch: "aarch64"
+cpus: 2
+memory: "4GiB"
+disk: "8GiB"
+ssh:
+  localPort: 0
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/sh
+    set -eux
+
+    # Update package list
+    apk update
+
+    # Install Docker and containerd
+    apk add docker containerd curl
+
+    # Download and install runsc
+    curl -fsSL https://storage.googleapis.com/gvisor/releases/release/latest/aarch64/runsc -o /tmp/runsc
+    chmod +x /tmp/runsc
+    mv /tmp/runsc /usr/local/bin/
+
+    # Configure Docker daemon for gVisor
+    mkdir -p /etc/docker
+    tee /etc/docker/daemon.json << 'EOF'
+    {
+      "default-runtime": "runc",
+      "runtimes": {
+        "runsc": {
+          "path": "/usr/local/bin/runsc"
+        }
+      }
+    }
+    EOF
+
+    # Start and enable services with OpenRC
+    rc-service containerd start
+    rc-service docker start
+    rc-update add containerd default
+    rc-update add docker default
+
+    # Add lima user to docker group
+    adduser $(whoami) docker
