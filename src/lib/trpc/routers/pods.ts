@@ -113,27 +113,56 @@ export const podsRouter = createTRPCRouter({
             (inst) => inst.accountLogin === selectedOrg,
           );
 
+          console.log("🔍 Debug GitHub App Installation:");
+          console.log("Available installations:", userInstallations.map(inst => ({
+            login: inst.accountLogin,
+            type: inst.accountType,
+            installationId: inst.installationId
+          })));
+          console.log("Looking for selectedOrg:", selectedOrg);
+          console.log("Found targetInstallation:", targetInstallation);
+
           if (!targetInstallation) {
             throw new Error(
               `GitHub App is not installed on ${selectedOrg}. Please install the app first.`,
             );
           }
 
-          // Get installation octokit
-          const octokit = await getInstallationOctokit(
-            targetInstallation.installationId,
-          );
+          // Choose the right token based on account type
+          let octokit;
+          if (targetInstallation.accountType === "Organization") {
+            // Use GitHub App installation token for organizations
+            console.log("🔑 Using GitHub App installation token for organization");
+            octokit = await getInstallationOctokit(targetInstallation.installationId);
+          } else {
+            // Use user's OAuth token for personal accounts
+            console.log("🔑 Using user's OAuth token for personal account");
+            const userGithubToken = (ctx.session.user as any).githubAccessToken;
+
+            if (!userGithubToken) {
+              throw new Error("User's GitHub OAuth token not found. Please sign out and sign in again.");
+            }
+
+            const { Octokit } = await import("@octokit/rest");
+            octokit = new Octokit({ auth: userGithubToken });
+          }
 
           const repoData = {
             name: newRepoName,
             description: `Development project created with Pinacle`,
-            private: false,
-            auto_init: true, // Initialize with README
+            private: true,
+            auto_init: false,
           };
+
+          console.log("🏗️ Creating repository:");
+          console.log("Account type:", targetInstallation.accountType);
+          console.log("Selected org:", selectedOrg);
+          console.log("Repo data:", repoData);
 
           let repository: any;
           if (targetInstallation.accountType === "Organization") {
             // Create in organization
+            console.log("📁 Using organization endpoint: POST /orgs/{org}/repos");
             const { data } = await octokit.request("POST /orgs/{org}/repos", {
               org: selectedOrg,
               ...repoData,
@@ -141,12 +170,23 @@ export const podsRouter = createTRPCRouter({
             repository = data;
           } else {
             // Create in user account
-            const { data } = await octokit.request(
-              "POST /user/repos",
-              repoData,
-            );
+            console.log("👤 Using user endpoint: POST /user/repos");
+            console.log("📡 Making request with headers:", {
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28'
+            });
+
+            const { data } = await octokit.request("POST /user/repos", {
+              ...repoData,
+              headers: {
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+              }
+            });
             repository = data;
           }
+
+          console.log("✅ Repository created successfully:", repository.full_name);
 
           finalGithubRepo = repository.full_name;
         } catch (error: any) {

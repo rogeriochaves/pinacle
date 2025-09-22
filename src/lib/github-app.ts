@@ -12,7 +12,7 @@ export const getGitHubApp = (): App => {
 
     appInstance = new App({
       appId: env.GITHUB_APP_ID,
-      privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n"),
     });
   }
 
@@ -21,7 +21,9 @@ export const getGitHubApp = (): App => {
 
 export const getInstallationOctokit = async (installationId: number) => {
   const app = getGitHubApp();
-  return app.getInstallationOctokit(installationId);
+  const octokit = await app.getInstallationOctokit(installationId);
+
+  return octokit;
 };
 
 export const getUserInstallations = async (userId: string): Promise<any[]> => {
@@ -29,7 +31,9 @@ export const getUserInstallations = async (userId: string): Promise<any[]> => {
 
   try {
     // Get all installations for the app
-    const { data: installations } = await app.octokit.request("GET /app/installations");
+    const { data: installations } = await app.octokit.request(
+      "GET /app/installations",
+    );
 
     // Filter installations that the user has access to
     // This is a simplified approach - in production you'd want to store
@@ -41,7 +45,9 @@ export const getUserInstallations = async (userId: string): Promise<any[]> => {
   }
 };
 
-export const getInstallationRepositories = async (installationId: number): Promise<any[]> => {
+export const getInstallationRepositories = async (
+  installationId: number,
+): Promise<any[]> => {
   try {
     const octokit = await getInstallationOctokit(installationId);
     const { data } = await octokit.request("GET /installation/repositories", {
@@ -55,14 +61,19 @@ export const getInstallationRepositories = async (installationId: number): Promi
   }
 };
 
-export const getInstallationAccounts = async (installationId: number): Promise<any[]> => {
+export const getInstallationAccounts = async (
+  installationId: number,
+): Promise<any[]> => {
   try {
     const octokit = await getInstallationOctokit(installationId);
 
     // Get the installation details to see what account it's installed on
-    const { data: installation } = await octokit.request("GET /app/installations/{installation_id}", {
-      installation_id: installationId,
-    });
+    const { data: installation } = await octokit.request(
+      "GET /app/installations/{installation_id}",
+      {
+        installation_id: installationId,
+      },
+    );
 
     // Return the account where the app is installed
     // This could be a user account or an organization
