@@ -12,30 +12,51 @@ const execAsync = promisify(exec);
 
 export class LimaGVisorRuntime implements ContainerRuntime {
   private limaConfig: LimaConfig;
+  private isDevMode: boolean;
 
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
+    // Use Lima only in development on macOS
+    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
   }
 
-  private async execLima(
+  private async execDockerCommand(
     command: string,
+    useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    const fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${command}`;
-    console.log(`[LimaRuntime] Executing: ${fullCommand}`);
+    let fullCommand: string;
+
+    if (this.isDevMode) {
+      // Development mode: use Lima
+      const sudoPrefix = useSudo ? "sudo " : "";
+      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
+      console.log(`[LimaRuntime] Executing: ${fullCommand}`);
+    } else {
+      // Production mode: direct Docker
+      fullCommand = useSudo ? `sudo ${command}` : command;
+      console.log(`[DockerRuntime] Executing: ${fullCommand}`);
+    }
 
     try {
       const result = await execAsync(fullCommand);
       return result;
     } catch (error: any) {
-      console.error(`[LimaRuntime] Command failed: ${error.message}`);
+      const runtimeType = this.isDevMode ? "LimaRuntime" : "DockerRuntime";
+      console.error(`[${runtimeType}] Command failed: ${error.message}`);
       throw error;
     }
+  }
+
+  private async execLima(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
+    return this.execDockerCommand(command, false);
   }
 
   private async execLimaSudo(
     command: string,
   ): Promise<{ stdout: string; stderr: string }> {
-    return this.execLima(`sudo ${command}`);
+    return this.execDockerCommand(command, true);
   }
 
   private generateContainerName(podId: string): string {
@@ -88,40 +109,31 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     const portMappings = this.parsePortMappings(config.network.ports);
     const envVars = this.parseEnvironmentVars(config.environment);
 
-    // Build Docker run command with gVisor runtime
-    const dockerCommand = [
-      "docker create",
+    // Build Docker run command with gVisor runtime - use array to avoid shell escaping issues
+    const dockerArgs = [
+      "docker", "create",
       "--runtime=runsc", // Use gVisor runtime
-      "--name",
-      containerName,
-      resourceLimits,
-      portMappings,
-      envVars,
-      "--workdir",
-      config.workingDir || "/workspace",
-      "--user",
-      config.user || "root",
+      "--name", containerName,
+      ...resourceLimits.split(" ").filter(Boolean),
+      ...portMappings.split(" ").filter(Boolean),
+      ...envVars.split(" ").filter(Boolean),
+      "--workdir", config.workingDir || "/workspace",
+      "--user", config.user || "root",
       // Security options for gVisor
-      "--security-opt",
-      "seccomp=unconfined",
+      "--security-opt", "seccomp=unconfined",
       "--cap-drop=ALL",
       "--cap-add=NET_BIND_SERVICE",
       // Network configuration
-      "--network",
-      "bridge", // Will create custom network later
+      "--network", "bridge", // Will create custom network later
       // Volume mounts
-      "--volume",
-      "/tmp:/tmp",
-      "--volume",
-      `pinacle-${config.id}-workspace:/workspace`,
+      "--volume", "/tmp:/tmp",
+      "--volume", `pinacle-${config.id}-workspace:/workspace`,
       config.baseImage,
-      // Default command (will be overridden by services)
-      "/bin/sh",
-      "-c",
-      "tail -f /dev/null",
-    ]
-      .filter(Boolean)
-      .join(" ");
+      // Default command - use sleep to keep container alive
+      "sleep", "infinity"
+    ].filter(Boolean);
+
+    const dockerCommand = dockerArgs.join(" ");
 
     try {
       const { stdout } = await this.execLimaSudo(dockerCommand);
@@ -148,6 +160,16 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   async startContainer(containerId: string): Promise<void> {
     try {
       await this.execLimaSudo(`docker start ${containerId}`);
+
+      // Wait a moment for container to fully initialize
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Verify container is actually running
+      const container = await this.getContainer(containerId);
+      if (!container || container.status !== "running") {
+        throw new Error(`Container failed to start properly: ${container?.status || "unknown"}`);
+      }
+
       console.log(`[LimaRuntime] Started container: ${containerId}`);
     } catch (error: any) {
       console.error(
@@ -280,10 +302,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     command: string[],
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     try {
-      const escapedCommand = command
-        .map((c) => `"${c.replace(/"/g, '\\"')}"`)
-        .join(" ");
-      const dockerCommand = `docker exec ${containerId} sh -c ${escapedCommand}`;
+      // Build the command more carefully to avoid escaping issues
+      const commandStr = command.join(" ");
+      const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
       const { stdout, stderr } = await this.execLimaSudo(dockerCommand);
 

@@ -13,16 +13,30 @@ export class LimaNetworkManager implements NetworkManager {
   private limaConfig: LimaConfig;
   private allocatedPorts: Map<string, Set<number>> = new Map(); // podId -> Set of ports
   private portRange = { min: 30000, max: 40000 };
+  private isDevMode: boolean;
 
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
+    // Use Lima only in development on macOS
+    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
   }
 
-  private async execLima(
+  private async execDockerCommand(
     command: string,
+    useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    const fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${command}`;
-    console.log(`[NetworkManager] Executing: ${fullCommand}`);
+    let fullCommand: string;
+
+    if (this.isDevMode) {
+      // Development mode: use Lima
+      const sudoPrefix = useSudo ? "sudo " : "";
+      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
+      console.log(`[NetworkManager] Executing: ${fullCommand}`);
+    } else {
+      // Production mode: direct execution
+      fullCommand = useSudo ? `sudo ${command}` : command;
+      console.log(`[NetworkManager] Executing: ${fullCommand}`);
+    }
 
     try {
       const result = await execAsync(fullCommand);
@@ -33,10 +47,16 @@ export class LimaNetworkManager implements NetworkManager {
     }
   }
 
+  private async execLima(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
+    return this.execDockerCommand(command, false);
+  }
+
   private async execLimaSudo(
     command: string,
   ): Promise<{ stdout: string; stderr: string }> {
-    return this.execLima(`sudo ${command}`);
+    return this.execDockerCommand(command, true);
   }
 
   private generateNetworkName(podId: string): string {
@@ -89,7 +109,7 @@ export class LimaNetworkManager implements NetworkManager {
         `--driver bridge`,
         `--subnet ${subnet}`,
         `--gateway ${gatewayIp}`,
-        `--opt com.docker.network.bridge.name=br-${podId.substring(0, 8)}`,
+        `--opt com.docker.network.bridge.name=br-${podId.substring(0, 12)}`,
         networkName,
       ].join(" ");
 
@@ -295,7 +315,7 @@ export class LimaNetworkManager implements NetworkManager {
     policy: any,
   ): Promise<void> {
     // Apply traffic control (tc) rules for bandwidth limiting
-    const networkInterface = `br-${podId.substring(0, 8)}`;
+    const networkInterface = `br-${podId.substring(0, 12)}`;
 
     const tcCommands = [
       `tc qdisc add dev ${networkInterface} root handle 1: htb default 30`,

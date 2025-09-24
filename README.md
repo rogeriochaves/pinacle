@@ -27,6 +27,7 @@ Pinacle provides secure, lightweight virtual machines pre-configured with Claude
 - PostgreSQL database
 - Docker (for gVisor/container management)
 - GitHub OAuth app (optional, for GitHub sign-in)
+- **For macOS Development**: Lima VM for gVisor support
 
 ## 🏗 Setup Instructions
 
@@ -76,7 +77,25 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-### 4. Development Server
+### 4. Lima VM Setup (macOS Development Only)
+
+For pod orchestration development on macOS, you need Lima with gVisor support:
+
+```bash
+# Install Lima
+brew install lima
+
+# Start the gVisor-enabled Lima VM
+limactl start gvisor-alpine.yaml
+
+# Verify Lima VM is running
+limactl list
+
+# Test gVisor runtime
+limactl shell gvisor-alpine sudo docker run --rm --runtime=runsc hello-world
+```
+
+### 5. Development Server
 
 Start the development server:
 
@@ -98,6 +117,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - `pnpm db:push` - Push schema changes to database
 - `pnpm db:studio` - Open Drizzle Studio
 - `pnpm db:seed` - Seed database with initial data
+- `pnpm test` - Run unit tests
+- `pnpm test:watch` - Run tests in watch mode
+- `pnpm test:ui` - Open Vitest UI
+- `pnpm test:integration` - Run integration tests
+- `pnpm test:pod-system` - Test pod orchestration system
 
 ## 🏗 Project Structure
 
@@ -114,6 +138,7 @@ src/
 ├── lib/                   # Utility libraries
 │   ├── db/                # Database configuration and schema
 │   ├── trpc/              # tRPC configuration and routers
+│   ├── pod-orchestration/ # Pod management system
 │   └── auth.ts            # NextAuth configuration
 └── env.ts                 # Environment validation
 ```
@@ -134,17 +159,54 @@ Key entities:
 - **Pod Templates**: Pre-configured environments
 - **Pod Usage**: Billing and usage tracking
 
-## 🐳 gVisor Integration
+## 🐳 Pod Orchestration System
 
-For secure container isolation, we use gVisor. On macOS, this requires Docker:
+The pod orchestration system manages secure development VMs using gVisor containers.
+
+### Development Environment (macOS)
+
+The system uses Lima VM for gVisor support on macOS:
 
 ```bash
-# Install gVisor (requires Docker)
-docker pull gcr.io/gvisor-containerd/gvisor:latest
+# Install Lima
+brew install lima
 
-# Run with gVisor runtime
-docker run --runtime=runsc -p 3000:3000 your-app
+# Start gVisor-enabled Lima VM
+limactl start gvisor-alpine.yaml
+
+# Test the pod system
+pnpm test:pod-system
 ```
+
+### Production Environment (Linux)
+
+In production, the system runs directly on Linux with gVisor:
+
+```bash
+# Install gVisor on Linux
+curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
+sudo apt-get update && sudo apt-get install -y runsc
+
+# Configure Docker with gVisor
+sudo tee /etc/docker/daemon.json << EOF
+{
+  "runtimes": {
+    "runsc": {
+      "path": "/usr/bin/runsc"
+    }
+  }
+}
+EOF
+
+sudo systemctl restart docker
+```
+
+### Environment Variables
+
+The system automatically detects the environment:
+- **Development**: Uses Lima VM when `NODE_ENV=development` and `platform=darwin`
+- **Production**: Uses direct Docker commands on Linux
 
 ## 🚀 Deployment
 

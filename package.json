@@ -16,8 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:integration": "vitest run src/lib/pod-orchestration/__tests__/integration.test.ts",
-    "test:pod-system": "tsx scripts/test-pod-system.ts"
+    "test:integration": "dotenv -c -- vitest run src/lib/pod-orchestration/__tests__/integration.test.ts",
+    "test:pod-system": "dotenv -c -- tsx scripts/test-pod-system.ts"
   },
   "dependencies": {
     "@auth/core": "^0.40.0",

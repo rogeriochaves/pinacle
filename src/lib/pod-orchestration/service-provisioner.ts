@@ -18,9 +18,12 @@ interface ServiceTemplate {
 export class LimaServiceProvisioner implements ServiceProvisioner {
   private limaConfig: LimaConfig;
   private serviceTemplates: Map<string, ServiceTemplate> = new Map();
+  private isDevMode: boolean;
 
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
+    // Use Lima only in development on macOS
+    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
     this.initializeServiceTemplates();
   }
 
@@ -112,11 +115,22 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     });
   }
 
-  private async execLima(
+  private async execDockerCommand(
     command: string,
+    useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    const fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${command}`;
-    console.log(`[ServiceProvisioner] Executing: ${fullCommand}`);
+    let fullCommand: string;
+
+    if (this.isDevMode) {
+      // Development mode: use Lima
+      const sudoPrefix = useSudo ? "sudo " : "";
+      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
+      console.log(`[ServiceProvisioner] Executing: ${fullCommand}`);
+    } else {
+      // Production mode: direct execution
+      fullCommand = useSudo ? `sudo ${command}` : command;
+      console.log(`[ServiceProvisioner] Executing: ${fullCommand}`);
+    }
 
     try {
       const result = await execAsync(fullCommand);
@@ -127,6 +141,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     }
   }
 
+  private async execLima(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
+    return this.execDockerCommand(command, false);
+  }
+
   private async execInContainer(
     containerId: string,
     command: string[],
@@ -134,8 +154,8 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     const escapedCommand = command
       .map((c) => `"${c.replace(/"/g, '\\"')}"`)
       .join(" ");
-    const dockerCommand = `sudo docker exec ${containerId} sh -c ${escapedCommand}`;
-    return this.execLima(dockerCommand);
+    const dockerCommand = `docker exec ${containerId} sh -c ${escapedCommand}`;
+    return this.execDockerCommand(dockerCommand, true); // Always use sudo for docker exec
   }
 
   private generateServiceName(podId: string, serviceName: string): string {

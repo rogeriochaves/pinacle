@@ -551,13 +551,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async runHooks(podId: string, hooks: string[]): Promise<void> {
     for (const hook of hooks) {
-      try {
-        await this.execInPod(podId, ["sh", "-c", hook]);
-      } catch (error: any) {
-        console.warn(
-          `[PodManager] Hook failed for pod ${podId}: ${hook} - ${error.message}`,
-        );
-      }
+      await this.execInPod(podId, [
+        "sh",
+        "-c",
+        `'${hook.replace(/'/g, "\\'")}'`,
+      ]);
     }
   }
 
