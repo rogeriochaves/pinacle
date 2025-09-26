@@ -1,15 +1,13 @@
-FROM pinacle/base:latest
-
-USER root
-
-# Install Node.js 20 LTS
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs
+FROM pinacle/alpine-base:latest
 
 USER developer
 
-# Install global Next.js tools
-RUN npm install -g create-next-app@latest
+# Install Next.js specific tools
+RUN npm install -g \
+    create-next-app@latest \
+    @next/codemod \
+    typescript \
+    ts-node
 
 # Pre-create a Next.js template for faster pod creation
 RUN mkdir -p /tmp/nextjs-template && \

@@ -18,9 +18,12 @@ describe("Pod Orchestration Integration Tests", () => {
     // Check if Lima VM is running
     try {
       const { stdout } = await execAsync("limactl list --format json");
-      const vm = JSON.parse(stdout); // It's a single object, not an array
+      const vms = stdout.trim().split("\n").map((json) => JSON.parse(json));
+      const vm = vms.find(
+        (vm) => vm.name === "gvisor-alpine" && vm.status === "Running",
+      );
 
-      if (!vm || vm.name !== "gvisor-alpine" || vm.status !== "Running") {
+      if (!vm) {
         throw new Error(
           "gvisor-alpine Lima VM is not running. Start it with: limactl start gvisor-alpine",
         );
@@ -40,7 +43,8 @@ describe("Pod Orchestration Integration Tests", () => {
     const lifecycleTestPods = pods.filter(
       (p) =>
         p.id.startsWith("lifecycle-test-") ||
-        p.id.startsWith("test-integration-"),
+        p.id.startsWith("test-integration-") ||
+        p.id.includes("template-test"),
     );
     for (const pod of lifecycleTestPods) {
       await podManager.deletePod(pod.id);
@@ -53,7 +57,8 @@ describe("Pod Orchestration Integration Tests", () => {
     const integrationTestNetworks = networks.filter(
       (n) =>
         n.podId.startsWith("lifecycle-test-") ||
-        n.podId.startsWith("test-integration-"),
+        n.podId.startsWith("test-integration-") ||
+        n.podId.includes("template-test"),
     );
     for (const network of integrationTestNetworks) {
       await networkManager.destroyPodNetwork(network.podId);
@@ -291,10 +296,10 @@ describe("Pod Orchestration Integration Tests", () => {
       },
     });
 
-    console.log('config', config);
+    console.log("config", JSON.stringify(config, undefined, 2));
 
     expect(config.templateId).toBe("nextjs");
-    expect(config.baseImage).toBe("node:18-slim");
+    expect(config.baseImage).toBe("node:24-alpine");
     expect(config.environment.NODE_ENV).toBe("development");
     expect(config.environment.CUSTOM_VAR).toBe("template-test");
 

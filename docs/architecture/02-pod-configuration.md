@@ -312,7 +312,7 @@ metadata:
   tier: "dev.small"
 
 runtime:
-  base: "node:18-slim"
+  base: "node:24-alpine"
   project:
     build:
       packageManager: "pnpm"

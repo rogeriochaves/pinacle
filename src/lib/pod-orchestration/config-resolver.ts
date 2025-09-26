@@ -21,7 +21,7 @@ const ServiceConfigSchema = z.object({
   enabled: z.boolean().optional().default(true),
   image: z.string().optional(),
   command: z.array(z.string()).optional(),
-  environment: z.record(z.string()).optional().default({}),
+  environment: z.record(z.string(), z.string()).optional().default({}),
   ports: z.array(PortMappingSchema).optional().default([]),
   healthCheck: z
     .object({
@@ -42,7 +42,7 @@ const PodConfigSchema = z.object({
   slug: z.string(),
   description: z.string().optional(),
   templateId: z.string().optional(),
-  baseImage: z.string().default("ubuntu:22.04"),
+  baseImage: z.string().default("alpine:3.22.1"),
   resources: z.object({
     tier: z.enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"]),
     cpuCores: z.number().min(0.25).max(8),
@@ -119,7 +119,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       name: "Next.js Development",
       description: "Full-stack React development with Next.js",
       category: "nextjs",
-      baseImage: "node:18-slim",
+      baseImage: "node:24-alpine",
       services: [
         {
           name: "code-server",
@@ -131,7 +131,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         {
           name: "vibe-kanban",
           enabled: true,
-          ports: [{ name: "kanban", internal: 3001, protocol: "tcp" }],
+          ports: [{ name: "kanban", internal: 57300, protocol: "tcp" }],
           autoRestart: true,
           dependsOn: [],
         },
@@ -146,7 +146,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       defaultPorts: [
         { name: "app", internal: 3000 },
         { name: "code", internal: 8080 },
-        { name: "kanban", internal: 3001 },
+        { name: "kanban", internal: 57300 },
         { name: "terminal", internal: 3003 },
       ],
       environment: {
@@ -168,7 +168,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       name: "Mastra AI Agent",
       description: "Build AI agents with Mastra framework",
       category: "mastra",
-      baseImage: "python:3.11-slim",
+      baseImage: "python:3.11-alpine",
       services: [
         {
           name: "code-server",
@@ -180,7 +180,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         {
           name: "vibe-kanban",
           enabled: true,
-          ports: [{ name: "kanban", internal: 3001, protocol: "tcp" }],
+          ports: [{ name: "kanban", internal: 57300, protocol: "tcp" }],
           autoRestart: true,
           dependsOn: [],
         },
@@ -195,7 +195,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       defaultPorts: [
         { name: "app", internal: 8000 },
         { name: "code", internal: 8080 },
-        { name: "kanban", internal: 3001 },
+        { name: "kanban", internal: 57300 },
         { name: "terminal", internal: 3003 },
       ],
       environment: {
@@ -216,7 +216,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       name: "Custom Ubuntu",
       description: "Start with a blank Ubuntu environment",
       category: "custom",
-      baseImage: "ubuntu:22.04",
+      baseImage: "alpine:3.22.1",
       services: [
         {
           name: "code-server",
@@ -237,9 +237,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         { name: "code", internal: 8080 },
         { name: "terminal", internal: 3003 },
       ],
-      environment: {
-        DEBIAN_FRONTEND: "noninteractive",
-      },
+      environment: {},
       resources: {
         tier: "dev.small",
         cpuCores: 0.5,
@@ -254,7 +252,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       name: "Python Data Science",
       description: "Python environment with Jupyter, pandas, and ML libraries",
       category: "datascience",
-      baseImage: "jupyter/datascience-notebook:latest",
+      baseImage: "python:3.11-alpine",
       services: [
         {
           name: "code-server",
@@ -294,7 +292,7 @@ export class DefaultConfigResolver implements ConfigResolver {
       name: "Node.js Backend",
       description: "Node.js backend development environment",
       category: "nodejs",
-      baseImage: "node:18-slim",
+      baseImage: "node:24-alpine",
       services: [
         {
           name: "code-server",
@@ -357,7 +355,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         this.generateSlug(mergedConfig.name || "unnamed-pod"),
       description: mergedConfig.description,
       templateId,
-      baseImage: mergedConfig.baseImage || "ubuntu:22.04",
+      baseImage: mergedConfig.baseImage || "alpine:3.22.1",
       resources: {
         tier: (mergedConfig.resources?.tier || "dev.small") as ResourceTier,
         cpuCores: mergedConfig.resources?.cpuCores || 1,
@@ -426,7 +424,7 @@ export class DefaultConfigResolver implements ConfigResolver {
 
     // For now, return a basic detection based on common patterns
     const suggestions: Partial<PodConfig> = {
-      baseImage: "ubuntu:22.04",
+      baseImage: "alpine:3.22.1",
       resources: {
         tier: "dev.small" as ResourceTier,
         cpuCores: 1,
@@ -443,7 +441,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         suggestions: {
           ...suggestions,
           templateId: "nextjs",
-          baseImage: "node:18-slim",
+          baseImage: "node:24-alpine",
           environment: {
             NODE_ENV: "development",
             PORT: "3000",
@@ -458,7 +456,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         confidence: 0.7,
         suggestions: {
           ...suggestions,
-          baseImage: "python:3.11-slim",
+          baseImage: "python:3.11-alpine",
           environment: {
             PYTHON_ENV: "development",
             PYTHONPATH: "/workspace",
@@ -553,6 +551,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     }
 
     // Check service ports
+    usedPorts.clear();
     for (const service of config.services) {
       for (const port of service.ports || []) {
         if (usedPorts.has(port.internal)) {

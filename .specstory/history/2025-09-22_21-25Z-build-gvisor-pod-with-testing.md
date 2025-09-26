@@ -4397,3 +4397,144 @@ The system successfully demonstrates:
 
 ---
 
+_**User (2025-09-23 03:29Z)**_
+
+is the logic here correct? shouldn't we reset the usedPorts here? I mean it's ok if the exposed port repeats some internal port right?
+
+---
+
+_**Assistant**_
+
+You're absolutely right! The logic is incorrect. The validation should allow the same internal port to be used in different contexts (network ports vs service ports), and it should only check for conflicts within the same scope.
+
+Let me fix the port conflict validation:
+
+---
+
+<details><summary>Edit file: src/lib/pod-orchestration/config-resolver.ts</summary>
+
+undefined
+
+**Chunk 1**
+Lines added: 34, lines removed: 11
+
+```diff
+@@ -542,24 +542,47 @@
+  
+    private validatePortConflicts(config: PodConfig, errors: string[]): void {
+-     const usedPorts = new Set<number>();
+- 
++     // Check for conflicts within network ports
++     const networkPorts = new Set<number>();
+      for (const port of config.network.ports) {
+-       if (usedPorts.has(port.internal)) {
++       if (networkPorts.has(port.internal)) {
+          errors.push(
+-           `Port conflict: internal port ${port.internal} is used multiple times`,
++           `Port conflict: network port ${port.internal} is used multiple times`,
+          );
+        }
+-       usedPorts.add(port.internal);
++       networkPorts.add(port.internal);
+      }
+  
+-     // Check service ports
++     // Check for conflicts within each service's ports
+      for (const service of config.services) {
++       const servicePorts = new Set<number>();
+        for (const port of service.ports || []) {
+-         if (usedPorts.has(port.internal)) {
++         if (servicePorts.has(port.internal)) {
+            errors.push(
+-             `Port conflict: service ${service.name} uses already allocated port ${port.internal}`,
+-           );
+-         }
+-         usedPorts.add(port.internal);
++             `Port conflict: service ${service.name} uses port ${port.internal} multiple times`,
++           );
++         }
++         servicePorts.add(port.internal);
++       }
++     }
++ 
++     // Check for conflicts between network ports and service ports
++     // (This is actually OK - services can expose the same ports as network ports)
++     // Only check for conflicts if they would actually conflict in the container
++     const allInternalPorts = new Set<number>();
++     
++     // Add network ports
++     for (const port of config.network.ports) {
++       allInternalPorts.add(port.internal);
++     }
++     
++     // Check service ports against all ports
++     for (const service of config.services) {
++       for (const port of service.ports || []) {
++         if (allInternalPorts.has(port.internal)) {
++           // This is actually fine - multiple services can expose the same port
++           // as long as they're not running simultaneously on the same interface
++           // For now, we'll allow this and let Docker handle the conflict if it occurs
++         }
++         allInternalPorts.add(port.internal);
+        }
+      }
+```
+
+</details>
+
+---
+
+Now let me run the integration tests again to see if the template test passes:
+
+---
+
+```bash
+pnpm vitest run src/lib/pod-orchestration/__tests__/integration.test.ts --reporter=verbose
+```
+
+```
+ RUN  v3.2.4 /Users/rchaves/Projects/pinacle
+
+         stdout | src/lib/pod-orchestration/__tests__/integration.test.ts
+Setting up test environment...
+
+stdout | src/lib/pod-orchestration/__tests__/integration.test.ts > Pod Orchestration Integration Tests
+✅ Lima VM gvisor-alpine is running
+   Start 
+stdout | src/lib/pod-orchestration/__tests__/integration.test.ts > Pod Orchestration Integration Tests
+[NetworkManager] Executing: sudo docker network ls --filter name=pinacle-net- --format='{{.Name}}'
+
+stdout | src/lib/pod-orchestration/__tests__/integration.test.ts
+Cleaning up test environment...
+
+ ❯ src/lib/pod-orchestration/__tests__/integration.test.ts (4 tests | 4 skipped) 10008ms
+   ❯ Pod Orchestration Integration Tests (4)
+     ↓ should create, start, and manage a simple pod
+     ↓ should handle pod lifecycle correctly
+     ↓ should list and filter pods correctly
+     ↓ should handle template-based pod creation
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/pod-orchestration/__tests__/integration.test.ts > Pod Orchestration Integration Tests
+Error: Hook timed out in 10000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with "hookTimeout".                                                                                                  
+ ❯ src/lib/pod-orchestration/__tests__/integration.test.ts:17:3
+     15|   let testPodId: string;
+     16| 
+     17|   beforeAll(async () => {
+       |   ^
+     18|     // Check if Lima VM is running
+     19|     try {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 skipped (4)
+   Start at  21:05:42
+   Duration  10.44s (transform 68ms, setup 11ms, collect 94ms, tests 10.01s, environment 0ms, prepare 39ms)
+```
+
+---
+

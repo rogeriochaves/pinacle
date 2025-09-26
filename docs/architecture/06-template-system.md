@@ -238,7 +238,7 @@ metadata:
   icon: "nextjs"
 
 base:
-  image: "node:20-slim"
+  image: "node:20-alpine"
 
 resources:
   recommended:

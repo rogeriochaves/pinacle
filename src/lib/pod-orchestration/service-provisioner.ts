@@ -23,7 +23,8 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
     // Use Lima only in development on macOS
-    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
+    this.isDevMode =
+      process.env.NODE_ENV === "development" && process.platform === "darwin";
     this.initializeServiceTemplates();
   }
 
@@ -54,17 +55,15 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("vibe-kanban", {
       name: "vibe-kanban",
       installScript: [
-        "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -",
-        "apt-get install -y nodejs",
-        "npm install -g @vibe-kanban/server",
+        "npm install -g vibe-kanban",
       ],
-      startCommand: ["vibe-kanban", "--port", "3001", "--host", "0.0.0.0"],
+      startCommand: ["PORT=57300 HOST=0.0.0.0", "vibe-kanban"],
       stopCommand: ["pkill", "-f", "vibe-kanban"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:3001"],
-      defaultPort: 3001,
+      healthCheckCommand: ["curl", "-f", "http://localhost:57300"],
+      defaultPort: 57300,
       environment: {
         NODE_ENV: "production",
-        PORT: "3001",
+        PORT: "57300",
       },
     });
 
@@ -85,9 +84,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("terminal", {
       name: "terminal",
       installScript: [
-        "apt-get update",
-        "apt-get install -y openssh-server",
+        "apt-get update && apt-get install -y openssh-server openssh-keygen",
         "mkdir -p /var/run/sshd",
+        "ssh-keygen -A", // Generate host keys for Alpine
         "echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config",
         "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config",
         "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config",
@@ -102,8 +101,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("web-terminal", {
       name: "web-terminal",
       installScript: [
-        "apt-get update",
-        "apt-get install -y build-essential cmake git libjson-c-dev libwebsockets-dev",
+        "apt-get update && apt-get install -y build-essential cmake git libwebsockets-dev bash",
         "git clone https://github.com/tsl0922/ttyd.git /tmp/ttyd",
         "cd /tmp/ttyd && mkdir build && cd build",
         "cmake .. && make && make install",
@@ -151,15 +149,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     containerId: string,
     command: string[],
   ): Promise<{ stdout: string; stderr: string }> {
-    const escapedCommand = command
-      .map((c) => `"${c.replace(/"/g, '\\"')}"`)
-      .join(" ");
+    const escapedCommand = `"${command.join(" ").replace(/"/g, '\\"')}"`;
     const dockerCommand = `docker exec ${containerId} sh -c ${escapedCommand}`;
     return this.execDockerCommand(dockerCommand, true); // Always use sudo for docker exec
-  }
-
-  private generateServiceName(podId: string, serviceName: string): string {
-    return `${podId}-${serviceName}`;
   }
 
   async provisionService(podId: string, service: ServiceConfig): Promise<void> {
@@ -190,12 +182,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
           `[ServiceProvisioner] Installing ${service.name} using template`,
         );
 
-        // Update package manager first
-        await this.execInContainer(containerName, ["apt-get", "update"]);
-
         // Run installation commands
         for (const installCmd of template.installScript) {
-          await this.execInContainer(containerName, ["sh", "-c", installCmd]);
+          await this.execInContainer(containerName, [installCmd]);
         }
       } else if (service.image) {
         // Custom service with Docker image - would need to run as sidecar
@@ -258,9 +247,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
           `nohup ${startCmd} > /tmp/${serviceName}.log 2>&1 & echo $! > /tmp/${serviceName}.pid`,
         ]);
       } else {
-        // Try to start using service script
+        // Start using OpenRC
         await this.execInContainer(containerName, [
-          "service",
+          "rc-service",
           serviceName,
           "start",
         ]);
@@ -302,9 +291,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         const stopCmd = template.stopCommand.join(" ");
         await this.execInContainer(containerName, ["sh", "-c", stopCmd]);
       } else {
-        // Try to stop using service script
+        // Stop using OpenRC
         await this.execInContainer(containerName, [
-          "service",
+          "rc-service",
           serviceName,
           "stop",
         ]);
@@ -336,7 +325,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       await this.execInContainer(containerName, [
         "sh",
         "-c",
-        `rm -f /tmp/${serviceName}.pid /tmp/${serviceName}.log /etc/systemd/system/${serviceName}.service`,
+        `rm -f /tmp/${serviceName}.pid /tmp/${serviceName}.log /etc/init.d/${serviceName}`,
       ]);
 
       console.log(
@@ -369,14 +358,14 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         const status = stdout.trim();
         return status === "running" ? "running" : "stopped";
       } else {
-        // Check using service command
+        // Check using OpenRC
         const { stdout } = await this.execInContainer(containerName, [
-          "service",
+          "rc-service",
           serviceName,
           "status",
         ]);
 
-        if (stdout.includes("active") || stdout.includes("running")) {
+        if (stdout.includes("started") || stdout.includes("running")) {
           return "running";
         } else {
           return "stopped";
@@ -445,46 +434,31 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     serviceName: string,
     template: ServiceTemplate,
   ): Promise<void> {
-    const serviceScript = `#!/bin/bash
-# Auto-generated service script for ${serviceName}
-case "$1" in
-  start)
-    echo "Starting ${serviceName}..."
-    nohup ${template.startCommand.join(" ")} > /tmp/${serviceName}.log 2>&1 & echo $! > /tmp/${serviceName}.pid
-    ;;
-  stop)
-    echo "Stopping ${serviceName}..."
-    ${template.stopCommand.join(" ")}
-    rm -f /tmp/${serviceName}.pid
-    ;;
-  restart)
-    $0 stop
-    sleep 2
-    $0 start
-    ;;
-  status)
-    if [ -f /tmp/${serviceName}.pid ]; then
-      if kill -0 $(cat /tmp/${serviceName}.pid) 2>/dev/null; then
-        echo "${serviceName} is running"
-      else
-        echo "${serviceName} is stopped"
-      fi
-    else
-      echo "${serviceName} is stopped"
+    // Create OpenRC-compatible init script for Alpine
+    const serviceScript = `#!/sbin/openrc-run
+
+name="${serviceName}"
+description="Auto-generated service for \${name}"
+command="${template.startCommand[0]}"
+command_args="${template.startCommand.slice(1).join(" ")}"
+pidfile="/tmp/\${name}.pid"
+command_background="yes"
+start_stop_daemon_args="--stdout /tmp/\${name}.log --stderr /tmp/\${name}.log"
+
+depend() {
+    need net
+}
+
+stop_pre() {
+    if [ -f "\${pidfile}" ]; then
+        ${template.stopCommand.join(" ")}
     fi
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|restart|status}"
-    exit 1
-    ;;
-esac
+}
 `;
 
-    // Create service script
+    // Create OpenRC service script
     await this.execInContainer(containerName, [
-      "sh",
-      "-c",
-      `echo '${serviceScript}' > /usr/local/bin/${serviceName}-service && chmod +x /usr/local/bin/${serviceName}-service`,
+      `mkdir -p /etc/init.d && echo '${serviceScript}' > /etc/init.d/${serviceName} && chmod +x /etc/init.d/${serviceName}`,
     ]);
   }
 

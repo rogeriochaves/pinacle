@@ -1,37 +1,70 @@
-FROM ubuntu:22.04
+# Build stage for vibe-kanban
+FROM alpine:3.22.1 AS vibe-kanban-builder
 
-# Avoid interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
+# Install Rust build dependencies
+RUN apk add --no-cache \
+    curl \
+    wget \
+    git \
+    build-base \
+    musl-dev \
+    openssl-dev \
+    pkgconfig \
+    nodejs \
+    npm \
+    ca-certificates \
+    bash
 
-# Update package list and install base development tools
-RUN apt-get update && apt-get install -y \
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install pnpm and Rust development tools
+RUN npm install -g pnpm && \
+    cargo install cargo-watch sqlx-cli
+
+# Clone and build vibe-kanban
+WORKDIR /build
+RUN git clone https://github.com/thevahidal/vibe-kanban.git . && \
+    pnpm install && \
+    ./build-npm-package.sh
+
+# Runtime stage
+FROM alpine:3.22.1
+
+# Install base development tools and runtime dependencies
+RUN apk add --no-cache \
     curl \
     wget \
     git \
     vim \
     nano \
     htop \
-    build-essential \
+    build-base \
     python3 \
-    python3-pip \
+    py3-pip \
     nodejs \
     npm \
-    software-properties-common \
-    apt-transport-https \
     ca-certificates \
-    gnupg \
-    lsb-release \
+    bash \
+    shadow \
     sudo \
-    && rm -rf /var/lib/apt/lists/*
+    openssh-client \
+    tar \
+    gzip
 
-# Install pnpm
+# Install pnpm and essential Node.js tools
 RUN npm install -g pnpm
 
 # Install VS Code Server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
+# Copy vibe-kanban binaries from builder stage
+COPY --from=vibe-kanban-builder /build/npx-cli/*.tgz /tmp/vibe-kanban.tgz
+RUN npm install -g /tmp/vibe-kanban.tgz && rm /tmp/vibe-kanban.tgz
+
 # Create a non-root user for development
-RUN useradd -m -s /bin/bash developer && \
+RUN adduser -D -s /bin/bash developer && \
     echo 'developer ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Create workspace directory
@@ -48,6 +81,5 @@ COPY --chown=developer:developer docker/config/code-server.yaml /home/developer/
 # Expose common ports
 EXPOSE 8080 3000 8000 8888
 
-# Default command starts code-server
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "/workspace"]
+CMD ["bash"]
 
