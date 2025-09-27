@@ -32,84 +32,78 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     // VS Code Server
     this.serviceTemplates.set("code-server", {
       name: "code-server",
-      installScript: [
-        "curl -fsSL https://code-server.dev/install.sh | sh",
-        "mkdir -p ~/.config/code-server",
-        "echo 'bind-addr: 0.0.0.0:8080' > ~/.config/code-server/config.yaml",
-        "echo 'auth: none' >> ~/.config/code-server/config.yaml",
-        "echo 'cert: false' >> ~/.config/code-server/config.yaml",
-      ],
+      installScript: [],
       startCommand: [
         "code-server",
         "--bind-addr",
-        "0.0.0.0:8080",
+        "0.0.0.0:8726",
         "--auth",
         "none",
       ],
       stopCommand: ["pkill", "-f", "code-server"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:8080"],
-      defaultPort: 8080,
+      healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
+      defaultPort: 8726,
     });
 
     // Vibe Kanban
     this.serviceTemplates.set("vibe-kanban", {
       name: "vibe-kanban",
-      installScript: [
-        "npm install -g vibe-kanban",
-      ],
-      startCommand: ["PORT=57300 HOST=0.0.0.0", "vibe-kanban"],
+      installScript: ["npm install -g vibe-kanban"],
+      startCommand: ["PORT=5262 HOST=0.0.0.0", "vibe-kanban"],
       stopCommand: ["pkill", "-f", "vibe-kanban"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:57300"],
-      defaultPort: 57300,
+      healthCheckCommand: ["curl", "-f", "http://localhost:5262"],
+      defaultPort: 5262,
       environment: {
         NODE_ENV: "production",
-        PORT: "57300",
+        PORT: "5262",
       },
     });
 
     // Claude Code (simulated - would need actual implementation)
     this.serviceTemplates.set("claude-code", {
       name: "claude-code",
-      installScript: ["curl -fsSL https://claude-code.dev/install.sh | sh"],
-      startCommand: ["claude-code", "--server", "--port", "3002"],
-      stopCommand: ["pkill", "-f", "claude-code"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:3002/health"],
-      defaultPort: 3002,
+      installScript: ["sudo npm install -g @anthropic-ai/claude-code"],
+      startCommand: [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        "/workspace",
+        "--writable",
+        "--",
+        "tmux new -As claude claude",
+      ],
+      stopCommand: ["pkill", "-f", "claude"],
+      healthCheckCommand: ["curl", "-f", "http://localhost:2528/health"],
+      defaultPort: 2528,
       environment: {
         CLAUDE_API_KEY: "${ANTHROPIC_API_KEY}",
       },
     });
 
-    // Terminal/SSH service
-    this.serviceTemplates.set("terminal", {
-      name: "terminal",
-      installScript: [
-        "apt-get update && apt-get install -y openssh-server openssh-keygen",
-        "mkdir -p /var/run/sshd",
-        "ssh-keygen -A", // Generate host keys for Alpine
-        "echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config",
-        "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config",
-        "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config",
-      ],
-      startCommand: ["/usr/sbin/sshd", "-D", "-p", "2222"],
-      stopCommand: ["pkill", "-f", "sshd"],
-      healthCheckCommand: ["nc", "-z", "localhost", "2222"],
-      defaultPort: 2222,
-    });
-
     // Web-based terminal (ttyd)
     this.serviceTemplates.set("web-terminal", {
       name: "web-terminal",
-      installScript: [
-        "apt-get update && apt-get install -y build-essential cmake git libwebsockets-dev bash",
-        "git clone https://github.com/tsl0922/ttyd.git /tmp/ttyd",
-        "cd /tmp/ttyd && mkdir build && cd build",
-        "cmake .. && make && make install",
+      installScript: [],
+      // e.g.: http://localhost:7681/?arg=0, or http://localhost:7681/?arg=1
+      startCommand: [
+        "ttyd",
+        "-p",
+        "7681",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        "/workspace",
+        "--writable",
+        "--url-arg",
+        "--",
+        "tmux new -As",
       ],
-      startCommand: ["ttyd", "-p", "3003", "-i", "0.0.0.0", "bash"],
       stopCommand: ["pkill", "-f", "ttyd"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:3003"],
-      defaultPort: 3003,
+      healthCheckCommand: ["curl", "-f", "http://localhost:7681"],
+      defaultPort: 7681,
     });
   }
 

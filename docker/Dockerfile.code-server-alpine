@@ -1,0 +1,18 @@
+FROM node:22-alpine
+
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache bash git alpine-sdk quilt krb5-dev libx11-dev \
+      libxkbfile-dev libstdc++ libc6-compat libsecret-dev jq rsync
+
+RUN git clone --branch v4.104.2 --recurse-submodules --shallow-submodules   \
+      --depth 1 https://github.com/coder/code-server.git  \
+      /code-server && \
+    cd /code-server && \
+    quilt push -a && \
+    npm install && \
+    npm run build && \
+    VERSION='0.0.0' npm run build:vscode && \
+    npm run release && \
+    npm run release:standalone && \
+    rm -rf lib node_modules release test .git
