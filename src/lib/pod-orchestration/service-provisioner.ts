@@ -33,13 +33,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("code-server", {
       name: "code-server",
       installScript: [],
-      startCommand: [
-        "code-server",
-        "--bind-addr",
-        "0.0.0.0:8726",
-        "--auth",
-        "none",
-      ],
+      startCommand: ["PORT=8726", "code-server", "--auth", "none"],
       stopCommand: ["pkill", "-f", "code-server"],
       healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
       defaultPort: 8726,
@@ -48,7 +42,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     // Vibe Kanban
     this.serviceTemplates.set("vibe-kanban", {
       name: "vibe-kanban",
-      installScript: ["npm install -g vibe-kanban"],
+      installScript: [],
       startCommand: ["PORT=5262 HOST=0.0.0.0", "vibe-kanban"],
       stopCommand: ["pkill", "-f", "vibe-kanban"],
       healthCheckCommand: ["curl", "-f", "http://localhost:5262"],
@@ -62,7 +56,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     // Claude Code (simulated - would need actual implementation)
     this.serviceTemplates.set("claude-code", {
       name: "claude-code",
-      installScript: ["sudo npm install -g @anthropic-ai/claude-code"],
+      installScript: ["npm install -g @anthropic-ai/claude-code"],
       startCommand: [
         "ttyd",
         "-p",
@@ -75,8 +69,8 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         "--",
         "tmux new -As claude claude",
       ],
-      stopCommand: ["pkill", "-f", "claude"],
-      healthCheckCommand: ["curl", "-f", "http://localhost:2528/health"],
+      stopCommand: ["tmux kill-session -t claude"],
+      healthCheckCommand: ["curl", "-f", "http://localhost:2528"],
       defaultPort: 2528,
       environment: {
         CLAUDE_API_KEY: "${ANTHROPIC_API_KEY}",
@@ -250,7 +244,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       }
 
       // Wait a moment for service to start
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 5000));
 
       // Verify service is running
       const isHealthy = await this.checkServiceHealth(podId, serviceName);

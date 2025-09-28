@@ -21,9 +21,7 @@ RUN cargo install sqlx-cli
 WORKDIR /build
 RUN git clone https://github.com/BloopAI/vibe-kanban.git .
 RUN pnpm install
-RUN apk add perl
-RUN apk add build-base
-RUN apk add zip
+RUN apk add perl build-base zip
 RUN GITHUB_CLIENT_ID=Iv23li8mWSwG4NGXTA3y ./local-build.sh
 
 
@@ -86,14 +84,18 @@ RUN adduser -D -s /bin/bash developer && \
 # Create workspace directory
 RUN mkdir -p /workspace && chown developer:developer /workspace
 
+# Set tmux config
+RUN echo "set -g status off" >> /etc/tmux.conf
+# UTF-8 for better tmux rendering and system-wide
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+
 # Switch to developer user
 USER developer
 WORKDIR /workspace
 
-# Set tmux config
-RUN tmux set -g status off
-
-# Expose common ports
-EXPOSE 8080 3000 8000 8888
+# PNPM global setup
+ENV PNPM_HOME="/root/.local/share/pnpm" \
+    PATH="/root/.local/share/pnpm:$PATH" \
+    SHELL="bash"
 
 CMD ["bash"]

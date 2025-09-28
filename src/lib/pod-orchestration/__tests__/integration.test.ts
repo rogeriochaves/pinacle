@@ -2,6 +2,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DefaultConfigResolver } from "../config-resolver";
+import { LimaGVisorRuntime } from "../container-runtime";
 import { LimaNetworkManager } from "../network-manager";
 import { DefaultPodManager } from "../pod-manager";
 import type { PodConfig, ResourceTier } from "../types";
@@ -18,7 +19,10 @@ describe("Pod Orchestration Integration Tests", () => {
     // Check if Lima VM is running
     try {
       const { stdout } = await execAsync("limactl list --format json");
-      const vms = stdout.trim().split("\n").map((json) => JSON.parse(json));
+      const vms = stdout
+        .trim()
+        .split("\n")
+        .map((json) => JSON.parse(json));
       const vm = vms.find(
         (vm) => vm.name === "gvisor-alpine" && vm.status === "Running",
       );
@@ -37,17 +41,17 @@ describe("Pod Orchestration Integration Tests", () => {
 
     const limaConfig = { vmName: "gvisor-alpine" };
     podManager = new DefaultPodManager(limaConfig);
+    const containerRuntime = new LimaGVisorRuntime(limaConfig);
 
-    // Delete all pods that start with "lifecycle-test-"
-    const pods = await podManager.listPods();
-    const lifecycleTestPods = pods.filter(
+    const containers = await containerRuntime.listContainers();
+    const testContainers = containers.filter(
       (p) =>
-        p.id.startsWith("lifecycle-test-") ||
-        p.id.startsWith("test-integration-") ||
-        p.id.includes("template-test"),
+        p.podId.startsWith("lifecycle-test-") ||
+        p.podId.startsWith("test-integration-") ||
+        p.podId.includes("template-test"),
     );
-    for (const pod of lifecycleTestPods) {
-      await podManager.deletePod(pod.id);
+    for (const container of testContainers) {
+      await containerRuntime.removeContainer(container.id);
     }
 
     const networkManager = new LimaNetworkManager(limaConfig);
@@ -299,7 +303,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("config", JSON.stringify(config, undefined, 2));
 
     expect(config.templateId).toBe("nextjs");
-    expect(config.baseImage).toBe("node:24-alpine");
+    expect(config.baseImage).toBe("pinacledev/pinacle-base");
     expect(config.environment.NODE_ENV).toBe("development");
     expect(config.environment.CUSTOM_VAR).toBe("template-test");
 

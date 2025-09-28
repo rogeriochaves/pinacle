@@ -122,19 +122,19 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       );
       return podInstance;
     } catch (error: any) {
-      console.error(
-        `[PodManager] Failed to create pod ${config.id}: ${error.message}`,
-      );
+      // console.error(
+      //   `[PodManager] Failed to create pod ${config.id}: ${error.message}`,
+      // );
 
-      // Cleanup on failure
-      try {
-        await this.cleanupFailedPod(config.id);
-      } catch (cleanupError: any) {
-        console.error(`[PodManager] Cleanup failed: ${cleanupError.message}`);
-      }
+      // // Cleanup on failure
+      // try {
+      //   await this.cleanupFailedPod(config.id);
+      // } catch (cleanupError: any) {
+      //   console.error(`[PodManager] Cleanup failed: ${cleanupError.message}`);
+      // }
 
-      await this.updatePodStatus(config.id, "failed", error.message);
-      this.emitEvent("failed", config.id, { error: error.message });
+      // await this.updatePodStatus(config.id, "failed", error.message);
+      // this.emitEvent("failed", config.id, { error: error.message });
 
       throw error;
     }
