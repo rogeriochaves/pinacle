@@ -300,8 +300,6 @@ describe("Pod Orchestration Integration Tests", () => {
       },
     });
 
-    console.log("config", JSON.stringify(config, undefined, 2));
-
     expect(config.templateId).toBe("nextjs");
     expect(config.baseImage).toBe("pinacledev/pinacle-base");
     expect(config.environment.NODE_ENV).toBe("development");

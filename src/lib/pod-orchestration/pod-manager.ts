@@ -16,6 +16,7 @@ import type {
   PodInstance,
   PodManager,
   PodStatus,
+  ServiceConfig,
   ServiceProvisioner,
 } from "./types";
 
@@ -500,7 +501,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
   private async startServices(config: PodConfig): Promise<void> {
     // Start services in dependency order
     const startedServices = new Set<string>();
-    const startService = async (service: any): Promise<void> => {
+    const startService = async (service: ServiceConfig): Promise<void> => {
       if (startedServices.has(service.name) || !service.enabled) {
         return;
       }

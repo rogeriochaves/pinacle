@@ -9,7 +9,7 @@ interface ServiceTemplate {
   image?: string;
   installScript: string[];
   startCommand: string[];
-  stopCommand: string[];
+  cleanupCommand: string[];
   healthCheckCommand: string[];
   defaultPort: number;
   environment?: Record<string, string>;
@@ -33,30 +33,35 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("code-server", {
       name: "code-server",
       installScript: [],
-      startCommand: ["PORT=8726", "code-server", "--auth", "none"],
-      stopCommand: ["pkill", "-f", "code-server"],
+      startCommand: ["code-server", "--bind-addr", "0.0.0.0", "--auth", "none"],
+      cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
       defaultPort: 8726,
+      environment: {
+        PORT: "8726",
+      },
     });
 
     // Vibe Kanban
     this.serviceTemplates.set("vibe-kanban", {
       name: "vibe-kanban",
       installScript: [],
-      startCommand: ["PORT=5262 HOST=0.0.0.0", "vibe-kanban"],
-      stopCommand: ["pkill", "-f", "vibe-kanban"],
+      startCommand: ["vibe-kanban"],
+      cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:5262"],
       defaultPort: 5262,
       environment: {
         NODE_ENV: "production",
         PORT: "5262",
+        HOST: "0.0.0.0",
+        IS_SANDBOX: "1",
       },
     });
 
     // Claude Code (simulated - would need actual implementation)
     this.serviceTemplates.set("claude-code", {
       name: "claude-code",
-      installScript: ["npm install -g @anthropic-ai/claude-code"],
+      installScript: ["pnpm install -g @anthropic-ai/claude-code"],
       startCommand: [
         "ttyd",
         "-p",
@@ -69,11 +74,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         "--",
         "tmux new -As claude claude",
       ],
-      stopCommand: ["tmux kill-session -t claude"],
+      cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:2528"],
       defaultPort: 2528,
       environment: {
-        CLAUDE_API_KEY: "${ANTHROPIC_API_KEY}",
+        PATH: "/root/.local/share/pnpm:$PATH",
+        IS_SANDBOX: "1",
       },
     });
 
@@ -95,7 +101,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         "--",
         "tmux new -As",
       ],
-      stopCommand: ["pkill", "-f", "ttyd"],
+      cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:7681"],
       defaultPort: 7681,
     });
@@ -174,6 +180,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         for (const installCmd of template.installScript) {
           await this.execInContainer(containerName, [installCmd]);
         }
+
+        // Create OpenRC service script
+        await this.createServiceScript(containerName, service.name, template);
       } else if (service.image) {
         // Custom service with Docker image - would need to run as sidecar
         console.log(
@@ -191,21 +200,6 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         }
       }
 
-      // Set up environment variables
-      const envVars = { ...template?.environment, ...service.environment };
-      for (const [key, value] of Object.entries(envVars)) {
-        await this.execInContainer(containerName, [
-          "sh",
-          "-c",
-          `echo 'export ${key}="${value}"' >> ~/.bashrc`,
-        ]);
-      }
-
-      // Create systemd service or supervisor config for auto-restart
-      if (service.autoRestart && template) {
-        await this.createServiceScript(containerName, service.name, template);
-      }
-
       console.log(
         `[ServiceProvisioner] Successfully provisioned service ${service.name}`,
       );
@@ -218,7 +212,6 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   }
 
   async startService(podId: string, serviceName: string): Promise<void> {
-    const template = this.serviceTemplates.get(serviceName);
     const containerName = `pinacle-pod-${podId}`;
 
     try {
@@ -226,28 +219,22 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         `[ServiceProvisioner] Starting service ${serviceName} for pod ${podId}`,
       );
 
-      if (template) {
-        // Start using template command
-        const startCmd = template.startCommand.join(" ");
-        await this.execInContainer(containerName, [
-          "sh",
-          "-c",
-          `nohup ${startCmd} > /tmp/${serviceName}.log 2>&1 & echo $! > /tmp/${serviceName}.pid`,
-        ]);
-      } else {
-        // Start using OpenRC
-        await this.execInContainer(containerName, [
-          "rc-service",
-          serviceName,
-          "start",
-        ]);
-      }
+      // Start using OpenRC
+      await this.execInContainer(containerName, [
+        "rc-service",
+        serviceName,
+        "start",
+      ]);
 
       // Wait a moment for service to start
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Verify service is running
-      const isHealthy = await this.checkServiceHealth(podId, serviceName);
+      const isHealthy = await this.checkServiceHealth(
+        podId,
+        serviceName,
+        10_000,
+      );
       if (!isHealthy) {
         throw new Error(
           `Service ${serviceName} failed health check after start`,
@@ -266,7 +253,6 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   }
 
   async stopService(podId: string, serviceName: string): Promise<void> {
-    const template = this.serviceTemplates.get(serviceName);
     const containerName = `pinacle-pod-${podId}`;
 
     try {
@@ -274,18 +260,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         `[ServiceProvisioner] Stopping service ${serviceName} for pod ${podId}`,
       );
 
-      if (template) {
-        // Stop using template command
-        const stopCmd = template.stopCommand.join(" ");
-        await this.execInContainer(containerName, ["sh", "-c", stopCmd]);
-      } else {
-        // Stop using OpenRC
-        await this.execInContainer(containerName, [
-          "rc-service",
-          serviceName,
-          "stop",
-        ]);
-      }
+      // Stop using OpenRC
+      await this.execInContainer(containerName, [
+        "rc-service",
+        serviceName,
+        "stop",
+      ]);
 
       console.log(
         `[ServiceProvisioner] Successfully stopped service ${serviceName}`,
@@ -331,33 +311,20 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     podId: string,
     serviceName: string,
   ): Promise<"running" | "stopped" | "failed"> {
-    const template = this.serviceTemplates.get(serviceName);
     const containerName = `pinacle-pod-${podId}`;
 
     try {
-      if (template) {
-        // Check if process is running using PID file
-        const { stdout } = await this.execInContainer(containerName, [
-          "sh",
-          "-c",
-          `if [ -f /tmp/${serviceName}.pid ]; then kill -0 $(cat /tmp/${serviceName}.pid) 2>/dev/null && echo "running" || echo "stopped"; else echo "stopped"; fi`,
-        ]);
+      // Check using OpenRC
+      const { stdout } = await this.execInContainer(containerName, [
+        "rc-service",
+        serviceName,
+        "status",
+      ]);
 
-        const status = stdout.trim();
-        return status === "running" ? "running" : "stopped";
+      if (stdout.includes("started") || stdout.includes("running")) {
+        return "running";
       } else {
-        // Check using OpenRC
-        const { stdout } = await this.execInContainer(containerName, [
-          "rc-service",
-          serviceName,
-          "status",
-        ]);
-
-        if (stdout.includes("started") || stdout.includes("running")) {
-          return "running";
-        } else {
-          return "stopped";
-        }
+        return "stopped";
       }
     } catch (error: any) {
       console.error(
@@ -394,6 +361,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   async checkServiceHealth(
     podId: string,
     serviceName: string,
+    timeout: number = 0,
   ): Promise<boolean> {
     const template = this.serviceTemplates.get(serviceName);
     const containerName = `pinacle-pod-${podId}`;
@@ -404,16 +372,31 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       return status === "running";
     }
 
-    try {
-      // Run health check command
-      const healthCmd = template.healthCheckCommand.join(" ");
-      await this.execInContainer(containerName, ["sh", "-c", healthCmd]);
-      return true;
-    } catch (error: any) {
-      console.log(
-        `[ServiceProvisioner] Health check failed for ${serviceName}: ${error.message}`,
-      );
-      return false;
+    const startTime = Date.now();
+    let retries = 0;
+    while (true) {
+      try {
+        // Run health check command
+        const healthCmd = template.healthCheckCommand.join(" ");
+        await this.execInContainer(containerName, [
+          "sh",
+          "-c",
+          `'${healthCmd.replace(/'/g, "\\'")}'`,
+        ]);
+        return true;
+      } catch (error: any) {
+        if (Date.now() - startTime > timeout) {
+          console.log(
+            `[ServiceProvisioner] Health check failed for ${serviceName}: ${error.message} (timeout after ${timeout}ms)`,
+          );
+          return false;
+        }
+        retries++;
+        console.log(
+          `[ServiceProvisioner] Health check failed for ${serviceName}: ${error.message} (retry #${retries})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
     }
   }
 
@@ -423,23 +406,40 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     template: ServiceTemplate,
   ): Promise<void> {
     // Create OpenRC-compatible init script for Alpine
+    const envVars = Object.entries(template.environment || {})
+      .map(([key, value]) => `export ${key}="${value}"`)
+      .join("\n");
+    const validName = serviceName
+      .toLowerCase()
+      .replace(/ /g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+    if (validName !== serviceName) {
+      throw new Error(
+        `Service name ${serviceName} is not valid for OpenRC, should not have spaces or special characters`,
+      );
+    }
+
     const serviceScript = `#!/sbin/openrc-run
 
 name="${serviceName}"
-description="Auto-generated service for \${name}"
+description="Auto-generated service for ${serviceName}"
+${envVars}
 command="${template.startCommand[0]}"
 command_args="${template.startCommand.slice(1).join(" ")}"
-pidfile="/tmp/\${name}.pid"
+pidfile="/tmp/${serviceName}.pid"
 command_background="yes"
-start_stop_daemon_args="--stdout /tmp/\${name}.log --stderr /tmp/\${name}.log"
+
+output_log="/var/log/${serviceName}.log"
+error_log="/var/log/${serviceName}.log"
 
 depend() {
     need net
 }
 
 stop_pre() {
-    if [ -f "\${pidfile}" ]; then
-        ${template.stopCommand.join(" ")}
+    ebegin "Stopping ${serviceName}"
+    if [ -f "/tmp/${serviceName}.pid" ]; then
+        ${template.cleanupCommand.join(" ") || "true"}
     fi
 }
 `;

@@ -129,8 +129,8 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       "--volume", "/tmp:/tmp",
       "--volume", `pinacle-${config.id}-workspace:/workspace`,
       config.baseImage,
-      // Default command - use sleep to keep container alive
-      "sleep", "infinity"
+      // Default command
+      "/sbin/init"
     ].filter(Boolean);
 
     const dockerCommand = dockerArgs.join(" ");

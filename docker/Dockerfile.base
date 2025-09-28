@@ -26,23 +26,7 @@ RUN GITHUB_CLIENT_ID=Iv23li8mWSwG4NGXTA3y ./local-build.sh
 
 
 # Build stage for code-server
-FROM node:22-alpine AS code-server-builder
-
-RUN apk update && \
-    apk upgrade
-RUN apk add bash git alpine-sdk quilt krb5-dev libx11-dev \
-      libxkbfile-dev libstdc++ libc6-compat libsecret-dev jq rsync
-RUN git clone --branch v4.104.2 --recurse-submodules --shallow-submodules   \
-      --depth 1 https://github.com/coder/code-server.git  \
-      /code-server
-
-RUN cd /code-server && quilt push -a
-RUN cd /code-server && npm install
-RUN cd /code-server && npm run build
-RUN cd /code-server && VERSION='0.0.0' npm run build:vscode
-RUN cd /code-server && npm run release
-RUN cd /code-server && npm run release:standalone
-RUN rm -rf lib node_modules release test
+FROM pinacledev/code-server-alpine:4.104.2-arm64 AS code-server-builder
 
 
 # Runtime stage
@@ -77,25 +61,28 @@ RUN ln -s /usr/local/code-server/bin/code-server /usr/local/bin/code-server
 # Copy vibe-kanban binaries from builder stage
 COPY --from=vibe-kanban-builder /build/target/release/server /usr/local/bin/vibe-kanban
 
-# Create a non-root user for development
-RUN adduser -D -s /bin/bash developer && \
-    echo 'developer ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-# Create workspace directory
-RUN mkdir -p /workspace && chown developer:developer /workspace
+# # Create a non-root user for development
+# RUN adduser -D -s /bin/bash developer && \
+#     echo 'developer ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Set tmux config
 RUN echo "set -g status off" >> /etc/tmux.conf
 # UTF-8 for better tmux rendering and system-wide
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-# Switch to developer user
-USER developer
+# OpenRC
+RUN apk add --no-cache openrc
+
+# Create workspace directory, and make it the root's default
+RUN mkdir -p /workspace
 WORKDIR /workspace
+RUN mkdir -p /workspace && \
+    chown root:root /workspace && \
+    sed -i 's|/root|/workspace|' /etc/passwd
 
 # PNPM global setup
 ENV PNPM_HOME="/root/.local/share/pnpm" \
     PATH="/root/.local/share/pnpm:$PATH" \
     SHELL="bash"
 
-CMD ["bash"]
+CMD ["/sbin/init"]
