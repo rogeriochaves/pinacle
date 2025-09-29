@@ -72,13 +72,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         "/workspace",
         "--writable",
         "--",
-        "tmux new -As claude claude",
+        "tmux new -As claude /root/.local/share/pnpm/claude",
       ],
       cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:2528"],
       defaultPort: 2528,
       environment: {
-        PATH: "/root/.local/share/pnpm:$PATH",
         IS_SANDBOX: "1",
       },
     });
@@ -437,7 +436,6 @@ depend() {
 }
 
 stop_pre() {
-    ebegin "Stopping ${serviceName}"
     if [ -f "/tmp/${serviceName}.pid" ]; then
         ${template.cleanupCommand.join(" ") || "true"}
     fi
