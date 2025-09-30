@@ -1,33 +1,8 @@
 # Build stage for vibe-kanban
-FROM rust:alpine AS vibe-kanban-builder
-
-# Install Node.js and additional build tools
-RUN apk add --no-cache \
-    nodejs \
-    npm \
-    git \
-    openssl-dev \
-    openssl-libs-static \
-    pkgconfig \
-    musl-dev \
-    sqlite-dev \
-    bash
-
-# Install pnpm and Rust development tools
-RUN npm install -g pnpm
-RUN cargo install sqlx-cli
-
-# Clone and build vibe-kanban
-WORKDIR /build
-RUN git clone https://github.com/BloopAI/vibe-kanban.git .
-RUN pnpm install
-RUN apk add perl build-base zip
-RUN GITHUB_CLIENT_ID=Iv23li8mWSwG4NGXTA3y ./local-build.sh
-
+FROM pinacledev/vk-alpine:latest AS vibe-kanban-builder
 
 # Build stage for code-server
 FROM pinacledev/code-server-alpine:4.104.2-arm64 AS code-server-builder
-
 
 # Runtime stage
 FROM node:22-alpine
@@ -49,7 +24,8 @@ RUN apk add --no-cache \
     tar \
     gzip \
     ttyd \
-    tmux
+    tmux \
+    nginx
 
 # Install pnpm and essential Node.js tools
 RUN npm install -g pnpm
@@ -84,5 +60,12 @@ RUN mkdir -p /workspace && \
 ENV PNPM_HOME="/root/.local/share/pnpm" \
     PATH="/root/.local/share/pnpm:$PATH" \
     SHELL="bash"
+
+# Configure Nginx for transparent port proxying
+RUN mkdir -p /etc/nginx/http.d && \
+    rm -f /etc/nginx/http.d/default.conf
+COPY docker/config/nginx.conf /etc/nginx/nginx.conf
+# Add nginx to OpenRC to start automatically
+RUN rc-update add nginx default
 
 CMD ["/sbin/init"]

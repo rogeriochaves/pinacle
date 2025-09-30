@@ -24,7 +24,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.limaConfig = limaConfig;
     // Use Lima only in development on macOS
     this.isDevMode =
-      process.env.NODE_ENV === "development" && process.platform === "darwin";
+      (process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "test") &&
+      process.platform === "darwin";
     this.initializeServiceTemplates();
   }
 

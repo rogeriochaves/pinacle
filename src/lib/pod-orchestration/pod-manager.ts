@@ -466,28 +466,31 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
   }
 
   private async allocateExternalPorts(config: PodConfig): Promise<void> {
-    for (const port of config.network.ports) {
-      if (!port.external) {
-        const externalPort = await this.networkManager.allocatePort(
-          config.id,
-          port.name,
-        );
-        port.external = externalPort;
-      }
+    // With the Nginx proxy approach, we only need to expose ONE port (80)
+    // All internal services are accessed via hostname-based routing
+
+    // Check if we already have a proxy port configured
+    const proxyPort = config.network.ports.find(p => p.name === 'nginx-proxy');
+
+    if (!proxyPort) {
+      // Add a single proxy port that maps to container port 80 (Nginx)
+      const externalPort = await this.networkManager.allocatePort(
+        config.id,
+        'nginx-proxy',
+      );
+
+      config.network.ports.push({
+        name: 'nginx-proxy',
+        internal: 80,
+        external: externalPort,
+        protocol: 'tcp',
+      });
+
+      console.log(`[PodManager] Allocated proxy port ${externalPort} for pod ${config.id}`);
     }
 
-    // Also allocate ports for services
-    for (const service of config.services) {
-      for (const port of service.ports || []) {
-        if (!port.external) {
-          const externalPort = await this.networkManager.allocatePort(
-            config.id,
-            `${service.name}-${port.name}`,
-          );
-          port.external = externalPort;
-        }
-      }
-    }
+    // No need to allocate external ports for individual services anymore
+    // They're all accessible through the Nginx proxy via hostname routing
   }
 
   private async provisionServices(config: PodConfig): Promise<void> {

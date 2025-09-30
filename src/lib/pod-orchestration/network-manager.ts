@@ -18,7 +18,7 @@ export class LimaNetworkManager implements NetworkManager {
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
     // Use Lima only in development on macOS
-    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
+    this.isDevMode = (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && process.platform === "darwin";
   }
 
   private async execDockerCommand(

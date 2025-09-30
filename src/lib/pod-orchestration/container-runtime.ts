@@ -17,7 +17,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
     // Use Lima only in development on macOS
-    this.isDevMode = process.env.NODE_ENV === "development" && process.platform === "darwin";
+    this.isDevMode =
+      (process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "test") &&
+      process.platform === "darwin";
   }
 
   private async execDockerCommand(
@@ -111,26 +114,34 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
     // Build Docker run command with gVisor runtime - use array to avoid shell escaping issues
     const dockerArgs = [
-      "docker", "create",
+      "docker",
+      "create",
       "--runtime=runsc", // Use gVisor runtime
-      "--name", containerName,
+      "--name",
+      containerName,
       ...resourceLimits.split(" ").filter(Boolean),
       ...portMappings.split(" ").filter(Boolean),
       ...envVars.split(" ").filter(Boolean),
-      "--workdir", config.workingDir || "/workspace",
-      "--user", config.user || "root",
+      "--workdir",
+      config.workingDir || "/workspace",
+      "--user",
+      config.user || "root",
       // Security options for gVisor
-      "--security-opt", "seccomp=unconfined",
+      "--security-opt",
+      "seccomp=unconfined",
       "--cap-drop=ALL",
       "--cap-add=NET_BIND_SERVICE",
       // Network configuration
-      "--network", "bridge", // Will create custom network later
+      "--network",
+      "bridge", // Will create custom network later
       // Volume mounts
-      "--volume", "/tmp:/tmp",
-      "--volume", `pinacle-${config.id}-workspace:/workspace`,
+      "--volume",
+      "/tmp:/tmp",
+      "--volume",
+      `pinacle-${config.id}-workspace:/workspace`,
       config.baseImage,
       // Default command
-      "/sbin/init"
+      "/sbin/init",
     ].filter(Boolean);
 
     const dockerCommand = dockerArgs.join(" ");
@@ -162,12 +173,14 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       await this.execLimaSudo(`docker start ${containerId}`);
 
       // Wait a moment for container to fully initialize
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Verify container is actually running
       const container = await this.getContainer(containerId);
       if (!container || container.status !== "running") {
-        throw new Error(`Container failed to start properly: ${container?.status || "unknown"}`);
+        throw new Error(
+          `Container failed to start properly: ${container?.status || "unknown"}`,
+        );
       }
 
       console.log(`[LimaRuntime] Started container: ${containerId}`);
@@ -302,8 +315,32 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     command: string[],
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     try {
-      // Build the command more carefully to avoid escaping issues
-      const commandStr = command.join(" ");
+      // Properly quote each argument to preserve them as separate arguments to docker exec
+      const quotedArgs = command.map((arg) => {
+        if (
+          !arg.startsWith("'") &&
+          !arg.endsWith("'") &&
+          (arg.includes(" ") ||
+            arg.includes("&") ||
+            arg.includes("|") ||
+            arg.includes(">") ||
+            arg.includes("<") ||
+            arg.includes("$") ||
+            arg.includes("(") ||
+            arg.includes(")") ||
+            arg.includes(";") ||
+            arg.includes('"') ||
+            arg.includes("'"))
+        ) {
+          // If argument contains special shell characters, quote it
+          // Escape single quotes by replacing ' with '\''
+          const escaped = arg.replace(/'/g, "'\\''");
+          return `'${escaped}'`;
+        }
+        return arg;
+      });
+
+      const commandStr = quotedArgs.join(" ");
       const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
       const { stdout, stderr } = await this.execLimaSudo(dockerCommand);

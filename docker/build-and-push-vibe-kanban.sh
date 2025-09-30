@@ -33,11 +33,13 @@ fi
 echo "✅ Environment variables loaded successfully"
 echo "📦 Building Docker image..."
 
-IMAGE_NAME="$DOCKERHUB_USERNAME/pinacle-base:latest"
+IMAGE_NAME="$DOCKERHUB_USERNAME/vk-alpine:latest"
+
+echo $IMAGE_NAME
 
 # Build the Docker image
 docker buildx use default
-docker build -t "$IMAGE_NAME" --platform=linux/arm64 -f docker/Dockerfile.base --load .
+docker build -t "$IMAGE_NAME" --platform=linux/arm64 -f docker/Dockerfile.vibe-kanban --load .
 
 echo "🔐 Setting up temporary Docker config..."
 # Create a temporary directory for Docker config to avoid affecting global login

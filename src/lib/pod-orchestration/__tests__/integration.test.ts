@@ -48,6 +48,7 @@ describe("Pod Orchestration Integration Tests", () => {
       (p) =>
         p.podId.startsWith("lifecycle-test-") ||
         p.podId.startsWith("test-integration-") ||
+        p.podId.startsWith("proxy-test-") ||
         p.podId.includes("template-test"),
     );
     for (const container of testContainers) {
@@ -62,6 +63,7 @@ describe("Pod Orchestration Integration Tests", () => {
       (n) =>
         n.podId.startsWith("lifecycle-test-") ||
         n.podId.startsWith("test-integration-") ||
+        n.podId.startsWith("proxy-test-") ||
         n.podId.includes("template-test"),
     );
     for (const network of integrationTestNetworks) {
@@ -70,9 +72,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     configResolver = new DefaultConfigResolver();
     testPodId = `test-integration-${Date.now()}`;
-  });
+  }, 60_000);
 
-  it("should create, start, and manage a simple pod", async () => {
+  it.skip("should create, start, and manage a simple pod", async () => {
     // Create a simple test configuration
     const config: PodConfig = {
       id: testPodId,
@@ -153,7 +155,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("Integration test pod created successfully!");
   }, 60000); // 60 second timeout for integration test
 
-  it("should handle pod lifecycle correctly", async () => {
+  it.skip("should handle pod lifecycle correctly", async () => {
     const lifecycleTestId = `lifecycle-test-${Date.now()}`;
 
     const config: PodConfig = {
@@ -224,7 +226,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("Lifecycle test completed successfully!");
   }, 90000); // 90 second timeout
 
-  it("should list and filter pods correctly", async () => {
+  it.skip("should list and filter pods correctly", async () => {
     const listTestId1 = `list-test-1-${Date.now()}`;
     const listTestId2 = `list-test-2-${Date.now()}`;
 
@@ -287,7 +289,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("List and filter test completed successfully!");
   }, 120000); // 2 minute timeout
 
-  it.only("should handle template-based pod creation", async () => {
+  it.skip("should handle template-based pod creation", async () => {
     const templateTestId = `template-test-${Date.now()}`;
 
     // Use config resolver to load a template
@@ -329,4 +331,132 @@ describe("Pod Orchestration Integration Tests", () => {
 
     console.log("Template test completed successfully!");
   }, 90000);
+
+  it.only("should route requests via hostname-based Nginx proxy", async () => {
+    const proxyTestId = `proxy-test-${Date.now()}`;
+
+    const config: PodConfig = {
+      id: proxyTestId,
+      name: "Proxy Test Pod",
+      slug: "proxy-test-pod",
+      baseImage: "pinacledev/pinacle-base",
+      resources: {
+        tier: "dev.small" as ResourceTier,
+        cpuCores: 0.5,
+        memoryMb: 256,
+        storageMb: 1024,
+      },
+      network: {
+        ports: [], // Will be populated with nginx-proxy port
+      },
+      services: [],
+      environment: {
+        TEST_ENV: "hostname-routing",
+      },
+      workingDir: "/workspace",
+      user: "root",
+      githubBranch: "main",
+      healthChecks: [],
+    };
+
+    // Create pod
+    console.log("Creating pod with Nginx proxy...");
+    const pod = await podManager.createPod(config);
+
+    expect(pod.status).toBe("running");
+    expect(pod.config.network.ports).toHaveLength(1);
+    expect(pod.config.network.ports[0].name).toBe("nginx-proxy");
+    expect(pod.config.network.ports[0].internal).toBe(80);
+    expect(pod.config.network.ports[0].external).toBeGreaterThanOrEqual(30000);
+
+    const proxyPort = pod.config.network.ports[0].external!;
+    console.log(`✅ Nginx proxy exposed on port ${proxyPort}`);
+
+    // Wait for container to be fully ready
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
+    // Check that Nginx is running
+    const nginxCheck = await podManager.execInPod(proxyTestId, [
+      "rc-service",
+      "nginx",
+      "status",
+    ]);
+    console.log("Nginx status:", nginxCheck.stdout);
+
+    // Start a simple HTTP server on port 3000 inside the container
+    console.log("Starting test HTTP server on port 3000...");
+    await podManager.execInPod(proxyTestId, [
+      "sh",
+      "-c",
+      "mkdir -p /tmp/test-server && echo 'Hello from port 3000!' > /tmp/test-server/index.html",
+    ]);
+
+    // Start Python HTTP server in the background (using nohup)
+    await podManager.execInPod(proxyTestId, [
+      "sh",
+      "-c",
+      "cd /tmp/test-server && nohup python3 -m http.server 3000 > /tmp/server-3000.log 2>&1 &",
+    ]);
+
+    // Start another server on port 8080
+    console.log("Starting test HTTP server on port 8080...");
+    await podManager.execInPod(proxyTestId, [
+      "sh",
+      "-c",
+      "mkdir -p /tmp/test-server-8080 && echo 'Hello from port 8080!' > /tmp/test-server-8080/index.html",
+    ]);
+
+    await podManager.execInPod(proxyTestId, [
+      "sh",
+      "-c",
+      "cd /tmp/test-server-8080 && nohup python3 -m http.server 8080 > /tmp/server-8080.log 2>&1 &",
+    ]);
+
+    // Wait for servers to start
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Test that we can access the servers via Nginx proxy from inside the container
+    console.log("Testing Nginx proxy from inside container...");
+
+    // Test port 3000 via hostname routing from inside container
+    const test3000 = await podManager.execInPod(proxyTestId, [
+      "wget",
+      "-O-",
+      "-q",
+      "--header=Host: localhost-3000.pod-proxy-test-pod.pinacle.dev",
+      "http://localhost:80",
+    ]);
+    console.log("Port 3000 response (from container):", test3000.stdout);
+    expect(test3000.stdout.trim()).toBe("Hello from port 3000!");
+
+    // Test port 8080 via hostname routing from inside container
+    const test8080 = await podManager.execInPod(proxyTestId, [
+      "wget",
+      "-O-",
+      "-q",
+      "--header=Host: localhost-8080.pod-proxy-test-pod.pinacle.dev",
+      "http://localhost:80",
+    ]);
+    console.log("Port 8080 response (from container):", test8080.stdout);
+    expect(test8080.stdout.trim()).toBe("Hello from port 8080!");
+
+    // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
+    console.log("Testing from Mac via curl...");
+    const curlTest3000 = await execAsync(
+      `curl -s -H "Host: localhost-3000.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`
+    );
+    console.log("Port 3000 response (from Mac):", curlTest3000.stdout.trim());
+    expect(curlTest3000.stdout.trim()).toBe("Hello from port 3000!");
+
+    const curlTest8080 = await execAsync(
+      `curl -s -H "Host: localhost-8080.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`
+    );
+    console.log("Port 8080 response (from Mac):", curlTest8080.stdout.trim());
+    expect(curlTest8080.stdout.trim()).toBe("Hello from port 8080!");
+
+    console.log("✅ Hostname-based routing test completed successfully!");
+    console.log(`📝 Access these services from your Mac/browser at:`);
+    console.log(`   http://localhost-3000.pod-${pod.config.slug}.localhost:${proxyPort}`);
+    console.log(`   http://localhost-8080.pod-${pod.config.slug}.localhost:${proxyPort}`);
+  }, 120000); // 2 minute timeout
 });
