@@ -35,7 +35,15 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     this.serviceTemplates.set("code-server", {
       name: "code-server",
       installScript: [],
-      startCommand: ["code-server", "--bind-addr", "0.0.0.0", "--auth", "none"],
+      startCommand: [
+        "code-server",
+        "--bind-addr",
+        "0.0.0.0",
+        "--trusted-origins",
+        "*",
+        "--auth",
+        "none",
+      ],
       cleanupCommand: [],
       healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
       defaultPort: 8726,
@@ -426,7 +434,7 @@ name="${serviceName}"
 description="Auto-generated service for ${serviceName}"
 ${envVars}
 command="${template.startCommand[0]}"
-command_args="${template.startCommand.slice(1).join(" ")}"
+command_args="${template.startCommand.slice(1).join(" ").replace("*", "\\*")}"
 pidfile="/tmp/${serviceName}.pid"
 command_background="yes"
 

@@ -289,7 +289,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("List and filter test completed successfully!");
   }, 120000); // 2 minute timeout
 
-  it.skip("should handle template-based pod creation", async () => {
+  it.only("should handle template-based pod creation", async () => {
     const templateTestId = `template-test-${Date.now()}`;
 
     // Use config resolver to load a template
@@ -332,7 +332,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("Template test completed successfully!");
   }, 90000);
 
-  it.only("should route requests via hostname-based Nginx proxy", async () => {
+  it("should route requests via hostname-based Nginx proxy", async () => {
     const proxyTestId = `proxy-test-${Date.now()}`;
 
     const config: PodConfig = {
