@@ -33,7 +33,11 @@ let env: Env;
 
 if (typeof window === "undefined") {
   // Only validate in runtime, not at build time
-  if (process.env.NODE_ENV !== "development" && process.env.DATABASE_URL && process.env.NEXTAUTH_SECRET) {
+  if (
+    process.env.NODE_ENV !== "development" &&
+    process.env.DATABASE_URL &&
+    process.env.NEXTAUTH_SECRET
+  ) {
     env = merged.parse(processEnv);
   } else {
     env = processEnv as Env;

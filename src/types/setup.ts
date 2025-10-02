@@ -52,4 +52,3 @@ export type GitHubOrg = {
   avatar_url: string;
   description: string | null;
 };
-

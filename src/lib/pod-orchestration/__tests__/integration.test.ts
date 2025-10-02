@@ -1,6 +1,6 @@
-import { exec } from "child_process";
-import { promisify } from "util";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { beforeAll, describe, expect, it } from "vitest";
 import { DefaultConfigResolver } from "../config-resolver";
 import { LimaGVisorRuntime } from "../container-runtime";
 import { LimaNetworkManager } from "../network-manager";

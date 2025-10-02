@@ -12,7 +12,7 @@ import {
   LogOut,
   Menu,
   X,
-  Plus
+  Plus,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Button } from "../ui/button";
@@ -59,7 +59,10 @@ export const Sidebar = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={session?.user?.image || ""} alt={session?.user?.name || ""} />
+                <AvatarImage
+                  src={session?.user?.image || ""}
+                  alt={session?.user?.name || ""}
+                />
                 <AvatarFallback>
                   {session?.user?.name?.charAt(0).toUpperCase() || "U"}
                 </AvatarFallback>
@@ -93,7 +96,9 @@ export const Sidebar = () => {
               <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-2">
                 <div className="flex h-16 shrink-0 items-center">
                   <Code className="h-8 w-8 text-blue-600" />
-                  <span className="ml-2 font-bold text-xl text-gray-900">Pinacle</span>
+                  <span className="ml-2 font-bold text-xl text-gray-900">
+                    Pinacle
+                  </span>
                 </div>
                 <nav className="flex flex-1 flex-col">
                   <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -136,7 +141,9 @@ export const Sidebar = () => {
             <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
               <Code className="h-4 w-4 text-orange-900" />
             </div>
-            <span className="ml-2 font-bold font-mono text-xl text-foreground">PINACLE</span>
+            <span className="ml-2 font-bold font-mono text-xl text-foreground">
+              PINACLE
+            </span>
           </div>
 
           {/* Create Pod Button */}
@@ -183,8 +190,12 @@ export const Sidebar = () => {
                   </div>
                   <span className="sr-only">Your profile</span>
                   <div className="flex-1">
-                    <div className="text-sm font-bold">{session?.user?.name?.toUpperCase()}</div>
-                    <div className="text-xs text-muted-foreground">{session?.user?.email}</div>
+                    <div className="text-sm font-bold">
+                      {session?.user?.name?.toUpperCase()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {session?.user?.email}
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -215,4 +226,3 @@ export const Sidebar = () => {
     </>
   );
 };
-

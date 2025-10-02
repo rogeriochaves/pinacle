@@ -76,10 +76,7 @@ export const teamsRouter = createTRPCRouter({
         .select()
         .from(teamMembers)
         .where(
-          and(
-            eq(teamMembers.teamId, input.id),
-            eq(teamMembers.userId, userId)
-          )
+          and(eq(teamMembers.teamId, input.id), eq(teamMembers.userId, userId)),
         )
         .limit(1);
 
@@ -108,8 +105,8 @@ export const teamsRouter = createTRPCRouter({
         .where(
           and(
             eq(teamMembers.teamId, input.teamId),
-            eq(teamMembers.userId, userId)
-          )
+            eq(teamMembers.userId, userId),
+          ),
         )
         .limit(1);
 
@@ -146,10 +143,7 @@ export const teamsRouter = createTRPCRouter({
         .select()
         .from(teamMembers)
         .where(
-          and(
-            eq(teamMembers.teamId, teamId),
-            eq(teamMembers.userId, userId)
-          )
+          and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)),
         )
         .limit(1);
 

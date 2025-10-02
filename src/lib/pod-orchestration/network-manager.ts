@@ -1,9 +1,10 @@
-import { exec } from "child_process";
-import { promisify } from "util";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import type {
   LimaConfig,
   NetworkConfig,
   NetworkManager,
+  NetworkPolicy,
   PortMapping,
 } from "./types";
 
@@ -18,7 +19,10 @@ export class LimaNetworkManager implements NetworkManager {
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
     this.limaConfig = limaConfig;
     // Use Lima only in development on macOS
-    this.isDevMode = (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test") && process.platform === "darwin";
+    this.isDevMode =
+      (process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "test") &&
+      process.platform === "darwin";
   }
 
   private async execDockerCommand(
@@ -41,8 +45,9 @@ export class LimaNetworkManager implements NetworkManager {
     try {
       const result = await execAsync(fullCommand);
       return result;
-    } catch (error: any) {
-      console.error(`[NetworkManager] Command failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[NetworkManager] Command failed: ${message}`);
       throw error;
     }
   }
@@ -121,32 +126,34 @@ export class LimaNetworkManager implements NetworkManager {
         config.allowedDomains ||
         config.bandwidthLimit
       ) {
-        await this.applyNetworkPolicies(podId, [
+        const policies: NetworkPolicy[] = [
           {
-            type: "egress",
+            type: "egress" as const,
             allowed: config.allowEgress ?? true,
             domains: config.allowedDomains || [],
           },
-          ...(config.bandwidthLimit
-            ? [
-                {
-                  type: "bandwidth",
-                  limit: config.bandwidthLimit,
-                },
-              ]
-            : []),
-        ]);
+        ];
+
+        if (config.bandwidthLimit) {
+          policies.push({
+            type: "bandwidth" as const,
+            limit: config.bandwidthLimit,
+          });
+        }
+
+        await this.applyNetworkPolicies(podId, policies);
       }
 
       console.log(
         `[NetworkManager] Created network ${networkName} with subnet ${subnet}`,
       );
       return podIp;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[NetworkManager] Failed to create pod network: ${error.message}`,
+        `[NetworkManager] Failed to create pod network: ${message}`,
       );
-      throw new Error(`Network creation failed: ${error.message}`);
+      throw new Error(`Network creation failed: ${message}`);
     }
   }
 
@@ -161,12 +168,13 @@ export class LimaNetworkManager implements NetworkManager {
       await this.execLimaSudo(`docker network rm ${networkName}`);
 
       console.log(`[NetworkManager] Destroyed network ${networkName}`);
-    } catch (error: any) {
-      if (!error.message.includes("No such network")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("No such network")) {
         console.error(
-          `[NetworkManager] Failed to destroy pod network: ${error.message}`,
+          `[NetworkManager] Failed to destroy pod network: ${message}`,
         );
-        throw new Error(`Network destruction failed: ${error.message}`);
+        throw new Error(`Network destruction failed: ${message}`);
       }
     }
   }
@@ -204,7 +212,7 @@ export class LimaNetworkManager implements NetworkManager {
   }
 
   async setupPortForwarding(
-    podId: string,
+    _podId: string,
     mapping: PortMapping,
   ): Promise<void> {
     try {
@@ -228,16 +236,17 @@ export class LimaNetworkManager implements NetworkManager {
       console.log(
         `[NetworkManager] Set up port forwarding for ${mapping.name}: ${mapping.internal} -> ${mapping.external}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[NetworkManager] Failed to setup port forwarding: ${error.message}`,
+        `[NetworkManager] Failed to setup port forwarding: ${message}`,
       );
-      throw new Error(`Port forwarding setup failed: ${error.message}`);
+      throw new Error(`Port forwarding setup failed: ${message}`);
     }
   }
 
   async removePortForwarding(
-    podId: string,
+    _podId: string,
     mapping: PortMapping,
   ): Promise<void> {
     try {
@@ -245,17 +254,19 @@ export class LimaNetworkManager implements NetworkManager {
       console.log(
         `[NetworkManager] Removed port forwarding for ${mapping.name}: ${mapping.internal} -> ${mapping.external}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[NetworkManager] Failed to remove port forwarding: ${error.message}`,
+        `[NetworkManager] Failed to remove port forwarding: ${message}`,
       );
-      throw new Error(`Port forwarding removal failed: ${error.message}`);
+      throw new Error(`Port forwarding removal failed: ${message}`);
     }
   }
 
-  async applyNetworkPolicies(podId: string, policies: any[]): Promise<void> {
-    const networkName = this.generateNetworkName(podId);
-
+  async applyNetworkPolicies(
+    podId: string,
+    policies: NetworkPolicy[],
+  ): Promise<void> {
     try {
       for (const policy of policies) {
         switch (policy.type) {
@@ -268,25 +279,25 @@ export class LimaNetworkManager implements NetworkManager {
           case "bandwidth":
             await this.applyBandwidthPolicy(podId, policy);
             break;
-          default:
-            console.warn(
-              `[NetworkManager] Unknown policy type: ${policy.type}`,
-            );
         }
       }
 
       console.log(
         `[NetworkManager] Applied ${policies.length} network policies to pod ${podId}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[NetworkManager] Failed to apply network policies: ${error.message}`,
+        `[NetworkManager] Failed to apply network policies: ${message}`,
       );
-      throw new Error(`Network policy application failed: ${error.message}`);
+      throw new Error(`Network policy application failed: ${message}`);
     }
   }
 
-  private async applyEgressPolicy(podId: string, policy: any): Promise<void> {
+  private async applyEgressPolicy(
+    podId: string,
+    policy: Extract<NetworkPolicy, { type: "egress" }>,
+  ): Promise<void> {
     // Apply iptables rules for egress filtering
     const networkName = this.generateNetworkName(podId);
 
@@ -304,15 +315,18 @@ export class LimaNetworkManager implements NetworkManager {
     }
   }
 
-  private async applyIngressPolicy(podId: string, policy: any): Promise<void> {
+  private async applyIngressPolicy(
+    _podId: string,
+    _policy: Extract<NetworkPolicy, { type: "ingress" }>,
+  ): Promise<void> {
     // Apply iptables rules for ingress filtering
     // Implementation would depend on specific ingress requirements
-    console.log(`[NetworkManager] Applied ingress policy for pod ${podId}`);
+    console.log(`[NetworkManager] Applied ingress policy for pod ${_podId}`);
   }
 
   private async applyBandwidthPolicy(
     podId: string,
-    policy: any,
+    policy: Extract<NetworkPolicy, { type: "bandwidth" }>,
   ): Promise<void> {
     // Apply traffic control (tc) rules for bandwidth limiting
     const networkInterface = `br-${podId.substring(0, 12)}`;
@@ -326,7 +340,7 @@ export class LimaNetworkManager implements NetworkManager {
     for (const command of tcCommands) {
       try {
         await this.execLimaSudo(command);
-      } catch (error) {
+      } catch {
         // TC commands might fail if already applied or interface doesn't exist yet
         console.warn(
           `[NetworkManager] TC command failed (might be expected): ${command}`,
@@ -342,7 +356,7 @@ export class LimaNetworkManager implements NetworkManager {
         `netstat -tuln | grep :${port} || echo "available"`,
       );
       return stdout.includes("available");
-    } catch (error) {
+    } catch {
       // If netstat fails, assume port is available
       return true;
     }
@@ -372,8 +386,9 @@ export class LimaNetworkManager implements NetworkManager {
         gateway,
         podIp: undefined, // Would need to inspect container to get actual IP
       };
-    } catch (error: any) {
-      if (error.message.includes("No such network")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("No such network")) {
         return null;
       }
       throw error;
@@ -394,10 +409,9 @@ export class LimaNetworkManager implements NetworkManager {
         podId: name.replace("pinacle-net-", ""),
         networkName: name,
       }));
-    } catch (error: any) {
-      console.error(
-        `[NetworkManager] Failed to list pod networks: ${error.message}`,
-      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[NetworkManager] Failed to list pod networks: ${message}`);
       return [];
     }
   }

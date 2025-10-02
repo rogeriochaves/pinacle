@@ -9,7 +9,11 @@ import { db } from "./db";
 import { teamMembers, teams, users } from "./db/schema";
 
 // Helper function to ensure every user has a personal team
-async function ensureUserHasPersonalTeam(userId: string, username: string, displayName?: string | null) {
+async function ensureUserHasPersonalTeam(
+  userId: string,
+  username: string,
+  displayName?: string | null,
+) {
   try {
     // Check if user already has teams
     const existingTeams = await db
@@ -20,7 +24,9 @@ async function ensureUserHasPersonalTeam(userId: string, username: string, displ
 
     if (existingTeams.length === 0) {
       const teamName = `${displayName || username}'s Team`;
-      const teamSlug = `${username}-team`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const teamSlug = `${username}-team`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-");
 
       const [team] = await db
         .insert(teams)
@@ -39,7 +45,9 @@ async function ensureUserHasPersonalTeam(userId: string, username: string, displ
         role: "owner",
       });
 
-      console.log(`Successfully created personal team ${team.id} for user ${userId}`);
+      console.log(
+        `Successfully created personal team ${team.id} for user ${userId}`,
+      );
     }
   } catch (error) {
     console.error(`Failed to ensure personal team for user ${userId}:`, error);
@@ -116,7 +124,11 @@ export const authOptions: NextAuthOptions = {
         // Ensure personal team exists (user is guaranteed to exist in DB at this point)
         if (account?.provider === "github" && profile) {
           console.log("Creating personal team for GitHub user:", user.id);
-          await ensureUserHasPersonalTeam(user.id, (profile as any).login, profile.name);
+          await ensureUserHasPersonalTeam(
+            user.id,
+            (profile as any).login,
+            profile.name,
+          );
         } else if (user.name) {
           console.log("Creating personal team for credentials user:", user.id);
           await ensureUserHasPersonalTeam(user.id, user.name, user.name);

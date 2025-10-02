@@ -3,7 +3,14 @@
 import { Check, Zap, Crown, Rocket } from "lucide-react";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { Badge } from "../ui/badge";
 
 const tiers = [
@@ -80,8 +87,8 @@ export const Pricing = () => {
             CHOOSE YOUR DEVELOPMENT POWER
           </p>
           <p className="mt-6 text-lg leading-8 text-muted-foreground font-mono">
-            Simple, transparent pricing that scales with your needs.
-            All plans include our core AI development stack.
+            Simple, transparent pricing that scales with your needs. All plans
+            include our core AI development stack.
           </p>
         </div>
 
@@ -89,7 +96,10 @@ export const Pricing = () => {
           {tiers.map((tier) => {
             const Icon = tier.icon;
             return (
-              <Card key={tier.id} className={tier.popular ? "ring-2 ring-orange-400" : ""}>
+              <Card
+                key={tier.id}
+                className={tier.popular ? "ring-2 ring-orange-400" : ""}
+              >
                 {tier.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <Badge className="bg-orange-300 text-orange-950 border-2 border-border-contrast font-mono font-bold shadow-btn">
@@ -127,7 +137,9 @@ export const Pricing = () => {
                         <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-3 flex-shrink-0">
                           <Check className="h-2 w-2 text-green-900" />
                         </div>
-                        <span className="text-sm font-mono text-muted-foreground">{feature}</span>
+                        <span className="text-sm font-mono text-muted-foreground">
+                          {feature}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -139,9 +151,7 @@ export const Pricing = () => {
                     variant={tier.popular ? "accent" : "default"}
                     className="w-full font-mono font-bold"
                   >
-                    <Link href="/auth/signup">
-                      {tier.cta.toUpperCase()}
-                    </Link>
+                    <Link href="/auth/signup">{tier.cta.toUpperCase()}</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -151,26 +161,33 @@ export const Pricing = () => {
 
         <div className="mt-16 text-center">
           <p className="text-sm font-mono text-muted-foreground">
-            All plans include a 7-day free trial. No credit card required to start.
+            All plans include a 7-day free trial. No credit card required to
+            start.
           </p>
           <div className="mt-6 flex justify-center space-x-6 text-sm">
             <div className="flex items-center">
               <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
                 <Check className="h-2 w-2 text-green-900" />
               </div>
-              <span className="font-mono text-muted-foreground">CANCEL ANYTIME</span>
+              <span className="font-mono text-muted-foreground">
+                CANCEL ANYTIME
+              </span>
             </div>
             <div className="flex items-center">
               <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
                 <Check className="h-2 w-2 text-green-900" />
               </div>
-              <span className="font-mono text-muted-foreground">NO SETUP FEES</span>
+              <span className="font-mono text-muted-foreground">
+                NO SETUP FEES
+              </span>
             </div>
             <div className="flex items-center">
               <div className="flex h-4 w-4 items-center justify-center rounded-sm bg-green-200 border border-border-contrast mr-2">
                 <Check className="h-2 w-2 text-green-900" />
               </div>
-              <span className="font-mono text-muted-foreground">24/7 SUPPORT</span>
+              <span className="font-mono text-muted-foreground">
+                24/7 SUPPORT
+              </span>
             </div>
           </div>
         </div>
@@ -178,4 +195,3 @@ export const Pricing = () => {
     </section>
   );
 };
-

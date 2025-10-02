@@ -1,5 +1,5 @@
-import { exec } from "child_process";
-import { promisify } from "util";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import {
   getAllServiceTemplates,
   getServiceTemplate,
@@ -44,8 +44,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     try {
       const result = await execAsync(fullCommand);
       return result;
-    } catch (error: any) {
-      console.error(`[ServiceProvisioner] Command failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[ServiceProvisioner] Command failed: ${message}`);
       throw error;
     }
   }
@@ -129,11 +130,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       console.log(
         `[ServiceProvisioner] Successfully provisioned service ${service.name}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to provision service ${service.name}: ${error.message}`,
+        `[ServiceProvisioner] Failed to provision service ${service.name}: ${message}`,
       );
-      throw new Error(`Service provisioning failed: ${error.message}`);
+      throw new Error(`Service provisioning failed: ${message}`);
     }
   }
 
@@ -170,11 +172,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       console.log(
         `[ServiceProvisioner] Successfully started service ${serviceName}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to start service ${serviceName}: ${error.message}`,
+        `[ServiceProvisioner] Failed to start service ${serviceName}: ${message}`,
       );
-      throw new Error(`Service start failed: ${error.message}`);
+      throw new Error(`Service start failed: ${message}`);
     }
   }
 
@@ -196,9 +199,10 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       console.log(
         `[ServiceProvisioner] Successfully stopped service ${serviceName}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to stop service ${serviceName}: ${error.message}`,
+        `[ServiceProvisioner] Failed to stop service ${serviceName}: ${message}`,
       );
       // Don't throw error for stop failures - service might already be stopped
     }
@@ -225,11 +229,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       console.log(
         `[ServiceProvisioner] Successfully removed service ${serviceName}`,
       );
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to remove service ${serviceName}: ${error.message}`,
+        `[ServiceProvisioner] Failed to remove service ${serviceName}: ${message}`,
       );
-      throw new Error(`Service removal failed: ${error.message}`);
+      throw new Error(`Service removal failed: ${message}`);
     }
   }
 
@@ -252,9 +257,10 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       } else {
         return "stopped";
       }
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to get service status: ${error.message}`,
+        `[ServiceProvisioner] Failed to get service status: ${message}`,
       );
       return "failed";
     }
@@ -276,11 +282,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       ]);
 
       return stdout;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[ServiceProvisioner] Failed to get service logs: ${error.message}`,
+        `[ServiceProvisioner] Failed to get service logs: ${message}`,
       );
-      return `Error retrieving logs: ${error.message}`;
+      return `Error retrieving logs: ${message}`;
     }
   }
 
@@ -310,16 +317,17 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
           `'${healthCmd.replace(/'/g, "\\'")}'`,
         ]);
         return true;
-      } catch (error: any) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         if (Date.now() - startTime > timeout) {
           console.log(
-            `[ServiceProvisioner] Health check failed for ${serviceName}: ${error.message} (timeout after ${timeout}ms)`,
+            `[ServiceProvisioner] Health check failed for ${serviceName}: ${message} (timeout after ${timeout}ms)`,
           );
           return false;
         }
         retries++;
         console.log(
-          `[ServiceProvisioner] Health check failed for ${serviceName}: ${error.message} (retry #${retries})`,
+          `[ServiceProvisioner] Health check failed for ${serviceName}: ${message} (retry #${retries})`,
         );
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }

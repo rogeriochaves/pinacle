@@ -1,5 +1,4 @@
 import { App } from "@octokit/app";
-import type { Octokit } from "@octokit/rest";
 import { env } from "../env";
 
 let appInstance: App | null = null;
@@ -26,7 +25,7 @@ export const getInstallationOctokit = async (installationId: number) => {
   return octokit;
 };
 
-export const getUserInstallations = async (userId: string): Promise<any[]> => {
+export const getUserInstallations = async (_userId: string) => {
   const app = getGitHubApp();
 
   try {
@@ -45,9 +44,7 @@ export const getUserInstallations = async (userId: string): Promise<any[]> => {
   }
 };
 
-export const getInstallationRepositories = async (
-  installationId: number,
-): Promise<any[]> => {
+export const getInstallationRepositories = async (installationId: number) => {
   try {
     const octokit = await getInstallationOctokit(installationId);
     const { data } = await octokit.request("GET /installation/repositories", {
@@ -61,9 +58,7 @@ export const getInstallationRepositories = async (
   }
 };
 
-export const getInstallationAccounts = async (
-  installationId: number,
-): Promise<any[]> => {
+export const getInstallationAccounts = async (installationId: number) => {
   try {
     const octokit = await getInstallationOctokit(installationId);
 

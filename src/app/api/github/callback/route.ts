@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../../../lib/auth";
 import { db } from "../../../../lib/db";
-import { githubInstallations, userGithubInstallations } from "../../../../lib/db/schema";
+import {
+  githubInstallations,
+  userGithubInstallations,
+} from "../../../../lib/db/schema";
 import { getGitHubApp } from "../../../../lib/github-app";
 
 export async function GET(request: NextRequest) {
@@ -15,11 +18,13 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const installationId = searchParams.get("installation_id");
-    const setupAction = searchParams.get("setup_action");
+    const _setupAction = searchParams.get("setup_action");
     const state = searchParams.get("state");
 
     if (!installationId) {
-      return NextResponse.redirect(new URL("/setup/project?error=missing_installation", request.url));
+      return NextResponse.redirect(
+        new URL("/setup/project?error=missing_installation", request.url),
+      );
     }
 
     const userId = (session.user as any).id;
@@ -27,9 +32,12 @@ export async function GET(request: NextRequest) {
     try {
       // Get installation details from GitHub
       const app = getGitHubApp();
-      const { data: installation } = await app.octokit.request("GET /app/installations/{installation_id}", {
-        installation_id: parseInt(installationId),
-      });
+      const { data: installation } = await app.octokit.request(
+        "GET /app/installations/{installation_id}",
+        {
+          installation_id: parseInt(installationId, 10),
+        },
+      );
 
       // Store installation in database
       const [storedInstallation] = await db
@@ -66,18 +74,22 @@ export async function GET(request: NextRequest) {
         .onConflictDoNothing();
 
       // Redirect back to the setup flow
-      const baseRedirectUrl = state ? decodeURIComponent(state) : "/setup/project";
-      const separator = baseRedirectUrl.includes('?') ? '&' : '?';
+      const baseRedirectUrl = state
+        ? decodeURIComponent(state)
+        : "/setup/project";
+      const separator = baseRedirectUrl.includes("?") ? "&" : "?";
       const finalRedirectUrl = `${baseRedirectUrl}${separator}success=installation_complete`;
       return NextResponse.redirect(new URL(finalRedirectUrl, request.url));
-
     } catch (error) {
       console.error("Failed to process GitHub App installation:", error);
-      return NextResponse.redirect(new URL("/setup/project?error=installation_failed", request.url));
+      return NextResponse.redirect(
+        new URL("/setup/project?error=installation_failed", request.url),
+      );
     }
-
   } catch (error) {
     console.error("GitHub App callback error:", error);
-    return NextResponse.redirect(new URL("/setup/project?error=callback_failed", request.url));
+    return NextResponse.redirect(
+      new URL("/setup/project?error=callback_failed", request.url),
+    );
   }
 }

@@ -27,7 +27,9 @@ const SetupForm = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentStep, setCurrentStep] = useState<"project" | "configure">("project");
+  const [currentStep, setCurrentStep] = useState<"project" | "configure">(
+    "project",
+  );
 
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupFormSchema),
@@ -43,16 +45,19 @@ const SetupForm = () => {
   });
 
   // GitHub App queries
-  const { data: installationData, isLoading: installationsLoading } = api.githubApp.getInstallations.useQuery();
+  const { data: installationData, isLoading: installationsLoading } =
+    api.githubApp.getInstallations.useQuery();
   const { data: installationUrl } = api.githubApp.getInstallationUrl.useQuery({
     returnTo: `/setup/project?type=${form.watch("setupType")}`,
   });
-  const { data: appRepositories = [] } = api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
-    enabled: installationData?.hasInstallations,
-  });
-  const { data: appAccounts = [] } = api.githubApp.getAccountsFromInstallations.useQuery(undefined, {
-    enabled: installationData?.hasInstallations,
-  });
+  const { data: appRepositories = [] } =
+    api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
+      enabled: installationData?.hasInstallations,
+    });
+  const { data: appAccounts = [] } =
+    api.githubApp.getAccountsFromInstallations.useQuery(undefined, {
+      enabled: installationData?.hasInstallations,
+    });
 
   // tRPC mutations
   const { data: teams } = api.teams.getUserTeams.useQuery();
@@ -107,7 +112,8 @@ const SetupForm = () => {
   useEffect(() => {
     if (status === "loading" || installationsLoading) return;
 
-    if (!session || !(session.user as any).githubId) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!session || !(session.user as any).githubId) {
+      // eslint-disable-line @typescript-eslint/no-explicit-any
       router.push(`/setup?type=${form.watch("setupType")}`);
       return;
     }
@@ -126,21 +132,20 @@ const SetupForm = () => {
       }
     });
 
-
     // Navigate to configure step
     const setupType = form.getValues("setupType");
     if (setupType === "repository") {
       const selectedRepo = form.getValues("selectedRepo");
-      const repo = appRepositories.find(r => r.full_name === selectedRepo);
+      const repo = appRepositories.find((r) => r.full_name === selectedRepo);
       router.push(
-        `/setup/configure?type=repository&repo=${encodeURIComponent(selectedRepo!)}&branch=${repo?.default_branch || "main"}`
+        `/setup/configure?type=repository&repo=${encodeURIComponent(selectedRepo!)}&branch=${repo?.default_branch || "main"}`,
       );
     } else {
       const selectedOrg = form.getValues("selectedOrg");
       const newRepoName = form.getValues("newRepoName");
       const selectedBundle = form.getValues("bundle");
       router.push(
-        `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedBundle!)}`
+        `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedBundle!)}`,
       );
     }
   };
@@ -165,7 +170,8 @@ const SetupForm = () => {
       name: data.podName,
       description: `Development environment for ${data.setupType === "new" ? `${data.selectedOrg}/${data.newRepoName}` : data.selectedRepo || "project"}`,
       teamId: personalTeam.id,
-      githubRepo: data.setupType === "repository" ? data.selectedRepo : undefined,
+      githubRepo:
+        data.setupType === "repository" ? data.selectedRepo : undefined,
       githubBranch: "main",
       isNewProject: data.setupType === "new",
       newRepoName: data.newRepoName,
@@ -204,9 +210,9 @@ const SetupForm = () => {
         <ProjectSelectionStep
           form={form}
           repositories={appRepositories}
-          organizations={appAccounts.map(account => ({
+          organizations={appAccounts.map((account) => ({
             ...account,
-            description: null
+            description: null,
           }))}
           installationUrl={installationUrl ?? null}
           onContinue={handleProjectContinue}

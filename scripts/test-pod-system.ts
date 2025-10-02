@@ -87,9 +87,10 @@ async function main() {
         if (result.stderr) {
           console.log(`     stderr: ${result.stderr.trim()}`);
         }
-      } catch (error: any) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.log(`   $ ${cmd.join(" ")}`);
-        console.log(`     Error: ${error.message}`);
+        console.log(`     Error: ${message}`);
       }
     }
 
@@ -116,8 +117,9 @@ async function main() {
       console.log(
         `   Disk: ${metrics.disk.usage.toFixed(0)}MB / ${metrics.disk.limit}MB limit`,
       );
-    } catch (error: any) {
-      console.log(`   Error getting metrics: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`   Error getting metrics: ${message}`);
     }
 
     // Test 6: List pods
@@ -154,9 +156,13 @@ async function main() {
     console.log(
       "\n🎉 All tests passed! Pod orchestration system is working correctly.",
     );
-  } catch (error: any) {
-    console.error("\n❌ Test failed:", error.message);
-    console.error("Stack trace:", error.stack);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error("\n❌ Test failed:", message);
+    if (stack) {
+      console.error("Stack trace:", stack);
+    }
     process.exit(1);
   }
 }

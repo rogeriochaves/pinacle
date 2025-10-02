@@ -8,7 +8,6 @@ import type {
   ConfigResolver,
   PodConfig,
   ResourceTier,
-  ServiceConfig,
 } from "./types";
 
 // Validation schemas
@@ -41,7 +40,7 @@ const ServiceConfigSchema = z.object({
   dependsOn: z.array(z.string()).optional().default([]),
 });
 
-const PodConfigSchema = z.object({
+const _PodConfigSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),

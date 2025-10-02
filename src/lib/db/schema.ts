@@ -269,17 +269,23 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
-export const githubInstallationsRelations = relations(githubInstallations, ({ many }) => ({
-  userAccess: many(userGithubInstallations),
-}));
+export const githubInstallationsRelations = relations(
+  githubInstallations,
+  ({ many }) => ({
+    userAccess: many(userGithubInstallations),
+  }),
+);
 
-export const userGithubInstallationsRelations = relations(userGithubInstallations, ({ one }) => ({
-  user: one(users, {
-    fields: [userGithubInstallations.userId],
-    references: [users.id],
+export const userGithubInstallationsRelations = relations(
+  userGithubInstallations,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userGithubInstallations.userId],
+      references: [users.id],
+    }),
+    installation: one(githubInstallations, {
+      fields: [userGithubInstallations.installationId],
+      references: [githubInstallations.id],
+    }),
   }),
-  installation: one(githubInstallations, {
-    fields: [userGithubInstallations.installationId],
-    references: [githubInstallations.id],
-  }),
-}));
+);

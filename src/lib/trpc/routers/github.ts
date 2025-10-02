@@ -16,11 +16,12 @@ export const githubRouter = createTRPCRouter({
         auth: accessToken,
       });
 
-      const { data: repositories } = await octokit.rest.repos.listForAuthenticatedUser({
-        sort: "updated",
-        per_page: 100,
-        affiliation: "owner,collaborator,organization_member",
-      });
+      const { data: repositories } =
+        await octokit.rest.repos.listForAuthenticatedUser({
+          sort: "updated",
+          per_page: 100,
+          affiliation: "owner,collaborator,organization_member",
+        });
 
       return repositories;
     } catch (error) {
@@ -42,9 +43,10 @@ export const githubRouter = createTRPCRouter({
         auth: accessToken,
       });
 
-      const { data: organizations } = await octokit.rest.orgs.listForAuthenticatedUser({
-        per_page: 100,
-      });
+      const { data: organizations } =
+        await octokit.rest.orgs.listForAuthenticatedUser({
+          per_page: 100,
+        });
 
       console.log("Fetched organizations:", organizations);
       return organizations;
@@ -52,18 +54,22 @@ export const githubRouter = createTRPCRouter({
       console.error("GitHub API error:", error);
       // For OAuth apps, organization access is limited
       // Return empty array instead of throwing error
-      console.warn("Organization access limited with OAuth app - consider GitHub App installation");
+      console.warn(
+        "Organization access limited with OAuth app - consider GitHub App installation",
+      );
       return [];
     }
   }),
 
   createRepository: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1),
-      organization: z.string().optional(),
-      description: z.string().optional(),
-      private: z.boolean().default(false),
-    }))
+    .input(
+      z.object({
+        name: z.string().min(1),
+        organization: z.string().optional(),
+        description: z.string().optional(),
+        private: z.boolean().default(false),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const user = ctx.session.user as any;
       const accessToken = user.githubAccessToken;
@@ -98,14 +104,15 @@ export const githubRouter = createTRPCRouter({
             if (orgError.status === 404) {
               throw new Error(
                 `Cannot create repository in organization "${input.organization}". ` +
-                `This might be because: 1) You don't have permission to create repositories in this organization, ` +
-                `2) The organization doesn't exist, or 3) You need to use a GitHub App installation instead of personal access token.`
+                  `This might be because: 1) You don't have permission to create repositories in this organization, ` +
+                  `2) The organization doesn't exist, or 3) You need to use a GitHub App installation instead of personal access token.`,
               );
             }
             throw orgError;
           }
         } else {
-          const { data } = await octokit.rest.repos.createForAuthenticatedUser(repoData);
+          const { data } =
+            await octokit.rest.repos.createForAuthenticatedUser(repoData);
           repository = data;
         }
 
@@ -117,12 +124,14 @@ export const githubRouter = createTRPCRouter({
     }),
 
   createDeployKey: protectedProcedure
-    .input(z.object({
-      repository: z.string(), // owner/repo format
-      title: z.string(),
-      key: z.string(),
-      readOnly: z.boolean().default(false),
-    }))
+    .input(
+      z.object({
+        repository: z.string(), // owner/repo format
+        title: z.string(),
+        key: z.string(),
+        readOnly: z.boolean().default(false),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const user = ctx.session.user as any;
       const accessToken = user.githubAccessToken;
@@ -154,10 +163,12 @@ export const githubRouter = createTRPCRouter({
     }),
 
   removeDeployKey: protectedProcedure
-    .input(z.object({
-      repository: z.string(), // owner/repo format
-      keyId: z.number(),
-    }))
+    .input(
+      z.object({
+        repository: z.string(), // owner/repo format
+        keyId: z.number(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const user = ctx.session.user as any;
       const accessToken = user.githubAccessToken;

@@ -37,11 +37,8 @@ export default function DashboardLayout({
     <div className="bg-background min-h-screen">
       <Sidebar />
       <main className="lg:pl-72">
-        <div className="px-4 sm:px-6 lg:px-8 py-8">
-          {children}
-        </div>
+        <div className="px-4 sm:px-6 lg:px-8 py-8">{children}</div>
       </main>
     </div>
   );
 }
-

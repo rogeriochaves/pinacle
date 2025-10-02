@@ -21,7 +21,13 @@ export const Header = () => {
       <nav className="flex items-center justify-between">
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5 flex items-center space-x-2">
-            <Image src="/logo.png" alt="Pinacle Logo" className="h-10 w-10" width={40} height={40} />
+            <Image
+              src="/logo.png"
+              alt="Pinacle Logo"
+              className="h-10 w-10"
+              width={40}
+              height={40}
+            />
             <span className="font-bold font-mono text-xl">pinacle</span>
           </Link>
         </div>

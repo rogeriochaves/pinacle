@@ -7,7 +7,6 @@ import {
 } from "../../../lib/db/schema";
 import {
   getGitHubApp,
-  getInstallationOctokit,
   getInstallationRepositories,
 } from "../../github-app";
 import { createTRPCRouter, protectedProcedure } from "../server";

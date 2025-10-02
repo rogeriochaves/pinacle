@@ -8,7 +8,13 @@ import { Github, Code, Eye, EyeOff, Check } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card";
 import { api } from "../../../lib/trpc/client";
 
 export default function SignUp() {
@@ -34,7 +40,7 @@ export default function SignUp() {
   };
 
   const passwordRequirements = validatePassword(password);
-  const isPasswordValid = passwordRequirements.every(req => req.test);
+  const isPasswordValid = passwordRequirements.every((req) => req.test);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,12 +71,16 @@ export default function SignUp() {
       });
 
       if (result?.error) {
-        setError("Account created but sign in failed. Please try signing in manually.");
+        setError(
+          "Account created but sign in failed. Please try signing in manually.",
+        );
       } else {
         router.push("/dashboard");
       }
     } catch (error) {
-      setError((error as Error).message || "An error occurred during registration");
+      setError(
+        (error as Error).message || "An error occurred during registration",
+      );
     }
   };
 
@@ -83,11 +93,16 @@ export default function SignUp() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
+          <Link
+            href="/"
+            className="flex items-center justify-center space-x-2 mb-6"
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
               <Code className="h-4 w-4 text-orange-900" />
             </div>
-            <span className="font-bold font-mono text-2xl text-foreground">PINACLE</span>
+            <span className="font-bold font-mono text-2xl text-foreground">
+              PINACLE
+            </span>
           </Link>
           <h2 className="text-3xl font-bold font-mono text-foreground">
             CREATE YOUR ACCOUNT
@@ -105,7 +120,9 @@ export default function SignUp() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-mono font-bold">GET STARTED FOR FREE</CardTitle>
+            <CardTitle className="font-mono font-bold">
+              GET STARTED FOR FREE
+            </CardTitle>
             <CardDescription className="font-mono">
               Create your account to access AI development environments
             </CardDescription>
@@ -126,7 +143,9 @@ export default function SignUp() {
                 <span className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or continue with</span>
+                <span className="bg-white px-2 text-gray-500">
+                  Or continue with
+                </span>
               </div>
             </div>
 
@@ -247,9 +266,15 @@ export default function SignUp() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
-                disabled={signUpMutation.isPending || !isPasswordValid || password !== confirmPassword}
+                disabled={
+                  signUpMutation.isPending ||
+                  !isPasswordValid ||
+                  password !== confirmPassword
+                }
               >
-                {signUpMutation.isPending ? "Creating account..." : "Create account"}
+                {signUpMutation.isPending
+                  ? "Creating account..."
+                  : "Create account"}
               </Button>
             </form>
 

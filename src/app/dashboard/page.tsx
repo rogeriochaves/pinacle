@@ -8,10 +8,16 @@ import {
   Clock,
   TrendingUp,
   Plus,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
 import { api } from "../../lib/trpc/client";
 
@@ -32,19 +38,17 @@ const StatusBadge = ({ status }: { status: string }) => {
     }
   };
 
-  return (
-    <Badge className={getStatusColor(status)}>
-      {status}
-    </Badge>
-  );
+  return <Badge className={getStatusColor(status)}>{status}</Badge>;
 };
 
 export default function Dashboard() {
   const { data: session } = useSession();
-  const { data: pods, isLoading: podsLoading } = api.pods.getUserPods.useQuery();
-  const { data: teams, isLoading: teamsLoading } = api.teams.getUserTeams.useQuery();
+  const { data: pods, isLoading: podsLoading } =
+    api.pods.getUserPods.useQuery();
+  const { data: teams, isLoading: teamsLoading } =
+    api.teams.getUserTeams.useQuery();
 
-  const runningPods = pods?.filter(pod => pod.status === "running") || [];
+  const runningPods = pods?.filter((pod) => pod.status === "running") || [];
   const totalPods = pods?.length || 0;
   const totalTeams = teams?.length || 0;
 
@@ -104,15 +108,21 @@ export default function Dashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      {stat.name}
+                    </p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stat.value}
+                    </p>
                   </div>
                   <Icon className="h-8 w-8 text-gray-400" />
                 </div>
                 <div className="mt-4 flex items-center">
                   <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
                   <span className="text-sm text-green-600">{stat.change}</span>
-                  <span className="text-sm text-gray-500 ml-1">from last month</span>
+                  <span className="text-sm text-gray-500 ml-1">
+                    from last month
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -137,10 +147,10 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-              {podsLoading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={`pod-skeleton-${i}`} className="animate-pulse">
+            {podsLoading ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={`pod-skeleton-${i}`} className="animate-pulse">
                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                     <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                   </div>
@@ -149,13 +159,17 @@ export default function Dashboard() {
             ) : pods && pods.length > 0 ? (
               <div className="space-y-4">
                 {pods.slice(0, 5).map((pod) => (
-                  <div key={pod.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div
+                    key={pod.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  >
                     <div className="flex items-center space-x-3">
                       <Server className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="font-medium text-gray-900">{pod.name}</p>
                         <p className="text-sm text-gray-500">
-                          {pod.cpuCores} vCPU • {Math.round(pod.memoryMb / 1024)}GB RAM
+                          {pod.cpuCores} vCPU •{" "}
+                          {Math.round(pod.memoryMb / 1024)}GB RAM
                         </p>
                       </div>
                     </div>
@@ -175,7 +189,9 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <Server className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No pods yet</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No pods yet
+                </h3>
                 <p className="mt-1 text-sm text-gray-500">
                   Get started by creating your first development environment.
                 </p>
@@ -220,13 +236,17 @@ export default function Dashboard() {
             ) : teams && teams.length > 0 ? (
               <div className="space-y-4">
                 {teams.slice(0, 5).map((team) => (
-                  <div key={team.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div
+                    key={team.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                  >
                     <div className="flex items-center space-x-3">
                       <Users className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="font-medium text-gray-900">{team.name}</p>
                         <p className="text-sm text-gray-500">
-                          {team.role} • Created {new Date(team.createdAt).toLocaleDateString()}
+                          {team.role} • Created{" "}
+                          {new Date(team.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -237,7 +257,9 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No teams yet</h3>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                  No teams yet
+                </h3>
                 <p className="mt-1 text-sm text-gray-500">
                   Create a team to collaborate with others.
                 </p>

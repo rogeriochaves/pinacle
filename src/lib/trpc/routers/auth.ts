@@ -47,7 +47,8 @@ export const authRouter = createTRPCRouter({
       // Create personal team for the new user
       try {
         const teamName = `${name}'s Team`;
-        const teamSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-team";
+        const teamSlug =
+          `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-team`;
 
         const [team] = await ctx.db
           .insert(teams)
@@ -68,11 +69,13 @@ export const authRouter = createTRPCRouter({
 
         console.log(`Created personal team ${team.id} for new user ${user.id}`);
       } catch (error) {
-        console.error(`Failed to create personal team for new user ${user.id}:`, error);
+        console.error(
+          `Failed to create personal team for new user ${user.id}:`,
+          error,
+        );
         // Don't throw error here - user creation should succeed even if team creation fails
       }
 
       return user;
     }),
 });
-

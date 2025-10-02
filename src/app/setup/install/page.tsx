@@ -108,7 +108,12 @@ export default function InstallPage() {
     );
   }
 
-  if (status === "loading" || installationsLoading || urlLoading || isRedirecting) {
+  if (
+    status === "loading" ||
+    installationsLoading ||
+    urlLoading ||
+    isRedirecting
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -119,14 +124,12 @@ export default function InstallPage() {
           <p className="text-gray-600">
             {isRedirecting
               ? "Setting up GitHub App installation..."
-              : "Checking your GitHub App installations..."
-            }
+              : "Checking your GitHub App installations..."}
           </p>
         </div>
       </div>
     );
   }
-
 
   // This should never be reached since we auto-redirect, but just in case
   return (
@@ -136,10 +139,13 @@ export default function InstallPage() {
           <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
             <Github className="h-8 w-8 text-blue-600" />
           </div>
-            <CardTitle className="text-2xl">Step 2: Install Pinacle in Your Organizations</CardTitle>
-            <CardDescription className="text-base">
-              Install the Pinacle GitHub App in your organizations to enable repository access and development environment creation.
-            </CardDescription>
+          <CardTitle className="text-2xl">
+            Step 2: Install Pinacle in Your Organizations
+          </CardTitle>
+          <CardDescription className="text-base">
+            Install the Pinacle GitHub App in your organizations to enable
+            repository access and development environment creation.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -166,17 +172,19 @@ export default function InstallPage() {
             </div>
           </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">
-                What happens next?
-              </h4>
-              <ol className="text-sm text-blue-800 space-y-1">
-                <li>1. You'll be redirected to GitHub</li>
-                <li>2. Choose which organizations to install Pinacle on</li>
-                <li>3. Select which repositories Pinacle can access</li>
-                <li>4. Return here to continue creating your development environment</li>
-              </ol>
-            </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-medium text-blue-900 mb-2">
+              What happens next?
+            </h4>
+            <ol className="text-sm text-blue-800 space-y-1">
+              <li>1. You'll be redirected to GitHub</li>
+              <li>2. Choose which organizations to install Pinacle on</li>
+              <li>3. Select which repositories Pinacle can access</li>
+              <li>
+                4. Return here to continue creating your development environment
+              </li>
+            </ol>
+          </div>
 
           <div className="space-y-3">
             <Button
@@ -189,7 +197,6 @@ export default function InstallPage() {
               Install Pinacle App
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-
           </div>
 
           <div className="text-xs text-gray-500 text-center">

@@ -5,7 +5,8 @@ export const bundles: Bundle[] = [
   {
     id: "vite-starter",
     name: "Vite Starter",
-    description: "A lightweight environment for frontend development with Vite.",
+    description:
+      "A lightweight environment for frontend development with Vite.",
     icon: Zap,
     tier: "dev.small",
     cpuCores: 1,

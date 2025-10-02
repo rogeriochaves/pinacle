@@ -39,10 +39,11 @@ export type PodTemplate = {
  * Used by both frontend (bundles) and backend (pod orchestration)
  */
 export const POD_TEMPLATES: Record<string, PodTemplate> = {
-  "vite": {
+  vite: {
     id: "vite",
     name: "Vite Starter",
-    description: "A lightweight environment for frontend development with Vite.",
+    description:
+      "A lightweight environment for frontend development with Vite.",
     category: "frontend",
     popular: true,
     pricePerMonth: 6,
@@ -75,7 +76,7 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
     ],
   },
 
-  "nextjs": {
+  nextjs: {
     id: "nextjs",
     name: "Next.js",
     description: "Full-stack Next.js environment with database support.",
@@ -111,7 +112,7 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
     ],
   },
 
-  "nodejs": {
+  nodejs: {
     id: "nodejs",
     name: "Node.js",
     description: "Node.js backend development environment.",
@@ -264,11 +265,7 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
     requiredEnvVars: ["ANTHROPIC_API_KEY"],
 
     templateType: "python",
-    initScript: [
-      "cd /workspace",
-      "pip install mastra",
-      "mastra init",
-    ],
+    initScript: ["cd /workspace", "pip install mastra", "mastra init"],
   },
 };
 
@@ -299,4 +296,3 @@ export const getTemplatesByCategory = (category: string): PodTemplate[] => {
 export const getPopularTemplates = (): PodTemplate[] => {
   return getAllTemplates().filter((t) => t.popular);
 };
-

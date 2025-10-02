@@ -10,10 +10,15 @@ import {
   Trash2,
   ExternalLink,
   MoreHorizontal,
-  Filter
+  Filter,
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Input } from "../../../components/ui/input";
 import {
@@ -52,11 +57,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     }
   };
 
-  return (
-    <Badge className={getStatusColor(status)}>
-      {status}
-    </Badge>
-  );
+  return <Badge className={getStatusColor(status)}>{status}</Badge>;
 };
 
 export default function PodsPage() {
@@ -69,10 +70,12 @@ export default function PodsPage() {
   const stopPodMutation = api.pods.stop.useMutation();
   const deletePodMutation = api.pods.delete.useMutation();
 
-  const filteredPods = pods?.filter(pod =>
-    pod.name.toLowerCase().includes(search.toLowerCase()) ||
-    pod.description?.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  const filteredPods =
+    pods?.filter(
+      (pod) =>
+        pod.name.toLowerCase().includes(search.toLowerCase()) ||
+        pod.description?.toLowerCase().includes(search.toLowerCase()),
+    ) || [];
 
   const handleStartPod = async (podId: string) => {
     try {
@@ -117,7 +120,10 @@ export default function PodsPage() {
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={`pod-loading-${i}`} className="h-48 bg-gray-200 rounded"></div>
+              <div
+                key={`pod-loading-${i}`}
+                className="h-48 bg-gray-200 rounded"
+              ></div>
             ))}
           </div>
         </div>
@@ -130,7 +136,9 @@ export default function PodsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Pods</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Pods
+          </h1>
           <p className="mt-2 text-gray-600">
             Manage your development environments
           </p>
@@ -182,7 +190,9 @@ export default function PodsPage() {
                           Stop
                         </DropdownMenuItem>
                       ) : (
-                        <DropdownMenuItem onClick={() => handleStartPod(pod.id)}>
+                        <DropdownMenuItem
+                          onClick={() => handleStartPod(pod.id)}
+                        >
                           <Play className="mr-2 h-4 w-4" />
                           Start
                         </DropdownMenuItem>
@@ -224,7 +234,8 @@ export default function PodsPage() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Resources:</span>
                     <span className="font-medium">
-                      {pod.cpuCores} vCPU • {Math.round(pod.memoryMb / 1024)}GB RAM
+                      {pod.cpuCores} vCPU • {Math.round(pod.memoryMb / 1024)}GB
+                      RAM
                     </span>
                   </div>
 
@@ -281,8 +292,7 @@ export default function PodsPage() {
           <p className="mt-1 text-sm text-gray-500">
             {search
               ? "Try adjusting your search terms"
-              : "Get started by creating your first development environment."
-            }
+              : "Get started by creating your first development environment."}
           </p>
           {!search && (
             <div className="mt-6">
@@ -303,8 +313,8 @@ export default function PodsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your pod
-              and all associated data.
+              This action cannot be undone. This will permanently delete your
+              pod and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

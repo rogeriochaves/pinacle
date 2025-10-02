@@ -208,7 +208,8 @@ describe("GitHub Integration Tests", () => {
     it("should verify SSH keys are not logged", async () => {
       const consoleSpy = vi.spyOn(console, "log");
 
-      const keyPair = await githubIntegration.generateSSHKeyPair("security-test");
+      const _keyPair =
+        await githubIntegration.generateSSHKeyPair("security-test");
 
       // Check that private key is not logged (but public key might be)
       const allLogs = consoleSpy.mock.calls.map((call) => call.join(" "));
@@ -225,7 +226,9 @@ describe("GitHub Integration Tests", () => {
       const keyPair = await githubIntegration.generateSSHKeyPair("format-test");
 
       // Private key should have proper headers
-      expect(keyPair.privateKey).toMatch(/^-----BEGIN OPENSSH PRIVATE KEY-----/);
+      expect(keyPair.privateKey).toMatch(
+        /^-----BEGIN OPENSSH PRIVATE KEY-----/,
+      );
       expect(keyPair.privateKey).toMatch(/-----END OPENSSH PRIVATE KEY-----$/);
 
       // Public key should be ed25519
@@ -279,11 +282,12 @@ describe("GitHub Integration Tests", () => {
 
       console.log("✅ End-to-end flow structure validated");
       console.log(`   Repository: ${podConfig.githubRepo}`);
-      console.log(`   Deploy Key ID: ${podConfig.githubRepoSetup?.deployKeyId}`);
+      console.log(
+        `   Deploy Key ID: ${podConfig.githubRepoSetup?.deployKeyId}`,
+      );
       console.log(
         `   SSH Fingerprint: ${podConfig.githubRepoSetup?.sshKeyPair.fingerprint}`,
       );
     });
   });
 });
-

@@ -11,7 +11,11 @@ export type PodStatus =
   | "failed"
   | "terminating";
 
-export type ResourceTier = "dev.small" | "dev.medium" | "dev.large" | "dev.xlarge";
+export type ResourceTier =
+  | "dev.small"
+  | "dev.medium"
+  | "dev.large"
+  | "dev.xlarge";
 
 export interface ResourceConfig {
   tier: ResourceTier;
@@ -171,10 +175,16 @@ export interface ContainerRuntime {
   listContainers(filters?: Record<string, string>): Promise<ContainerInfo[]>;
 
   // Container execution
-  execCommand(containerId: string, command: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  execCommand(
+    containerId: string,
+    command: string[],
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }>;
 
   // Logs
-  getContainerLogs(containerId: string, options?: { tail?: number; follow?: boolean }): Promise<string>;
+  getContainerLogs(
+    containerId: string,
+    options?: { tail?: number; follow?: boolean },
+  ): Promise<string>;
 }
 
 export interface NetworkManager {
@@ -206,8 +216,15 @@ export interface ServiceProvisioner {
   removeService(podId: string, serviceName: string): Promise<void>;
 
   // Service status
-  getServiceStatus(podId: string, serviceName: string): Promise<"running" | "stopped" | "failed">;
-  getServiceLogs(podId: string, serviceName: string, options?: { tail?: number }): Promise<string>;
+  getServiceStatus(
+    podId: string,
+    serviceName: string,
+  ): Promise<"running" | "stopped" | "failed">;
+  getServiceLogs(
+    podId: string,
+    serviceName: string,
+    options?: { tail?: number },
+  ): Promise<string>;
 
   // Health checks
   checkServiceHealth(podId: string, serviceName: string): Promise<boolean>;
@@ -215,15 +232,26 @@ export interface ServiceProvisioner {
 
 export interface ConfigResolver {
   // Configuration loading and merging
-  loadConfig(templateId?: string, userConfig?: Partial<PodConfig>): Promise<PodConfig>;
-  validateConfig(config: PodConfig): Promise<{ valid: boolean; errors: string[] }>;
+  loadConfig(
+    templateId?: string,
+    userConfig?: Partial<PodConfig>,
+  ): Promise<PodConfig>;
+  validateConfig(
+    config: PodConfig,
+  ): Promise<{ valid: boolean; errors: string[] }>;
 
   // Auto-detection
-  detectProjectType(repoPath: string): Promise<{ type: string; confidence: number; suggestions: Partial<PodConfig> }>;
+  detectProjectType(repoPath: string): Promise<{
+    type: string;
+    confidence: number;
+    suggestions: Partial<PodConfig>;
+  }>;
 
   // Template management
   getTemplate(templateId: string): Promise<Partial<PodConfig> | null>;
-  listTemplates(): Promise<Array<{ id: string; name: string; description: string }>>;
+  listTemplates(): Promise<
+    Array<{ id: string; name: string; description: string }>
+  >;
 }
 
 export interface PodManager {
@@ -238,8 +266,14 @@ export interface PodManager {
   listPods(filters?: Record<string, any>): Promise<PodInstance[]>;
 
   // Pod operations
-  execInPod(podId: string, command: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }>;
-  getPodLogs(podId: string, options?: { tail?: number; follow?: boolean }): Promise<string>;
+  execInPod(
+    podId: string,
+    command: string[],
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  getPodLogs(
+    podId: string,
+    options?: { tail?: number; follow?: boolean },
+  ): Promise<string>;
 
   // Health and monitoring
   checkPodHealth(podId: string): Promise<boolean>;
@@ -256,11 +290,35 @@ export interface PodManager {
 }
 
 // Event types for pod lifecycle
+export type NetworkPolicyType = "egress" | "ingress" | "bandwidth";
+
+export type NetworkPolicy =
+  | {
+      type: "egress";
+      allowed: boolean;
+      domains: string[];
+    }
+  | {
+      type: "ingress";
+      allowed: boolean;
+      sources?: string[];
+    }
+  | {
+      type: "bandwidth";
+      limit: number;
+    };
+
 export interface PodEvent {
   podId: string;
-  type: "created" | "started" | "stopped" | "failed" | "deleted" | "health_check";
+  type:
+    | "created"
+    | "started"
+    | "stopped"
+    | "failed"
+    | "deleted"
+    | "health_check";
   timestamp: Date;
-  data?: any;
+  data?: Record<string, unknown>;
   error?: string;
 }
 

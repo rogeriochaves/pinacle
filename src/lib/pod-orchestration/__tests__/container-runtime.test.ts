@@ -106,7 +106,7 @@ describe("LimaGVisorRuntime", () => {
     });
 
     it("should handle container creation failure", async () => {
-      mockExec.mockImplementationOnce((cmd: string, callback: any) => {
+      mockExec.mockImplementationOnce((_cmd: string, callback: any) => {
         callback(new Error("Docker daemon not running"), {
           stdout: "",
           stderr: "Error",
@@ -207,7 +207,7 @@ describe("LimaGVisorRuntime", () => {
     });
 
     it("should return null for non-existent container", async () => {
-      mockExec.mockImplementationOnce((cmd: string, callback: any) => {
+      mockExec.mockImplementationOnce((_cmd: string, callback: any) => {
         const error = new Error("No such container");
         callback(error, { stdout: "", stderr: "No such container" });
       });
@@ -242,9 +242,9 @@ describe("LimaGVisorRuntime", () => {
       const containerId = "container-123";
       const command = ["false"];
 
-      mockExec.mockImplementationOnce((cmd: string, callback: any) => {
+      mockExec.mockImplementationOnce((_cmd: string, callback: any) => {
         const error = new Error("Command failed");
-        error.code = 1;
+        (error as any).code = 1;
         callback(error, { stdout: "", stderr: "Command failed" });
       });
 
@@ -270,7 +270,7 @@ describe("LimaGVisorRuntime", () => {
     });
 
     it("should return false if gVisor runtime is not available", async () => {
-      mockExec.mockImplementationOnce((cmd: string, callback: any) => {
+      mockExec.mockImplementationOnce((_cmd: string, callback: any) => {
         callback(null, { stdout: "Runtimes: runc", stderr: "" });
       });
 

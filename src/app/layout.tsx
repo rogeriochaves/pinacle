@@ -10,7 +10,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "Pinacle - Vibe Coding VMs",
-  description: "Spin up lightweight VMs with Claude Code, Vibe Kanban, and VS Code for seamless AI-powered development.",
+  description:
+    "Spin up lightweight VMs with Claude Code, Vibe Kanban, and VS Code for seamless AI-powered development.",
 };
 
 export default function RootLayout({
@@ -20,12 +21,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${jetbrainsMono.variable} font-mono antialiased`}
-      >
-        <Providers>
-          {children}
-        </Providers>
+      <body className={`${jetbrainsMono.variable} font-mono antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

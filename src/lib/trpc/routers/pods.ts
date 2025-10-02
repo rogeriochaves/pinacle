@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/rest";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -114,11 +115,14 @@ export const podsRouter = createTRPCRouter({
           );
 
           console.log("🔍 Debug GitHub App Installation:");
-          console.log("Available installations:", userInstallations.map(inst => ({
-            login: inst.accountLogin,
-            type: inst.accountType,
-            installationId: inst.installationId
-          })));
+          console.log(
+            "Available installations:",
+            userInstallations.map((inst) => ({
+              login: inst.accountLogin,
+              type: inst.accountType,
+              installationId: inst.installationId,
+            })),
+          );
           console.log("Looking for selectedOrg:", selectedOrg);
           console.log("Found targetInstallation:", targetInstallation);
 
@@ -129,21 +133,28 @@ export const podsRouter = createTRPCRouter({
           }
 
           // Choose the right token based on account type
-          let octokit;
+          let octokit:
+            | Octokit
+            | Awaited<ReturnType<typeof getInstallationOctokit>>;
           if (targetInstallation.accountType === "Organization") {
             // Use GitHub App installation token for organizations
-            console.log("🔑 Using GitHub App installation token for organization");
-            octokit = await getInstallationOctokit(targetInstallation.installationId);
+            console.log(
+              "🔑 Using GitHub App installation token for organization",
+            );
+            octokit = await getInstallationOctokit(
+              targetInstallation.installationId,
+            );
           } else {
             // Use user's OAuth token for personal accounts
             console.log("🔑 Using user's OAuth token for personal account");
             const userGithubToken = (ctx.session.user as any).githubAccessToken;
 
             if (!userGithubToken) {
-              throw new Error("User's GitHub OAuth token not found. Please sign out and sign in again.");
+              throw new Error(
+                "User's GitHub OAuth token not found. Please sign out and sign in again.",
+              );
             }
 
-            const { Octokit } = await import("@octokit/rest");
             octokit = new Octokit({ auth: userGithubToken });
           }
 
@@ -162,7 +173,9 @@ export const podsRouter = createTRPCRouter({
           let repository: any;
           if (targetInstallation.accountType === "Organization") {
             // Create in organization
-            console.log("📁 Using organization endpoint: POST /orgs/{org}/repos");
+            console.log(
+              "📁 Using organization endpoint: POST /orgs/{org}/repos",
+            );
             const { data } = await octokit.request("POST /orgs/{org}/repos", {
               org: selectedOrg,
               ...repoData,
@@ -172,34 +185,44 @@ export const podsRouter = createTRPCRouter({
             // Create in user account
             console.log("👤 Using user endpoint: POST /user/repos");
             console.log("📡 Making request with headers:", {
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28'
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
             });
 
             const { data } = await octokit.request("POST /user/repos", {
               ...repoData,
               headers: {
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28'
-              }
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+              },
             });
             repository = data;
           }
 
-          console.log("✅ Repository created successfully:", repository.full_name);
+          console.log(
+            "✅ Repository created successfully:",
+            repository.full_name,
+          );
 
           finalGithubRepo = repository.full_name;
-        } catch (error: any) {
+        } catch (error) {
           console.error("Failed to create repository:", error);
 
-          if (error.status === 403) {
+          const status =
+            typeof error === "object" && error !== null && "status" in error
+              ? (error as Record<string, unknown>).status
+              : undefined;
+          const message =
+            error instanceof Error ? error.message : String(error);
+
+          if (status === 403) {
             throw new Error(
               `Cannot create repository. The GitHub App needs 'Contents' and 'Administration' permissions. ` +
                 `Please update the app permissions and reinstall it.`,
             );
           }
 
-          if (error.status === 404) {
+          if (status === 404) {
             throw new Error(
               `Cannot create repository. This might be because: ` +
                 `1) The GitHub App doesn't have 'Contents' or 'Administration' permissions, ` +
@@ -208,7 +231,7 @@ export const podsRouter = createTRPCRouter({
             );
           }
 
-          throw new Error(`Failed to create repository: ${error.message}`);
+          throw new Error(`Failed to create repository: ${message}`);
         }
       }
 

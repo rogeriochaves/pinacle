@@ -1,5 +1,5 @@
-import { exec } from "child_process";
-import { promisify } from "util";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import type {
   ContainerInfo,
   ContainerRuntime,
@@ -43,9 +43,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     try {
       const result = await execAsync(fullCommand);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       const runtimeType = this.isDevMode ? "LimaRuntime" : "DockerRuntime";
-      console.error(`[${runtimeType}] Command failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[${runtimeType}] Command failed: ${message}`);
       throw error;
     }
   }
@@ -160,11 +161,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         `[LimaRuntime] Created container ${containerName} with ID: ${containerId}`,
       );
       return containerInfo;
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to create container: ${error.message}`,
-      );
-      throw new Error(`Container creation failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to create container: ${message}`);
+      throw new Error(`Container creation failed: ${message}`);
     }
   }
 
@@ -184,11 +184,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       }
 
       console.log(`[LimaRuntime] Started container: ${containerId}`);
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to start container: ${error.message}`,
-      );
-      throw new Error(`Container start failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to start container: ${message}`);
+      throw new Error(`Container start failed: ${message}`);
     }
   }
 
@@ -196,9 +195,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     try {
       await this.execLimaSudo(`docker stop ${containerId}`);
       console.log(`[LimaRuntime] Stopped container: ${containerId}`);
-    } catch (error: any) {
-      console.error(`[LimaRuntime] Failed to stop container: ${error.message}`);
-      throw new Error(`Container stop failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to stop container: ${message}`);
+      throw new Error(`Container stop failed: ${message}`);
     }
   }
 
@@ -213,11 +213,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
       await this.execLimaSudo(`docker rm ${containerId}`);
       console.log(`[LimaRuntime] Removed container: ${containerId}`);
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to remove container: ${error.message}`,
-      );
-      throw new Error(`Container removal failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to remove container: ${message}`);
+      throw new Error(`Container removal failed: ${message}`);
     }
   }
 
@@ -240,8 +239,8 @@ export class LimaGVisorRuntime implements ContainerRuntime {
             for (const binding of hostBindings) {
               ports.push({
                 name: `port-${port}`,
-                internal: parseInt(port),
-                external: parseInt(binding.HostPort),
+                internal: parseInt(port, 10),
+                external: parseInt(binding.HostPort, 10),
                 protocol: protocol as "tcp" | "udp",
               });
             }
@@ -266,14 +265,13 @@ export class LimaGVisorRuntime implements ContainerRuntime {
             ? new Date(containerData.State.FinishedAt)
             : undefined,
       };
-    } catch (error: any) {
-      if (error.message.includes("No such container")) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("No such container")) {
         return null;
       }
-      console.error(
-        `[LimaRuntime] Failed to get container info: ${error.message}`,
-      );
-      throw new Error(`Container inspection failed: ${error.message}`);
+      console.error(`[LimaRuntime] Failed to get container info: ${message}`);
+      throw new Error(`Container inspection failed: ${message}`);
     }
   }
 
@@ -302,11 +300,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       }
 
       return containers;
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to list containers: ${error.message}`,
-      );
-      throw new Error(`Container listing failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to list containers: ${message}`);
+      throw new Error(`Container listing failed: ${message}`);
     }
   }
 
@@ -350,9 +347,14 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         stderr,
         exitCode: 0,
       };
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code =
+        typeof error === "object" && error !== null && "code" in error
+          ? String((error as Record<string, unknown>).code)
+          : "unknown";
       throw new Error(
-        `Failed to execute command (exit code ${error.code}): ${error.message}`,
+        `Failed to execute command (exit code ${code}): ${message}`,
       );
     }
   }
@@ -374,11 +376,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
       const { stdout } = await this.execLimaSudo(dockerCommand);
       return stdout;
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to get container logs: ${error.message}`,
-      );
-      throw new Error(`Container logs retrieval failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to get container logs: ${message}`);
+      throw new Error(`Container logs retrieval failed: ${message}`);
     }
   }
 
@@ -418,11 +419,10 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         version,
         runtime: "gvisor",
       };
-    } catch (error: any) {
-      console.error(
-        `[LimaRuntime] Failed to get gVisor info: ${error.message}`,
-      );
-      throw new Error(`gVisor info retrieval failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] Failed to get gVisor info: ${message}`);
+      throw new Error(`gVisor info retrieval failed: ${message}`);
     }
   }
 
@@ -433,8 +433,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         "docker info --format='{{.Runtimes}}'",
       );
       return stdout.includes("runsc");
-    } catch (error: any) {
-      console.error(`[LimaRuntime] gVisor validation failed: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[LimaRuntime] gVisor validation failed: ${message}`);
       return false;
     }
   }

@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "biome check",
+    "lint": "biome lint --write --unsafe",
     "format": "biome format --write",
     "db:generate": "dotenv -c -- drizzle-kit generate",
     "db:migrate": "dotenv -c -- drizzle-kit migrate",

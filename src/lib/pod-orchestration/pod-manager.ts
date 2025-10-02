@@ -1,4 +1,4 @@
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { DefaultConfigResolver } from "./config-resolver";
 
 import { LimaGVisorRuntime } from "./container-runtime";
@@ -8,7 +8,6 @@ import { LimaServiceProvisioner } from "./service-provisioner";
 import { getTemplate } from "./template-registry";
 import type {
   ConfigResolver,
-  ContainerInfo,
   ContainerRuntime,
   LimaConfig,
   NetworkManager,
@@ -60,8 +59,6 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     this.pods.set(config.id, podInstance);
     this.emitEvent("created", config.id);
-
-    try {
       // Update status to provisioning
       await this.updatePodStatus(config.id, "provisioning");
 
@@ -134,23 +131,6 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
         `[PodManager] Successfully created pod: ${config.name} (${config.id})`,
       );
       return podInstance;
-    } catch (error: any) {
-      // console.error(
-      //   `[PodManager] Failed to create pod ${config.id}: ${error.message}`,
-      // );
-
-      // // Cleanup on failure
-      // try {
-      //   await this.cleanupFailedPod(config.id);
-      // } catch (cleanupError: any) {
-      //   console.error(`[PodManager] Cleanup failed: ${cleanupError.message}`);
-      // }
-
-      // await this.updatePodStatus(config.id, "failed", error.message);
-      // this.emitEvent("failed", config.id, { error: error.message });
-
-      throw error;
-    }
   }
 
   async startPod(podId: string): Promise<void> {
@@ -188,12 +168,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       this.emitEvent("started", podId);
 
       console.log(`[PodManager] Successfully started pod: ${podId}`);
-    } catch (error: any) {
-      console.error(
-        `[PodManager] Failed to start pod ${podId}: ${error.message}`,
-      );
-      await this.updatePodStatus(podId, "failed", error.message);
-      this.emitEvent("failed", podId, { error: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[PodManager] Failed to start pod ${podId}: ${message}`);
+      await this.updatePodStatus(podId, "failed", message);
+      this.emitEvent("failed", podId, { error: message });
       throw error;
     }
   }
@@ -233,12 +212,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       this.emitEvent("stopped", podId);
 
       console.log(`[PodManager] Successfully stopped pod: ${podId}`);
-    } catch (error: any) {
-      console.error(
-        `[PodManager] Failed to stop pod ${podId}: ${error.message}`,
-      );
-      await this.updatePodStatus(podId, "failed", error.message);
-      this.emitEvent("failed", podId, { error: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[PodManager] Failed to stop pod ${podId}: ${message}`);
+      await this.updatePodStatus(podId, "failed", message);
+      this.emitEvent("failed", podId, { error: message });
       throw error;
     }
   }
@@ -294,12 +272,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       this.emitEvent("deleted", podId);
 
       console.log(`[PodManager] Successfully deleted pod: ${podId}`);
-    } catch (error: any) {
-      console.error(
-        `[PodManager] Failed to delete pod ${podId}: ${error.message}`,
-      );
-      await this.updatePodStatus(podId, "failed", error.message);
-      this.emitEvent("failed", podId, { error: error.message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[PodManager] Failed to delete pod ${podId}: ${message}`);
+      await this.updatePodStatus(podId, "failed", message);
+      this.emitEvent("failed", podId, { error: message });
       throw error;
     }
   }
@@ -308,7 +285,9 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     return this.pods.get(podId) || null;
   }
 
-  async listPods(filters: Record<string, any> = {}): Promise<PodInstance[]> {
+  async listPods(
+    filters: Record<string, string | boolean | number> = {},
+  ): Promise<PodInstance[]> {
     let pods = Array.from(this.pods.values());
 
     // Apply filters
@@ -384,13 +363,14 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       this.emitEvent("health_check", podId, { healthy: true });
 
       return true;
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[PodManager] Health check failed for pod ${podId}: ${error.message}`,
+        `[PodManager] Health check failed for pod ${podId}: ${message}`,
       );
       this.emitEvent("health_check", podId, {
         healthy: false,
-        error: error.message,
+        error: message,
       });
       return false;
     }
@@ -467,7 +447,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
   }
 
-  private emitEvent(type: PodEvent["type"], podId: string, data?: any): void {
+  private emitEvent(
+    type: PodEvent["type"],
+    podId: string,
+    data?: Record<string, unknown>,
+  ): void {
     const event: PodEvent = {
       podId,
       type,
@@ -586,9 +570,10 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     for (const service of servicesToStop) {
       try {
         await this.serviceProvisioner.stopService(config.id, service.name);
-      } catch (error: any) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.warn(
-          `[PodManager] Failed to stop service ${service.name}: ${error.message}`,
+          `[PodManager] Failed to stop service ${service.name}: ${message}`,
         );
       }
     }
@@ -598,9 +583,10 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     for (const service of config.services) {
       try {
         await this.serviceProvisioner.removeService(config.id, service.name);
-      } catch (error: any) {
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         console.warn(
-          `[PodManager] Failed to remove service ${service.name}: ${error.message}`,
+          `[PodManager] Failed to remove service ${service.name}: ${message}`,
         );
       }
     }
@@ -613,32 +599,6 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
         "-c",
         `'${hook.replace(/'/g, "\\'")}'`,
       ]);
-    }
-  }
-
-  private async cleanupFailedPod(podId: string): Promise<void> {
-    console.log(`[PodManager] Cleaning up failed pod: ${podId}`);
-
-    try {
-      // Try to remove container if it exists
-      const pod = this.pods.get(podId);
-      if (pod?.container) {
-        await this.containerRuntime.removeContainer(pod.container.id);
-      }
-
-      // Try to destroy network
-      await this.networkManager.destroyPodNetwork(podId);
-
-      // Release allocated ports
-      if (pod) {
-        for (const port of pod.config.network.ports) {
-          if (port.external) {
-            await this.networkManager.releasePort(podId, port.external);
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error(`[PodManager] Cleanup error: ${error.message}`);
     }
   }
 }

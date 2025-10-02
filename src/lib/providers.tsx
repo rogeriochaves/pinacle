@@ -17,7 +17,7 @@ const createQueryClient = () =>
     },
   });
 
-let clientQueryClientSingleton: QueryClient | undefined = undefined;
+let clientQueryClientSingleton: QueryClient | undefined ;
 const getQueryClient = () => {
   if (typeof window === "undefined") {
     return createQueryClient();
@@ -43,7 +43,7 @@ export const Providers = ({ children }: ProvidersProps) => {
           transformer: superjson,
         }),
       ],
-    })
+    }),
   );
 
   return (
