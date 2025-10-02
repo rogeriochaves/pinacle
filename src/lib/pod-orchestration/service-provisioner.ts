@@ -1,23 +1,17 @@
 import { exec } from "child_process";
 import { promisify } from "util";
+import {
+  getAllServiceTemplates,
+  getServiceTemplate,
+  type ServiceContext,
+  type ServiceTemplate,
+} from "./service-registry";
 import type { LimaConfig, ServiceConfig, ServiceProvisioner } from "./types";
 
 const execAsync = promisify(exec);
 
-interface ServiceTemplate {
-  name: string;
-  image?: string;
-  installScript: string[];
-  startCommand: string[];
-  cleanupCommand: string[];
-  healthCheckCommand: string[];
-  defaultPort: number;
-  environment?: Record<string, string>;
-}
-
 export class LimaServiceProvisioner implements ServiceProvisioner {
   private limaConfig: LimaConfig;
-  private serviceTemplates: Map<string, ServiceTemplate> = new Map();
   private isDevMode: boolean;
 
   constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
@@ -27,93 +21,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       (process.env.NODE_ENV === "development" ||
         process.env.NODE_ENV === "test") &&
       process.platform === "darwin";
-    this.initializeServiceTemplates();
-  }
-
-  private initializeServiceTemplates(): void {
-    // VS Code Server
-    this.serviceTemplates.set("code-server", {
-      name: "code-server",
-      installScript: [],
-      startCommand: [
-        "code-server",
-        "--bind-addr",
-        "0.0.0.0",
-        "--trusted-origins",
-        "*",
-        "--auth",
-        "none",
-      ],
-      cleanupCommand: [],
-      healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
-      defaultPort: 8726,
-      environment: {
-        PORT: "8726",
-      },
-    });
-
-    // Vibe Kanban
-    this.serviceTemplates.set("vibe-kanban", {
-      name: "vibe-kanban",
-      installScript: [],
-      startCommand: ["vibe-kanban"],
-      cleanupCommand: [],
-      healthCheckCommand: ["curl", "-f", "http://localhost:5262"],
-      defaultPort: 5262,
-      environment: {
-        NODE_ENV: "production",
-        PORT: "5262",
-        HOST: "0.0.0.0",
-        IS_SANDBOX: "1",
-      },
-    });
-
-    // Claude Code (simulated - would need actual implementation)
-    this.serviceTemplates.set("claude-code", {
-      name: "claude-code",
-      installScript: ["pnpm install -g @anthropic-ai/claude-code"],
-      startCommand: [
-        "ttyd",
-        "-p",
-        "2528",
-        "-i",
-        "0.0.0.0",
-        "-w",
-        "/workspace",
-        "--writable",
-        "--",
-        "tmux new -As claude /root/.local/share/pnpm/claude",
-      ],
-      cleanupCommand: [],
-      healthCheckCommand: ["curl", "-f", "http://localhost:2528"],
-      defaultPort: 2528,
-      environment: {
-        IS_SANDBOX: "1",
-      },
-    });
-
-    // Web-based terminal (ttyd)
-    this.serviceTemplates.set("web-terminal", {
-      name: "web-terminal",
-      installScript: [],
-      // e.g.: http://localhost:7681/?arg=0, or http://localhost:7681/?arg=1
-      startCommand: [
-        "ttyd",
-        "-p",
-        "7681",
-        "-i",
-        "0.0.0.0",
-        "-w",
-        "/workspace",
-        "--writable",
-        "--url-arg",
-        "--",
-        "tmux new -As",
-      ],
-      cleanupCommand: [],
-      healthCheckCommand: ["curl", "-f", "http://localhost:7681"],
-      defaultPort: 7681,
-    });
+    // Service templates are now loaded from service-registry.ts
   }
 
   private async execDockerCommand(
@@ -157,8 +65,12 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     return this.execDockerCommand(dockerCommand, true); // Always use sudo for docker exec
   }
 
-  async provisionService(podId: string, service: ServiceConfig): Promise<void> {
-    const template = this.serviceTemplates.get(service.name);
+  async provisionService(
+    podId: string,
+    service: ServiceConfig,
+    githubRepo?: string,
+  ): Promise<void> {
+    const template = getServiceTemplate(service.name);
     const containerName = `pinacle-pod-${podId}`;
 
     try {
@@ -190,8 +102,13 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
           await this.execInContainer(containerName, [installCmd]);
         }
 
-        // Create OpenRC service script
-        await this.createServiceScript(containerName, service.name, template);
+        // Create OpenRC service script with custom working directory if GitHub repo is present
+        await this.createServiceScript(
+          containerName,
+          service.name,
+          template,
+          githubRepo,
+        );
       } else if (service.image) {
         // Custom service with Docker image - would need to run as sidecar
         console.log(
@@ -372,7 +289,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     serviceName: string,
     timeout: number = 0,
   ): Promise<boolean> {
-    const template = this.serviceTemplates.get(serviceName);
+    const template = getServiceTemplate(serviceName);
     const containerName = `pinacle-pod-${podId}`;
 
     if (!template) {
@@ -413,6 +330,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     containerName: string,
     serviceName: string,
     template: ServiceTemplate,
+    githubRepo?: string,
   ): Promise<void> {
     // Create OpenRC-compatible init script for Alpine
     const envVars = Object.entries(template.environment || {})
@@ -428,13 +346,23 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       );
     }
 
+    // Build service context for startCommand function
+    const context: ServiceContext = {
+      projectFolder: githubRepo,
+    };
+
+    // Get the start command from the template function
+    const startCommandArray = template.startCommand(context);
+    const command = startCommandArray[0];
+    const commandArgs = startCommandArray.slice(1).join(" ");
+
     const serviceScript = `#!/sbin/openrc-run
 
 name="${serviceName}"
 description="Auto-generated service for ${serviceName}"
 ${envVars}
-command="${template.startCommand[0]}"
-command_args="${template.startCommand.slice(1).join(" ").replace("*", "\\*")}"
+command="${command}"
+command_args="${commandArgs.replace("*", "\\*")}"
 pidfile="/tmp/${serviceName}.pid"
 command_background="yes"
 
@@ -460,20 +388,20 @@ stop_pre() {
 
   // Utility methods
   getAvailableServices(): string[] {
-    return Array.from(this.serviceTemplates.keys());
+    return getAllServiceTemplates().map((t) => t.name);
   }
 
-  getServiceTemplate(serviceName: string): ServiceTemplate | undefined {
-    return this.serviceTemplates.get(serviceName);
+  getServiceTemplateInfo(serviceName: string): ServiceTemplate | undefined {
+    return getServiceTemplate(serviceName);
   }
 
   async listRunningServices(podId: string): Promise<string[]> {
     const runningServices: string[] = [];
 
-    for (const serviceName of this.serviceTemplates.keys()) {
-      const status = await this.getServiceStatus(podId, serviceName);
+    for (const template of getAllServiceTemplates()) {
+      const status = await this.getServiceStatus(podId, template.name);
       if (status === "running") {
-        runningServices.push(serviceName);
+        runningServices.push(template.name);
       }
     }
 

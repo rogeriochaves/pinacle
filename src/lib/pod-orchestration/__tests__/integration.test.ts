@@ -49,6 +49,7 @@ describe("Pod Orchestration Integration Tests", () => {
         p.podId.startsWith("lifecycle-test-") ||
         p.podId.startsWith("test-integration-") ||
         p.podId.startsWith("proxy-test-") ||
+        p.podId.startsWith("github-test-") ||
         p.podId.includes("template-test"),
     );
     for (const container of testContainers) {
@@ -63,6 +64,7 @@ describe("Pod Orchestration Integration Tests", () => {
       (n) =>
         n.podId.startsWith("lifecycle-test-") ||
         n.podId.startsWith("test-integration-") ||
+        n.podId.startsWith("github-test-") ||
         n.podId.startsWith("proxy-test-") ||
         n.podId.includes("template-test"),
     );
@@ -289,7 +291,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("List and filter test completed successfully!");
   }, 120000); // 2 minute timeout
 
-  it.only("should handle template-based pod creation", async () => {
+  it("should handle template-based pod creation", async () => {
     const templateTestId = `template-test-${Date.now()}`;
 
     // Use config resolver to load a template
@@ -443,20 +445,114 @@ describe("Pod Orchestration Integration Tests", () => {
     // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
     console.log("Testing from Mac via curl...");
     const curlTest3000 = await execAsync(
-      `curl -s -H "Host: localhost-3000.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`
+      `curl -s -H "Host: localhost-3000.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
     );
     console.log("Port 3000 response (from Mac):", curlTest3000.stdout.trim());
     expect(curlTest3000.stdout.trim()).toBe("Hello from port 3000!");
 
     const curlTest8080 = await execAsync(
-      `curl -s -H "Host: localhost-8080.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`
+      `curl -s -H "Host: localhost-8080.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
     );
     console.log("Port 8080 response (from Mac):", curlTest8080.stdout.trim());
     expect(curlTest8080.stdout.trim()).toBe("Hello from port 8080!");
 
     console.log("✅ Hostname-based routing test completed successfully!");
     console.log(`📝 Access these services from your Mac/browser at:`);
-    console.log(`   http://localhost-3000.pod-${pod.config.slug}.localhost:${proxyPort}`);
-    console.log(`   http://localhost-8080.pod-${pod.config.slug}.localhost:${proxyPort}`);
+    console.log(
+      `   http://localhost-3000.pod-${pod.config.slug}.localhost:${proxyPort}`,
+    );
+    console.log(
+      `   http://localhost-8080.pod-${pod.config.slug}.localhost:${proxyPort}`,
+    );
   }, 120000); // 2 minute timeout
+
+  it.only("should clone a real GitHub repository into a pod", async () => {
+    console.log("Creating pod with GitHub repository integration...");
+
+    const githubTestId = `github-test-${Date.now()}`;
+
+    // Use a small public repository for testing
+    const testRepo = "https://github.com/octocat/Hello-World.git"; // GitHub's example repo
+
+    // Generate a real SSH key pair (won't be used for actual GitHub, just for structure)
+    const { GitHubIntegration } = await import("../github-integration");
+    const githubIntegration = new GitHubIntegration(podManager);
+    const sshKeyPair = await githubIntegration.generateSSHKeyPair(githubTestId);
+
+    console.log("✅ Generated SSH key pair");
+    console.log(`   Fingerprint: ${sshKeyPair.fingerprint}`);
+
+    // Use config resolver to get proper template config
+    const templateConfig = await configResolver.loadConfig("nodejs", {
+      id: githubTestId,
+      name: "GitHub Integration Test Pod",
+      slug: "github-test-pod",
+      githubRepo: testRepo,
+      githubRepoSetup: {
+        type: "existing",
+        sshKeyPair: sshKeyPair,
+        // We'll clone using HTTPS instead of SSH for public repos
+      },
+      environment: {
+        NODE_ENV: "development",
+      },
+    });
+
+    console.log(`📦 Creating pod with repository: ${testRepo}`);
+
+    expect(templateConfig.githubRepo).toBe(testRepo);
+    expect(templateConfig.githubRepoSetup?.type).toBe("existing");
+
+    const pod = await podManager.createPod(templateConfig);
+
+    expect(pod.status).toBe("running");
+    expect(pod.container).toBeDefined();
+
+    console.log("✅ Pod created and running");
+
+    // Verify the repository was cloned correctly
+    console.log("🔍 Verifying cloned repository...");
+
+    const containerRuntime = new LimaGVisorRuntime();
+    const { stdout: repoCheck } = await containerRuntime.execCommand(
+      pod.container!.id,
+      ["sh", "-c", "'cd /workspace/Hello-World && git remote -v && ls -la'"],
+    );
+
+    console.log("Repository check:", repoCheck);
+    expect(repoCheck).toContain("origin");
+    expect(repoCheck).toContain("github.com");
+    expect(repoCheck).toContain("README");
+
+    // Check that we can read a file from the repo
+    const { stdout: readmeContent } = await containerRuntime.execCommand(
+      pod.container!.id,
+      ["sh", "-c", "'cat /workspace/Hello-World/README'"],
+    );
+
+    console.log(
+      "📄 README.md preview:",
+      `${readmeContent.substring(0, 100)}...`,
+    );
+    expect(readmeContent.length).toBeGreaterThan(0);
+
+    // Verify git configuration
+    const { stdout: gitConfig } = await containerRuntime.execCommand(
+      pod.container!.id,
+      [
+        "sh",
+        "-c",
+        "'cd /workspace/Hello-World && git config --list | grep remote'",
+      ],
+    );
+
+    expect(gitConfig).toContain("remote.origin.url");
+
+    console.log(
+      "✅ GitHub repository integration test completed successfully!",
+    );
+    console.log(`   Repository: ${testRepo}`);
+    console.log(`   Location: /workspace/Hello-World`);
+    console.log(`   Files found: ${repoCheck.split("\n").length} items`);
+  }, 180000); // 3 minute timeout
 });

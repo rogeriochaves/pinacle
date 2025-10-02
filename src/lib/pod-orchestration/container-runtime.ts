@@ -351,11 +351,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         exitCode: 0,
       };
     } catch (error: any) {
-      return {
-        stdout: "",
-        stderr: error.message,
-        exitCode: error.code || 1,
-      };
+      throw new Error(
+        `Failed to execute command (exit code ${error.code}): ${error.message}`,
+      );
     }
   }
 

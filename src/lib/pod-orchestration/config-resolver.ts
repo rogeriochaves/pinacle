@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  getAllTemplates,
+  getTemplate,
+  type PodTemplate,
+} from "./template-registry";
 import type {
   ConfigResolver,
   PodConfig,
@@ -88,285 +93,7 @@ const PodConfigSchema = z.object({
     .default([]),
 });
 
-interface PodTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  baseImage: string;
-  services: ServiceConfig[];
-  defaultPorts: Array<{ name: string; internal: number; external?: number }>;
-  environment: Record<string, string>;
-  resources: {
-    tier: ResourceTier;
-    cpuCores: number;
-    memoryMb: number;
-    storageMb: number;
-  };
-}
-
 export class DefaultConfigResolver implements ConfigResolver {
-  private templates: Map<string, PodTemplate> = new Map();
-
-  constructor() {
-    this.initializeTemplates();
-  }
-
-  private initializeTemplates(): void {
-    // Next.js template
-    this.templates.set("nextjs", {
-      id: "nextjs",
-      name: "Next.js Development",
-      description: "Full-stack React development with Next.js",
-      category: "nextjs",
-      baseImage: "pinacledev/pinacle-base",
-      services: [
-        {
-          name: "code-server",
-          enabled: true,
-          ports: [{ name: "code", internal: 8726, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "vibe-kanban",
-          enabled: true,
-          ports: [{ name: "kanban", internal: 5262, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "claude-code",
-          enabled: true,
-          ports: [{ name: "claude", internal: 2528, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "web-terminal",
-          enabled: true,
-          ports: [{ name: "terminal", internal: 7681, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-      ],
-      defaultPorts: [
-        { name: "app", internal: 3000 },
-        { name: "code", internal: 8726 },
-        { name: "kanban", internal: 5262 },
-        { name: "claude", internal: 2528 },
-        { name: "terminal", internal: 7681 },
-      ],
-      environment: {
-        NODE_ENV: "development",
-        PORT: "3000",
-        NEXT_TELEMETRY_DISABLED: "1",
-      },
-      resources: {
-        tier: "dev.small",
-        cpuCores: 1,
-        memoryMb: 1024,
-        storageMb: 10240,
-      },
-    });
-
-    // Mastra AI Agent template
-    this.templates.set("mastra", {
-      id: "mastra",
-      name: "Mastra AI Agent",
-      description: "Build AI agents with Mastra framework",
-      category: "mastra",
-      baseImage: "pinacledev/pinacle-base",
-      services: [
-        {
-          name: "code-server",
-          enabled: true,
-          ports: [{ name: "code", internal: 8726, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "vibe-kanban",
-          enabled: true,
-          ports: [{ name: "kanban", internal: 5262, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "claude-code",
-          enabled: true,
-          ports: [{ name: "claude", internal: 2528, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "web-terminal",
-          enabled: true,
-          ports: [{ name: "terminal", internal: 7681, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-      ],
-      defaultPorts: [
-        { name: "app", internal: 8000 },
-        { name: "code", internal: 8726 },
-        { name: "kanban", internal: 5262 },
-        { name: "claude", internal: 2528 },
-        { name: "terminal", internal: 7681 },
-      ],
-      environment: {
-        PYTHON_ENV: "development",
-        PYTHONPATH: "/workspace",
-      },
-      resources: {
-        tier: "dev.medium",
-        cpuCores: 1.5,
-        memoryMb: 2048,
-        storageMb: 15360,
-      },
-    });
-
-    // Custom Ubuntu template
-    this.templates.set("custom", {
-      id: "custom",
-      name: "Custom Ubuntu",
-      description: "Start with a blank Ubuntu environment",
-      category: "custom",
-      baseImage: "pinacledev/pinacle-base",
-      services: [
-        {
-          name: "code-server",
-          enabled: true,
-          ports: [{ name: "code", internal: 8726, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "claude-code",
-          enabled: true,
-          ports: [{ name: "claude", internal: 2528, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "web-terminal",
-          enabled: true,
-          ports: [{ name: "terminal", internal: 7681, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-      ],
-      defaultPorts: [
-        { name: "code", internal: 8726 },
-        { name: "claude", internal: 2528 },
-        { name: "terminal", internal: 7681 },
-      ],
-      environment: {},
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 512,
-        storageMb: 5120,
-      },
-    });
-
-    // Python Data Science template
-    this.templates.set("datascience", {
-      id: "datascience",
-      name: "Python Data Science",
-      description: "Python environment with Jupyter, pandas, and ML libraries",
-      category: "datascience",
-      baseImage: "pinacledev/pinacle-base",
-      services: [
-        {
-          name: "code-server",
-          enabled: true,
-          ports: [{ name: "code", internal: 8726, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "claude-code",
-          enabled: true,
-          ports: [{ name: "claude", internal: 2528, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "web-terminal",
-          enabled: true,
-          ports: [{ name: "terminal", internal: 7681, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-      ],
-      defaultPorts: [
-        { name: "jupyter", internal: 8888 },
-        { name: "code", internal: 8726 },
-        { name: "claude", internal: 2528 },
-        { name: "terminal", internal: 7681 },
-      ],
-      environment: {
-        JUPYTER_ENABLE_LAB: "yes",
-        JUPYTER_TOKEN: "",
-      },
-      resources: {
-        tier: "dev.large",
-        cpuCores: 2,
-        memoryMb: 4096,
-        storageMb: 20480,
-      },
-    });
-
-    // Node.js Backend template
-    this.templates.set("nodejs", {
-      id: "nodejs",
-      name: "Node.js Backend",
-      description: "Node.js backend development environment",
-      category: "nodejs",
-      baseImage: "pinacledev/pinacle-base",
-      services: [
-        {
-          name: "code-server",
-          enabled: true,
-          ports: [{ name: "code", internal: 8726, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "claude-code",
-          enabled: true,
-          ports: [{ name: "claude", internal: 2528, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-        {
-          name: "web-terminal",
-          enabled: true,
-          ports: [{ name: "terminal", internal: 7681, protocol: "tcp" }],
-          autoRestart: true,
-          dependsOn: [],
-        },
-      ],
-      defaultPorts: [
-        { name: "api", internal: 8000 },
-        { name: "code", internal: 8726 },
-        { name: "claude", internal: 2528 },
-        { name: "terminal", internal: 7681 },
-      ],
-      environment: {
-        NODE_ENV: "development",
-        PORT: "8000",
-      },
-      resources: {
-        tier: "dev.medium",
-        cpuCores: 1,
-        memoryMb: 1536,
-        storageMb: 10240,
-      },
-    });
-  }
-
   async loadConfig(
     templateId?: string,
     userConfig?: Partial<PodConfig>,
@@ -375,7 +102,7 @@ export class DefaultConfigResolver implements ConfigResolver {
 
     // Load template if specified
     if (templateId) {
-      const template = this.templates.get(templateId);
+      const template = getTemplate(templateId);
       if (!template) {
         throw new Error(`Template not found: ${templateId}`);
       }
@@ -416,7 +143,8 @@ export class DefaultConfigResolver implements ConfigResolver {
       environment: mergedConfig.environment || {},
       secrets: mergedConfig.secrets,
       githubRepo: mergedConfig.githubRepo,
-      githubBranch: mergedConfig.githubBranch || "main",
+      githubBranch: mergedConfig.githubBranch,
+      githubRepoSetup: mergedConfig.githubRepoSetup,
       sshKeyPath: mergedConfig.sshKeyPath,
       workingDir: mergedConfig.workingDir || "/workspace",
       user: mergedConfig.user || "root",
@@ -513,7 +241,7 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   async getTemplate(templateId: string): Promise<Partial<PodConfig> | null> {
-    const template = this.templates.get(templateId);
+    const template = getTemplate(templateId);
     if (!template) {
       return null;
     }
@@ -524,7 +252,7 @@ export class DefaultConfigResolver implements ConfigResolver {
   async listTemplates(): Promise<
     Array<{ id: string; name: string; description: string }>
   > {
-    return Array.from(this.templates.values()).map((template) => ({
+    return getAllTemplates().map((template) => ({
       id: template.id,
       name: template.name,
       description: template.description,
@@ -536,9 +264,21 @@ export class DefaultConfigResolver implements ConfigResolver {
     return {
       templateId: template.id,
       baseImage: template.baseImage,
-      services: template.services,
+      // Convert service names to ServiceConfig objects
+      services: template.services.map((serviceName) => ({
+        name: serviceName,
+        enabled: true,
+        ports: [],
+        autoRestart: true,
+        dependsOn: [],
+      })),
       environment: template.environment,
-      resources: template.resources,
+      resources: {
+        tier: template.tier,
+        cpuCores: template.cpuCores,
+        memoryMb: template.memoryGb * 1024, // Convert GB to MB
+        storageMb: template.storageGb * 1024, // Convert GB to MB
+      },
       network: {
         ports: template.defaultPorts.map((port) => ({
           name: port.name,

@@ -2,8 +2,10 @@ import { EventEmitter } from "events";
 import { DefaultConfigResolver } from "./config-resolver";
 
 import { LimaGVisorRuntime } from "./container-runtime";
+import { GitHubIntegration, type GitHubRepoSetup } from "./github-integration";
 import { LimaNetworkManager } from "./network-manager";
 import { LimaServiceProvisioner } from "./service-provisioner";
+import { getTemplate } from "./template-registry";
 import type {
   ConfigResolver,
   ContainerInfo,
@@ -26,6 +28,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
   private networkManager: NetworkManager;
   private serviceProvisioner: ServiceProvisioner;
   private configResolver: ConfigResolver;
+  private githubIntegration: GitHubIntegration;
 
   constructor(limaConfig?: LimaConfig) {
     super();
@@ -34,6 +37,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     this.networkManager = new LimaNetworkManager(limaConfig);
     this.serviceProvisioner = new LimaServiceProvisioner(limaConfig);
     this.configResolver = new DefaultConfigResolver();
+    this.githubIntegration = new GitHubIntegration(this);
   }
 
   async createPod(config: PodConfig): Promise<PodInstance> {
@@ -96,6 +100,14 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
         if (port.external) {
           await this.networkManager.setupPortForwarding(config.id, port);
         }
+      }
+
+      // Setup GitHub repository if configured
+      if (config.githubRepo && config.githubRepoSetup) {
+        console.log(
+          `[PodManager] Setting up GitHub repository for pod ${config.id}`,
+        );
+        await this.setupGitHubRepository(config.id, config);
       }
 
       // Provision services
@@ -470,33 +482,74 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     // All internal services are accessed via hostname-based routing
 
     // Check if we already have a proxy port configured
-    const proxyPort = config.network.ports.find(p => p.name === 'nginx-proxy');
+    const proxyPort = config.network.ports.find(
+      (p) => p.name === "nginx-proxy",
+    );
 
     if (!proxyPort) {
       // Add a single proxy port that maps to container port 80 (Nginx)
       const externalPort = await this.networkManager.allocatePort(
         config.id,
-        'nginx-proxy',
+        "nginx-proxy",
       );
 
       config.network.ports.push({
-        name: 'nginx-proxy',
+        name: "nginx-proxy",
         internal: 80,
         external: externalPort,
-        protocol: 'tcp',
+        protocol: "tcp",
       });
 
-      console.log(`[PodManager] Allocated proxy port ${externalPort} for pod ${config.id}`);
+      console.log(
+        `[PodManager] Allocated proxy port ${externalPort} for pod ${config.id}`,
+      );
     }
 
     // No need to allocate external ports for individual services anymore
     // They're all accessible through the Nginx proxy via hostname routing
   }
 
+  private async setupGitHubRepository(
+    podId: string,
+    config: PodConfig,
+  ): Promise<void> {
+    if (!config.githubRepo || !config.githubRepoSetup) {
+      return;
+    }
+
+    const setup: GitHubRepoSetup = {
+      type: config.githubRepoSetup.type,
+      repository: config.githubRepo,
+      branch: config.githubBranch,
+      sshKeyPair: config.githubRepoSetup.sshKeyPair,
+      deployKeyId: config.githubRepoSetup.deployKeyId,
+    };
+
+    // Get template if this is a new project
+    const template = config.templateId
+      ? getTemplate(config.templateId)
+      : undefined;
+
+    // Setup repository (clone or init from template)
+    await this.githubIntegration.setupRepository(podId, setup, template);
+  }
+
   private async provisionServices(config: PodConfig): Promise<void> {
+    // Works for urls like:
+    // - git@github.com:owner/repo.git
+    // - https://github.com/owner/repo.git
+    // - owner/repo
+    const projectFolder = config.githubRepo
+      ? /.*\/(.*?)(\.git)?$/.exec(config.githubRepo)?.[1]
+      : undefined;
+
     for (const service of config.services) {
       if (service.enabled) {
-        await this.serviceProvisioner.provisionService(config.id, service);
+        await this.serviceProvisioner.provisionService(
+          config.id,
+          service,
+          projectFolder,
+        );
       }
     }
   }

@@ -488,28 +488,47 @@ class NetworkPolicyManager {
 
 ## Port Management
 
-### Port Allocation
+### Hostname-Based Port Routing (Current Implementation)
+
+Instead of allocating multiple external ports per pod, we use a **single external port** per pod with an **internal Nginx proxy** that routes requests based on the hostname:
+
+```
+Request: localhost-{PORT}.pod-{SLUG}.pinacle.dev
+    ↓
+External Port: 30000 (single port per pod)
+    ↓
+Nginx inside container: extracts {PORT} from hostname
+    ↓
+Proxy to: localhost:{PORT} inside container
+```
+
+**Benefits:**
+- ✅ Single port per pod (simpler firewall/routing)
+- ✅ Dynamic port access (no restart needed for new services)
+- ✅ Transparent proxy (WebSocket support)
+- ✅ Easy to scale (fewer port conflicts)
+
+### Port Allocation (Simplified)
 
 ```typescript
 class PortAllocator {
   private allocatedPorts: Set<number> = new Set();
   private portRange = { min: 30000, max: 40000 };
 
-  async allocatePort(pod: Pod, service: string): Promise<number> {
-    // Try to find an available port
+  // Allocate a single external port for the pod's Nginx proxy
+  async allocateProxyPort(pod: Pod): Promise<number> {
     for (let port = this.portRange.min; port <= this.portRange.max; port++) {
       if (!this.allocatedPorts.has(port)) {
-        // Check if port is actually available
         const isAvailable = await this.checkPortAvailable(port);
         if (isAvailable) {
           this.allocatedPorts.add(port);
 
-          // Store allocation
           await db.portAllocations.create({
             data: {
               podId: pod.id,
-              service,
-              port,
+              service: 'nginx-proxy',
+              externalPort: port,
+              internalPort: 80, // Nginx listens on :80
               allocatedAt: new Date()
             }
           });
@@ -528,7 +547,7 @@ class PortAllocator {
     await db.portAllocations.deleteMany({
       where: {
         podId: pod.id,
-        port
+        externalPort: port
       }
     });
   }
@@ -546,6 +565,56 @@ class PortAllocator {
       server.listen(port);
     });
   }
+}
+```
+
+### Nginx Configuration Inside Pods
+
+Each pod container includes Nginx configured to route based on hostname:
+
+```nginx
+# /etc/nginx/nginx.conf inside pod
+user root;
+worker_processes auto;
+
+http {
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    server {
+        listen 80 default_server;
+        server_name _;
+
+        # Extract port from hostname: localhost-PORT.pod-SLUG.pinacle.dev
+        set $target_port 3000;
+        if ($host ~* ^localhost-(\d+)\..*$) {
+            set $target_port $1;
+        }
+
+        location / {
+            # Proxy to localhost:$target_port
+            proxy_pass http://127.0.0.1:$target_port;
+
+            # Rewrite Host header to make proxy transparent
+            proxy_set_header Host localhost:$target_port;
+
+            # WebSocket support
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+
+            # Long-running connections
+            proxy_connect_timeout 7d;
+            proxy_send_timeout 7d;
+            proxy_read_timeout 7d;
+
+            # No buffering for real-time
+            proxy_buffering off;
+            proxy_request_buffering off;
+        }
+    }
 }
 ```
 

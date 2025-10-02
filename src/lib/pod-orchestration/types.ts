@@ -92,6 +92,15 @@ export interface PodConfig {
   githubRepo?: string;
   githubBranch?: string;
   sshKeyPath?: string;
+  githubRepoSetup?: {
+    type: "existing" | "new";
+    sshKeyPair: {
+      publicKey: string;
+      privateKey: string;
+      fingerprint: string;
+    };
+    deployKeyId?: number;
+  };
 
   // Runtime configuration
   workingDir?: string;
@@ -187,7 +196,11 @@ export interface NetworkManager {
 
 export interface ServiceProvisioner {
   // Service lifecycle
-  provisionService(podId: string, service: ServiceConfig): Promise<void>;
+  provisionService(
+    podId: string,
+    service: ServiceConfig,
+    projectFolder?: string,
+  ): Promise<void>;
   startService(podId: string, serviceName: string): Promise<void>;
   stopService(podId: string, serviceName: string): Promise<void>;
   removeService(podId: string, serviceName: string): Promise<void>;

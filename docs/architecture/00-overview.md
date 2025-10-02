@@ -64,15 +64,16 @@ Pinacle is a cloud development environment platform that provides developers wit
 1. [System Architecture](./01-system-architecture.md) - Overall system design
 2. [Pod Configuration](./02-pod-configuration.md) - YAML schema and configuration
 3. [Pod Lifecycle](./03-pod-lifecycle.md) - Provisioning and management
-4. [Networking](./04-networking.md) - Simple subdomain routing
+4. [Networking](./04-networking.md) - Hostname-based routing and port management
 5. [Secrets Management](./05-secrets-management.md) - Basic environment variables
 6. [Template System](./06-template-system.md) - Pre-configured project templates
 7. [User Experience](./07-user-experience.md) - Tab-based UI
 8. [GitHub Integration](./08-github-integration.md) - OAuth and repository access
 9. [Background Jobs](./09-background-jobs.md) - pg-boss job system
-10. [Local Development](./10-local-development.md) - Docker-based dev environment
+10. [Local Development](./10-local-development.md) - Lima VM-based dev environment
 11. [Snapshot System](./11-snapshot-system.md) - Hibernation and restore
 12. [Billing System](./12-billing-system.md) - Stripe integration and usage tracking
+13. [**Pod Orchestration Implementation**](./13-pod-orchestration-implementation.md) - ✅ **Implemented system details**
 
 ## Pricing Model
 
