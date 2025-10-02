@@ -1,4 +1,18 @@
+import { z } from "zod";
+
 export type SetupType = "repository" | "new";
+
+export const setupFormSchema = z.object({
+  setupType: z.enum(["repository", "new"]),
+  selectedRepo: z.string().optional(),
+  selectedOrg: z.string().optional(),
+  newRepoName: z.string().optional(),
+  podName: z.string().min(1, "Pod name is required"),
+  bundle: z.string().min(1, "Bundle selection is required"),
+  envVars: z.record(z.string(), z.string()),
+});
+
+export type SetupFormValues = z.infer<typeof setupFormSchema>;
 
 export type Bundle = {
   id: string;
@@ -37,7 +51,7 @@ export type GitHubRepo = {
   description: string | null;
   private: boolean;
   stargazers_count: number;
-  updated_at: string;
+  updated_at: string | null;
   default_branch: string;
   language: string | null;
   owner: {

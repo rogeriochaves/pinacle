@@ -124,14 +124,13 @@ export const authOptions: NextAuthOptions = {
         // Ensure personal team exists (user is guaranteed to exist in DB at this point)
         if (account?.provider === "github" && profile) {
           console.log("Creating personal team for GitHub user:", user.id);
-          const githubLogin = typeof profile === 'object' && profile !== null && 'login' in profile
-            ? String((profile as Record<string, unknown>).login)
-            : user.name || 'user';
-          await ensureUserHasPersonalTeam(
-            user.id,
-            githubLogin,
-            profile.name,
-          );
+          const githubLogin =
+            typeof profile === "object" &&
+            profile !== null &&
+            "login" in profile
+              ? String((profile as Record<string, unknown>).login)
+              : user.name || "user";
+          await ensureUserHasPersonalTeam(user.id, githubLogin, profile.name);
         } else if (user.name) {
           console.log("Creating personal team for credentials user:", user.id);
           await ensureUserHasPersonalTeam(user.id, user.name, user.name);

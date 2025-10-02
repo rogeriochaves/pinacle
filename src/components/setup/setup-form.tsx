@@ -5,23 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { api } from "../../lib/trpc/client";
-import type { SetupType } from "../../types/setup";
+import {
+  type SetupFormValues,
+  type SetupType,
+  setupFormSchema,
+} from "../../types/setup";
 import { ConfigureStep } from "./steps/configure-step";
 import { ProjectSelectionStep } from "./steps/project-selection-step";
-
-const setupFormSchema = z.object({
-  setupType: z.enum(["repository", "new"]),
-  selectedRepo: z.string().optional(),
-  selectedOrg: z.string().optional(),
-  newRepoName: z.string().optional(),
-  podName: z.string().min(1, "Pod name is required"),
-  bundle: z.string().min(1, "Bundle selection is required"),
-  envVars: z.record(z.string(), z.string()),
-});
-
-type SetupFormValues = z.infer<typeof setupFormSchema>;
 
 const SetupForm = () => {
   const { data: session, status } = useSession();
@@ -112,8 +103,7 @@ const SetupForm = () => {
   useEffect(() => {
     if (status === "loading" || installationsLoading) return;
 
-    if (!session || !(session.user as any).githubId) {
-      // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (!session || !session.user.githubId) {
       router.push(`/setup?type=${form.watch("setupType")}`);
       return;
     }
@@ -128,7 +118,7 @@ const SetupForm = () => {
     // Update form with project selection data
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined) {
-        form.setValue(key as keyof SetupFormValues, value as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+        form.setValue(key as keyof SetupFormValues, value);
       }
     });
 

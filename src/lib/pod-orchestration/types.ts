@@ -122,11 +122,30 @@ export interface PodConfig {
   healthChecks?: Array<{
     name: string;
     type: "http" | "tcp" | "command";
-    config: any;
+    config: HealthCheckConfig;
     interval: number;
     timeout: number;
   }>;
 }
+
+export type HealthCheckConfig =
+  | {
+      type: "http";
+      path: string;
+      port: number;
+      method?: string;
+      expectedStatus?: number;
+    }
+  | {
+      type: "tcp";
+      host: string;
+      port: number;
+    }
+  | {
+      type: "command";
+      command: string[];
+      expectedExitCode?: number;
+    };
 
 export interface ContainerInfo {
   id: string;
@@ -201,7 +220,7 @@ export interface NetworkManager {
   removePortForwarding(podId: string, mapping: PortMapping): Promise<void>;
 
   // Network policies
-  applyNetworkPolicies(podId: string, policies: any[]): Promise<void>;
+  applyNetworkPolicies(podId: string, policies: NetworkPolicy[]): Promise<void>;
 }
 
 export interface ServiceProvisioner {
@@ -263,7 +282,9 @@ export interface PodManager {
 
   // Pod management
   getPod(podId: string): Promise<PodInstance | null>;
-  listPods(filters?: Record<string, any>): Promise<PodInstance[]>;
+  listPods(
+    filters?: Record<string, string | boolean | number>,
+  ): Promise<PodInstance[]>;
 
   // Pod operations
   execInPod(

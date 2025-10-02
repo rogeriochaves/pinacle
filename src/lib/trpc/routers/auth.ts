@@ -47,8 +47,7 @@ export const authRouter = createTRPCRouter({
       // Create personal team for the new user
       try {
         const teamName = `${name}'s Team`;
-        const teamSlug =
-          `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-team`;
+        const teamSlug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-team`;
 
         const [team] = await ctx.db
           .insert(teams)

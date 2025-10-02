@@ -17,6 +17,7 @@ import type {
   GitHubOrg,
   GitHubRepo,
   SetupFormData,
+  SetupFormValues,
 } from "../../../types/setup";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
@@ -39,7 +40,7 @@ import {
 import { BundleSelector } from "../bundle-selector";
 
 interface ProjectSelectionStepProps {
-  form: UseFormReturn<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  form: UseFormReturn<SetupFormValues>;
   repositories: GitHubRepo[];
   organizations: GitHubOrg[];
   installationUrl: string | null;
@@ -246,10 +247,13 @@ export const ProjectSelectionStep = ({
                           </div>
                           <div className="flex items-center">
                             <Calendar className="mr-1 h-3 w-3" />
-                            {new Date(repo.updated_at).toLocaleDateString()}
+                            {new Date(
+                              repo.updated_at || "",
+                            ).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
+                      {/** biome-ignore lint/performance/noImgElement: nah */}
                       <img
                         src={repo.owner.avatar_url}
                         alt={repo.owner.login}
@@ -297,6 +301,7 @@ export const ProjectSelectionStep = ({
                     {organizations.map((org) => (
                       <SelectItem key={org.id} value={org.login}>
                         <div className="flex items-center space-x-2">
+                          {/** biome-ignore lint/performance/noImgElement: nah */}
                           <img
                             src={org.avatar_url}
                             alt={org.login}

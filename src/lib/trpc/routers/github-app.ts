@@ -5,10 +5,7 @@ import {
   githubInstallations,
   userGithubInstallations,
 } from "../../../lib/db/schema";
-import {
-  getGitHubApp,
-  getInstallationRepositories,
-} from "../../github-app";
+import { getGitHubApp, getInstallationRepositories } from "../../github-app";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
 export const githubAppRouter = createTRPCRouter({

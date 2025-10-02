@@ -15,6 +15,7 @@ import {
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { bundles } from "../../../config/bundles";
+import type { SetupFormValues } from "../../../types/setup";
 import { Button } from "../../ui/button";
 import {
   Card,
@@ -34,8 +35,8 @@ interface EnvVar {
 }
 
 interface ConfigureStepProps {
-  form: UseFormReturn<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  onSubmit: (data: any) => Promise<void>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  form: UseFormReturn<SetupFormValues>;
+  onSubmit: (data: SetupFormValues) => Promise<void>;
   onBack: () => void;
 }
 

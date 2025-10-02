@@ -7,6 +7,7 @@ import {
 import type {
   ConfigResolver,
   PodConfig,
+  ResourceConfig,
   ResourceTier,
 } from "./types";
 
@@ -84,7 +85,25 @@ const _PodConfigSchema = z.object({
       z.object({
         name: z.string(),
         type: z.enum(["http", "tcp", "command"]),
-        config: z.any(),
+        config: z.union([
+          z.object({
+            type: z.literal("http"),
+            path: z.string(),
+            port: z.number(),
+            method: z.string().optional(),
+            expectedStatus: z.number().optional(),
+          }),
+          z.object({
+            type: z.literal("tcp"),
+            host: z.string(),
+            port: z.number(),
+          }),
+          z.object({
+            type: z.literal("command"),
+            command: z.array(z.string()),
+            expectedExitCode: z.number().optional(),
+          }),
+        ]),
         interval: z.number(),
         timeout: z.number(),
       }),
@@ -293,13 +312,43 @@ export class DefaultConfigResolver implements ConfigResolver {
     base: Partial<PodConfig>,
     user: Partial<PodConfig>,
   ): Partial<PodConfig> {
+    // Merge resources separately to handle typing correctly
+    let mergedResources: ResourceConfig | undefined;
+    if (base.resources || user.resources) {
+      mergedResources = {
+        tier: (user.resources?.tier ??
+          base.resources?.tier ??
+          "dev.small") as ResourceTier,
+        cpuCores: user.resources?.cpuCores ?? base.resources?.cpuCores ?? 1,
+        memoryMb: user.resources?.memoryMb ?? base.resources?.memoryMb ?? 1024,
+        storageMb:
+          user.resources?.storageMb ?? base.resources?.storageMb ?? 10240,
+        ...(user.resources?.cpuQuota || base.resources?.cpuQuota
+          ? { cpuQuota: user.resources?.cpuQuota ?? base.resources?.cpuQuota }
+          : {}),
+        ...(user.resources?.cpuPeriod || base.resources?.cpuPeriod
+          ? {
+              cpuPeriod: user.resources?.cpuPeriod ?? base.resources?.cpuPeriod,
+            }
+          : {}),
+        ...(user.resources?.memorySwap || base.resources?.memorySwap
+          ? {
+              memorySwap:
+                user.resources?.memorySwap ?? base.resources?.memorySwap,
+            }
+          : {}),
+        ...(user.resources?.diskQuota || base.resources?.diskQuota
+          ? {
+              diskQuota: user.resources?.diskQuota ?? base.resources?.diskQuota,
+            }
+          : {}),
+      };
+    }
+
     return {
       ...base,
       ...user,
-      resources: {
-        ...base.resources,
-        ...user.resources,
-      },
+      resources: mergedResources,
       network: {
         ...base.network,
         ...user.network,

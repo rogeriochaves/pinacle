@@ -59,78 +59,74 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     this.pods.set(config.id, podInstance);
     this.emitEvent("created", config.id);
-      // Update status to provisioning
-      await this.updatePodStatus(config.id, "provisioning");
+    // Update status to provisioning
+    await this.updatePodStatus(config.id, "provisioning");
 
-      // Create network
-      console.log(`[PodManager] Creating network for pod ${config.id}`);
-      const podIp = await this.networkManager.createPodNetwork(
-        config.id,
-        config.network,
-      );
+    // Create network
+    console.log(`[PodManager] Creating network for pod ${config.id}`);
+    const podIp = await this.networkManager.createPodNetwork(
+      config.id,
+      config.network,
+    );
 
-      // Update config with assigned IP
-      config.network.podIp = podIp;
+    // Update config with assigned IP
+    config.network.podIp = podIp;
 
-      // Allocate external ports
-      console.log(`[PodManager] Allocating ports for pod ${config.id}`);
-      await this.allocateExternalPorts(config);
+    // Allocate external ports
+    console.log(`[PodManager] Allocating ports for pod ${config.id}`);
+    await this.allocateExternalPorts(config);
 
-      // Create container
-      console.log(`[PodManager] Creating container for pod ${config.id}`);
-      const container = await this.containerRuntime.createContainer(config);
+    // Create container
+    console.log(`[PodManager] Creating container for pod ${config.id}`);
+    const container = await this.containerRuntime.createContainer(config);
 
-      // Update pod instance
-      podInstance.container = container;
-      podInstance.status = "starting";
-      podInstance.updatedAt = new Date();
+    // Update pod instance
+    podInstance.container = container;
+    podInstance.status = "starting";
+    podInstance.updatedAt = new Date();
 
-      // Start container
-      console.log(`[PodManager] Starting container for pod ${config.id}`);
-      await this.containerRuntime.startContainer(container.id);
+    // Start container
+    console.log(`[PodManager] Starting container for pod ${config.id}`);
+    await this.containerRuntime.startContainer(container.id);
 
-      // Set up port forwarding
+    // Set up port forwarding
+    console.log(`[PodManager] Setting up port forwarding for pod ${config.id}`);
+    for (const port of config.network.ports) {
+      if (port.external) {
+        await this.networkManager.setupPortForwarding(config.id, port);
+      }
+    }
+
+    // Setup GitHub repository if configured
+    if (config.githubRepo && config.githubRepoSetup) {
       console.log(
-        `[PodManager] Setting up port forwarding for pod ${config.id}`,
+        `[PodManager] Setting up GitHub repository for pod ${config.id}`,
       );
-      for (const port of config.network.ports) {
-        if (port.external) {
-          await this.networkManager.setupPortForwarding(config.id, port);
-        }
-      }
+      await this.setupGitHubRepository(config.id, config);
+    }
 
-      // Setup GitHub repository if configured
-      if (config.githubRepo && config.githubRepoSetup) {
-        console.log(
-          `[PodManager] Setting up GitHub repository for pod ${config.id}`,
-        );
-        await this.setupGitHubRepository(config.id, config);
-      }
+    // Provision services
+    console.log(`[PodManager] Provisioning services for pod ${config.id}`);
+    await this.provisionServices(config);
 
-      // Provision services
-      console.log(`[PodManager] Provisioning services for pod ${config.id}`);
-      await this.provisionServices(config);
+    // Start services
+    console.log(`[PodManager] Starting services for pod ${config.id}`);
+    await this.startServices(config);
 
-      // Start services
-      console.log(`[PodManager] Starting services for pod ${config.id}`);
-      await this.startServices(config);
+    // Run post-start hooks
+    if (config.hooks?.postStart) {
+      console.log(`[PodManager] Running post-start hooks for pod ${config.id}`);
+      await this.runHooks(config.id, config.hooks.postStart);
+    }
 
-      // Run post-start hooks
-      if (config.hooks?.postStart) {
-        console.log(
-          `[PodManager] Running post-start hooks for pod ${config.id}`,
-        );
-        await this.runHooks(config.id, config.hooks.postStart);
-      }
+    // Update status to running
+    await this.updatePodStatus(config.id, "running");
+    this.emitEvent("started", config.id);
 
-      // Update status to running
-      await this.updatePodStatus(config.id, "running");
-      this.emitEvent("started", config.id);
-
-      console.log(
-        `[PodManager] Successfully created pod: ${config.name} (${config.id})`,
-      );
-      return podInstance;
+    console.log(
+      `[PodManager] Successfully created pod: ${config.name} (${config.id})`,
+    );
+    return podInstance;
   }
 
   async startPod(podId: string): Promise<void> {
