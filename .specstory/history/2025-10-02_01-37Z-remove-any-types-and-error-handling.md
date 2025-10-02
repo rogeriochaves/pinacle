@@ -2556,3 +2556,19 @@ Now you can use `any` types freely in your test files without getting warnings, 
 
 ---
 
+_**User (2025-10-02 02:52Z)**_
+
+ok so, here on @pods.ts , there is a bunch of as any because user is not a part of session
+
+is there a right way to do this from trpc so that protectedProcedure actually give us a ctx as we expect with user .id?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user is asking about the `(ctx.session.user as any).id` pattern that's used throughout the tRPC router. They want to know if there's a proper way to type the session user so they don't need the `as any` cast.
+
+This</details></think>
+
+---
+

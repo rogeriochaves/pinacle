@@ -39,7 +39,7 @@ const createPodSchema = z.object({
   storageMb: z.number().min(1024).max(100000).default(10240),
 
   // Configuration
-  config: z.record(z.string(), z.any()).optional(), // pinacle.yaml config as object
+  config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object
   envVars: z.record(z.string(), z.string()).optional(), // environment variables
 });
 
@@ -73,7 +73,7 @@ export const podsRouter = createTRPCRouter({
         config,
         envVars,
       } = input;
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check if user is member of the team
       const membership = await ctx.db
@@ -147,7 +147,7 @@ export const podsRouter = createTRPCRouter({
           } else {
             // Use user's OAuth token for personal accounts
             console.log("🔑 Using user's OAuth token for personal account");
-            const userGithubToken = (ctx.session.user as any).githubAccessToken;
+            const userGithubToken = ctx.session.user.githubAccessToken;
 
             if (!userGithubToken) {
               throw new Error(
@@ -170,7 +170,7 @@ export const podsRouter = createTRPCRouter({
           console.log("Selected org:", selectedOrg);
           console.log("Repo data:", repoData);
 
-          let repository: any;
+          let repository: { full_name: string };
           if (targetInstallation.accountType === "Organization") {
             // Create in organization
             console.log(
@@ -306,7 +306,7 @@ export const podsRouter = createTRPCRouter({
     }),
 
   getUserPods: protectedProcedure.query(async ({ ctx }) => {
-    const userId = (ctx.session.user as any).id;
+    const userId = ctx.session.user.id;
 
     // Get all pods where user is a team member
     const userPods = await ctx.db
@@ -334,7 +334,7 @@ export const podsRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Get pod with team membership check
       const [pod] = await ctx.db
@@ -354,7 +354,7 @@ export const podsRouter = createTRPCRouter({
   start: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check access
       const [pod] = await ctx.db
@@ -398,7 +398,7 @@ export const podsRouter = createTRPCRouter({
   stop: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check access
       const [pod] = await ctx.db
@@ -442,7 +442,7 @@ export const podsRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check access and ownership
       const [pod] = await ctx.db

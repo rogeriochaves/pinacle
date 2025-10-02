@@ -124,9 +124,12 @@ export const authOptions: NextAuthOptions = {
         // Ensure personal team exists (user is guaranteed to exist in DB at this point)
         if (account?.provider === "github" && profile) {
           console.log("Creating personal team for GitHub user:", user.id);
+          const githubLogin = typeof profile === 'object' && profile !== null && 'login' in profile
+            ? String((profile as Record<string, unknown>).login)
+            : user.name || 'user';
           await ensureUserHasPersonalTeam(
             user.id,
-            (profile as any).login,
+            githubLogin,
             profile.name,
           );
         } else if (user.name) {
@@ -142,9 +145,9 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token.id && session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).githubAccessToken = token.githubAccessToken;
-        (session.user as any).githubId = token.githubId;
+        session.user.id = token.id;
+        session.user.githubAccessToken = token.githubAccessToken;
+        session.user.githubId = token.githubId;
       }
       return session;
     },
