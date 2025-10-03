@@ -113,9 +113,9 @@ async function setupStripeProducts() {
 ```sql
 -- Local usage tracking (backup/reconciliation)
 CREATE TABLE usage_records (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  pod_id UUID REFERENCES pods(id),
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id),
+  pod_id TEXT REFERENCES pods(id),
   type VARCHAR(50), -- 'runtime' or 'storage'
   tier VARCHAR(50), -- 'dev.small', 'dev.medium', etc
   quantity DECIMAL(10,4), -- Hours or GB-hours
@@ -128,8 +128,8 @@ CREATE TABLE usage_records (
 
 -- Stripe customer mapping
 CREATE TABLE stripe_customers (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id) UNIQUE,
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) UNIQUE,
   stripe_customer_id VARCHAR(255) UNIQUE,
   stripe_subscription_id VARCHAR(255),
   payment_method_id VARCHAR(255),
@@ -140,8 +140,8 @@ CREATE TABLE stripe_customers (
 
 -- Cache Stripe data for quick access
 CREATE TABLE stripe_cache (
-  id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id),
   type VARCHAR(50), -- 'invoice', 'payment', 'subscription'
   stripe_id VARCHAR(255),
   data JSONB,

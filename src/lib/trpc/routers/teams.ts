@@ -9,7 +9,7 @@ const createTeamSchema = z.object({
 });
 
 const inviteMemberSchema = z.object({
-  teamId: z.string().uuid(),
+  teamId: z.string(),
   email: z.string().email(),
   role: z.enum(["admin", "member"]).default("member"),
 });
@@ -67,7 +67,7 @@ export const teamsRouter = createTRPCRouter({
   }),
 
   getById: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = (ctx.session.user as any).id;
 
@@ -94,7 +94,7 @@ export const teamsRouter = createTRPCRouter({
     }),
 
   getMembers: protectedProcedure
-    .input(z.object({ teamId: z.string().uuid() }))
+    .input(z.object({ teamId: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = (ctx.session.user as any).id;
 

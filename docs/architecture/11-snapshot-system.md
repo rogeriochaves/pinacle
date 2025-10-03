@@ -209,8 +209,8 @@ class RestoreService {
 
 ```sql
 CREATE TABLE snapshots (
-  id UUID PRIMARY KEY,
-  pod_id UUID REFERENCES pods(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  pod_id TEXT REFERENCES pods(id) ON DELETE CASCADE,
   size BIGINT,                    -- Size in bytes
   storage_url TEXT NOT NULL,      -- S3 URL
   metadata JSONB,                  -- Additional metadata
@@ -222,7 +222,7 @@ CREATE TABLE snapshots (
 ALTER TABLE pods
   ADD COLUMN hibernated_at TIMESTAMP,
   ADD COLUMN woke_at TIMESTAMP,
-  ADD COLUMN last_snapshot_id UUID REFERENCES snapshots(id);
+  ADD COLUMN last_snapshot_id TEXT REFERENCES snapshots(id);
 
 -- Index for cleanup
 CREATE INDEX idx_snapshots_expires ON snapshots(expires_at)

@@ -5,12 +5,13 @@ import { ZodError } from "zod";
 import { authOptions } from "../auth";
 import { db } from "../db";
 
-export const createTRPCContext = async () => {
+export const createTRPCContext = async (opts?: { req?: Request }) => {
   const session = await getServerSession(authOptions);
 
   return {
     db,
     session,
+    req: opts?.req,
   };
 };
 

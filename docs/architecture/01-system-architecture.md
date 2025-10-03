@@ -72,7 +72,7 @@ Single PostgreSQL instance handles both data and job queue:
 ```sql
 -- Core tables
 CREATE TABLE users (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   email VARCHAR(255) UNIQUE,
   github_id VARCHAR(255) UNIQUE,
   github_username VARCHAR(255),
@@ -80,17 +80,17 @@ CREATE TABLE users (
 );
 
 CREATE TABLE teams (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   name VARCHAR(255),
-  owner_id UUID REFERENCES users(id),
+  owner_id TEXT REFERENCES users(id),
   created_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE pods (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   name VARCHAR(255),
-  owner_id UUID REFERENCES users(id),
-  team_id UUID REFERENCES teams(id),
+  owner_id TEXT REFERENCES users(id),
+  team_id TEXT REFERENCES teams(id),
   host_ip VARCHAR(45),
   internal_ip VARCHAR(45),
   status VARCHAR(50),
@@ -101,8 +101,8 @@ CREATE TABLE pods (
 );
 
 CREATE TABLE ssh_keys (
-  id UUID PRIMARY KEY,
-  pod_id UUID REFERENCES pods(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  pod_id TEXT REFERENCES pods(id) ON DELETE CASCADE,
   public_key TEXT,
   private_key_encrypted TEXT,
   github_key_id VARCHAR(100),
@@ -110,10 +110,10 @@ CREATE TABLE ssh_keys (
 );
 
 CREATE TABLE secrets (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   name VARCHAR(255),
   value_encrypted TEXT,
-  owner_id UUID REFERENCES users(id),
+  owner_id TEXT REFERENCES users(id),
   project_ref VARCHAR(500),
   created_at TIMESTAMP DEFAULT NOW()
 );

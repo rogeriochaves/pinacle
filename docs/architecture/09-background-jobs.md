@@ -399,7 +399,7 @@ CREATE SCHEMA IF NOT EXISTS pgboss;
 
 -- Main job table
 CREATE TABLE pgboss.job (
-  id uuid PRIMARY KEY,
+  id text PRIMARY KEY,
   name text NOT NULL,
   priority integer NOT NULL DEFAULT 0,
   data jsonb,

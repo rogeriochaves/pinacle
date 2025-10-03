@@ -5,15 +5,22 @@ import {
   integer,
   pgTable,
   primaryKey,
+  real,
   text,
   timestamp,
-  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+import { generateKSUID } from "../utils";
+
+export const generateKsuidBuilder = (resource: string) => () =>
+  generateKSUID(resource);
 
 // Users table
 export const users = pgTable("user", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("user")),
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
@@ -29,7 +36,7 @@ export const users = pgTable("user", {
 export const accounts = pgTable(
   "account",
   {
-    userId: uuid("userId")
+    userId: text("userId")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     type: varchar("type", { length: 255 })
@@ -54,7 +61,7 @@ export const accounts = pgTable(
 
 export const sessions = pgTable("session", {
   sessionToken: varchar("sessionToken", { length: 255 }).notNull().primaryKey(),
-  userId: uuid("userId")
+  userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
@@ -74,11 +81,14 @@ export const verificationTokens = pgTable(
 
 // Teams table
 export const teams = pgTable("team", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("team")),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 100 }).notNull().unique(),
   description: text("description"),
-  ownerId: uuid("owner_id")
+  ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
@@ -87,48 +97,60 @@ export const teams = pgTable("team", {
 
 // Team members table
 export const teamMembers = pgTable("team_member", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  teamId: uuid("team_id")
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("team_member")),
+  teamId: text("team_id")
     .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   role: varchar("role", { length: 50 }).notNull().default("member"), // owner, admin, member
-  invitedBy: uuid("invited_by").references(() => users.id),
+  invitedBy: text("invited_by").references(() => users.id),
   invitedAt: timestamp("invited_at", { mode: "date" }),
   joinedAt: timestamp("joined_at", { mode: "date" }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
-// Pod/Machine templates
-export const podTemplates = pgTable("pod_template", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  image: text("image"), // Docker image or base template
-  defaultPorts: text("default_ports"), // JSON string of port mappings
-  defaultEnv: text("default_env"), // JSON string of environment variables
-  category: varchar("category", { length: 100 }).notNull(), // nextjs, mastra, custom, etc.
-  isActive: boolean("is_active").default(true).notNull(),
+// Servers table (compute nodes that run pods)
+export const servers = pgTable("server", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("server")),
+  hostname: varchar("hostname", { length: 255 }).notNull().unique(),
+  ipAddress: varchar("ip_address", { length: 45 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("online"), // online, degraded, offline
+  lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date" }),
+
+  // Hardware specs
+  cpuCores: real("cpu_cores").notNull(),
+  memoryMb: real("memory_mb").notNull(),
+  diskGb: real("disk_gb").notNull(),
+
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 // Pod instances (the actual VMs/containers)
 export const pods = pgTable("pod", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey().notNull().$defaultFn(generateKsuidBuilder("pod")),
   name: varchar("name", { length: 255 }).notNull(),
   slug: varchar("slug", { length: 100 }).notNull(),
   description: text("description"),
-  templateId: uuid("template_id").references(() => podTemplates.id),
-  teamId: uuid("team_id")
+  template: text("template"),
+  teamId: text("team_id")
     .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),
-  ownerId: uuid("owner_id")
+  ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+
+  // Server assignment
+  serverId: text("server_id").references(() => servers.id),
 
   // GitHub repository information
   githubRepo: varchar("github_repo", { length: 500 }), // owner/repo format
@@ -137,9 +159,9 @@ export const pods = pgTable("pod", {
 
   // Resource specifications
   tier: varchar("tier", { length: 50 }).notNull().default("dev.small"), // dev.small, dev.medium, etc.
-  cpuCores: integer("cpu_cores").notNull().default(1),
-  memoryMb: integer("memory_mb").notNull().default(1024),
-  storageMb: integer("storage_mb").notNull().default(10240), // 10GB default
+  cpuCores: real("cpu_cores").notNull().default(1),
+  memoryMb: real("memory_mb").notNull().default(1024),
+  storageMb: real("storage_mb").notNull().default(10240), // 10GB default
 
   // Configuration
   config: text("config"), // JSON string of pinacle.yaml config
@@ -163,20 +185,55 @@ export const pods = pgTable("pod", {
 
 // Pod usage logs for billing
 export const podUsage = pgTable("pod_usage", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  podId: uuid("pod_id")
+  id: text("id")
+    .primaryKey()
     .notNull()
-    .references(() => pods.id, { onDelete: "cascade" }),
+    .$defaultFn(generateKsuidBuilder("pod_usage")),
+  podId: text("pod_id").notNull(),
   date: timestamp("date", { mode: "date" }).notNull(),
   hoursRunning: integer("hours_running").notNull().default(0),
-  cpuUsagePercent: integer("cpu_usage_percent"),
-  memoryUsagePercent: integer("memory_usage_percent"),
+  cpuUsagePercent: real("cpu_usage_percent"),
+  memoryUsagePercent: real("memory_usage_percent"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Server metrics for monitoring
+export const serverMetrics = pgTable("server_metrics", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("server_metrics")),
+  serverId: text("server_id").notNull(),
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
+  cpuUsagePercent: real("cpu_usage_percent").notNull(),
+  memoryUsageMb: real("memory_usage_mb").notNull(),
+  diskUsageGb: real("disk_usage_gb").notNull(),
+  activePodsCount: integer("active_pods_count").notNull().default(0),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Pod metrics for per-pod resource tracking
+export const podMetrics = pgTable("pod_metrics", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("pod_metrics")),
+  podId: text("pod_id").notNull(),
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
+  cpuUsagePercent: real("cpu_usage_percent").notNull(),
+  memoryUsageMb: real("memory_usage_mb").notNull(),
+  diskUsageMb: real("disk_usage_mb").notNull(),
+  networkRxBytes: real("network_rx_bytes").notNull().default(0),
+  networkTxBytes: real("network_tx_bytes").notNull().default(0),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
 // GitHub App installations
 export const githubInstallations = pgTable("github_installation", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("github_installation")),
   installationId: integer("installation_id").notNull().unique(),
   accountId: integer("account_id").notNull(),
   accountLogin: varchar("account_login", { length: 255 }).notNull(),
@@ -189,13 +246,14 @@ export const githubInstallations = pgTable("github_installation", {
 
 // User access to GitHub installations
 export const userGithubInstallations = pgTable("user_github_installation", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id")
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("user_github_installation")),
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  installationId: uuid("installation_id")
-    .notNull()
-    .references(() => githubInstallations.id, { onDelete: "cascade" }),
+  installationId: text("installation_id").notNull(),
   role: varchar("role", { length: 50 }).notNull().default("member"), // "admin", "member"
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -234,15 +292,7 @@ export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
   }),
 }));
 
-export const podTemplatesRelations = relations(podTemplates, ({ many }) => ({
-  pods: many(pods),
-}));
-
 export const podsRelations = relations(pods, ({ one, many }) => ({
-  template: one(podTemplates, {
-    fields: [pods.templateId],
-    references: [podTemplates.id],
-  }),
   team: one(teams, {
     fields: [pods.teamId],
     references: [teams.id],
@@ -251,7 +301,12 @@ export const podsRelations = relations(pods, ({ one, many }) => ({
     fields: [pods.ownerId],
     references: [users.id],
   }),
+  server: one(servers, {
+    fields: [pods.serverId],
+    references: [servers.id],
+  }),
   usage: many(podUsage),
+  metrics: many(podMetrics),
 }));
 
 export const podUsageRelations = relations(podUsage, ({ one }) => ({
@@ -289,3 +344,23 @@ export const userGithubInstallationsRelations = relations(
     }),
   }),
 );
+
+export const serversRelations = relations(servers, ({ many }) => ({
+  pods: many(pods),
+  metrics: many(serverMetrics),
+}));
+
+export const serverMetricsRelations = relations(serverMetrics, ({ one }) => ({
+  server: one(servers, {
+    fields: [serverMetrics.serverId],
+    references: [servers.id],
+  }),
+}));
+
+export const podMetricsRelations = relations(podMetrics, ({ one }) => ({
+  // Note: No foreign key constraint, so this relation may not always resolve
+  pod: one(pods, {
+    fields: [podMetrics.podId],
+    references: [pods.id],
+  }),
+}));

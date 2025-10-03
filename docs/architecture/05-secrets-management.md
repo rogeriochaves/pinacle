@@ -32,10 +32,10 @@ graph TB
 
 ```sql
 CREATE TABLE secrets (
-  id UUID PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   value_encrypted TEXT NOT NULL,
-  owner_id UUID REFERENCES users(id),
+  owner_id TEXT REFERENCES users(id),
   project_ref VARCHAR(500),  -- GitHub repo URL
   created_at TIMESTAMP DEFAULT NOW(),
 

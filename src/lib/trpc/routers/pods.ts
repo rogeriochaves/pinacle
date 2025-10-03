@@ -4,11 +4,11 @@ import { z } from "zod";
 import {
   githubInstallations,
   pods,
-  podTemplates,
   teamMembers,
   userGithubInstallations,
 } from "../../db/schema";
 import { getInstallationOctokit } from "../../github-app";
+import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -18,8 +18,8 @@ import {
 const createPodSchema = z.object({
   name: z.string().min(2).max(255),
   description: z.string().optional(),
-  templateId: z.string().uuid().optional(),
-  teamId: z.string().uuid(),
+  template: z.string().optional(),
+  teamId: z.string(),
 
   // GitHub repository information
   githubRepo: z.string().optional(), // owner/repo format
@@ -45,10 +45,7 @@ const createPodSchema = z.object({
 
 export const podsRouter = createTRPCRouter({
   getTemplates: publicProcedure.query(async ({ ctx }) => {
-    const templates = await ctx.db
-      .select()
-      .from(podTemplates)
-      .where(eq(podTemplates.isActive, true));
+    const templates = POD_TEMPLATES;
 
     return templates;
   }),
@@ -59,7 +56,7 @@ export const podsRouter = createTRPCRouter({
       const {
         name,
         description,
-        templateId,
+        template,
         teamId,
         githubRepo,
         githubBranch,
@@ -258,7 +255,7 @@ export const podsRouter = createTRPCRouter({
           name,
           slug,
           description,
-          templateId,
+          template,
           teamId,
           ownerId: userId,
           githubRepo: finalGithubRepo,
@@ -332,7 +329,7 @@ export const podsRouter = createTRPCRouter({
   }),
 
   getById: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
@@ -352,7 +349,7 @@ export const podsRouter = createTRPCRouter({
     }),
 
   start: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
@@ -396,7 +393,7 @@ export const podsRouter = createTRPCRouter({
     }),
 
   stop: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
@@ -440,7 +437,7 @@ export const podsRouter = createTRPCRouter({
     }),
 
   delete: protectedProcedure
-    .input(z.object({ id: z.string().uuid() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
