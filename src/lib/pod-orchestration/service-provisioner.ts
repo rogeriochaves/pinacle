@@ -19,6 +19,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   constructor(
     limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
     serverConnection?: ServerConnection,
+    podId?: string,
   ) {
     // Use provided connection or create default Lima connection for dev
     if (serverConnection) {
@@ -36,16 +37,24 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         privateKey: env.SSH_PRIVATE_KEY,
       });
     }
+
+    // Set podId for logging if provided
+    if (podId) {
+      this.serverConnection.setPodId(podId);
+    }
+
     // Service templates are now loaded from service-registry.ts
   }
 
   private async exec(
     command: string,
     useSudo: boolean = false,
+    containerCommand?: string,
   ): Promise<{ stdout: string; stderr: string }> {
     try {
       const result = await this.serverConnection.exec(command, {
         sudo: useSudo,
+        containerCommand,
       });
       return result;
     } catch (error) {
@@ -64,7 +73,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     // Escape single quotes by replacing ' with '\''
     const escapedCommand = commandStr.replace(/'/g, "'\\''");
     const dockerCommand = `docker exec ${containerId} sh -c '${escapedCommand}'`;
-    return this.exec(dockerCommand, true); // Always use sudo for docker exec
+    return this.exec(dockerCommand, true, commandStr); // Pass original command for logging
   }
 
   async provisionService(

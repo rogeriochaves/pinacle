@@ -233,6 +233,24 @@ export const podMetrics = pgTable("pod_metrics", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Pod provisioning logs
+export const podLogs = pgTable("pod_logs", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("pod_log")),
+  podId: text("pod_id").notNull(), // No foreign key - pod may not exist yet during provisioning
+  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
+  command: text("command").notNull(), // The full command executed (with docker exec wrapper if applicable)
+  containerCommand: text("container_command"), // Original command executed inside container (without docker exec wrapper)
+  stdout: text("stdout").default(""), // Standard output
+  stderr: text("stderr").default(""), // Standard error
+  exitCode: integer("exit_code").notNull(), // Exit code (0 = success)
+  duration: integer("duration").notNull(), // Duration in milliseconds
+  label: text("label"), // Optional human-readable label (e.g., "📦 Cloning repository")
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // GitHub App installations
 export const githubInstallations = pgTable("github_installation", {
   id: text("id")
@@ -366,6 +384,13 @@ export const podMetricsRelations = relations(podMetrics, ({ one }) => ({
   // Note: No foreign key constraint, so this relation may not always resolve
   pod: one(pods, {
     fields: [podMetrics.podId],
+    references: [pods.id],
+  }),
+}));
+
+export const podLogsRelations = relations(podLogs, ({ one }) => ({
+  pod: one(pods, {
+    fields: [podLogs.podId],
     references: [pods.id],
   }),
 }));

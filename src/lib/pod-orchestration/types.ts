@@ -187,11 +187,14 @@ export interface ServerConnection {
   // Execute command on the server (not inside a container)
   exec(
     command: string,
-    options?: { sudo?: boolean },
+    options?: { sudo?: boolean; label?: string; containerCommand?: string },
   ): Promise<{ stdout: string; stderr: string }>;
 
   // Test connection
   testConnection(): Promise<boolean>;
+
+  // Set pod ID for logging context
+  setPodId(podId: string): void;
 }
 
 // Lima integration types

@@ -23,110 +23,146 @@ import type {
 
 export class DefaultPodManager extends EventEmitter implements PodManager {
   private pods: Map<string, PodInstance> = new Map();
-  private containerRuntime: ContainerRuntime;
-  private networkManager: NetworkManager;
-  private serviceProvisioner: ServiceProvisioner;
+  // Store per-pod components for operations after creation
+  private podComponents: Map<string, {
+    containerRuntime: ContainerRuntime;
+    networkManager: NetworkManager;
+    serviceProvisioner: ServiceProvisioner;
+  }> = new Map();
+  private limaConfig?: LimaConfig;
   private configResolver: ConfigResolver;
   private githubIntegration: GitHubIntegration;
 
   constructor(limaConfig?: LimaConfig) {
     super();
 
-    this.containerRuntime = new LimaGVisorRuntime(limaConfig);
-    this.networkManager = new LimaNetworkManager(limaConfig);
-    this.serviceProvisioner = new LimaServiceProvisioner(limaConfig);
+    this.limaConfig = limaConfig;
     this.configResolver = new DefaultConfigResolver();
     this.githubIntegration = new GitHubIntegration(this);
+  }
+
+  // Helper method to create pod-specific orchestration components
+  private createPodComponents(podId: string) {
+    const components = {
+      containerRuntime: new LimaGVisorRuntime(this.limaConfig, undefined, podId),
+      networkManager: new LimaNetworkManager(this.limaConfig, undefined, podId),
+      serviceProvisioner: new LimaServiceProvisioner(this.limaConfig, undefined, podId),
+    };
+    this.podComponents.set(podId, components);
+    return components;
+  }
+
+  // Get components for a pod (or create without podId for utility methods)
+  private getComponents(podId?: string) {
+    if (podId && this.podComponents.has(podId)) {
+      return this.podComponents.get(podId)!;
+    }
+    // For utility methods without a pod context, create generic components
+    return {
+      containerRuntime: new LimaGVisorRuntime(this.limaConfig),
+      networkManager: new LimaNetworkManager(this.limaConfig),
+      serviceProvisioner: new LimaServiceProvisioner(this.limaConfig),
+    };
   }
 
   async createPod(config: PodConfig): Promise<PodInstance> {
     console.log(`[PodManager] Creating pod: ${config.name} (${config.id})`);
 
-    // Validate configuration
-    const validation = await this.configResolver.validateConfig(config);
-    if (!validation.valid) {
-      throw new Error(`Invalid configuration: ${validation.errors.join(", ")}`);
-    }
+    // Create pod-specific runtime, network manager, and service provisioner
+    // They will log all commands with the pod ID
+    const { containerRuntime, networkManager, serviceProvisioner } = this.createPodComponents(config.id);
 
-    // Create pod instance
-    const podInstance: PodInstance = {
-      id: config.id,
-      config,
-      status: "pending",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    this.pods.set(config.id, podInstance);
-    this.emitEvent("created", config.id);
-    // Update status to provisioning
-    await this.updatePodStatus(config.id, "provisioning");
-
-    // Create network
-    console.log(`[PodManager] Creating network for pod ${config.id}`);
-    const podIp = await this.networkManager.createPodNetwork(
-      config.id,
-      config.network,
-    );
-
-    // Update config with assigned IP
-    config.network.podIp = podIp;
-
-    // Allocate external ports
-    console.log(`[PodManager] Allocating ports for pod ${config.id}`);
-    await this.allocateExternalPorts(config);
-
-    // Create container
-    console.log(`[PodManager] Creating container for pod ${config.id}`);
-    const container = await this.containerRuntime.createContainer(config);
-
-    // Update pod instance
-    podInstance.container = container;
-    podInstance.status = "starting";
-    podInstance.updatedAt = new Date();
-
-    // Start container
-    console.log(`[PodManager] Starting container for pod ${config.id}`);
-    await this.containerRuntime.startContainer(container.id);
-
-    // Set up port forwarding
-    console.log(`[PodManager] Setting up port forwarding for pod ${config.id}`);
-    for (const port of config.network.ports) {
-      if (port.external) {
-        await this.networkManager.setupPortForwarding(config.id, port);
+    try {
+      // Validate configuration
+      const validation = await this.configResolver.validateConfig(config);
+      if (!validation.valid) {
+        throw new Error(`Invalid configuration: ${validation.errors.join(", ")}`);
       }
-    }
 
-    // Setup GitHub repository if configured
-    if (config.githubRepo && config.githubRepoSetup) {
-      console.log(
-        `[PodManager] Setting up GitHub repository for pod ${config.id}`,
+      // Create pod instance
+      const podInstance: PodInstance = {
+        id: config.id,
+        config,
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      this.pods.set(config.id, podInstance);
+      this.emitEvent("created", config.id);
+      // Update status to provisioning
+      await this.updatePodStatus(config.id, "provisioning");
+
+      // Create network
+      console.log(`[PodManager] Creating network for pod ${config.id}`);
+      const podIp = await networkManager.createPodNetwork(
+        config.id,
+        config.network,
       );
-      await this.setupGitHubRepository(config.id, config);
+
+      // Update config with assigned IP
+      config.network.podIp = podIp;
+
+      // Allocate external ports
+      console.log(`[PodManager] Allocating ports for pod ${config.id}`);
+      await this.allocateExternalPorts(config, networkManager);
+
+      // Create container
+      console.log(`[PodManager] Creating container for pod ${config.id}`);
+      const container = await containerRuntime.createContainer(config);
+
+      // Update pod instance
+      podInstance.container = container;
+      podInstance.status = "starting";
+      podInstance.updatedAt = new Date();
+
+      // Start container
+      console.log(`[PodManager] Starting container for pod ${config.id}`);
+      await containerRuntime.startContainer(container.id);
+
+      // Set up port forwarding
+      console.log(`[PodManager] Setting up port forwarding for pod ${config.id}`);
+      for (const port of config.network.ports) {
+        if (port.external) {
+          await networkManager.setupPortForwarding(config.id, port);
+        }
+      }
+
+      // Setup GitHub repository if configured
+      if (config.githubRepo && config.githubRepoSetup) {
+        console.log(
+          `[PodManager] Setting up GitHub repository for pod ${config.id}`,
+        );
+        await this.setupGitHubRepository(config.id, config);
+      }
+
+      // Provision services
+      console.log(`[PodManager] Provisioning services for pod ${config.id}`);
+      await this.provisionServices(config, serviceProvisioner);
+
+      // Start services
+      console.log(`[PodManager] Starting services for pod ${config.id}`);
+      await this.startServices(config, serviceProvisioner);
+
+      // Run post-start hooks
+      if (config.hooks?.postStart) {
+        console.log(`[PodManager] Running post-start hooks for pod ${config.id}`);
+        await this.runHooks(config.id, config.hooks.postStart);
+      }
+
+      // Update status to running
+      await this.updatePodStatus(config.id, "running");
+      this.emitEvent("started", config.id);
+
+      console.log(
+        `[PodManager] Successfully created pod: ${config.name} (${config.id})`,
+      );
+      return podInstance;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[PodManager] Pod creation failed: ${message}`);
+      throw error;
     }
-
-    // Provision services
-    console.log(`[PodManager] Provisioning services for pod ${config.id}`);
-    await this.provisionServices(config);
-
-    // Start services
-    console.log(`[PodManager] Starting services for pod ${config.id}`);
-    await this.startServices(config);
-
-    // Run post-start hooks
-    if (config.hooks?.postStart) {
-      console.log(`[PodManager] Running post-start hooks for pod ${config.id}`);
-      await this.runHooks(config.id, config.hooks.postStart);
-    }
-
-    // Update status to running
-    await this.updatePodStatus(config.id, "running");
-    this.emitEvent("started", config.id);
-
-    console.log(
-      `[PodManager] Successfully created pod: ${config.name} (${config.id})`,
-    );
-    return podInstance;
   }
 
   async startPod(podId: string): Promise<void> {
@@ -146,14 +182,16 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     console.log(`[PodManager] Starting pod: ${podId}`);
 
+    const { containerRuntime, serviceProvisioner } = this.getComponents(podId);
+
     try {
       await this.updatePodStatus(podId, "starting");
 
       // Start container
-      await this.containerRuntime.startContainer(pod.container.id);
+      await containerRuntime.startContainer(pod.container.id);
 
       // Start services
-      await this.startServices(pod.config);
+      await this.startServices(pod.config, serviceProvisioner);
 
       // Run post-start hooks
       if (pod.config.hooks?.postStart) {
@@ -190,6 +228,8 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     console.log(`[PodManager] Stopping pod: ${podId}`);
 
+    const { containerRuntime, serviceProvisioner } = this.getComponents(podId);
+
     try {
       await this.updatePodStatus(podId, "stopping");
 
@@ -199,10 +239,10 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       }
 
       // Stop services
-      await this.stopServices(pod.config);
+      await this.stopServices(pod.config, serviceProvisioner);
 
       // Stop container
-      await this.containerRuntime.stopContainer(pod.container.id);
+      await containerRuntime.stopContainer(pod.container.id);
 
       await this.updatePodStatus(podId, "stopped");
       this.emitEvent("stopped", podId);
@@ -225,6 +265,8 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     console.log(`[PodManager] Deleting pod: ${podId}`);
 
+    const { containerRuntime, networkManager, serviceProvisioner } = this.getComponents(podId);
+
     try {
       await this.updatePodStatus(podId, "terminating");
 
@@ -239,32 +281,33 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       }
 
       // Remove services
-      await this.removeServices(pod.config);
+      await this.removeServices(pod.config, serviceProvisioner);
 
       // Remove container
       if (pod.container) {
-        await this.containerRuntime.removeContainer(pod.container.id);
+        await containerRuntime.removeContainer(pod.container.id);
       }
 
       // Remove port forwarding
       for (const port of pod.config.network.ports) {
         if (port.external) {
-          await this.networkManager.removePortForwarding(podId, port);
+          await networkManager.removePortForwarding(podId, port);
         }
       }
 
       // Destroy network
-      await this.networkManager.destroyPodNetwork(podId);
+      await networkManager.destroyPodNetwork(podId);
 
       // Release allocated ports
       for (const port of pod.config.network.ports) {
         if (port.external) {
-          await this.networkManager.releasePort(podId, port.external);
+          await networkManager.releasePort(podId, port.external);
         }
       }
 
       // Remove pod from memory
       this.pods.delete(podId);
+      this.podComponents.delete(podId);
       this.emitEvent("deleted", podId);
 
       console.log(`[PodManager] Successfully deleted pod: ${podId}`);
@@ -311,7 +354,8 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       throw new Error(`Pod not found or not running: ${podId}`);
     }
 
-    return this.containerRuntime.execCommand(pod.container.id, command);
+    const { containerRuntime } = this.getComponents(podId);
+    return containerRuntime.execCommand(pod.container.id, command);
   }
 
   async getPodLogs(
@@ -323,7 +367,8 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       throw new Error(`Pod not found or not running: ${podId}`);
     }
 
-    return this.containerRuntime.getContainerLogs(pod.container.id, options);
+    const { containerRuntime } = this.getComponents(podId);
+    return containerRuntime.getContainerLogs(pod.container.id, options);
   }
 
   async checkPodHealth(podId: string): Promise<boolean> {
@@ -332,9 +377,11 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       return false;
     }
 
+    const { containerRuntime, serviceProvisioner } = this.getComponents(podId);
+
     try {
       // Check container status
-      const container = await this.containerRuntime.getContainer(
+      const container = await containerRuntime.getContainer(
         pod.container.id,
       );
       if (!container || container.status !== "running") {
@@ -344,7 +391,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
       // Check service health
       for (const service of pod.config.services) {
         if (service.enabled) {
-          const isHealthy = await this.serviceProvisioner.checkServiceHealth(
+          const isHealthy = await serviceProvisioner.checkServiceHealth(
             podId,
             service.name,
           );
@@ -457,7 +504,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     this.emit("pod-event", event);
   }
 
-  private async allocateExternalPorts(config: PodConfig): Promise<void> {
+  private async allocateExternalPorts(config: PodConfig, networkManager: NetworkManager): Promise<void> {
     // With the Nginx proxy approach, we only need to expose ONE port (80)
     // All internal services are accessed via hostname-based routing
 
@@ -468,7 +515,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     if (!proxyPort) {
       // Add a single proxy port that maps to container port 80 (Nginx)
-      const externalPort = await this.networkManager.allocatePort(
+      const externalPort = await networkManager.allocatePort(
         config.id,
         "nginx-proxy",
       );
@@ -514,7 +561,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     await this.githubIntegration.setupRepository(podId, setup, template);
   }
 
-  private async provisionServices(config: PodConfig): Promise<void> {
+  private async provisionServices(config: PodConfig, serviceProvisioner: ServiceProvisioner): Promise<void> {
     // Works for urls like:
     // - git@github.com:owner/repo.git
     // - https://github.com/owner/repo.git
@@ -525,7 +572,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     for (const service of config.services) {
       if (service.enabled) {
-        await this.serviceProvisioner.provisionService(
+        await serviceProvisioner.provisionService(
           config.id,
           service,
           projectFolder,
@@ -534,7 +581,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
   }
 
-  private async startServices(config: PodConfig): Promise<void> {
+  private async startServices(config: PodConfig, serviceProvisioner: ServiceProvisioner): Promise<void> {
     // Start services in dependency order
     const startedServices = new Set<string>();
     const startService = async (service: ServiceConfig): Promise<void> => {
@@ -550,7 +597,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
         }
       }
 
-      await this.serviceProvisioner.startService(config.id, service.name);
+      await serviceProvisioner.startService(config.id, service.name);
       startedServices.add(service.name);
     };
 
@@ -559,13 +606,13 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
   }
 
-  private async stopServices(config: PodConfig): Promise<void> {
+  private async stopServices(config: PodConfig, serviceProvisioner: ServiceProvisioner): Promise<void> {
     // Stop services in reverse dependency order
     const servicesToStop = config.services.filter((s) => s.enabled).reverse();
 
     for (const service of servicesToStop) {
       try {
-        await this.serviceProvisioner.stopService(config.id, service.name);
+        await serviceProvisioner.stopService(config.id, service.name);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(
@@ -575,10 +622,10 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
   }
 
-  private async removeServices(config: PodConfig): Promise<void> {
+  private async removeServices(config: PodConfig, serviceProvisioner: ServiceProvisioner): Promise<void> {
     for (const service of config.services) {
       try {
-        await this.serviceProvisioner.removeService(config.id, service.name);
+        await serviceProvisioner.removeService(config.id, service.name);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(

@@ -11,7 +11,7 @@
 
 import { lt } from "drizzle-orm";
 import { db } from "./lib/db";
-import { podMetrics, serverMetrics } from "./lib/db/schema";
+import { podLogs, podMetrics, serverMetrics } from "./lib/db/schema";
 
 const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
 const ONE_HOUR_MS = 1 * 60 * 60 * 1000;
@@ -26,18 +26,27 @@ const cleanupOldMetrics = async () => {
     );
 
     // Delete old server metrics
-    await db
+    const serverMetricsDeleted = await db
       .delete(serverMetrics)
       .where(lt(serverMetrics.createdAt, fiveDaysAgo))
       .execute();
 
     // Delete old pod metrics
-    await db
+    const podMetricsDeleted = await db
       .delete(podMetrics)
       .where(lt(podMetrics.createdAt, fiveDaysAgo))
       .execute();
 
+    // Delete old pod logs
+    const podLogsDeleted = await db
+      .delete(podLogs)
+      .where(lt(podLogs.createdAt, fiveDaysAgo))
+      .execute();
+
     console.log("[Metrics Cleanup] ✅ Cleanup completed successfully");
+    console.log(`  - Server metrics deleted: ${serverMetricsDeleted.rowCount || 0}`);
+    console.log(`  - Pod metrics deleted: ${podMetricsDeleted.rowCount || 0}`);
+    console.log(`  - Pod logs deleted: ${podLogsDeleted.rowCount || 0}`);
   } catch (error) {
     console.error("[Metrics Cleanup] ❌ Error:", error);
   }

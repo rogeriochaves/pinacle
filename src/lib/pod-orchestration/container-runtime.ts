@@ -15,6 +15,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   constructor(
     limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
     serverConnection?: ServerConnection,
+    podId?: string,
   ) {
     // Use provided connection or create default Lima connection for dev
     if (serverConnection) {
@@ -32,15 +33,22 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         privateKey: env.SSH_PRIVATE_KEY,
       });
     }
+
+    // Set podId for logging if provided
+    if (podId) {
+      this.serverConnection.setPodId(podId);
+    }
   }
 
   private async exec(
     command: string,
     useSudo: boolean = false,
+    containerCommand?: string,
   ): Promise<{ stdout: string; stderr: string }> {
     try {
       const result = await this.serverConnection.exec(command, {
         sudo: useSudo,
+        containerCommand,
       });
       return result;
     } catch (error) {
@@ -329,7 +337,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       const commandStr = quotedArgs.join(" ");
       const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
-      const { stdout, stderr } = await this.exec(dockerCommand, true);
+      const { stdout, stderr } = await this.exec(dockerCommand, true, commandStr);
 
       return {
         stdout,

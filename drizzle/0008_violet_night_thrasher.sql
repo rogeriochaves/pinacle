@@ -1,0 +1,1 @@
+ALTER TABLE "pod_logs" ADD COLUMN "container_command" text;

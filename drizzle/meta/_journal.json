@@ -36,6 +36,34 @@
       "when": 1759569932437,
       "tag": "0004_tan_preak",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1759589898559,
+      "tag": "0005_burly_kabuki",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1759590060703,
+      "tag": "0006_sparkling_ultron",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1759591683062,
+      "tag": "0007_medical_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1759592264202,
+      "tag": "0008_violet_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

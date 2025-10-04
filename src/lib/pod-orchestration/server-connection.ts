@@ -3,6 +3,9 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { db } from "../db";
+import { podLogs } from "../db/schema";
+import { generateKSUID } from "../utils";
 import type { ServerConnection, ServerConnectionConfig } from "./types";
 
 const execAsync = promisify(exec);
@@ -10,14 +13,20 @@ const execAsync = promisify(exec);
 export class SSHServerConnection implements ServerConnection {
   private config: ServerConnectionConfig;
   private keyFilePath: string | null = null;
+  private podId: string | null = null;
 
-  constructor(config: ServerConnectionConfig) {
+  constructor(config: ServerConnectionConfig, podId?: string) {
     this.config = config;
+    this.podId = podId || null;
+  }
+
+  setPodId(podId: string): void {
+    this.podId = podId;
   }
 
   async exec(
     command: string,
-    options: { sudo?: boolean } = {},
+    options: { sudo?: boolean; label?: string; containerCommand?: string } = {},
   ): Promise<{ stdout: string; stderr: string }> {
     // Write private key to temporary file for SSH
     const keyPath = await this.getKeyFilePath();
@@ -44,13 +53,78 @@ export class SSHServerConnection implements ServerConnection {
       `'${escapedCommand}'`,
     ].join(" ");
 
+    const startTime = Date.now();
+    let exitCode = 0;
+
     try {
       const result = await execAsync(sshCommand);
+
+      // Log command execution if podId is set
+      if (this.podId) {
+        await this.logCommand({
+          command: fullCommand,
+          containerCommand: options.containerCommand,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode,
+          duration: Date.now() - startTime,
+          label: options.label,
+        });
+      }
+
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const stderr = error && typeof error === 'object' && 'stderr' in error ? String((error as any).stderr) : message;
+      const stdout = error && typeof error === 'object' && 'stdout' in error ? String((error as any).stdout) : '';
+      exitCode = error && typeof error === 'object' && 'code' in error ? Number((error as any).code) : 1;
+
+      // Log failed command execution if podId is set
+      if (this.podId) {
+        await this.logCommand({
+          command: fullCommand,
+          containerCommand: options.containerCommand,
+          stdout,
+          stderr,
+          exitCode,
+          duration: Date.now() - startTime,
+          label: options.label,
+        });
+      }
+
       console.error(`[ServerConnection] SSH command failed: ${message}`);
       throw error;
+    }
+  }
+
+  private async logCommand(params: {
+    command: string;
+    containerCommand?: string;
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    duration: number;
+    label?: string;
+  }): Promise<void> {
+    if (!this.podId) return;
+
+    const { command, containerCommand, stdout, stderr, exitCode, duration, label } = params;
+
+    try {
+      await db.insert(podLogs).values({
+        id: generateKSUID("pod_log"),
+        podId: this.podId,
+        command,
+        containerCommand: containerCommand || null,
+        stdout: stdout || "",
+        stderr: stderr || "",
+        exitCode,
+        duration,
+        label: label || null,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error(`[ServerConnection] Failed to log command for pod ${this.podId}:`, error);
     }
   }
 

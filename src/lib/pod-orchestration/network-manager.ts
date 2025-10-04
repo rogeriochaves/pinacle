@@ -17,6 +17,7 @@ export class LimaNetworkManager implements NetworkManager {
   constructor(
     limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
     serverConnection?: ServerConnection,
+    podId?: string,
   ) {
     // Use provided connection or create default Lima connection for dev
     if (serverConnection) {
@@ -33,6 +34,11 @@ export class LimaNetworkManager implements NetworkManager {
         user: process.env.USER || "root",
         privateKey: env.SSH_PRIVATE_KEY,
       });
+    }
+
+    // Set podId for logging if provided
+    if (podId) {
+      this.serverConnection.setPodId(podId);
     }
   }
 
