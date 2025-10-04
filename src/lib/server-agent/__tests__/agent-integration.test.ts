@@ -15,7 +15,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { desc, eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "../../db";
 import { serverMetrics, servers } from "../../db/schema";
 
@@ -23,7 +23,6 @@ const execAsync = promisify(exec);
 
 const LIMA_VM = "gvisor-alpine";
 const API_URL = "http://localhost:3000";
-const API_KEY = "test-api-key-12345";
 
 let testServerId: string | null = null;
 
@@ -49,7 +48,7 @@ describe("Server Agent Integration", () => {
     await cleanupTestServers();
 
     // Use provision script to set everything up
-    const command = `./scripts/provision-server.sh --api-url ${API_URL} --api-key ${API_KEY} --host lima:${LIMA_VM} --heartbeat-interval 5000`;
+    const command = `./scripts/provision-server.sh --api-url ${API_URL} --api-key ${process.env.SERVER_API_KEY} --host lima:${LIMA_VM} --heartbeat-interval 5000`;
     console.log(
       "📦 Provisioning Lima VM with server agent with command:",
       command,
