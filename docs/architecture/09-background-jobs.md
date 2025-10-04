@@ -244,13 +244,40 @@ async function checkPodHealth(podId?: string) {
 
 ### Cleanup Jobs
 
+**Status**: ✅ **Implemented** (metrics cleanup)
+
 ```typescript
 async function cleanupOldResources() {
-  // Clean up terminated pods older than 7 days
+  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  // Clean up old metrics (implemented)
+  const serverMetricsDeleted = await db
+    .delete(serverMetrics)
+    .where(lt(serverMetrics.createdAt, fiveDaysAgo))
+    .execute();
+
+  const podMetricsDeleted = await db
+    .delete(podMetrics)
+    .where(lt(podMetrics.createdAt, fiveDaysAgo))
+    .execute();
+
+  const podLogsDeleted = await db
+    .delete(podLogs)
+    .where(lt(podLogs.createdAt, fiveDaysAgo))
+    .execute();
+
+  console.log('✅ Cleaned up old metrics:', {
+    serverMetrics: serverMetricsDeleted.rowCount || 0,
+    podMetrics: podMetricsDeleted.rowCount || 0,
+    podLogs: podLogsDeleted.rowCount || 0,
+  });
+
+  // Clean up terminated pods older than 7 days (TODO)
   const oldPods = await db.pods.findMany({
     where: {
       status: 'terminated',
-      updatedAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      updatedAt: { lt: sevenDaysAgo }
     }
   });
 
@@ -264,7 +291,7 @@ async function cleanupOldResources() {
     await db.pods.delete({ where: { id: pod.id } });
   }
 
-  // Clean up old snapshots
+  // Clean up old snapshots (TODO)
   const oldSnapshots = await db.snapshots.findMany({
     where: {
       createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
@@ -280,6 +307,8 @@ async function cleanupOldResources() {
   }
 }
 ```
+
+**Implementation**: `src/worker.ts` - Runs every hour
 
 ## Error Handling
 

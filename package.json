@@ -19,7 +19,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:integration": "dotenv -c -- vitest run src/lib/pod-orchestration/__tests__/integration.test.ts",
-    "test:pod-system": "dotenv -c -- tsx scripts/test-pod-system.ts"
+    "test:pod-system": "dotenv -c -- tsx scripts/test-pod-system.ts",
+    "server:provision:dev": "dotenv -c -- ./scripts/provision-server.sh --api-url http://localhost:3000 --host lima:gvisor-alpine --heartbeat-interval 5000",
+    "server:provision": "dotenv -- ./scripts/provision-server.sh --api-url https://pinacle.dev --heartbeat-interval 5000"
   },
   "dependencies": {
     "@auth/core": "^0.40.0",

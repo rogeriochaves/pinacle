@@ -83,6 +83,25 @@ graph TB
 - **Rationale**: Developer productivity, familiar interface
 - **Benefits**: Context switching, customization, persistence
 
+### 6. Server Management System ✅ **Implemented**
+- **Decision**: Lightweight Node.js agent on each server for self-registration and metrics
+- **Rationale**: Horizontal scaling, real-time monitoring, automatic server discovery
+- **Benefits**:
+  - Servers auto-register on startup
+  - Real-time CPU/memory/disk metrics every 5 seconds
+  - Per-pod resource tracking
+  - Unified SSH abstraction for local (Lima) and production servers
+  - Comprehensive command logging for user visibility
+
+### 7. Pod Provisioning Logs ✅ **Implemented**
+- **Decision**: Log every command executed during pod provisioning to PostgreSQL
+- **Rationale**: User visibility, debugging, performance tracking
+- **Benefits**:
+  - Users see terminal-like output of what's happening in their pod
+  - Separate infrastructure commands from container commands
+  - Automatic cleanup after 5 days
+  - Duration tracking for performance optimization
+
 ## Data Flow Diagrams
 
 ### Pod Creation Flow

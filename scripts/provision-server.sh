@@ -13,8 +13,8 @@ set -e
 #   ./provision-server.sh --api-url http://localhost:3000 --api-key test-key --host ssh:user@server.com
 
 API_URL=""
-API_KEY=""
-HOST="local"
+API_KEY=$SERVER_API_KEY
+HOST=""
 AGENT_PATH="/opt/pinacle/server-agent"
 HEARTBEAT_INTERVAL="30000"
 
@@ -45,18 +45,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate required args
-if [ -z "$API_URL" ] || [ -z "$API_KEY" ]; then
-  echo "Error: --api-url and --api-key are required"
+if [ -z "$API_URL" ] || [ -z "$API_KEY" ] || [ -z "$HOST" ]; then
+  echo "Error: --api-url, --api-key and --host are required"
   echo ""
   echo "Usage:"
-  echo "  $0 --api-url URL --api-key KEY [--host HOST]"
+  echo "  $0 --api-url URL --api-key KEY --host HOST"
   echo ""
   echo "Examples:"
   echo "  # Provision Lima VM (for testing)"
   echo "  $0 --api-url http://localhost:3000 --api-key test-key --host lima:gvisor-alpine"
   echo ""
   echo "  # Provision remote server via SSH"
-  echo "  $0 --api-url https://api.pinacle.dev --api-key prod-key --host ssh:root@192.168.1.100"
+  echo "  $0 --api-url https://pinacle.dev --api-key prod-key --host ssh:root@192.168.1.100"
   echo ""
   echo "  # Provision local machine"
   echo "  $0 --api-url http://localhost:3000 --api-key test-key --host local"

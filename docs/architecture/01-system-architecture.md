@@ -151,45 +151,72 @@ await boss.work('cleanup-pod', async (job) => {
 await boss.send('provision-pod', { podId, config });
 ```
 
-### 4. Pod Host Communication
+### 4. Server Management System
 
-Two simple options:
+**Status**: ✅ **Fully Implemented**
 
-#### Option A: Direct SSH (Simpler)
+#### Server Agent (Node.js Service)
+Lightweight service running on each server:
 ```typescript
-class PodManager {
-  async createPod(hostIp: string, config: PodConfig) {
-    const ssh = new SSH2.Client();
-    await ssh.connect({
-      host: hostIp,
-      username: 'pinacle',
-      privateKey: MASTER_SSH_KEY
-    });
+// Self-registration on startup
+async function registerServer() {
+  const serverInfo = {
+    hostname: os.hostname(),
+    ipAddress: getLocalIP(),
+    cpuCores: os.cpus().length,
+    totalRamGb: os.totalmem() / (1024 ** 3),
+    totalDiskGb: await getDiskSpace(),
+    sshHost: await getSshHost(),
+    sshPort: await getSshPort(),
+    sshUser: process.env.USER || 'root',
+  };
 
-    await ssh.exec(`
-      /usr/local/bin/create-pod.sh \
-        --id ${config.podId} \
-        --cpu ${config.cpu} \
-        --memory ${config.memory}
-    `);
-  }
+  await fetch(`${MAIN_APP_URL}/api/trpc/servers.registerServer`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${SERVER_API_KEY}` },
+    body: JSON.stringify({ json: serverInfo }),
+  });
+}
+
+// Metrics reporting every 5 seconds
+async function sendMetrics() {
+  const metrics = {
+    serverId,
+    cpuUsagePercent: await getCpuUsage(),
+    ramUsageGb: await getRamUsage(),
+    diskUsageGb: await getDiskUsage(),
+    activePodsCount: await getActivePodCount(),
+    podMetrics: await collectPodMetrics(), // Per-pod resource usage
+  };
+
+  await fetch(`${MAIN_APP_URL}/api/trpc/servers.reportMetrics`, { /* ... */ });
 }
 ```
 
-#### Option B: Simple HTTP Agent
+#### SSH Connection Abstraction
+Unified interface for Lima (dev) and remote servers (prod):
 ```typescript
-// Agent running on each host
-app.post('/create-pod', async (req, res) => {
-  const { podId, config } = req.body;
-
-  if (req.headers['x-api-key'] !== HOST_API_KEY) {
-    return res.status(401).send('Unauthorized');
+class SSHServerConnection implements ServerConnection {
+  async exec(command: string, options?: {
+    sudo?: boolean;
+    label?: string;
+    containerCommand?: string; // Original command if inside container
+  }): Promise<{ stdout: string; stderr: string }> {
+    // Execute via SSH
+    // Automatically logs to pod_logs table if podId is set
   }
+}
 
-  await createGvisorContainer(podId, config);
-  res.json({ success: true, ip: podIp });
+// Same code works for both Lima and production servers
+const connection = new SSHServerConnection({
+  host: server.sshHost,
+  port: server.sshPort,
+  user: server.sshUser,
+  privateKey: env.SSH_PRIVATE_KEY,
 });
 ```
+
+**See**: `docs/architecture/14-server-management-system.md` for full details
 
 ## Resource Tiers
 

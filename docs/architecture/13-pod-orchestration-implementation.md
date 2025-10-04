@@ -39,29 +39,79 @@ src/lib/pod-orchestration/
 
 ## Key Features Implemented
 
-### 1. Cross-Platform Development
+### 1. Cross-Platform Development with SSH Abstraction
 
-**Problem**: gVisor doesn't run natively on macOS.
+**Problem**: gVisor doesn't run natively on macOS, and we need unified code for local (Lima) and production servers.
 
-**Solution**: Environment-aware command execution via Lima VM.
+**Solution**: `ServerConnection` interface that abstracts SSH execution.
 
 ```typescript
-const isDevMode = process.env.NODE_ENV === 'development';
+// Unified interface for Lima VMs and remote servers
+export interface ServerConnection {
+  exec(
+    command: string,
+    options?: {
+      sudo?: boolean;
+      label?: string;
+      containerCommand?: string;
+    }
+  ): Promise<{ stdout: string; stderr: string }>;
 
-const execDockerCommand = async (command: string) => {
-  if (isDevMode) {
-    // macOS: Route through Lima VM
-    return execAsync(`limactl shell gvisor-alpine -- ${command}`);
-  } else {
-    // Linux: Run directly
-    return execAsync(command);
+  testConnection(): Promise<boolean>;
+  setPodId(podId: string): void; // Enable automatic logging
+}
+
+// Implementation using SSH
+class SSHServerConnection implements ServerConnection {
+  constructor(config: ServerConnectionConfig, podId?: string) {
+    // Works for both Lima (127.0.0.1:52111) and remote servers
+    this.config = config; // { host, port, user, privateKey }
+    this.podId = podId;
   }
-};
+
+  async exec(command: string, options = {}) {
+    // Execute via SSH
+    // Automatically logs to pod_logs table if podId is set
+    const sshCommand = `ssh -i ${keyPath} -p ${port} ${user}@${host} '${command}'`;
+    const result = await execAsync(sshCommand);
+
+    if (this.podId) {
+      await this.logCommand({
+        command,
+        containerCommand: options.containerCommand,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
+        duration: result.duration,
+        label: options.label,
+      });
+    }
+
+    return result;
+  }
+}
+
+// Usage: Same code for Lima and production
+const runtime = new LimaGVisorRuntime(limaConfig, undefined, podId);
+const connection = new SSHServerConnection({
+  host: "127.0.0.1",    // or production server IP
+  port: 52111,           // or 22 for production
+  user: process.env.USER,
+  privateKey: env.SSH_PRIVATE_KEY,
+}, podId);
 ```
 
+**Benefits**:
+- ✅ **Unified Codebase**: Same code for local and production
+- ✅ **Automatic Logging**: All commands logged to `pod_logs` table
+- ✅ **Lima Transparent**: Lima VMs treated as regular SSH servers
+- ✅ **Container Command Tracking**: Separates infrastructure vs user commands
+
 **Files**:
-- `container-runtime.ts`: Lines 15-30
-- `network-manager.ts`: Lines 18-25
+- `server-connection.ts`: SSH abstraction implementation
+- `container-runtime.ts`: Uses ServerConnection for all Docker commands
+- `network-manager.ts`: Uses ServerConnection for networking
+- `service-provisioner.ts`: Uses ServerConnection for service management
 
 ### 2. Hostname-Based Port Routing
 
@@ -172,7 +222,94 @@ startCommand: [
 **Files**:
 - `service-provisioner.ts`: Lines 33-200 (All service templates)
 
-### 4. Network Isolation
+### 4. Pod Provisioning Logs
+
+**Status**: ✅ **Fully Implemented**
+
+Comprehensive logging of every command executed during pod provisioning, stored in PostgreSQL for user visibility and debugging.
+
+#### Database Schema
+
+```sql
+CREATE TABLE pod_logs (
+  id TEXT PRIMARY KEY,
+  pod_id TEXT NOT NULL,
+  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
+  command TEXT NOT NULL,                 -- Full command (with docker exec if applicable)
+  container_command TEXT,                 -- Original command inside container (NULL for infrastructure)
+  stdout TEXT DEFAULT '',
+  stderr TEXT DEFAULT '',
+  exit_code INTEGER NOT NULL,
+  duration INTEGER NOT NULL,              -- Milliseconds
+  label TEXT,                            -- Optional context (e.g., "📦 Cloning repository")
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+```
+
+#### Command Types
+
+**Infrastructure Commands** (`container_command IS NULL`):
+- Used for debugging and system administrators
+- Examples: `docker network create`, `docker inspect`, `netstat`
+
+**Container Commands** (`container_command IS NOT NULL`):
+- What users see - commands executed inside their pod
+- Examples: `git clone`, `pnpm install`, `rc-service code-server start`
+
+#### Automatic Logging
+
+All commands executed through `ServerConnection` are automatically logged:
+
+```typescript
+// In container-runtime.ts
+async execCommand(containerId: string, command: string[]): Promise<...> {
+  const commandStr = command.join(" ");
+  const dockerCommand = `docker exec ${containerId} ${commandStr}`;
+
+  // Automatically logs with both full command and original container command
+  const result = await this.exec(dockerCommand, true, commandStr);
+  //                                                    ^^^^^^^^^^
+  //                                        This becomes container_command in DB
+
+  return result;
+}
+```
+
+#### User-Facing Query
+
+```typescript
+// Get logs user cares about (commands inside their pod)
+const userLogs = await db.query.podLogs.findMany({
+  where: and(
+    eq(podLogs.podId, podId),
+    isNotNull(podLogs.containerCommand) // Only container commands
+  ),
+  orderBy: asc(podLogs.timestamp),
+});
+
+// Display like a terminal
+userLogs.forEach(log => {
+  if (log.label) console.log(log.label); // e.g., "📦 Cloning repository"
+  console.log(`$ ${log.containerCommand}`);
+  if (log.stdout) console.log(log.stdout);
+  if (log.stderr) console.error(log.stderr);
+  if (log.exitCode !== 0) console.error(`Exit code: ${log.exitCode}`);
+});
+```
+
+#### Benefits
+
+- ✅ **Terminal-Like Output**: Users see exactly what's happening in their pod
+- ✅ **Debugging**: Full command history with stdout/stderr/exit codes
+- ✅ **Performance Tracking**: Duration recorded for every command
+- ✅ **Automatic Cleanup**: Old logs deleted after 5 days
+- ✅ **Infrastructure Visibility**: Debug infrastructure issues separately
+
+**Files**:
+- `server-connection.ts`: Automatic logging in `exec()` method
+- `src/worker.ts`: Cleanup of old logs
+
+### 5. Network Isolation
 
 Each pod runs in an isolated Docker network with unique bridge.
 

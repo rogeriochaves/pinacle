@@ -28,10 +28,12 @@ Pinacle is a cloud development environment platform that provides developers wit
 - Usage tracking and reporting
 
 ### 3. Pod Orchestration
-- SSH-based or simple agent communication with host machines
-- gVisor runtime for container isolation
-- Snapshot/hibernation support
-- Resource usage tracking
+- **✅ Implemented**: SSH-based unified server communication
+- **✅ Implemented**: Server agent for self-registration and metrics
+- **✅ Implemented**: gVisor runtime for container isolation
+- **✅ Implemented**: Comprehensive provisioning logs
+- Snapshot/hibernation support (TODO)
+- **✅ Implemented**: Real-time resource usage tracking
 
 ### 4. Data Layer
 - Single PostgreSQL instance (handles database + job queue)
@@ -74,6 +76,7 @@ Pinacle is a cloud development environment platform that provides developers wit
 11. [Snapshot System](./11-snapshot-system.md) - Hibernation and restore
 12. [Billing System](./12-billing-system.md) - Stripe integration and usage tracking
 13. [**Pod Orchestration Implementation**](./13-pod-orchestration-implementation.md) - ✅ **Implemented system details**
+14. [**Server Management System**](./14-server-management-system.md) - ✅ **Implemented monitoring & orchestration**
 
 ## Pricing Model
 
