@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getServiceTemplate } from "./service-registry";
 import {
   getAllTemplates,
   getTemplate,
@@ -68,7 +69,7 @@ const _PodConfigSchema = z.object({
   environment: z.record(z.string(), z.string()).default({}),
   secrets: z.record(z.string(), z.string()).optional(),
   githubRepo: z.string().optional(),
-  githubBranch: z.string().default("main"),
+  githubBranch: z.string().optional(),
   sshKeyPath: z.string().optional(),
   workingDir: z.string().default("/workspace"),
   user: z.string().default("root"),
@@ -279,17 +280,36 @@ export class DefaultConfigResolver implements ConfigResolver {
 
   // Private helper methods
   private templateToPodConfig(template: PodTemplate): Partial<PodConfig> {
+    // Convert service names to ServiceConfig objects using service-registry
+    const services = template.services
+      .map((serviceName) => {
+        const serviceTemplate = getServiceTemplate(serviceName);
+        if (!serviceTemplate) {
+          console.warn(`Service template not found: ${serviceName}`);
+          return null;
+        }
+
+        return {
+          name: serviceName,
+          enabled: true,
+          ports: [
+            {
+              name: serviceName,
+              internal: serviceTemplate.defaultPort,
+              protocol: "tcp" as const,
+            },
+          ],
+          environment: serviceTemplate.environment || {},
+          autoRestart: true,
+          dependsOn: [],
+        };
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null);
+
     return {
       templateId: template.id,
       baseImage: template.baseImage,
-      // Convert service names to ServiceConfig objects
-      services: template.services.map((serviceName) => ({
-        name: serviceName,
-        enabled: true,
-        ports: [],
-        autoRestart: true,
-        dependsOn: [],
-      })),
+      services,
       environment: template.environment,
       resources: {
         tier: template.tier,

@@ -1,22 +1,27 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
-import { DefaultConfigResolver } from "../config-resolver";
+import { db } from "@/lib/db";
+import { pods, servers, teamMembers, teams, users } from "@/lib/db/schema";
 import { LimaGVisorRuntime } from "../container-runtime";
 import { LimaNetworkManager } from "../network-manager";
 import { DefaultPodManager } from "../pod-manager";
-import type { PodConfig, ResourceTier } from "../types";
+import { PodProvisioningService } from "../pod-provisioning-service";
 
 const execAsync = promisify(exec);
 
-// Integration tests that run against actual Lima VM
+// Integration tests that run against actual Lima VM and database
 describe("Pod Orchestration Integration Tests", () => {
   let podManager: DefaultPodManager;
-  let configResolver: DefaultConfigResolver;
+  let provisioningService: PodProvisioningService;
   let testPodId: string;
+  let testUserId: string;
+  let testTeamId: string;
+  let testServerId: string;
 
   beforeAll(async () => {
-    // Check if Lima VM is running
+    // 1. Check if Lima VM is running
     try {
       const { stdout } = await execAsync("limactl list --format json");
       const vms = stdout
@@ -39,6 +44,44 @@ describe("Pod Orchestration Integration Tests", () => {
       throw error;
     }
 
+    // 2. Clean up existing test data from database
+    console.log("🧹 Cleaning up test data from database...");
+
+    // Find test team first (to clean up all related data)
+    const [existingTestTeam] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.name, "Integration Test Team"))
+      .limit(1);
+
+    if (existingTestTeam) {
+      // Delete all pods belonging to test team
+      const teamPods = await db
+        .select()
+        .from(pods)
+        .where(eq(pods.teamId, existingTestTeam.id));
+
+      for (const pod of teamPods) {
+        await db.delete(pods).where(eq(pods.id, pod.id));
+      }
+      console.log(`   Deleted ${teamPods.length} pods from test team`);
+
+      // Delete team
+      await db.delete(teams).where(eq(teams.id, existingTestTeam.id));
+    }
+
+    // Find and delete test user (will cascade delete team memberships)
+    const [existingTestUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, "integration-test@example.com"))
+      .limit(1);
+
+    if (existingTestUser) {
+      await db.delete(users).where(eq(users.id, existingTestUser.id));
+    }
+
+    // 3. Clean up containers and networks
     const limaConfig = { vmName: "gvisor-alpine" };
     podManager = new DefaultPodManager(limaConfig);
     const containerRuntime = new LimaGVisorRuntime(limaConfig);
@@ -50,15 +93,14 @@ describe("Pod Orchestration Integration Tests", () => {
         p.podId.startsWith("test-integration-") ||
         p.podId.startsWith("proxy-test-") ||
         p.podId.startsWith("github-test-") ||
-        p.podId.includes("template-test"),
+        p.podId.includes("template-test") ||
+        p.podId.includes("integration-test"),
     );
     for (const container of testContainers) {
       await containerRuntime.removeContainer(container.id);
     }
 
     const networkManager = new LimaNetworkManager(limaConfig);
-
-    // Delete all networks that start with "integration-test-"
     const networks = await networkManager.listPodNetworks();
     const integrationTestNetworks = networks.filter(
       (n) =>
@@ -66,62 +108,134 @@ describe("Pod Orchestration Integration Tests", () => {
         n.podId.startsWith("test-integration-") ||
         n.podId.startsWith("github-test-") ||
         n.podId.startsWith("proxy-test-") ||
-        n.podId.includes("template-test"),
+        n.podId.includes("template-test") ||
+        n.podId.includes("integration-test"),
     );
     for (const network of integrationTestNetworks) {
       await networkManager.destroyPodNetwork(network.podId);
     }
 
-    configResolver = new DefaultConfigResolver();
-    testPodId = `test-integration-${Date.now()}`;
+    // 4. Set up database records for testing
+    console.log("📦 Setting up test database records...");
+
+    // Create test user
+    const [testUser] = await db
+      .insert(users)
+      .values({
+        email: "integration-test@example.com",
+        name: "Integration Test User",
+        githubId: "12345",
+        githubUsername: "integration-test-user",
+      })
+      .returning();
+    testUserId = testUser.id;
+
+    // Create test team
+    const [testTeam] = await db
+      .insert(teams)
+      .values({
+        name: "Integration Test Team",
+        slug: "integration-test-team",
+        ownerId: testUserId,
+      })
+      .returning();
+    testTeamId = testTeam.id;
+
+    // Add user to team
+    await db.insert(teamMembers).values({
+      teamId: testTeamId,
+      userId: testUserId,
+      role: "owner",
+    });
+
+    // Create or get test server record for Lima VM
+    const [existingServer] = await db
+      .select()
+      .from(servers)
+      .where(eq(servers.hostname, "lima-gvisor-alpine"))
+      .limit(1);
+
+    if (existingServer) {
+      testServerId = existingServer.id;
+      console.log(`✅ Using existing server: ${existingServer.hostname}`);
+    } else {
+      const [testServer] = await db
+        .insert(servers)
+        .values({
+          hostname: "lima-gvisor-alpine",
+          ipAddress: "127.0.0.1",
+          cpuCores: 4,
+          memoryMb: 8192,
+          diskGb: 100,
+          sshHost: "127.0.0.1",
+          sshPort: 52111,
+          sshUser: process.env.USER || "root",
+          status: "online",
+        })
+        .returning();
+      testServerId = testServer.id;
+      console.log(`✅ Created test server: ${testServer.hostname}`);
+    }
+
+    provisioningService = new PodProvisioningService();
+    testPodId = `integration-test-${Date.now()}`;
   }, 60_000);
 
-  it.skip("should create, start, and manage a simple pod", async () => {
-    // Create a simple test configuration
-    const config: PodConfig = {
-      id: testPodId,
-      name: "Integration Test Pod",
-      slug: "integration-test-pod",
-      templateId: "custom",
-      baseImage: "alpine:latest",
-      resources: {
-        tier: "dev.small" as ResourceTier,
+  it.skip("should provision a pod from database through the full flow", async () => {
+    // 1. Create pod record in database
+    console.log("📝 Creating pod record in database...");
+    const [podRecord] = await db
+      .insert(pods)
+      .values({
+        id: testPodId,
+        name: "Integration Test Pod",
+        slug: "integration-test-pod",
+        description: "A test pod for integration testing",
+        template: "custom",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        tier: "dev.small",
         cpuCores: 0.5,
         memoryMb: 256,
         storageMb: 1024,
-      },
-      network: {
-        ports: [{ name: "test", internal: 8080, protocol: "tcp" }],
-      },
-      services: [],
-      environment: {
-        TEST_VAR: "integration-test",
-      },
-      workingDir: "/workspace",
-      user: "root",
-      githubBranch: "main",
-      healthChecks: [],
-    };
+        envVars: JSON.stringify({ TEST_VAR: "integration-test" }),
+        monthlyPrice: 1000, // $10
+        status: "creating",
+      })
+      .returning();
 
-    // Validate configuration
-    const validation = await configResolver.validateConfig(config);
-    expect(validation.valid).toBe(true);
+    expect(podRecord.id).toBe(testPodId);
+    expect(podRecord.status).toBe("creating");
 
-    // Create pod
-    console.log("Creating pod...");
-    const pod = await podManager.createPod(config);
+    // 2. Provision the pod using the service
+    console.log("🚀 Provisioning pod through PodProvisioningService...");
+    await provisioningService.provisionPod({
+      podId: testPodId,
+      serverId: testServerId,
+    });
 
-    expect(pod.id).toBe(testPodId);
-    expect(pod.status).toBe("running");
-    expect(pod.container).toBeDefined();
-    expect(pod.container?.id).toBeTruthy();
+    // 3. Verify pod was updated in database
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, testPodId))
+      .limit(1);
 
-    // Wait a bit more for container to be fully ready
-    console.log("Waiting for container to be fully ready...");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.containerId).toBeTruthy();
+    expect(provisionedPod.serverId).toBe(testServerId);
+    expect(provisionedPod.publicUrl).toBeTruthy();
+    expect(provisionedPod.lastStartedAt).toBeTruthy();
 
-    // Test pod operations
-    console.log("Testing pod operations...");
+    console.log(`✅ Pod provisioned: ${provisionedPod.containerId}`);
+
+    // 4. Verify pod logs were created
+    const logs = await provisioningService.getPodLogs(testPodId);
+    expect(logs.length).toBeGreaterThan(0);
+    console.log(`📋 Found ${logs.length} log entries in database`);
+
+    // 5. Test pod operations using podManager
+    console.log("🧪 Testing pod operations...");
 
     // Execute command in pod
     const execResult = await podManager.execInPod(testPodId, [
@@ -139,184 +253,245 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(envResult.exitCode).toBe(0);
     expect(envResult.stdout.trim()).toBe("integration-test");
 
-    // Check health
-    const isHealthy = await podManager.checkPodHealth(testPodId);
-    expect(isHealthy).toBe(true);
+    // 6. Verify server assignment
+    const [assignedServer] = await db
+      .select()
+      .from(servers)
+      .where(eq(servers.id, testServerId))
+      .limit(1);
 
-    // Get pod info
-    const podInfo = await podManager.getPod(testPodId);
-    console.log("podInfo", podInfo);
-    expect(podInfo?.status).toBe("running");
-    expect(podInfo?.container?.status).toBe("created");
+    expect(assignedServer.hostname).toBe("lima-gvisor-alpine");
 
-    // Test metrics (basic check)
-    const metrics = await podManager.getPodMetrics(testPodId);
-    expect(metrics.cpu.limit).toBe(50); // 0.5 CPU * 100
-    expect(metrics.memory.limit).toBe(256);
+    console.log("✅ Integration test completed successfully!");
+    console.log(`   Pod ID: ${testPodId}`);
+    console.log(`   Server: ${assignedServer.hostname}`);
+    console.log(`   Container: ${provisionedPod.containerId}`);
+    console.log(`   Logs: ${logs.length} entries`);
+  }, 90000); // 90 second timeout for integration test
 
-    console.log("Integration test pod created successfully!");
-  }, 60000); // 60 second timeout for integration test
-
-  it.skip("should handle pod lifecycle correctly", async () => {
+  it.skip("should handle pod lifecycle through database", async () => {
     const lifecycleTestId = `lifecycle-test-${Date.now()}`;
 
-    const config: PodConfig = {
+    // 1. Create pod in database
+    console.log("📝 Creating lifecycle test pod in database...");
+    await db.insert(pods).values({
       id: lifecycleTestId,
       name: "Lifecycle Test Pod",
       slug: "lifecycle-test-pod",
-      baseImage: "alpine:latest",
-      resources: {
-        tier: "dev.small" as ResourceTier,
-        cpuCores: 0.25,
-        memoryMb: 128,
-        storageMb: 512,
-      },
-      network: {
-        ports: [],
-      },
-      services: [],
-      environment: {},
-      workingDir: "/workspace",
-      user: "root",
-      githubBranch: "main",
-      healthChecks: [],
-      hooks: {
-        postStart: ['echo "Pod started" > /tmp/started.txt'],
-        preStop: ['echo "Pod stopping" > /tmp/stopping.txt'],
-      },
-    };
+      teamId: testTeamId,
+      ownerId: testUserId,
+      tier: "dev.small",
+      cpuCores: 0.25,
+      memoryMb: 128,
+      storageMb: 512,
+      monthlyPrice: 500,
+      status: "creating",
+    });
 
-    // Create pod
-    console.log("Creating lifecycle test pod...");
-    await podManager.createPod(config);
+    // 2. Provision pod
+    console.log("🚀 Provisioning lifecycle test pod...");
+    await provisioningService.provisionPod({
+      podId: lifecycleTestId,
+      serverId: testServerId,
+    });
 
-    let pod = await podManager.getPod(lifecycleTestId);
-    expect(pod?.status).toBe("running");
+    // 3. Verify pod is running
+    let [podRecord] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, lifecycleTestId))
+      .limit(1);
 
-    // wait
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    expect(podRecord.status).toBe("running");
+    expect(podRecord.containerId).toBeTruthy();
 
-    // Check post-start hook worked
-    const hookResult = await podManager.execInPod(lifecycleTestId, [
-      "cat",
-      "/tmp/started.txt",
-    ]);
-    expect(hookResult.exitCode).toBe(0);
-    expect(hookResult.stdout.trim()).toBe("Pod started");
+    console.log(`✅ Pod running: ${podRecord.containerId}`);
 
-    // Stop pod
-    console.log("Stopping lifecycle test pod...");
+    // 4. Update pod status to stopped (simulating stop operation)
+    console.log("⏸️  Stopping pod...");
     await podManager.stopPod(lifecycleTestId);
 
-    pod = await podManager.getPod(lifecycleTestId);
+    let pod = await podManager.getPod(lifecycleTestId);
     expect(pod?.status).toBe("stopped");
 
-    // Start pod again
-    console.log("Restarting lifecycle test pod...");
+    // Update database
+    await db
+      .update(pods)
+      .set({
+        status: "stopped",
+        lastStoppedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(pods.id, lifecycleTestId));
+
+    // 5. Restart pod
+    console.log("▶️  Restarting pod...");
     await podManager.startPod(lifecycleTestId);
 
     pod = await podManager.getPod(lifecycleTestId);
     expect(pod?.status).toBe("running");
 
-    // Delete pod
-    console.log("Deleting lifecycle test pod...");
+    // Update database
+    await db
+      .update(pods)
+      .set({
+        status: "running",
+        lastStartedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(pods.id, lifecycleTestId));
+
+    [podRecord] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, lifecycleTestId))
+      .limit(1);
+
+    expect(podRecord.status).toBe("running");
+
+    // 6. Delete pod
+    console.log("🗑️  Deleting pod...");
     await podManager.deletePod(lifecycleTestId);
 
     pod = await podManager.getPod(lifecycleTestId);
     expect(pod).toBeNull();
 
-    console.log("Lifecycle test completed successfully!");
-  }, 90000); // 90 second timeout
+    // Delete from database
+    await db.delete(pods).where(eq(pods.id, lifecycleTestId));
 
-  it.skip("should list and filter pods correctly", async () => {
+    const [deletedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, lifecycleTestId))
+      .limit(1);
+
+    expect(deletedPod).toBeUndefined();
+
+    console.log("✅ Lifecycle test completed successfully!");
+  }, 120000); // 2 minute timeout
+
+  it.skip("should list and filter pods from database", async () => {
     const listTestId1 = `list-test-1-${Date.now()}`;
     const listTestId2 = `list-test-2-${Date.now()}`;
 
-    const baseConfig: PodConfig = {
-      id: "",
-      name: "",
-      slug: "",
-      baseImage: "alpine:latest",
-      resources: {
-        tier: "dev.small" as ResourceTier,
+    // 1. Create test pods in database
+    console.log("📝 Creating test pods in database...");
+    await db.insert(pods).values([
+      {
+        id: listTestId1,
+        name: "List Test Pod 1",
+        slug: "list-test-pod-1",
+        template: "nextjs",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        tier: "dev.small",
         cpuCores: 0.25,
         memoryMb: 128,
         storageMb: 512,
+        monthlyPrice: 500,
+        status: "creating",
       },
-      network: { ports: [] },
-      services: [],
-      environment: {},
-      workingDir: "/workspace",
-      user: "root",
-      githubBranch: "main",
-      healthChecks: [],
-    };
+      {
+        id: listTestId2,
+        name: "List Test Pod 2",
+        slug: "list-test-pod-2",
+        template: "custom",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        tier: "dev.small",
+        cpuCores: 0.25,
+        memoryMb: 128,
+        storageMb: 512,
+        monthlyPrice: 500,
+        status: "creating",
+      },
+    ]);
 
-    const config1: PodConfig = {
-      ...baseConfig,
-      id: listTestId1,
-      name: "List Test Pod 1",
-      slug: "list-test-pod-1",
-      templateId: "nextjs",
-    };
+    // 2. Provision both pods
+    console.log("🚀 Provisioning test pods...");
+    await provisioningService.provisionPod({
+      podId: listTestId1,
+      serverId: testServerId,
+    });
+    await provisioningService.provisionPod({
+      podId: listTestId2,
+      serverId: testServerId,
+    });
 
-    const config2: PodConfig = {
-      ...baseConfig,
-      id: listTestId2,
-      name: "List Test Pod 2",
-      slug: "list-test-pod-2",
-      templateId: "custom",
-    };
+    // 3. Verify pods in database
+    const dbPods = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.teamId, testTeamId));
 
-    // Create test pods
-    await podManager.createPod(config1);
-    await podManager.createPod(config2);
+    expect(dbPods.length).toBeGreaterThanOrEqual(2);
 
-    // List all pods
-    const allPods = await podManager.listPods();
-    expect(allPods.length).toBeGreaterThanOrEqual(2);
-
-    // Filter by status
-    const runningPods = await podManager.listPods({ status: "running" });
+    // 4. Filter by status
+    const runningPods = dbPods.filter((p) => p.status === "running");
     const testPods = runningPods.filter(
       (p) => p.id === listTestId1 || p.id === listTestId2,
     );
     expect(testPods).toHaveLength(2);
 
-    // Filter by template
-    const nextjsPods = await podManager.listPods({ templateId: "nextjs" });
+    // 5. Filter by template
+    const nextjsPods = dbPods.filter((p) => p.template === "nextjs");
     const nextjsTestPods = nextjsPods.filter((p) => p.id === listTestId1);
     expect(nextjsTestPods).toHaveLength(1);
 
-    console.log("List and filter test completed successfully!");
-  }, 120000); // 2 minute timeout
+    // 6. Verify using podManager (for in-memory state)
+    const allPods = await podManager.listPods();
+    expect(allPods.length).toBeGreaterThanOrEqual(2);
 
-  it("should handle template-based pod creation", async () => {
+    console.log("✅ List and filter test completed successfully!");
+    console.log(`   Database pods: ${dbPods.length}`);
+    console.log(`   PodManager pods: ${allPods.length}`);
+  }, 180000); // 3 minute timeout
+
+  it("should provision template-based pod from database", async () => {
     const templateTestId = `template-test-${Date.now()}`;
 
-    // Use config resolver to load a template
-    const config = await configResolver.loadConfig("nextjs", {
+    // 1. Create pod with template in database
+    console.log("📝 Creating template-based pod in database...");
+    await db.insert(pods).values({
       id: templateTestId,
       name: "Template Test Pod",
       slug: "template-test-pod",
-      environment: {
+      template: "nextjs",
+      teamId: testTeamId,
+      ownerId: testUserId,
+      tier: "dev.small",
+      cpuCores: 0.5,
+      memoryMb: 256,
+      storageMb: 1024,
+      envVars: JSON.stringify({
         CUSTOM_VAR: "template-test",
-      },
+        NODE_ENV: "development",
+      }),
+      monthlyPrice: 1000,
+      status: "creating",
     });
 
-    expect(config.templateId).toBe("nextjs");
-    expect(config.baseImage).toBe("pinacledev/pinacle-base");
-    expect(config.environment.NODE_ENV).toBe("development");
-    expect(config.environment.CUSTOM_VAR).toBe("template-test");
+    // 2. Provision pod using the service
+    console.log("🚀 Provisioning template-based pod...");
+    await provisioningService.provisionPod({
+      podId: templateTestId,
+      serverId: testServerId,
+    });
 
-    // Create pod from template
-    console.log("Creating template-based pod...");
-    const pod = await podManager.createPod(config);
+    // 3. Verify pod in database
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, templateTestId))
+      .limit(1);
 
-    expect(pod.id).toBe(templateTestId);
-    expect(pod.status).toBe("running");
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.template).toBe("nextjs");
+    expect(provisionedPod.containerId).toBeTruthy();
 
-    // Verify template-specific configuration
+    console.log(`✅ Template pod provisioned: ${provisionedPod.containerId}`);
+
+    // 4. Verify template-specific configuration
     const envResult = await podManager.execInPod(templateTestId, [
       "printenv",
       "NODE_ENV",
@@ -331,47 +506,60 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(customVarResult.exitCode).toBe(0);
     expect(customVarResult.stdout.trim()).toBe("template-test");
 
-    console.log("Template test completed successfully!");
-  }, 90000);
+    // 5. Verify logs in database
+    const logs = await provisioningService.getPodLogs(templateTestId);
+    expect(logs.length).toBeGreaterThan(0);
 
-  it("should route requests via hostname-based Nginx proxy", async () => {
+    console.log("✅ Template test completed successfully!");
+    console.log(`   Template: nextjs`);
+    console.log(`   Logs: ${logs.length} entries`);
+  }, 120000);
+
+  it("should provision pod with hostname-based Nginx proxy from database", async () => {
     const proxyTestId = `proxy-test-${Date.now()}`;
 
-    const config: PodConfig = {
+    // 1. Create pod in database
+    console.log("📝 Creating proxy test pod in database...");
+    await db.insert(pods).values({
       id: proxyTestId,
       name: "Proxy Test Pod",
       slug: "proxy-test-pod",
-      baseImage: "pinacledev/pinacle-base",
-      resources: {
-        tier: "dev.small" as ResourceTier,
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
-      network: {
-        ports: [], // Will be populated with nginx-proxy port
-      },
-      services: [],
-      environment: {
-        TEST_ENV: "hostname-routing",
-      },
-      workingDir: "/workspace",
-      user: "root",
-      githubBranch: "main",
-      healthChecks: [],
-    };
+      template: "custom",
+      teamId: testTeamId,
+      ownerId: testUserId,
+      tier: "dev.small",
+      cpuCores: 0.5,
+      memoryMb: 256,
+      storageMb: 1024,
+      envVars: JSON.stringify({ TEST_ENV: "hostname-routing" }),
+      monthlyPrice: 1000,
+      status: "creating",
+    });
 
-    // Create pod
-    console.log("Creating pod with Nginx proxy...");
-    const pod = await podManager.createPod(config);
+    // 2. Provision pod
+    console.log("🚀 Provisioning pod with Nginx proxy...");
+    await provisioningService.provisionPod({
+      podId: proxyTestId,
+      serverId: testServerId,
+    });
 
-    expect(pod.status).toBe("running");
-    expect(pod.config.network.ports).toHaveLength(1);
-    expect(pod.config.network.ports[0].name).toBe("nginx-proxy");
-    expect(pod.config.network.ports[0].internal).toBe(80);
-    expect(pod.config.network.ports[0].external).toBeGreaterThanOrEqual(30000);
+    // 3. Verify pod and get port information
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, proxyTestId))
+      .limit(1);
 
-    const proxyPort = pod.config.network.ports[0].external!;
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.ports).toBeTruthy();
+
+    const ports = JSON.parse(provisionedPod.ports!);
+    expect(ports).toHaveLength(1);
+    expect(ports[0].name).toBe("nginx-proxy");
+    expect(ports[0].internal).toBe(80);
+    expect(ports[0].external).toBeGreaterThanOrEqual(30000);
+
+    const proxyPort = ports[0].external;
     console.log(`✅ Nginx proxy exposed on port ${proxyPort}`);
 
     // Wait for container to be fully ready
@@ -459,22 +647,20 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ Hostname-based routing test completed successfully!");
     console.log(`📝 Access these services from your Mac/browser at:`);
     console.log(
-      `   http://localhost-3000.pod-${pod.config.slug}.localhost:${proxyPort}`,
+      `   http://localhost-3000.pod-${provisionedPod.slug}.localhost:${proxyPort}`,
     );
     console.log(
-      `   http://localhost-8080.pod-${pod.config.slug}.localhost:${proxyPort}`,
+      `   http://localhost-8080.pod-${provisionedPod.slug}.localhost:${proxyPort}`,
     );
   }, 120000); // 2 minute timeout
 
-  it.only("should clone a real GitHub repository into a pod", async () => {
-    console.log("Creating pod with GitHub repository integration...");
-
+  it.only("should provision pod with GitHub repository from database", async () => {
     const githubTestId = `github-test-${Date.now()}`;
+    const testRepo = "https://github.com/octocat/Hello-World.git";
 
-    // Use a small public repository for testing
-    const testRepo = "https://github.com/octocat/Hello-World.git"; // GitHub's example repo
+    console.log("📝 Creating pod with GitHub repository in database...");
 
-    // Generate a real SSH key pair (won't be used for actual GitHub, just for structure)
+    // 1. Generate SSH key pair
     const { GitHubIntegration } = await import("../github-integration");
     const githubIntegration = new GitHubIntegration(podManager);
     const sshKeyPair = await githubIntegration.generateSSHKeyPair(githubTestId);
@@ -482,40 +668,55 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ Generated SSH key pair");
     console.log(`   Fingerprint: ${sshKeyPair.fingerprint}`);
 
-    // Use config resolver to get proper template config
-    const templateConfig = await configResolver.loadConfig("nodejs", {
+    // 2. Create pod in database with GitHub repo
+    await db.insert(pods).values({
       id: githubTestId,
       name: "GitHub Integration Test Pod",
       slug: "github-test-pod",
+      template: "nodejs",
+      teamId: testTeamId,
+      ownerId: testUserId,
       githubRepo: testRepo,
+      tier: "dev.small",
+      cpuCores: 0.5,
+      memoryMb: 1024,
+      storageMb: 1024,
+      envVars: JSON.stringify({ NODE_ENV: "development" }),
+      monthlyPrice: 1000,
+      status: "creating",
+    });
+
+    // 3. Provision pod with GitHub repo setup
+    console.log(`🚀 Provisioning pod with repository: ${testRepo}`);
+    await provisioningService.provisionPod({
+      podId: githubTestId,
+      serverId: testServerId,
       githubRepoSetup: {
         type: "existing",
+        repository: testRepo,
         sshKeyPair: sshKeyPair,
-        // We'll clone using HTTPS instead of SSH for public repos
-      },
-      environment: {
-        NODE_ENV: "development",
       },
     });
 
-    console.log(`📦 Creating pod with repository: ${testRepo}`);
+    // 4. Verify pod in database
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, githubTestId))
+      .limit(1);
 
-    expect(templateConfig.githubRepo).toBe(testRepo);
-    expect(templateConfig.githubRepoSetup?.type).toBe("existing");
-
-    const pod = await podManager.createPod(templateConfig);
-
-    expect(pod.status).toBe("running");
-    expect(pod.container).toBeDefined();
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.containerId).toBeTruthy();
+    expect(provisionedPod.githubRepo).toBe(testRepo);
 
     console.log("✅ Pod created and running");
 
-    // Verify the repository was cloned correctly
+    // 5. Verify the repository was cloned correctly
     console.log("🔍 Verifying cloned repository...");
 
     const containerRuntime = new LimaGVisorRuntime();
     const { stdout: repoCheck } = await containerRuntime.execCommand(
-      pod.container!.id,
+      provisionedPod.containerId!,
       ["sh", "-c", "'cd /workspace/Hello-World && git remote -v && ls -la'"],
     );
 
@@ -524,9 +725,9 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(repoCheck).toContain("github.com");
     expect(repoCheck).toContain("README");
 
-    // Check that we can read a file from the repo
+    // 6. Check that we can read a file from the repo
     const { stdout: readmeContent } = await containerRuntime.execCommand(
-      pod.container!.id,
+      provisionedPod.containerId!,
       ["sh", "-c", "'cat /workspace/Hello-World/README'"],
     );
 
@@ -536,9 +737,9 @@ describe("Pod Orchestration Integration Tests", () => {
     );
     expect(readmeContent.length).toBeGreaterThan(0);
 
-    // Verify git configuration
+    // 7. Verify git configuration
     const { stdout: gitConfig } = await containerRuntime.execCommand(
-      pod.container!.id,
+      provisionedPod.containerId!,
       [
         "sh",
         "-c",
@@ -548,11 +749,16 @@ describe("Pod Orchestration Integration Tests", () => {
 
     expect(gitConfig).toContain("remote.origin.url");
 
+    // 8. Verify logs in database
+    const logs = await provisioningService.getPodLogs(githubTestId);
+    expect(logs.length).toBeGreaterThan(0);
+
     console.log(
       "✅ GitHub repository integration test completed successfully!",
     );
     console.log(`   Repository: ${testRepo}`);
     console.log(`   Location: /workspace/Hello-World`);
     console.log(`   Files found: ${repoCheck.split("\n").length} items`);
+    console.log(`   Logs: ${logs.length} entries`);
   }, 180000); // 3 minute timeout
 });

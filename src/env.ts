@@ -12,6 +12,7 @@ const server = z.object({
   SERVER_API_KEY: z.string().min(1).optional(),
   SSH_PRIVATE_KEY: z.string().min(1).optional(),
   SSH_PUBLIC_KEY: z.string().min(1).optional(),
+  ADMIN_EMAILS: z.string().min(1).optional(),
 });
 
 const client = z.object({
@@ -30,6 +31,7 @@ const processEnv = {
   SERVER_API_KEY: process.env.SERVER_API_KEY,
   SSH_PRIVATE_KEY: process.env.SSH_PRIVATE_KEY,
   SSH_PUBLIC_KEY: process.env.SSH_PUBLIC_KEY,
+  ADMIN_EMAILS: process.env.ADMIN_EMAILS,
 };
 
 const merged = server.merge(client);

@@ -15,6 +15,18 @@ export const createTRPCContext = async (opts?: { req?: Request }) => {
   };
 };
 
+// For testing: create context without session fetching
+export const createInnerTRPCContext = (opts: {
+  session: any;
+  req: any;
+}) => {
+  return {
+    db,
+    session: opts.session,
+    req: opts.req,
+  };
+};
+
 const t = initTRPC.context<typeof createTRPCContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {

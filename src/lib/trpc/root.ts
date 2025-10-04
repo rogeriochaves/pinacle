@@ -1,3 +1,4 @@
+import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
 import { githubRouter } from "./routers/github";
 import { githubAppRouter } from "./routers/github-app";
@@ -13,6 +14,7 @@ export const appRouter = createTRPCRouter({
   github: githubRouter,
   githubApp: githubAppRouter,
   servers: serversRouter,
+  admin: adminRouter,
 });
 
 export type AppRouter = typeof appRouter;

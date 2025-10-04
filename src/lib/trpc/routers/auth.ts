@@ -24,7 +24,15 @@ export const authRouter = createTRPCRouter({
         .limit(1);
 
       if (existingUser.length > 0) {
-        throw new Error("User with this email already exists");
+        // Check if they have a password (signed up with email) or just OAuth
+        if (existingUser[0].password) {
+          throw new Error(
+            "An account with this email already exists. Please sign in with your email and password.",
+          );
+        }
+        throw new Error(
+          "An account with this email already exists. Please sign in with GitHub.",
+        );
       }
 
       // Hash password

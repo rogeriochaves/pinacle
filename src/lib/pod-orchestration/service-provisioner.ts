@@ -325,7 +325,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
         await this.execInContainer(containerName, [
           "sh",
           "-c",
-          `'${healthCmd.replace(/'/g, "\\'")}'`,
+          `'${healthCmd.replace(/'/g, "\\'")} >/dev/null && echo "OK"'`,
         ]);
         return true;
       } catch (error) {

@@ -159,7 +159,7 @@ export const pods = pgTable("pod", {
 
   // GitHub repository information
   githubRepo: varchar("github_repo", { length: 500 }), // owner/repo format
-  githubBranch: varchar("github_branch", { length: 255 }).default("main"),
+  githubBranch: varchar("github_branch", { length: 255 }).default(""),
   isNewProject: boolean("is_new_project").default(false),
 
   // Resource specifications

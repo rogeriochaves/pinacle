@@ -23,7 +23,7 @@ const createPodSchema = z.object({
 
   // GitHub repository information
   githubRepo: z.string().optional(), // owner/repo format
-  githubBranch: z.string().default("main"),
+  githubBranch: z.string().optional(),
   isNewProject: z.boolean().default(false),
 
   // New repository creation fields (when isNewProject is true)

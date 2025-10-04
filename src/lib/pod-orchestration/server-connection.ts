@@ -92,7 +92,7 @@ export class SSHServerConnection implements ServerConnection {
         });
       }
 
-      console.error(`[ServerConnection] SSH command failed: ${message}`);
+      console.error(`[ServerConnection] SSH command failed (exit code ${exitCode}): >${fullCommand}\n ${stdout} ${stderr}`);
       throw error;
     }
   }

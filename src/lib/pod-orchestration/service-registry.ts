@@ -51,7 +51,7 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
       ];
     },
     cleanupCommand: [],
-    healthCheckCommand: ["curl", "-f", "http://localhost:8726"],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:8726"],
     defaultPort: 8726,
     environment: {
       PORT: "8726",
@@ -65,7 +65,7 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
     installScript: [], // Pre-installed in base image
     startCommand: () => ["vibe-kanban"],
     cleanupCommand: [],
-    healthCheckCommand: ["curl", "-f", "http://localhost:5262"],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],
     defaultPort: 5262,
     environment: {
       NODE_ENV: "production",
@@ -103,7 +103,7 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
       ];
     },
     cleanupCommand: [],
-    healthCheckCommand: ["curl", "-f", "http://localhost:2528"],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
     defaultPort: 2528,
     environment: {
       IS_SANDBOX: "1",
@@ -138,7 +138,7 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
       ];
     },
     cleanupCommand: [],
-    healthCheckCommand: ["curl", "-f", "http://localhost:7681"],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:7681"],
     defaultPort: 7681,
   },
 
@@ -197,7 +197,7 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
       "--NotebookApp.password=''",
     ],
     cleanupCommand: [],
-    healthCheckCommand: ["curl", "-f", "http://localhost:8888"],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:8888"],
     defaultPort: 8888,
     environment: {
       JUPYTER_ENABLE_LAB: "yes",

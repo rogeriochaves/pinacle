@@ -1,0 +1,1 @@
+ALTER TABLE "pod" ALTER COLUMN "github_branch" SET DEFAULT '';

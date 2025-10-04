@@ -64,6 +64,13 @@
       "when": 1759592264202,
       "tag": "0008_violet_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1759598267102,
+      "tag": "0009_glossy_freak",
+      "breakpoints": true
     }
   ]
 }
