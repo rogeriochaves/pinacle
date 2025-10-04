@@ -98,6 +98,9 @@ export class ServerAgent {
               cpuCores: serverInfo.cpuCores,
               memoryMb: serverInfo.memoryMb,
               diskGb: serverInfo.diskGb,
+              sshHost: serverInfo.sshHost,
+              sshPort: serverInfo.sshPort,
+              sshUser: serverInfo.sshUser,
             },
           }),
         },
@@ -235,12 +238,20 @@ export class ServerAgent {
       console.warn("⚠️  Could not determine disk size, using default 100GB");
     }
 
+    // Get SSH connection details from environment
+    const sshHost = process.env.SSH_HOST || ipAddress;
+    const sshPort = parseInt(process.env.SSH_PORT || "22", 10);
+    const sshUser = process.env.SSH_USER || "root";
+
     return {
       hostname: hostname(),
       ipAddress,
       cpuCores: cpuCount,
       memoryMb: totalMemoryMb,
       diskGb,
+      sshHost,
+      sshPort,
+      sshUser,
     };
   }
 

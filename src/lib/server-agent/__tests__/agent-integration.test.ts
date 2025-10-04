@@ -48,7 +48,7 @@ describe("Server Agent Integration", () => {
     await cleanupTestServers();
 
     // Use provision script to set everything up
-    const command = `./scripts/provision-server.sh --api-url ${API_URL} --api-key ${process.env.SERVER_API_KEY} --host lima:${LIMA_VM} --heartbeat-interval 5000`;
+    const command = `dotenv -c -- ./scripts/provision-server.sh --api-url ${API_URL} --api-key ${process.env.SERVER_API_KEY} --host lima:${LIMA_VM} --heartbeat-interval 5000`;
     console.log(
       "📦 Provisioning Lima VM with server agent with command:",
       command,

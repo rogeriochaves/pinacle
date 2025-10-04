@@ -35,6 +35,9 @@ export const serversRouter = createTRPCRouter({
         cpuCores: z.number().positive(),
         memoryMb: z.number().positive(),
         diskGb: z.number().positive(),
+        sshHost: z.string().min(1),
+        sshPort: z.number().int().positive().default(22),
+        sshUser: z.string().min(1).default("root"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -46,6 +49,9 @@ export const serversRouter = createTRPCRouter({
           cpuCores: input.cpuCores,
           memoryMb: input.memoryMb,
           diskGb: input.diskGb,
+          sshHost: input.sshHost,
+          sshPort: input.sshPort,
+          sshUser: input.sshUser,
           status: "online",
           lastHeartbeatAt: new Date(),
         })

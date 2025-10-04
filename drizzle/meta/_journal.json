@@ -22,6 +22,20 @@
       "when": 1759562225361,
       "tag": "0002_unique_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759569765800,
+      "tag": "0003_fantastic_doomsday",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1759569932437,
+      "tag": "0004_tan_preak",
+      "breakpoints": true
     }
   ]
 }

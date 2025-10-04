@@ -63,6 +63,14 @@ if [ -z "$API_URL" ] || [ -z "$API_KEY" ]; then
   exit 1
 fi
 
+# Validate SSH public key is set
+if [ -z "$SSH_PUBLIC_KEY" ]; then
+  echo "Error: SSH_PUBLIC_KEY environment variable is required"
+  echo "       Set it with: export SSH_PUBLIC_KEY=\"\$(cat ~/.ssh/id_ed25519.pub)\""
+  echo "       Or generate new keys with: ssh-keygen -t ed25519"
+  exit 1
+fi
+
 # Determine command prefix based on host type
 CMD_PREFIX=""
 COPY_CMD="cp -r"
@@ -180,7 +188,21 @@ echo "📦 Step 5: Installing dependencies..."
 run_remote sh -c "cd $AGENT_PATH && npm install --production"
 echo "✅ Dependencies installed"
 
-echo "⚙️  Step 6: Creating configuration..."
+echo "🔑 Step 6: Installing SSH public key..."
+# Install SSH key for main server access
+if [[ $HOST == lima:* ]]; then
+  limactl shell "$LIMA_VM" -- sh -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+  limactl shell "$LIMA_VM" -- sh -c "echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+elif [[ $HOST == ssh:* ]]; then
+  ssh "$SSH_HOST" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+  ssh "$SSH_HOST" "echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+else
+  mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  echo "$SSH_PUBLIC_KEY" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+fi
+echo "✅ SSH key installed"
+
+echo "⚙️  Step 7: Creating configuration..."
 # Adjust API_URL for Lima (host.lima.internal allows Lima to reach host)
 if [[ $HOST == lima:* ]] && [[ $API_URL == http://localhost:* ]]; then
   PORT="${API_URL##*:}"
@@ -188,9 +210,44 @@ if [[ $HOST == lima:* ]] && [[ $API_URL == http://localhost:* ]]; then
   echo "   Adjusted API_URL for Lima: $API_URL"
 fi
 
+# Extract SSH connection details
+SSH_HOST_ADDR=""
+SSH_PORT="22"
+SSH_USER="root"
+
+if [[ $HOST == lima:* ]]; then
+  # For Lima, extract SSH details from limactl
+  SSH_INFO=$(limactl show-ssh "$LIMA_VM" 2>/dev/null | grep -o 'Port=[0-9]*' | cut -d= -f2 || echo "")
+  if [ -n "$SSH_INFO" ]; then
+    SSH_PORT="$SSH_INFO"
+  fi
+  SSH_HOST_ADDR="127.0.0.1"
+  SSH_USER=$(limactl shell "$LIMA_VM" -- whoami 2>/dev/null || echo "root")
+elif [[ $HOST == ssh:* ]]; then
+  # For SSH, parse user@host:port format
+  SSH_TARGET="${HOST#ssh:}"
+  if [[ $SSH_TARGET == *@* ]]; then
+    SSH_USER="${SSH_TARGET%%@*}"
+    SSH_TARGET="${SSH_TARGET#*@}"
+  fi
+  if [[ $SSH_TARGET == *:* ]]; then
+    SSH_HOST_ADDR="${SSH_TARGET%%:*}"
+    SSH_PORT="${SSH_TARGET##*:}"
+  else
+    SSH_HOST_ADDR="$SSH_TARGET"
+  fi
+else
+  # Local
+  SSH_HOST_ADDR="localhost"
+  SSH_USER=$(whoami)
+fi
+
 ENV_CONTENT="API_URL=$API_URL
 API_KEY=$API_KEY
-HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL"
+HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
+SSH_HOST=$SSH_HOST_ADDR
+SSH_PORT=$SSH_PORT
+SSH_USER=$SSH_USER"
 
 if [[ $HOST == lima:* ]]; then
   limactl shell "$LIMA_VM" -- sh -c "echo '$ENV_CONTENT' > $AGENT_PATH/.env"
@@ -202,7 +259,7 @@ fi
 
 echo "✅ Configuration created"
 
-echo "🚀 Step 7: Starting agent..."
+echo "🚀 Step 8: Starting agent..."
 if [[ $HOST == lima:* ]]; then
   # Create OpenRC init script for Alpine
   limactl shell "$LIMA_VM" -- sudo tee /etc/init.d/pinacle-agent > /dev/null << 'EOF'

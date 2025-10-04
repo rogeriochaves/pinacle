@@ -10,6 +10,8 @@ const server = z.object({
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   SERVER_API_KEY: z.string().min(1).optional(),
+  SSH_PRIVATE_KEY: z.string().min(1).optional(),
+  SSH_PUBLIC_KEY: z.string().min(1).optional(),
 });
 
 const client = z.object({
@@ -26,6 +28,8 @@ const processEnv = {
   GITHUB_APP_PRIVATE_KEY: process.env.GITHUB_APP_PRIVATE_KEY,
   GITHUB_APP_SLUG: process.env.GITHUB_APP_SLUG,
   SERVER_API_KEY: process.env.SERVER_API_KEY,
+  SSH_PRIVATE_KEY: process.env.SSH_PRIVATE_KEY,
+  SSH_PUBLIC_KEY: process.env.SSH_PUBLIC_KEY,
 };
 
 const merged = server.merge(client);

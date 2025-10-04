@@ -1,0 +1,1 @@
+ALTER TABLE "server" ALTER COLUMN "ssh_host" SET DEFAULT '';

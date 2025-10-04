@@ -126,6 +126,11 @@ export const servers = pgTable("server", {
   status: varchar("status", { length: 50 }).notNull().default("online"), // online, degraded, offline
   lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date" }),
 
+  // SSH connection details
+  sshHost: varchar("ssh_host", { length: 255 }).notNull().default(""),
+  sshPort: integer("ssh_port").notNull().default(22),
+  sshUser: varchar("ssh_user", { length: 100 }).notNull().default("root"),
+
   // Hardware specs
   cpuCores: real("cpu_cores").notNull(),
   memoryMb: real("memory_mb").notNull(),

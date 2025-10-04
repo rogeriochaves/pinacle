@@ -5,6 +5,9 @@ export type ServerInfo = {
   cpuCores: number;
   memoryMb: number;
   diskGb: number;
+  sshHost: string;
+  sshPort: number;
+  sshUser: string;
 };
 
 export type PodMetrics = {
