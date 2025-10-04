@@ -1,66 +1,53 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { env } from "@/env";
+import { SSHServerConnection } from "./server-connection";
 import type {
   ContainerInfo,
   ContainerRuntime,
   LimaConfig,
   PodConfig,
   PortMapping,
+  ServerConnection,
 } from "./types";
 
-const execAsync = promisify(exec);
-
 export class LimaGVisorRuntime implements ContainerRuntime {
-  private limaConfig: LimaConfig;
-  private isDevMode: boolean;
+  private serverConnection: ServerConnection;
 
-  constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
-    this.limaConfig = limaConfig;
-    // Use Lima only in development on macOS
-    this.isDevMode =
-      (process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test") &&
-      process.platform === "darwin";
+  constructor(
+    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    serverConnection?: ServerConnection,
+  ) {
+    // Use provided connection or create default Lima connection for dev
+    if (serverConnection) {
+      this.serverConnection = serverConnection;
+    } else {
+      // Default: create Lima SSH connection for development
+      if (!env.SSH_PRIVATE_KEY) {
+        throw new Error("SSH_PRIVATE_KEY not found in environment");
+      }
+
+      this.serverConnection = new SSHServerConnection({
+        host: "127.0.0.1",
+        port: limaConfig.sshPort || 52111,
+        user: process.env.USER || "root",
+        privateKey: env.SSH_PRIVATE_KEY,
+      });
+    }
   }
 
-  private async execDockerCommand(
+  private async exec(
     command: string,
     useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    let fullCommand: string;
-
-    if (this.isDevMode) {
-      // Development mode: use Lima
-      const sudoPrefix = useSudo ? "sudo " : "";
-      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
-      console.log(`[LimaRuntime] Executing: ${fullCommand}`);
-    } else {
-      // Production mode: direct Docker
-      fullCommand = useSudo ? `sudo ${command}` : command;
-      console.log(`[DockerRuntime] Executing: ${fullCommand}`);
-    }
-
     try {
-      const result = await execAsync(fullCommand);
+      const result = await this.serverConnection.exec(command, {
+        sudo: useSudo,
+      });
       return result;
     } catch (error) {
-      const runtimeType = this.isDevMode ? "LimaRuntime" : "DockerRuntime";
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[${runtimeType}] Command failed: ${message}`);
+      console.error(`[ContainerRuntime] Command failed: ${message}`);
       throw error;
     }
-  }
-
-  private async execLima(
-    command: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    return this.execDockerCommand(command, false);
-  }
-
-  private async execLimaSudo(
-    command: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    return this.execDockerCommand(command, true);
   }
 
   private generateContainerName(podId: string): string {
@@ -148,7 +135,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     const dockerCommand = dockerArgs.join(" ");
 
     try {
-      const { stdout } = await this.execLimaSudo(dockerCommand);
+      const { stdout } = await this.exec(dockerCommand, true);
       const containerId = stdout.trim();
 
       // Get container info
@@ -170,7 +157,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
   async startContainer(containerId: string): Promise<void> {
     try {
-      await this.execLimaSudo(`docker start ${containerId}`);
+      await this.exec(`docker start ${containerId}`, true);
 
       // Wait a moment for container to fully initialize
       await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -193,7 +180,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
   async stopContainer(containerId: string): Promise<void> {
     try {
-      await this.execLimaSudo(`docker stop ${containerId}`);
+      await this.exec(`docker stop ${containerId}`, true);
       console.log(`[LimaRuntime] Stopped container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -211,7 +198,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         // Ignore if already stopped
       }
 
-      await this.execLimaSudo(`docker rm ${containerId}`);
+      await this.exec(`docker rm ${containerId}`, true);
       console.log(`[LimaRuntime] Removed container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -222,8 +209,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
   async getContainer(containerId: string): Promise<ContainerInfo | null> {
     try {
-      const { stdout } = await this.execLimaSudo(
+      const { stdout } = await this.exec(
         `docker inspect ${containerId} --format='{{json .}}'`,
+        true,
       );
 
       const containerData = JSON.parse(stdout.trim());
@@ -286,8 +274,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
           .join(" ");
       }
 
-      const { stdout } = await this.execLimaSudo(
+      const { stdout } = await this.exec(
         `docker ps -a ${filterArgs} --format='{{.ID}}'`,
+        true,
       );
       const containerIds = stdout.trim().split("\n").filter(Boolean);
 
@@ -340,7 +329,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       const commandStr = quotedArgs.join(" ");
       const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
-      const { stdout, stderr } = await this.execLimaSudo(dockerCommand);
+      const { stdout, stderr } = await this.exec(dockerCommand, true);
 
       return {
         stdout,
@@ -374,7 +363,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         dockerCommand += " --follow";
       }
 
-      const { stdout } = await this.execLimaSudo(dockerCommand);
+      const { stdout } = await this.exec(dockerCommand, true);
       return stdout;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -411,7 +400,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   // Additional gVisor-specific methods
   async getGVisorInfo(): Promise<{ version: string; runtime: string }> {
     try {
-      const { stdout } = await this.execLima("runsc --version");
+      const { stdout } = await this.exec("runsc --version", false);
       const versionMatch = stdout.match(/runsc version (.+)/);
       const version = versionMatch ? versionMatch[1] : "unknown";
 
@@ -429,8 +418,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   async validateGVisorRuntime(): Promise<boolean> {
     try {
       // Test if gVisor runtime is available
-      const { stdout } = await this.execLimaSudo(
+      const { stdout } = await this.exec(
         "docker info --format='{{.Runtimes}}'",
+        true,
       );
       return stdout.includes("runsc");
     } catch (error) {

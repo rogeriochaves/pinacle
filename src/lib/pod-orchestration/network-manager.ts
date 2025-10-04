@@ -1,67 +1,55 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { env } from "@/env";
+import { SSHServerConnection } from "./server-connection";
 import type {
   LimaConfig,
   NetworkConfig,
   NetworkManager,
   NetworkPolicy,
   PortMapping,
+  ServerConnection,
 } from "./types";
 
-const execAsync = promisify(exec);
-
 export class LimaNetworkManager implements NetworkManager {
-  private limaConfig: LimaConfig;
+  private serverConnection: ServerConnection;
   private allocatedPorts: Map<string, Set<number>> = new Map(); // podId -> Set of ports
   private portRange = { min: 30000, max: 40000 };
-  private isDevMode: boolean;
 
-  constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
-    this.limaConfig = limaConfig;
-    // Use Lima only in development on macOS
-    this.isDevMode =
-      (process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test") &&
-      process.platform === "darwin";
+  constructor(
+    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    serverConnection?: ServerConnection,
+  ) {
+    // Use provided connection or create default Lima connection for dev
+    if (serverConnection) {
+      this.serverConnection = serverConnection;
+    } else {
+      // Default: create Lima SSH connection for development
+      if (!env.SSH_PRIVATE_KEY) {
+        throw new Error("SSH_PRIVATE_KEY not found in environment");
+      }
+
+      this.serverConnection = new SSHServerConnection({
+        host: "127.0.0.1",
+        port: limaConfig.sshPort || 52111,
+        user: process.env.USER || "root",
+        privateKey: env.SSH_PRIVATE_KEY,
+      });
+    }
   }
 
-  private async execDockerCommand(
+  private async exec(
     command: string,
     useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    let fullCommand: string;
-
-    if (this.isDevMode) {
-      // Development mode: use Lima
-      const sudoPrefix = useSudo ? "sudo " : "";
-      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
-      console.log(`[NetworkManager] Executing: ${fullCommand}`);
-    } else {
-      // Production mode: direct execution
-      fullCommand = useSudo ? `sudo ${command}` : command;
-      console.log(`[NetworkManager] Executing: ${fullCommand}`);
-    }
-
     try {
-      const result = await execAsync(fullCommand);
+      const result = await this.serverConnection.exec(command, {
+        sudo: useSudo,
+      });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[NetworkManager] Command failed: ${message}`);
       throw error;
     }
-  }
-
-  private async execLima(
-    command: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    return this.execDockerCommand(command, false);
-  }
-
-  private async execLimaSudo(
-    command: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    return this.execDockerCommand(command, true);
   }
 
   private generateNetworkName(podId: string): string {
@@ -118,7 +106,7 @@ export class LimaNetworkManager implements NetworkManager {
         networkName,
       ].join(" ");
 
-      await this.execLimaSudo(createNetworkCommand);
+      await this.exec(createNetworkCommand, true);
 
       // Apply network policies if specified
       if (
@@ -165,7 +153,7 @@ export class LimaNetworkManager implements NetworkManager {
       this.allocatedPorts.delete(podId);
 
       // Remove Docker network
-      await this.execLimaSudo(`docker network rm ${networkName}`);
+      await this.exec(`docker network rm ${networkName}`, true);
 
       console.log(`[NetworkManager] Destroyed network ${networkName}`);
     } catch (error) {
@@ -215,34 +203,12 @@ export class LimaNetworkManager implements NetworkManager {
     _podId: string,
     mapping: PortMapping,
   ): Promise<void> {
-    try {
-      // Port forwarding is handled by Docker's -p flag during container creation
-      // For Lima, we need to also forward from host to Lima VM
-
-      if (mapping.external) {
-        // Forward port from macOS host to Lima VM
-        const forwardCommand = `limactl port-forward ${this.limaConfig.vmName} ${mapping.external}:${mapping.external}`;
-
-        // Note: This would typically be done in the background
-        // For now, we'll log the command that should be run
-        console.log(
-          `[NetworkManager] Port forwarding setup: ${forwardCommand}`,
-        );
-        console.log(
-          `[NetworkManager] Run this command to forward port ${mapping.external} from host to Lima VM`,
-        );
-      }
-
-      console.log(
-        `[NetworkManager] Set up port forwarding for ${mapping.name}: ${mapping.internal} -> ${mapping.external}`,
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        `[NetworkManager] Failed to setup port forwarding: ${message}`,
-      );
-      throw new Error(`Port forwarding setup failed: ${message}`);
-    }
+    // Port forwarding is handled by Docker's -p flag during container creation
+    // When using SSH to remote servers, the ports are directly accessible on the server
+    // For local development with Lima, limactl automatically forwards ports
+    console.log(
+      `[NetworkManager] Set up port forwarding for ${mapping.name}: ${mapping.internal} -> ${mapping.external}`,
+    );
   }
 
   async removePortForwarding(
@@ -304,13 +270,13 @@ export class LimaNetworkManager implements NetworkManager {
     if (!policy.allowed) {
       // Block all egress traffic
       const blockCommand = `iptables -I DOCKER-USER -s $(docker network inspect ${networkName} --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}') -j DROP`;
-      await this.execLimaSudo(blockCommand);
+      await this.exec(blockCommand, true);
     } else if (policy.domains && policy.domains.length > 0) {
       // Allow only specific domains
       for (const domain of policy.domains) {
         // This is a simplified example - in production you'd want more sophisticated domain filtering
         const allowCommand = `iptables -I DOCKER-USER -s $(docker network inspect ${networkName} --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}') -d ${domain} -j ACCEPT`;
-        await this.execLimaSudo(allowCommand);
+        await this.exec(allowCommand, true);
       }
     }
   }
@@ -339,7 +305,7 @@ export class LimaNetworkManager implements NetworkManager {
 
     for (const command of tcCommands) {
       try {
-        await this.execLimaSudo(command);
+        await this.exec(command, true);
       } catch {
         // TC commands might fail if already applied or interface doesn't exist yet
         console.warn(
@@ -351,9 +317,10 @@ export class LimaNetworkManager implements NetworkManager {
 
   private async isPortAvailable(port: number): Promise<boolean> {
     try {
-      // Check if port is available on Lima VM
-      const { stdout } = await this.execLima(
+      // Check if port is available on server
+      const { stdout } = await this.exec(
         `netstat -tuln | grep :${port} || echo "available"`,
+        false,
       );
       return stdout.includes("available");
     } catch {
@@ -372,8 +339,9 @@ export class LimaNetworkManager implements NetworkManager {
     const networkName = this.generateNetworkName(podId);
 
     try {
-      const { stdout } = await this.execLimaSudo(
+      const { stdout } = await this.exec(
         `docker network inspect ${networkName} --format='{{json .}}'`,
+        true,
       );
 
       const networkData = JSON.parse(stdout.trim());
@@ -399,8 +367,9 @@ export class LimaNetworkManager implements NetworkManager {
     Array<{ podId: string; networkName: string }>
   > {
     try {
-      const { stdout } = await this.execLimaSudo(
+      const { stdout } = await this.exec(
         `docker network ls --filter name=pinacle-net- --format='{{.Name}}'`,
+        true,
       );
 
       const networkNames = stdout.trim().split("\n").filter(Boolean);

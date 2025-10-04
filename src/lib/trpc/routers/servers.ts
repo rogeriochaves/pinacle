@@ -65,7 +65,7 @@ export const serversRouter = createTRPCRouter({
     .input(
       z.object({
         serverId: z.string(),
-        cpuUsagePercent: z.number().min(0).max(100),
+        cpuUsagePercent: z.number().min(0),
         memoryUsageMb: z.number().positive(),
         diskUsageGb: z.number().positive(),
         activePodsCount: z.number().min(0),
@@ -73,7 +73,7 @@ export const serversRouter = createTRPCRouter({
           z.object({
             podId: z.string(),
             containerId: z.string(),
-            cpuUsagePercent: z.number().min(0).max(100),
+            cpuUsagePercent: z.number().min(0),
             memoryUsageMb: z.number().min(0),
             diskUsageMb: z.number().min(0),
             networkRxBytes: z.number().min(0),

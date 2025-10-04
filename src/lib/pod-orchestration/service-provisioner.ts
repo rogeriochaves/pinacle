@@ -1,48 +1,52 @@
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
+import { env } from "@/env";
+import { SSHServerConnection } from "./server-connection";
 import {
   getAllServiceTemplates,
   getServiceTemplate,
   type ServiceContext,
   type ServiceTemplate,
 } from "./service-registry";
-import type { LimaConfig, ServiceConfig, ServiceProvisioner } from "./types";
-
-const execAsync = promisify(exec);
+import type {
+  LimaConfig,
+  ServerConnection,
+  ServiceConfig,
+  ServiceProvisioner,
+} from "./types";
 
 export class LimaServiceProvisioner implements ServiceProvisioner {
-  private limaConfig: LimaConfig;
-  private isDevMode: boolean;
+  private serverConnection: ServerConnection;
 
-  constructor(limaConfig: LimaConfig = { vmName: "gvisor-alpine" }) {
-    this.limaConfig = limaConfig;
-    // Use Lima only in development on macOS
-    this.isDevMode =
-      (process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test") &&
-      process.platform === "darwin";
+  constructor(
+    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    serverConnection?: ServerConnection,
+  ) {
+    // Use provided connection or create default Lima connection for dev
+    if (serverConnection) {
+      this.serverConnection = serverConnection;
+    } else {
+      // Default: create Lima SSH connection for development
+      if (!env.SSH_PRIVATE_KEY) {
+        throw new Error("SSH_PRIVATE_KEY not found in environment");
+      }
+
+      this.serverConnection = new SSHServerConnection({
+        host: "127.0.0.1",
+        port: limaConfig.sshPort || 52111,
+        user: process.env.USER || "root",
+        privateKey: env.SSH_PRIVATE_KEY,
+      });
+    }
     // Service templates are now loaded from service-registry.ts
   }
 
-  private async execDockerCommand(
+  private async exec(
     command: string,
     useSudo: boolean = false,
   ): Promise<{ stdout: string; stderr: string }> {
-    let fullCommand: string;
-
-    if (this.isDevMode) {
-      // Development mode: use Lima
-      const sudoPrefix = useSudo ? "sudo " : "";
-      fullCommand = `limactl shell ${this.limaConfig.vmName} -- ${sudoPrefix}${command}`;
-      console.log(`[ServiceProvisioner] Executing: ${fullCommand}`);
-    } else {
-      // Production mode: direct execution
-      fullCommand = useSudo ? `sudo ${command}` : command;
-      console.log(`[ServiceProvisioner] Executing: ${fullCommand}`);
-    }
-
     try {
-      const result = await execAsync(fullCommand);
+      const result = await this.serverConnection.exec(command, {
+        sudo: useSudo,
+      });
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -51,19 +55,16 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     }
   }
 
-  private async execLima(
-    command: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    return this.execDockerCommand(command, false);
-  }
-
   private async execInContainer(
     containerId: string,
     command: string[],
   ): Promise<{ stdout: string; stderr: string }> {
-    const escapedCommand = `"${command.join(" ").replace(/"/g, '\\"')}"`;
-    const dockerCommand = `docker exec ${containerId} sh -c ${escapedCommand}`;
-    return this.execDockerCommand(dockerCommand, true); // Always use sudo for docker exec
+    // Join commands and properly escape for sh -c
+    const commandStr = command.join(" ");
+    // Escape single quotes by replacing ' with '\''
+    const escapedCommand = commandStr.replace(/'/g, "'\\''");
+    const dockerCommand = `docker exec ${containerId} sh -c '${escapedCommand}'`;
+    return this.exec(dockerCommand, true); // Always use sudo for docker exec
   }
 
   async provisionService(
@@ -80,8 +81,9 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
       );
 
       // Check if container exists and is running
-      const { stdout: containerStatus } = await this.execLima(
-        `sudo docker inspect ${containerName} --format='{{.State.Status}}' 2>/dev/null || echo "not_found"`,
+      const { stdout: containerStatus } = await this.exec(
+        `docker inspect ${containerName} --format='{{.State.Status}}' 2>/dev/null || echo "not_found"`,
+        true,
       );
 
       if (containerStatus.trim() === "not_found") {
@@ -388,10 +390,13 @@ stop_pre() {
 }
 `;
 
-    // Create OpenRC service script
-    await this.execInContainer(containerName, [
-      `mkdir -p /etc/init.d && echo '${serviceScript}' > /etc/init.d/${serviceName} && chmod +x /etc/init.d/${serviceName}`,
-    ]);
+    // Create OpenRC service script using heredoc to avoid all escaping issues
+    const writeScriptCommand = `cat > /etc/init.d/${serviceName} << 'PINACLE_EOF'
+${serviceScript}
+PINACLE_EOF
+chmod +x /etc/init.d/${serviceName}`;
+
+    await this.execInContainer(containerName, [writeScriptCommand]);
   }
 
   // Utility methods

@@ -175,6 +175,25 @@ export interface PodInstance {
   lastHealthCheck?: Date;
 }
 
+// Server connection types
+export interface ServerConnectionConfig {
+  host: string;
+  port: number;
+  user: string;
+  privateKey: string; // SSH private key content
+}
+
+export interface ServerConnection {
+  // Execute command on the server (not inside a container)
+  exec(
+    command: string,
+    options?: { sudo?: boolean },
+  ): Promise<{ stdout: string; stderr: string }>;
+
+  // Test connection
+  testConnection(): Promise<boolean>;
+}
+
 // Lima integration types
 export interface LimaConfig {
   vmName: string;
