@@ -230,7 +230,7 @@ export class ServerAgent {
         "df -Pk 2>/dev/null | awk '$1 ~ /^\\/dev\\// {fs[$1]=$2} END {total=0; for (f in fs) total+=fs[f]; print total}'",
       );
       const totalKb = parseInt(stdout.trim(), 10);
-      diskGb = totalKb / 1024 / 1024; // Convert KB to GB
+      diskGb = parseFloat((totalKb / 1024 / 1024).toFixed(2)); // Convert KB to GB
     } catch {
       console.warn("⚠️  Could not determine disk size, using default 100GB");
     }

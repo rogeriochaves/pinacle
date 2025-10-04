@@ -83,7 +83,7 @@ export class MetricsCollector {
         "df -Pk 2>/dev/null | awk '$1 ~ /^\\/dev\\// {fs[$1]=$3} END {total=0; for (f in fs) total+=fs[f]; print total}'",
       );
       const usedKb = parseInt(stdout.trim(), 10);
-      return usedKb / 1024 / 1024; // Convert KB to GB
+      return parseFloat((usedKb / 1024 / 1024).toFixed(2)); // Convert KB to GB
     } catch (error) {
       console.error("Failed to get disk usage:", error);
       return 0;
@@ -129,7 +129,9 @@ export class MetricsCollector {
         if (memMatch) {
           const value = parseFloat(memMatch[1]);
           memoryUsageMb =
-            memMatch[2] === "GiB" ? Math.round(value * 1024) : Math.round(value);
+            memMatch[2] === "GiB"
+              ? Math.round(value * 1024)
+              : Math.round(value);
         }
 
         // Parse Network: "1.2kB / 3.4kB" -> rx: 1200, tx: 3400
@@ -202,7 +204,7 @@ export class MetricsCollector {
         `docker exec ${containerId} df -k / | tail -1 | awk '{print $3}'`,
       );
       const usedKb = parseInt(stdout.trim(), 10);
-      return usedKb / 1024; // Convert KB to MB
+      return parseFloat((usedKb / 1024).toFixed(2)); // Convert KB to MB
     } catch {
       // Container might not have df command or exec might fail
       return 0;

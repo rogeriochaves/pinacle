@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import chalk from "chalk";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "../../../env";
@@ -77,14 +78,14 @@ export const serversRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       // Update server last heartbeat at and status
-      await ctx.db
+      const [server] = await ctx.db
         .update(servers)
         .set({
           lastHeartbeatAt: new Date(),
           status: "online",
         })
         .where(eq(servers.id, input.serverId))
-        .execute();
+        .returning();
 
       // Save server metrics
       const [serverMetric] = await ctx.db
@@ -112,6 +113,13 @@ export const serversRouter = createTRPCRouter({
         );
       }
 
+      logHeartbeat(server.hostname, {
+        cpu: input.cpuUsagePercent,
+        memory: (input.memoryUsageMb / server.memoryMb) * 100,
+        disk: (input.diskUsageGb / server.diskGb) * 100,
+        pods: input.activePodsCount,
+      });
+
       return {
         success: true,
         serverMetric,
@@ -119,3 +127,22 @@ export const serversRouter = createTRPCRouter({
       };
     }),
 });
+
+export function logHeartbeat(
+  hostname: string,
+  metrics: { cpu: number; memory: number; disk: number; pods: number },
+) {
+  const frames = ["✦", "✧", "✶", "✸", "✹", "✺", "✻", "✼"];
+
+  if ((globalThis as any).heartbeatIndex === undefined) {
+    (globalThis as any).heartbeatIndex = 0;
+  }
+  const i = (globalThis as any).heartbeatIndex;
+  const frame = frames[i % frames.length];
+
+  process.stdout.write(
+    `\r${chalk.green(frame)} heartbeat from ${hostname}: Pods: ${metrics.pods}, CPU: ${Math.round(metrics.cpu)}%, Memory: ${Math.round(metrics.memory)}%, Disk: ${Math.round(metrics.disk)}%`,
+  );
+
+  (globalThis as any).heartbeatIndex = i + 1;
+}
