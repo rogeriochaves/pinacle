@@ -1,0 +1,1 @@
+ALTER TABLE "server" DROP CONSTRAINT "server_hostname_unique";

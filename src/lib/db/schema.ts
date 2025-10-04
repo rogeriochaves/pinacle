@@ -121,7 +121,7 @@ export const servers = pgTable("server", {
     .primaryKey()
     .notNull()
     .$defaultFn(generateKsuidBuilder("server")),
-  hostname: varchar("hostname", { length: 255 }).notNull().unique(),
+  hostname: varchar("hostname", { length: 255 }).notNull(),
   ipAddress: varchar("ip_address", { length: 45 }).notNull(),
   status: varchar("status", { length: 50 }).notNull().default("online"), // online, degraded, offline
   lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date" }),

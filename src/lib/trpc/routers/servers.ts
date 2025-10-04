@@ -53,26 +53,6 @@ export const serversRouter = createTRPCRouter({
       return server;
     }),
 
-  // Send heartbeat to update last_heartbeat_at
-  heartbeat: serverAgentAuth
-    .input(
-      z.object({
-        serverId: z.string(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const [server] = await ctx.db
-        .update(servers)
-        .set({
-          lastHeartbeatAt: new Date(),
-          status: "online",
-        })
-        .where(eq(servers.id, input.serverId))
-        .returning();
-
-      return { success: true, server };
-    }),
-
   // Report metrics including per-pod metrics
   reportMetrics: serverAgentAuth
     .input(
@@ -96,6 +76,16 @@ export const serversRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Update server last heartbeat at and status
+      await ctx.db
+        .update(servers)
+        .set({
+          lastHeartbeatAt: new Date(),
+          status: "online",
+        })
+        .where(eq(servers.id, input.serverId))
+        .execute();
+
       // Save server metrics
       const [serverMetric] = await ctx.db
         .insert(serverMetrics)

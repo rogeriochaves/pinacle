@@ -36,7 +36,7 @@ echo "📦 Building Docker image..."
 IMAGE_NAME="$DOCKERHUB_USERNAME/pinacle-base:latest"
 
 # Build the Docker image
-docker buildx use default
+docker context use default
 docker build -t "$IMAGE_NAME" --platform=linux/arm64 -f docker/Dockerfile.base --load .
 
 echo "🔐 Setting up temporary Docker config..."

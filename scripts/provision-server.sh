@@ -204,11 +204,35 @@ echo "✅ Configuration created"
 
 echo "🚀 Step 7: Starting agent..."
 if [[ $HOST == lima:* ]]; then
-  # Kill any existing agent
-  limactl shell "$LIMA_VM" -- pkill -f "node.*index.js" || true
+  # Create OpenRC init script for Alpine
+  limactl shell "$LIMA_VM" -- sudo tee /etc/init.d/pinacle-agent > /dev/null << 'EOF'
+#!/sbin/openrc-run
 
-  # Start in background
-  limactl shell "$LIMA_VM" -- sh -c "cd $AGENT_PATH && nohup node dist/index.js > /tmp/pinacle-agent.log 2>&1 & echo \$!"
+name="Pinacle Server Agent"
+description="Pinacle Server Agent for pod orchestration"
+command="/usr/bin/node"
+command_args="/opt/pinacle/server-agent/dist/index.js"
+command_background=true
+directory="/opt/pinacle/server-agent"
+pidfile="/run/pinacle-agent.pid"
+output_log="/var/log/pinacle-agent.log"
+error_log="/var/log/pinacle-agent.err"
+
+depend() {
+    need net
+    after docker
+}
+EOF
+
+  # Make it executable and enable
+  limactl shell "$LIMA_VM" -- sudo chmod +x /etc/init.d/pinacle-agent
+  limactl shell "$LIMA_VM" -- sudo rc-update add pinacle-agent default || true
+
+  # Stop if already running, then start
+  limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent stop || true
+  limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent start
+
+  echo "✅ Agent installed as OpenRC service"
 elif [[ $HOST == ssh:* ]]; then
   # Install as systemd service on remote servers
   ssh "$SSH_HOST" "cat > /etc/systemd/system/pinacle-agent.service" << EOF
@@ -245,7 +269,8 @@ echo "✅ Server provisioned successfully!"
 echo ""
 echo "📊 To check agent logs:"
 if [[ $HOST == lima:* ]]; then
-  echo "   limactl shell $LIMA_VM -- tail -f /tmp/pinacle-agent.log"
+  echo "   limactl shell $LIMA_VM -- tail -f /var/log/pinacle-agent.log"
+  echo "   limactl shell $LIMA_VM -- sudo rc-service pinacle-agent status"
 elif [[ $HOST == ssh:* ]]; then
   echo "   ssh $SSH_HOST journalctl -u pinacle-agent -f"
 else

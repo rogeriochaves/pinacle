@@ -107,22 +107,6 @@ export class ServerAgent {
         try {
             // Collect metrics
             const metrics = await this.metricsCollector.collect();
-            // Send heartbeat
-            const heartbeatResponse = await fetch(`${this.config.apiUrl}/api/trpc/servers.heartbeat`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-api-key": this.config.apiKey,
-                },
-                body: JSON.stringify({
-                    json: {
-                        serverId: this.serverId,
-                    },
-                }),
-            });
-            if (!heartbeatResponse.ok) {
-                throw new Error(`Heartbeat failed: ${heartbeatResponse.status} ${await heartbeatResponse.text()}`);
-            }
             const json = {
                 serverId: this.serverId,
                 cpuUsagePercent: metrics.cpuUsagePercent,
