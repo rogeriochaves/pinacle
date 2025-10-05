@@ -3,32 +3,23 @@
 import {
   ArrowLeft,
   ArrowRight,
-  Cpu,
   Eye,
   EyeOff,
-  HardDrive,
-  Info,
   Loader2,
   Plus,
   Trash2,
 } from "lucide-react";
+import Image from "next/image";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { RESOURCE_TIERS } from "../../../lib/pod-orchestration/resource-tier-registry";
 import { getTemplateUnsafe } from "../../../lib/pod-orchestration/template-registry";
 import type { SetupFormValues } from "../../../types/setup";
-import { TierSelector } from "../../shared/tier-selector";
 import { Button } from "../../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { TemplateSelector } from "../template-selector";
+import { TierSelectorSetup } from "../tier-selector-setup";
 
 interface EnvVar {
   key: string;
@@ -42,6 +33,373 @@ interface ConfigureStepProps {
   onBack: () => void;
 }
 
+// Form Section Component (Left Side)
+const FormSection = ({
+  onBack,
+  form,
+  podName,
+  bundle,
+  selectedTier,
+  selectedTemplate,
+  envVars,
+  showSecrets,
+  updateEnvVar,
+  removeEnvVar,
+  toggleSecretVisibility,
+  addEnvVar,
+}: {
+  onBack: () => void;
+  form: UseFormReturn<SetupFormValues>;
+  podName: string | undefined;
+  bundle: string | undefined;
+  selectedTier: string;
+  selectedTemplate: ReturnType<typeof getTemplateUnsafe> | undefined;
+  envVars: EnvVar[];
+  showSecrets: Record<number, boolean>;
+  updateEnvVar: (
+    index: number,
+    field: keyof EnvVar,
+    value: string | boolean,
+  ) => void;
+  removeEnvVar: (index: number) => void;
+  toggleSecretVisibility: (index: number) => void;
+  addEnvVar: () => void;
+}) => {
+  return (
+    <div className="flex-4 bg-slate-50 flex justify-end overflow-y-auto">
+      <div className="w-full max-w-3xl px-8 py-8">
+        {/* Back button with title */}
+        <div className="flex items-center gap-3 mb-8">
+          <Button variant="ghost" onClick={onBack} className="-ml-2">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            <span className="font-mono text-sm">Back</span>
+          </Button>
+          <h1 className="text-2xl font-mono font-bold text-slate-900">
+            Configure Your Pod
+          </h1>
+        </div>
+
+        <div className="space-y-6">
+          {/* Pod Name */}
+          <div>
+            <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
+              POD NAME
+            </Label>
+            <Input
+              placeholder="my-awesome-project-dev"
+              value={podName || ""}
+              onChange={(e) => form.setValue("podName", e.target.value)}
+              className="font-mono"
+            />
+          </div>
+
+          {/* Template Selection */}
+          <div>
+            <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+              SELECT TEMPLATE
+            </Label>
+            <TemplateSelector
+              selectedTemplate={bundle}
+              onTemplateChange={(templateId) =>
+                form.setValue("bundle", templateId)
+              }
+              compact={true}
+            />
+          </div>
+
+          {/* Resource Tier Selection */}
+          <div>
+            <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+              COMPUTE RESOURCES
+            </Label>
+            <TierSelectorSetup
+              value={selectedTier}
+              onChange={(tierId) =>
+                form.setValue(
+                  "tier",
+                  tierId as
+                    | "dev.small"
+                    | "dev.medium"
+                    | "dev.large"
+                    | "dev.xlarge",
+                )
+              }
+            />
+          </div>
+
+          {/* Environment Variables */}
+          <div>
+            <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+              ENVIRONMENT VARIABLES
+              {selectedTemplate &&
+                selectedTemplate.requiredEnvVars.length > 0 && (
+                  <span className="text-orange-600 ml-2">
+                    ({selectedTemplate.requiredEnvVars.length} required)
+                  </span>
+                )}
+            </Label>
+
+            <div className="space-y-2">
+              {envVars.map((envVar, index) => (
+                <div
+                  key={`env-${index}-${envVar.key}`}
+                  className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200"
+                >
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      placeholder="VARIABLE_NAME"
+                      value={envVar.key}
+                      onChange={(e) =>
+                        updateEnvVar(index, "key", e.target.value)
+                      }
+                      className="font-mono text-xs h-8"
+                    />
+                    <div className="relative">
+                      <Input
+                        type={
+                          envVar.isSecret && !showSecrets[index]
+                            ? "password"
+                            : "text"
+                        }
+                        placeholder="value"
+                        value={envVar.value}
+                        onChange={(e) =>
+                          updateEnvVar(index, "value", e.target.value)
+                        }
+                        className="font-mono text-xs h-8 pr-8"
+                      />
+                      {envVar.isSecret && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                          onClick={() => toggleSecretVisibility(index)}
+                        >
+                          {showSecrets[index] ? (
+                            <EyeOff className="h-3 w-3 text-slate-500" />
+                          ) : (
+                            <Eye className="h-3 w-3 text-slate-500" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeEnvVar(index)}
+                    className="h-6 w-6 p-0 shrink-0"
+                  >
+                    <Trash2 className="h-3 w-3 text-red-500" />
+                  </Button>
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addEnvVar}
+                className="w-full font-mono text-xs h-9"
+              >
+                <Plus className="mr-2 h-3 w-3" /> Add Variable
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Summary Section Component (Right Side)
+const SummarySection = ({
+  podName,
+  projectName,
+  selectedTemplate,
+  tierData,
+  handleSubmit,
+  canCreate,
+  isCreating,
+}: {
+  podName: string | undefined;
+  projectName: string;
+  selectedTemplate: ReturnType<typeof getTemplateUnsafe> | undefined;
+  tierData: (typeof RESOURCE_TIERS)[keyof typeof RESOURCE_TIERS];
+  handleSubmit: () => Promise<void>;
+  canCreate: () => boolean;
+  isCreating: boolean;
+}) => {
+  return (
+    <div className="flex-3 bg-slate-900 border-l border-slate-800 flex justify-start overflow-y-auto">
+      <div className="w-full max-w-md p-8 pt-34 space-y-8">
+        {/* Summary Section */}
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-white font-mono text-sm font-medium mb-4">
+              Your Configuration
+            </h3>
+            <div className="space-y-3">
+              {/* Pod Name */}
+              <div className="flex items-start gap-3 text-sm">
+                <svg
+                  className="w-4 h-4 text-green-400 mt-0.5 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate-300 font-mono text-xs mb-0.5">
+                    Pod name
+                  </p>
+                  <p className="text-white font-mono font-medium truncate">
+                    {podName || "Not set"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Project */}
+              <div className="flex items-start gap-3 text-sm">
+                <svg
+                  className="w-4 h-4 text-green-400 mt-0.5 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate-300 font-mono text-xs mb-0.5">
+                    Project
+                  </p>
+                  <p className="text-white font-mono text-sm break-all">
+                    {projectName}
+                  </p>
+                </div>
+              </div>
+
+              {/* Template */}
+              {selectedTemplate && (
+                <div className="flex items-start gap-3 text-sm">
+                  <svg
+                    className="w-4 h-4 text-green-400 mt-0.5 shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-300 font-mono text-xs mb-0.5">
+                      Template
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {selectedTemplate.icon && (
+                        <Image
+                          src={
+                            selectedTemplate.icon.includes("nextjs")
+                              ? "/logos/nextjs-white.svg"
+                              : selectedTemplate.icon.includes("langflow")
+                                ? "/logos/langflow-white.svg"
+                                : selectedTemplate.icon
+                          }
+                          alt={
+                            selectedTemplate.iconAlt || selectedTemplate.name
+                          }
+                          width={16}
+                          height={16}
+                        />
+                      )}
+                      <p className="text-white font-mono text-sm">
+                        {selectedTemplate.name}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Resources */}
+              <div className="flex items-start gap-3 text-sm">
+                <svg
+                  className="w-4 h-4 text-green-400 mt-0.5 shrink-0"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-slate-300 font-mono text-xs mb-1">
+                    Resources
+                  </p>
+                  <p className="text-white font-mono text-sm">
+                    {tierData.cpu} vCPU • {tierData.memory}GB RAM •{" "}
+                    {tierData.storage}GB Storage
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pricing */}
+          <div className="pt-6 border-t border-slate-800">
+            <div className="mb-4">
+              <p className="text-slate-400 font-mono text-xs mb-1">
+                Estimated cost
+              </p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-white font-mono text-3xl font-bold">
+                  ${tierData?.price || 0}
+                </span>
+                <span className="text-slate-400 font-mono text-sm">/month</span>
+              </div>
+              <p className="text-slate-500 font-mono text-xs mt-1">
+                Billed hourly based on usage
+              </p>
+            </div>
+
+            {/* Create Button */}
+            <Button
+              onClick={handleSubmit}
+              disabled={!canCreate() || isCreating}
+              size="lg"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold h-12"
+            >
+              {isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  Create Pod
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Component
 export const ConfigureStep = ({
   form,
   onSubmit,
@@ -65,6 +423,11 @@ export const ConfigureStep = ({
   // Get selected tier or use template's default tier
   const selectedTier = tier || selectedTemplate?.tier || "dev.small";
   const tierData = RESOURCE_TIERS[selectedTier];
+
+  const projectName: string =
+    setupType === "repository"
+      ? selectedRepo || ""
+      : `${selectedOrg || ""}/${newRepoName || ""}`;
 
   // Initialize environment variables when bundle changes
   React.useEffect(() => {
@@ -153,314 +516,30 @@ export const ConfigureStep = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
-      <div className="flex items-center space-x-4 mb-8">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Configure Your Pod
-          </h1>
-          <p className="text-gray-600 mt-1">
-            {setupType === "repository"
-              ? `Setting up development environment for ${selectedRepo}`
-              : `Creating new project: ${selectedOrg}/${newRepoName}`}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          {/* Pod Name */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pod Name</CardTitle>
-              <CardDescription>
-                A unique name for your development environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Input
-                placeholder="my-awesome-project-dev"
-                value={podName || ""}
-                onChange={(e) => form.setValue("podName", e.target.value)}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Template Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Choose a Template</CardTitle>
-              <CardDescription>
-                Choose your development environment configuration
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TemplateSelector
-                selectedTemplate={bundle}
-                onTemplateChange={(templateId) => form.setValue("bundle", templateId)}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Resource Tier Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Select Resource Tier</CardTitle>
-              <CardDescription>
-                Choose the compute resources for your development environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TierSelector
-                value={selectedTier}
-                onChange={(tierId) =>
-                  form.setValue("tier", tierId as typeof selectedTier)
-                }
-                showLabel={false}
-                compact={false}
-              />
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">
-                      Resource Information
-                    </p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      You can upgrade or downgrade your tier at any time.
-                      Billing is hourly based on usage.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Environment Variables */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Environment Variables</CardTitle>
-              <CardDescription>
-                Configure environment variables for your development environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {envVars.map((envVar, index) => (
-                <div
-                  key={`env-${index}-${envVar.key}`}
-                  className="flex items-center space-x-2"
-                >
-                  <div className="flex-1">
-                    <Input
-                      placeholder="VARIABLE_NAME"
-                      value={envVar.key}
-                      onChange={(e) =>
-                        updateEnvVar(index, "key", e.target.value)
-                      }
-                      className="mb-2"
-                    />
-                  </div>
-                  <div className="flex-1 relative">
-                    <Input
-                      type={
-                        envVar.isSecret && !showSecrets[index]
-                          ? "password"
-                          : "text"
-                      }
-                      placeholder="value"
-                      value={envVar.value}
-                      onChange={(e) =>
-                        updateEnvVar(index, "value", e.target.value)
-                      }
-                      className="mb-2 pr-20"
-                    />
-                    {envVar.isSecret && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                        onClick={() => toggleSecretVisibility(index)}
-                      >
-                        {showSecrets[index] ? (
-                          <EyeOff className="h-4 w-4 text-gray-500" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-gray-500" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeEnvVar(index)}
-                    className="mb-2"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
-              ))}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addEnvVar}
-                className="w-full"
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Environment Variable
-              </Button>
-
-              {selectedTemplate &&
-                selectedTemplate.requiredEnvVars.length > 0 && (
-                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-start space-x-2">
-                      <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium text-blue-900">
-                          Required Variables
-                        </p>
-                        <p className="text-sm text-blue-700 mt-1">
-                          The following environment variables are required for
-                          this bundle:
-                        </p>
-                        <ul className="text-sm text-blue-700 mt-2 space-y-1">
-                          {selectedTemplate.requiredEnvVars.map((varName) => (
-                            <li key={varName} className="flex items-center">
-                              <code className="bg-blue-100 px-1 rounded text-xs mr-2">
-                                {varName}
-                              </code>
-                              {varName === "ANTHROPIC_API_KEY" && (
-                                <span className="text-xs">
-                                  - Get from console.anthropic.com
-                                </span>
-                              )}
-                              {varName === "NEXTAUTH_SECRET" && (
-                                <span className="text-xs">
-                                  - Random string for session encryption
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Summary Sidebar */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-              <CardDescription>
-                Review your selections before creating your pod
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Pod Name
-                </Label>
-                <p className="text-sm text-gray-900 mt-1">
-                  {podName || "Not set"}
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-sm font-medium text-gray-700">
-                  Project
-                </Label>
-                <p className="text-sm text-gray-900 mt-1">
-                  {setupType === "repository"
-                    ? selectedRepo
-                    : `${selectedOrg}/${newRepoName}`}
-                </p>
-              </div>
-
-              {selectedTemplate && (
-                <>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Template
-                    </Label>
-                    <p className="text-sm text-gray-900 mt-1">
-                      {selectedTemplate.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Resources
-                    </Label>
-                    <div className="text-sm text-gray-900 mt-1 space-y-1">
-                      <div className="flex items-center">
-                        <Cpu className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{tierData.cpu} vCPU</span>
-                      </div>
-                      <div className="flex items-center">
-                        <HardDrive className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{tierData.memory}GB RAM</span>
-                      </div>
-                      <div className="flex items-center">
-                        <HardDrive className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{tierData.storage}GB Storage</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-700">
-                      Tier
-                    </Label>
-                    <p className="text-sm text-gray-900 mt-1 font-mono">
-                      {tierData.name}
-                    </p>
-                  </div>
-                </>
-              )}
-
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Estimated Cost
-                  </Label>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-blue-600">
-                      ${tierData?.price || 0}/month
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Billed hourly based on usage
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Button
-            onClick={handleSubmit}
-            disabled={!canCreate() || isCreating}
-            className="w-full mt-4"
-          >
-            {isCreating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                Create Pod
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+    <div className="min-h-screen flex">
+      <FormSection
+        onBack={onBack}
+        form={form}
+        podName={podName}
+        bundle={bundle}
+        selectedTier={selectedTier}
+        selectedTemplate={selectedTemplate}
+        envVars={envVars}
+        showSecrets={showSecrets}
+        updateEnvVar={updateEnvVar}
+        removeEnvVar={removeEnvVar}
+        toggleSecretVisibility={toggleSecretVisibility}
+        addEnvVar={addEnvVar}
+      />
+      <SummarySection
+        podName={podName}
+        projectName={projectName}
+        selectedTemplate={selectedTemplate}
+        tierData={tierData}
+        handleSubmit={handleSubmit}
+        canCreate={canCreate}
+        isCreating={isCreating}
+      />
     </div>
   );
 };

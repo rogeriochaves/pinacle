@@ -170,7 +170,9 @@ const SetupForm = () => {
     }
 
     // Get template configuration
-    const { getTemplateUnsafe } = await import("../../lib/pod-orchestration/template-registry");
+    const { getTemplateUnsafe } = await import(
+      "../../lib/pod-orchestration/template-registry"
+    );
     const selectedTemplate = getTemplateUnsafe(data.bundle);
 
     if (!selectedTemplate) {
@@ -208,19 +210,20 @@ const SetupForm = () => {
 
   if (status === "loading" || installationsLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="h-8 w-8 animate-spin mx-auto mb-4 border-4 border-blue-600 border-t-transparent rounded-full" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Loading your GitHub repositories...
+          <div className="h-12 w-12 animate-spin mx-auto mb-4 border-4 border-orange-500 border-t-transparent rounded-full" />
+          <h2 className="text-xl font-mono font-bold text-slate-900 mb-2">
+            Loading your repositories...
           </h2>
+          <p className="text-sm text-slate-600 font-mono">Just a moment</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       {currentStep === "project" ? (
         <ProjectSelectionStep
           form={form}

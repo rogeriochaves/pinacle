@@ -16,9 +16,13 @@ export const TierSelector = ({
   showLabel = true,
   compact = false,
 }: TierSelectorProps) => {
-  const selectedTier = RESOURCE_TIERS[value] || RESOURCE_TIERS["dev.small"];
+  const selectedTier =
+    value && value in RESOURCE_TIERS
+      ? RESOURCE_TIERS[value as keyof typeof RESOURCE_TIERS]
+      : RESOURCE_TIERS["dev.small"];
 
   if (compact) {
+    // Original compact version for landing page (dropdown with pricing)
     return (
       <div className="flex flex-col gap-1">
         <Select value={value} onValueChange={onChange}>
@@ -84,4 +88,3 @@ export const TierSelector = ({
     </Select>
   );
 };
-

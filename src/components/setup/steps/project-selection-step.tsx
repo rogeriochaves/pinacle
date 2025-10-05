@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
-  FolderGit2,
   GitBranch,
   Plus,
   Search,
@@ -19,16 +18,8 @@ import type {
   SetupFormData,
   SetupFormValues,
 } from "../../../types/setup";
-import { TierSelector } from "../../shared/tier-selector";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import {
@@ -64,7 +55,6 @@ export const ProjectSelectionStep = ({
   const selectedOrg = form.watch("selectedOrg");
   const newRepoName = form.watch("newRepoName");
   const selectedBundle = form.watch("bundle");
-  const selectedTier = form.watch("tier") || "dev.small";
 
   // Filter repositories by organization and search
   const filteredRepositories = repositories.filter((repo: GitHubRepo) => {
@@ -114,114 +104,144 @@ export const ProjectSelectionStep = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4">
-      <div className="flex items-center space-x-4 mb-8">
-        <Button variant="ghost" asChild>
-          <Link href="/">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+    <div className="min-h-screen bg-slate-100">
+      {/* Navigation */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center gap-3 mb-8">
+          <Button variant="ghost" asChild className="-ml-2">
+            <Link
+              href="/"
+              className="font-mono text-slate-600 hover:text-slate-900"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-mono font-bold text-slate-900">
             {setupType === "repository"
               ? "Select Repository"
               : "Create New Project"}
           </h1>
-          <p className="text-gray-600 mt-1">
-            {setupType === "repository"
-              ? "Choose an existing repository to set up your development environment"
-              : "Create a new repository and set up your development environment"}
-          </p>
         </div>
-      </div>
 
-      {setupType === "repository" ? (
-        <div className="space-y-6">
-          {/* Repository Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <FolderGit2 className="mr-2 h-5 w-5" />
-                Your Repositories
-              </CardTitle>
-              <CardDescription>
-                Select a repository to create a development environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Organization Filter */}
-              <div className="flex gap-2 mb-4">
-                <Label htmlFor="organization">Filter by Organization</Label>
-                <Select
-                  value={selectedOrg || "all"}
-                  onValueChange={(value) => form.setValue("selectedOrg", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All organizations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All organizations</SelectItem>
-                    {organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.login}>
-                        <div className="flex items-center space-x-2">
-                          {/** biome-ignore lint/performance/noImgElement: nah */}
-                          <img
-                            src={org.avatar_url}
-                            alt={org.login}
-                            className="w-5 h-5 rounded-full"
-                          />
-                          <span>{org.login}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {/* Type Selector */}
+        <div className="mb-8 flex justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => form.setValue("setupType", "repository")}
+            className={`px-6 py-3 rounded-lg font-mono font-medium transition-all ${
+              setupType === "repository"
+                ? "bg-white text-slate-900 shadow-md ring-2 ring-orange-500"
+                : "bg-white text-slate-600 shadow-sm hover:shadow-md"
+            }`}
+          >
+            Open Repository
+          </button>
+          <button
+            type="button"
+            onClick={() => form.setValue("setupType", "new")}
+            className={`px-6 py-3 rounded-lg font-mono font-medium transition-all ${
+              setupType === "new"
+                ? "bg-white text-slate-900 shadow-md ring-2 ring-orange-500"
+                : "bg-white text-slate-600 shadow-sm hover:shadow-md"
+            }`}
+          >
+            + New Project
+          </button>
+        </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (installationUrl) {
-                      window.location.href = installationUrl;
+        {setupType === "repository" ? (
+          <div className="max-w-4xl mx-auto">
+            {/* Filters Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
+                    ORGANIZATION
+                  </Label>
+                  <Select
+                    value={selectedOrg || "all"}
+                    onValueChange={(value) =>
+                      form.setValue("selectedOrg", value)
                     }
-                  }}
-                  disabled={!installationUrl}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Organization
-                </Button>
-              </div>
+                  >
+                    <SelectTrigger className="font-mono">
+                      <SelectValue placeholder="All organizations" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All organizations</SelectItem>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.login}>
+                          <div className="flex items-center space-x-2">
+                            {/** biome-ignore lint/performance/noImgElement: nah */}
+                            <img
+                              src={org.avatar_url}
+                              alt={org.login}
+                              className="w-5 h-5 rounded-full"
+                            />
+                            <span className="font-mono">{org.login}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search repositories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+                <div className="flex-1">
+                  <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
+                    SEARCH
+                  </Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search repositories..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 font-mono"
+                    />
+                  </div>
+                </div>
 
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {filteredRepositories.map((repo) => (
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (installationUrl) {
+                        window.location.href = installationUrl;
+                      }
+                    }}
+                    disabled={!installationUrl}
+                    className="font-mono"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Org
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Repositories List */}
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {filteredRepositories.map((repo) => {
+                const isSelected = selectedRepo === repo.full_name;
+                return (
                   <button
                     key={repo.id}
                     type="button"
-                    className={`w-full text-left p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedRepo === repo.full_name
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                    className={`relative w-full text-left bg-white rounded-xl p-6 transition-all ${
+                      isSelected
+                        ? "ring-2 ring-orange-500 shadow-lg"
+                        : "shadow-sm border border-gray-200 hover:shadow-md hover:-translate-y-0.5"
                     }`}
                     onClick={() =>
                       form.setValue("selectedRepo", repo.full_name)
                     }
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold text-gray-900">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h3 className="font-mono font-bold text-lg text-slate-900">
                             {repo.name}
                           </h3>
                           {repo.private && (
@@ -230,27 +250,30 @@ export const ProjectSelectionStep = ({
                             </Badge>
                           )}
                           {repo.language && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-xs font-mono"
+                            >
                               {repo.language}
                             </Badge>
                           )}
                         </div>
                         {repo.description && (
-                          <p className="text-sm text-gray-600 mb-2">
+                          <p className="text-sm text-slate-600 mb-3">
                             {repo.description}
                           </p>
                         )}
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <Star className="mr-1 h-3 w-3" />
+                        <div className="flex items-center gap-4 text-xs text-slate-500 font-mono">
+                          <div className="flex items-center gap-1">
+                            <Star className="h-3 w-3" />
                             {repo.stargazers_count}
                           </div>
-                          <div className="flex items-center">
-                            <GitBranch className="mr-1 h-3 w-3" />
+                          <div className="flex items-center gap-1">
+                            <GitBranch className="h-3 w-3" />
                             {repo.default_branch}
                           </div>
-                          <div className="flex items-center">
-                            <Calendar className="mr-1 h-3 w-3" />
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
                             {new Date(
                               repo.updated_at || "",
                             ).toLocaleDateString()}
@@ -261,125 +284,150 @@ export const ProjectSelectionStep = ({
                       <img
                         src={repo.owner.avatar_url}
                         alt={repo.owner.login}
-                        className="w-8 h-8 rounded-full"
+                        className="w-10 h-10 rounded-full flex-shrink-0"
                       />
                     </div>
+                    {isSelected && (
+                      <div className="absolute top-4 right-4">
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center">
+                          <svg
+                            className="w-4 h-4 text-white"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
                   </button>
-                ))}
+                );
+              })}
 
-                {filteredRepositories.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
+              {filteredRepositories.length === 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                  <p className="text-slate-500 font-mono">
                     {searchQuery
                       ? "No repositories match your search."
                       : isLoadingRepositories
                         ? "Loading repositories..."
                         : "No repositories found."}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* New Project Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Plus className="mr-2 h-5 w-5" />
-                Create New Project
-              </CardTitle>
-              <CardDescription>
-                Set up a new repository and development environment
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2 py-4">
-                <Label htmlFor="organization">Organization</Label>
-                <Select
-                  value={selectedOrg || ""}
-                  onValueChange={(value) => form.setValue("selectedOrg", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select organization" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {organizations.map((org) => (
-                      <SelectItem key={org.id} value={org.login}>
-                        <div className="flex items-center space-x-2">
-                          {/** biome-ignore lint/performance/noImgElement: nah */}
-                          <img
-                            src={org.avatar_url}
-                            alt={org.login}
-                            className="w-5 h-5 rounded-full"
-                          />
-                          <span>{org.login}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (installationUrl) {
-                      window.location.href = installationUrl;
-                    }
-                  }}
-                  disabled={!installationUrl}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Organization
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="repo-name">Repository Name</Label>
-                <Input
-                  id="repo-name"
-                  placeholder="my-awesome-project"
-                  value={newRepoName || ""}
-                  onChange={(e) => form.setValue("newRepoName", e.target.value)}
-                />
-                {selectedOrg && newRepoName && (
-                  <p className="text-sm text-gray-500">
-                    Repository will be created as:{" "}
-                    <code className="bg-gray-100 px-1 rounded">
-                      {selectedOrg}/{newRepoName}
-                    </code>
                   </p>
-                )}
-              </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-6xl mx-auto space-y-8">
+            {/* Project Details Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <h2 className="text-xl font-mono font-bold text-slate-900 mb-6">
+                Project Details
+              </h2>
 
-              {/* Template Selection for New Projects */}
-              <div className="space-y-4">
-                <Label className="text-base font-semibold">
-                  Choose Your Stack
-                </Label>
-                <TemplateSelector
-                  selectedTemplate={selectedBundle}
-                  onTemplateChange={(templateId: string) =>
-                    form.setValue("bundle", templateId)
-                  }
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
+                    ORGANIZATION
+                  </Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedOrg || ""}
+                      onValueChange={(value) =>
+                        form.setValue("selectedOrg", value)
+                      }
+                    >
+                      <SelectTrigger className="font-mono">
+                        <SelectValue placeholder="Select organization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {organizations.map((org) => (
+                          <SelectItem key={org.id} value={org.login}>
+                            <div className="flex items-center space-x-2">
+                              {/** biome-ignore lint/performance/noImgElement: nah */}
+                              <img
+                                src={org.avatar_url}
+                                alt={org.login}
+                                className="w-5 h-5 rounded-full"
+                              />
+                              <span className="font-mono">{org.login}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (installationUrl) {
+                          window.location.href = installationUrl;
+                        }
+                      }}
+                      disabled={!installationUrl}
+                      className="font-mono shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
+                    REPOSITORY NAME
+                  </Label>
+                  <Input
+                    placeholder="my-awesome-project"
+                    value={newRepoName || ""}
+                    onChange={(e) =>
+                      form.setValue("newRepoName", e.target.value)
+                    }
+                    className="font-mono"
+                  />
+                  {selectedOrg && newRepoName && (
+                    <p className="text-sm text-slate-500 mt-2 font-mono">
+                      {selectedOrg}/{newRepoName}
+                    </p>
+                  )}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Template Selection */}
+            <div>
+              <h2 className="text-xl font-mono font-bold text-slate-900 mb-4">
+                Choose Your Stack
+              </h2>
+              <p className="text-slate-600 mb-6">
+                Select a template to kickstart your project with the best tools
+              </p>
+              <TemplateSelector
+                selectedTemplate={selectedBundle}
+                onTemplateChange={(templateId: string) =>
+                  form.setValue("bundle", templateId)
+                }
+                compact={true}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Continue Button - Fixed at bottom */}
+        <div className="max-w-7xl mx-auto mt-12 pb-8 flex justify-end">
+          <Button
+            onClick={handleContinue}
+            disabled={!canContinue()}
+            size="lg"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold px-8 shadow-lg hover:shadow-xl transition-all"
+          >
+            Continue
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
-      )}
-
-      {/* Continue Button */}
-      <div className="flex justify-end mt-8">
-        <Button
-          onClick={handleContinue}
-          disabled={!canContinue()}
-          className="min-w-32"
-        >
-          Continue
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
       </div>
     </div>
   );
