@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
-import { bundles } from "../../../config/bundles";
+import { RESOURCE_TIERS } from "../../../lib/pod-orchestration/resource-tier-registry";
+import { POD_TEMPLATES } from "../../../lib/pod-orchestration/template-registry";
 import type { SetupFormValues } from "../../../types/setup";
+import { TierSelector } from "../../shared/tier-selector";
 import { Button } from "../../ui/button";
 import {
   Card,
@@ -26,7 +28,7 @@ import {
 } from "../../ui/card";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { BundleSelector } from "../bundle-selector";
+import { TemplateSelector } from "../template-selector";
 
 interface EnvVar {
   key: string;
@@ -55,14 +57,19 @@ export const ConfigureStep = ({
   const newRepoName = form.watch("newRepoName");
   const podName = form.watch("podName");
   const bundle = form.watch("bundle");
+  const tier = form.watch("tier");
 
-  // Get selected bundle data
-  const selectedBundleData = bundles.find((b) => b.id === bundle);
+  // Get selected template data
+  const selectedTemplate = bundle ? POD_TEMPLATES[bundle] : undefined;
+
+  // Get selected tier or use template's default tier
+  const selectedTier = tier || selectedTemplate?.tier || "dev.small";
+  const tierData = RESOURCE_TIERS[selectedTier];
 
   // Initialize environment variables when bundle changes
   React.useEffect(() => {
-    if (selectedBundleData) {
-      const newEnvVars = selectedBundleData.requiredEnvVars.map((key) => ({
+    if (selectedTemplate) {
+      const newEnvVars = selectedTemplate.requiredEnvVars.map((key) => ({
         key,
         value: "",
         isSecret:
@@ -71,9 +78,9 @@ export const ConfigureStep = ({
           key.includes("TOKEN"),
       }));
       setEnvVars(newEnvVars);
-      form.setValue("bundle", selectedBundleData.id);
+      form.setValue("bundle", selectedTemplate.id);
     }
-  }, [selectedBundleData, form]);
+  }, [selectedTemplate, form]);
 
   // Initialize pod name from repo/project name
   React.useEffect(() => {
@@ -135,9 +142,9 @@ export const ConfigureStep = ({
   };
 
   const canCreate = () => {
-    if (!selectedBundleData) return false;
+    if (!selectedTemplate) return false;
 
-    const requiredVarsSet = selectedBundleData.requiredEnvVars.every((key) => {
+    const requiredVarsSet = selectedTemplate.requiredEnvVars.every((key) => {
       const envVar = envVars.find((ev) => ev.key === key);
       return envVar && envVar.value.trim() !== "";
     });
@@ -183,20 +190,53 @@ export const ConfigureStep = ({
             </CardContent>
           </Card>
 
-          {/* Bundle Selection */}
+          {/* Template Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Choose a Bundle</CardTitle>
+              <CardTitle>Choose a Template</CardTitle>
               <CardDescription>
                 Choose your development environment configuration
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BundleSelector
-                selectedBundle={bundle}
-                onBundleChange={(bundleId) => form.setValue("bundle", bundleId)}
-                showPricing={true}
+              <TemplateSelector
+                selectedTemplate={bundle}
+                onTemplateChange={(templateId) => form.setValue("bundle", templateId)}
               />
+            </CardContent>
+          </Card>
+
+          {/* Resource Tier Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Resource Tier</CardTitle>
+              <CardDescription>
+                Choose the compute resources for your development environment
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TierSelector
+                value={selectedTier}
+                onChange={(tierId) =>
+                  form.setValue("tier", tierId as typeof selectedTier)
+                }
+                showLabel={false}
+                compact={false}
+              />
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Resource Information
+                    </p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      You can upgrade or downgrade your tier at any time.
+                      Billing is hourly based on usage.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -275,8 +315,8 @@ export const ConfigureStep = ({
                 <Plus className="mr-2 h-4 w-4" /> Add Environment Variable
               </Button>
 
-              {selectedBundleData &&
-                selectedBundleData.requiredEnvVars.length > 0 && (
+              {selectedTemplate &&
+                selectedTemplate.requiredEnvVars.length > 0 && (
                   <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                     <div className="flex items-start space-x-2">
                       <Info className="h-4 w-4 text-blue-600 mt-0.5" />
@@ -289,7 +329,7 @@ export const ConfigureStep = ({
                           this bundle:
                         </p>
                         <ul className="text-sm text-blue-700 mt-2 space-y-1">
-                          {selectedBundleData.requiredEnvVars.map((varName) => (
+                          {selectedTemplate.requiredEnvVars.map((varName) => (
                             <li key={varName} className="flex items-center">
                               <code className="bg-blue-100 px-1 rounded text-xs mr-2">
                                 {varName}
@@ -345,14 +385,14 @@ export const ConfigureStep = ({
                 </p>
               </div>
 
-              {selectedBundleData && (
+              {selectedTemplate && (
                 <>
                   <div>
                     <Label className="text-sm font-medium text-gray-700">
-                      Bundle
+                      Template
                     </Label>
                     <p className="text-sm text-gray-900 mt-1">
-                      {selectedBundleData.name}
+                      {selectedTemplate.name}
                     </p>
                   </div>
 
@@ -363,17 +403,26 @@ export const ConfigureStep = ({
                     <div className="text-sm text-gray-900 mt-1 space-y-1">
                       <div className="flex items-center">
                         <Cpu className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{selectedBundleData.cpuCores} vCPU</span>
+                        <span>{tierData.cpu} vCPU</span>
                       </div>
                       <div className="flex items-center">
                         <HardDrive className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{selectedBundleData.memoryGb}GB RAM</span>
+                        <span>{tierData.memory}GB RAM</span>
                       </div>
                       <div className="flex items-center">
                         <HardDrive className="h-4 w-4 text-gray-500 mr-2" />
-                        <span>{selectedBundleData.storageGb}GB Storage</span>
+                        <span>{tierData.storage}GB Storage</span>
                       </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700">
+                      Tier
+                    </Label>
+                    <p className="text-sm text-gray-900 mt-1 font-mono">
+                      {tierData.name}
+                    </p>
                   </div>
                 </>
               )}
@@ -385,7 +434,7 @@ export const ConfigureStep = ({
                   </Label>
                   <div className="text-right">
                     <p className="text-lg font-bold text-blue-600">
-                      ${selectedBundleData?.pricePerMonth || 0}/month
+                      ${tierData?.price || 0}/month
                     </p>
                     <p className="text-xs text-gray-500">
                       Billed hourly based on usage

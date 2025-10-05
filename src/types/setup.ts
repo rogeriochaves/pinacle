@@ -9,26 +9,14 @@ export const setupFormSchema = z.object({
   newRepoName: z.string().optional(),
   podName: z.string().min(1, "Pod name is required"),
   bundle: z.string().min(1, "Bundle selection is required"),
+  tier: z
+    .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
+    .optional(),
+  agent: z.string().optional(),
   envVars: z.record(z.string(), z.string()),
 });
 
 export type SetupFormValues = z.infer<typeof setupFormSchema>;
-
-export type Bundle = {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ElementType;
-  tier: "dev.small" | "dev.medium" | "dev.large" | "dev.xlarge";
-  cpuCores: number;
-  memoryGb: number;
-  storageGb: number;
-  pricePerMonth: number;
-  template: string;
-  services: string[];
-  requiredEnvVars: string[];
-  popular?: boolean;
-};
 
 export type SetupFormData = {
   // Step 1: Project Selection

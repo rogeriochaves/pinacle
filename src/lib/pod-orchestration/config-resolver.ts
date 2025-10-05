@@ -274,7 +274,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     return getAllTemplates().map((template) => ({
       id: template.id,
       name: template.name,
-      description: template.description,
+      description: template.mainUseCase || "",
     }));
   }
 

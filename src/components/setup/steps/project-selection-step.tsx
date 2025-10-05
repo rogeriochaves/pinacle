@@ -19,6 +19,7 @@ import type {
   SetupFormData,
   SetupFormValues,
 } from "../../../types/setup";
+import { TierSelector } from "../../shared/tier-selector";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import {
@@ -37,7 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import { BundleSelector } from "../bundle-selector";
+import { TemplateSelector } from "../template-selector";
 
 interface ProjectSelectionStepProps {
   form: UseFormReturn<SetupFormValues>;
@@ -45,6 +46,7 @@ interface ProjectSelectionStepProps {
   organizations: GitHubOrg[];
   installationUrl: string | null;
   onContinue: (data: Partial<SetupFormData>) => void;
+  isLoadingRepositories: boolean;
 }
 
 export const ProjectSelectionStep = ({
@@ -53,6 +55,7 @@ export const ProjectSelectionStep = ({
   organizations,
   installationUrl,
   onContinue,
+  isLoadingRepositories,
 }: ProjectSelectionStepProps) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -61,6 +64,7 @@ export const ProjectSelectionStep = ({
   const selectedOrg = form.watch("selectedOrg");
   const newRepoName = form.watch("newRepoName");
   const selectedBundle = form.watch("bundle");
+  const selectedTier = form.watch("tier") || "dev.small";
 
   // Filter repositories by organization and search
   const filteredRepositories = repositories.filter((repo: GitHubRepo) => {
@@ -267,7 +271,9 @@ export const ProjectSelectionStep = ({
                   <div className="text-center py-8 text-gray-500">
                     {searchQuery
                       ? "No repositories match your search."
-                      : "No repositories found."}
+                      : isLoadingRepositories
+                        ? "Loading repositories..."
+                        : "No repositories found."}
                   </div>
                 )}
               </div>
@@ -347,20 +353,17 @@ export const ProjectSelectionStep = ({
                 )}
               </div>
 
-              {/* Bundle Selection for New Projects */}
-              <div className="space-y-2">
-                <Label>Choose Your Stack</Label>
-                <BundleSelector
-                  selectedBundle={selectedBundle}
-                  onBundleChange={(bundleId: string) =>
-                    form.setValue("bundle", bundleId)
+              {/* Template Selection for New Projects */}
+              <div className="space-y-4">
+                <Label className="text-base font-semibold">
+                  Choose Your Stack
+                </Label>
+                <TemplateSelector
+                  selectedTemplate={selectedBundle}
+                  onTemplateChange={(templateId: string) =>
+                    form.setValue("bundle", templateId)
                   }
-                  showPricing={false}
                 />
-                <p className="text-sm text-gray-500">
-                  💡 You will be able to customize the pod configuration on the
-                  next step.
-                </p>
               </div>
             </CardContent>
           </Card>

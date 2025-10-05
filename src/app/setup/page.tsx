@@ -22,6 +22,11 @@ const SetupPage = () => {
   const [setupType, setSetupType] = useState<SetupType>("repository");
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Get template, tier, and agent params
+  const template = searchParams.get("template");
+  const tier = searchParams.get("tier");
+  const agent = searchParams.get("agent");
+
   useEffect(() => {
     const type = searchParams.get("type") as SetupType;
     if (type === "repository" || type === "new") {
@@ -33,28 +38,38 @@ const SetupPage = () => {
   useEffect(() => {
     if (status === "loading") return;
 
+    // Build URL with all params
+    const buildUrl = (path: string) => {
+      const params = new URLSearchParams();
+      params.set("type", setupType);
+      if (template) params.set("template", template);
+      if (tier) params.set("tier", tier);
+      if (agent) params.set("agent", agent);
+      return `${path}?${params.toString()}`;
+    };
+
     if (!session) {
       // User is not signed in, redirect to GitHub OAuth
       signIn("github", {
-        callbackUrl: `/setup?type=${setupType}`,
+        callbackUrl: buildUrl("/setup"),
       });
       return;
     }
 
     // Check if user has GitHub connection
-    const user = session.user as any;
+    const user = session.user;
     if (!user.githubId) {
       // User signed in with email/password, need GitHub connection
       setIsRedirecting(true);
       signIn("github", {
-        callbackUrl: `/setup?type=${setupType}`,
+        callbackUrl: buildUrl("/setup"),
       });
       return;
     }
 
     // User is authenticated with GitHub, now check if they have GitHub App installed
-    router.push(`/setup/install?type=${setupType}`);
-  }, [session, status, setupType, router]);
+    router.replace(buildUrl("/setup/install"));
+  }, [session, status, setupType, router, template, tier, agent]);
 
   if (status === "loading" || isRedirecting) {
     return (
@@ -104,8 +119,13 @@ const SetupPage = () => {
             <Button
               onClick={() => {
                 setIsRedirecting(true);
+                const params = new URLSearchParams();
+                params.set("type", setupType);
+                if (template) params.set("template", template);
+                if (tier) params.set("tier", tier);
+                if (agent) params.set("agent", agent);
                 signIn("github", {
-                  callbackUrl: `/setup?type=${setupType}`,
+                  callbackUrl: `/setup?${params.toString()}`,
                 });
               }}
               className="w-full"

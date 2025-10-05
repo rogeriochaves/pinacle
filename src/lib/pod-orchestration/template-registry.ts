@@ -1,4 +1,3 @@
-import type { Code2, Cpu, Terminal, Zap } from "lucide-react";
 import type { ResourceTier, ServiceConfig } from "./types";
 
 /**
@@ -6,14 +5,16 @@ import type { ResourceTier, ServiceConfig } from "./types";
  * with pod configuration (resources, services, environment)
  */
 export type PodTemplate = {
-  // Bundle/Display information
+  // Display/Marketing information (frontend only)
   id: string;
   name: string;
-  description: string;
-  icon?: typeof Zap | typeof Code2 | typeof Terminal | typeof Cpu;
+  icon?: string; // Path to icon image (e.g., "/logos/vite.svg")
+  iconAlt?: string; // Alt text for icon
+  techStack?: string; // Tech stack description for landing page
+  mainUseCase?: string; // Main use case description (e.g., "For building websites")
+  advertisedTools?: Array<{ icon: string; name: string; alt: string }>; // Tools to show in marketing/landing page (decoupled from actual services)
   category: string;
   popular?: boolean;
-  pricePerMonth: number;
 
   // Pod configuration
   baseImage: string;
@@ -22,8 +23,8 @@ export type PodTemplate = {
   memoryGb: number;
   storageGb: number;
 
-  // Services and setup
-  services: string[]; // Service names to enable
+  // Services and setup (actual backend services)
+  services: string[]; // Service names to enable (from SERVICE_TEMPLATES)
   serviceConfigs?: ServiceConfig[]; // Optional custom service configs
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
@@ -41,12 +42,18 @@ export type PodTemplate = {
 export const POD_TEMPLATES: Record<string, PodTemplate> = {
   vite: {
     id: "vite",
-    name: "Vite Starter",
-    description:
-      "A lightweight environment for frontend development with Vite.",
+    name: "Vite Template",
+    icon: "/logos/vite.svg",
+    iconAlt: "Vite",
+    techStack: "React, TypeScript, Tailwind CSS",
+    mainUseCase: "For building websites",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
     category: "frontend",
     popular: true,
-    pricePerMonth: 6,
 
     baseImage: "pinacledev/pinacle-base",
     tier: "dev.small",
@@ -78,10 +85,17 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
 
   nextjs: {
     id: "nextjs",
-    name: "Next.js",
-    description: "Full-stack Next.js environment with database support.",
+    name: "Next.js T3 Stack",
+    icon: "/logos/nextjs.svg",
+    iconAlt: "Next.js",
+    techStack: "React, TypeScript, Tailwind CSS, NextAuth, PostgreSQL, tRPC",
+    mainUseCase: "For building SaaS applications",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
     category: "fullstack",
-    pricePerMonth: 12,
 
     baseImage: "pinacledev/pinacle-base",
     tier: "dev.medium",
@@ -112,137 +126,19 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
     ],
   },
 
-  nodejs: {
-    id: "nodejs",
-    name: "Node.js",
-    description: "Node.js backend development environment.",
-    category: "backend",
-    pricePerMonth: 12,
-
-    baseImage: "pinacledev/pinacle-base",
-    tier: "dev.medium",
-    cpuCores: 1,
-    memoryGb: 1.5,
-    storageGb: 10,
-
-    services: ["code-server", "claude-code", "web-terminal"],
-    defaultPorts: [
-      { name: "api", internal: 8000 },
-      { name: "code", internal: 8726 },
-      { name: "claude", internal: 2528 },
-      { name: "terminal", internal: 7681 },
-    ],
-    environment: {
-      NODE_ENV: "development",
-      PORT: "8000",
-    },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
-
-    templateType: "nodejs",
-    initScript: [
-      "cd /workspace",
-      "npm init -y",
-      "npm install express",
-      "echo 'console.log(\"Hello from Node.js!\")' > index.js",
-    ],
-  },
-
-  "custom-setup": {
-    id: "custom-setup",
-    name: "Custom Setup",
-    description: "A blank Ubuntu environment for full customization.",
-    category: "custom",
-    pricePerMonth: 6,
-
-    baseImage: "pinacledev/pinacle-base",
-    tier: "dev.small",
-    cpuCores: 1,
-    memoryGb: 1,
-    storageGb: 10,
-
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
-    defaultPorts: [
-      { name: "code", internal: 8726 },
-      { name: "kanban", internal: 5262 },
-      { name: "claude", internal: 2528 },
-      { name: "terminal", internal: 7681 },
-    ],
-    environment: {},
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
-
-    templateType: "blank",
-    // No init script - just blank workspace
-  },
-
-  "power-user": {
-    id: "power-user",
-    name: "Power User",
-    description: "High-performance environment for demanding applications.",
-    category: "custom",
-    pricePerMonth: 24,
-
-    baseImage: "pinacledev/pinacle-base",
-    tier: "dev.large",
-    cpuCores: 2,
-    memoryGb: 4,
-    storageGb: 50,
-
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
-    defaultPorts: [
-      { name: "code", internal: 8726 },
-      { name: "kanban", internal: 5262 },
-      { name: "claude", internal: 2528 },
-      { name: "terminal", internal: 7681 },
-    ],
-    environment: {},
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
-
-    templateType: "custom",
-  },
-
-  "python-datascience": {
-    id: "python-datascience",
-    name: "Python Data Science",
-    description: "Python environment with Jupyter, pandas, and ML libraries.",
-    category: "datascience",
-    pricePerMonth: 24,
-
-    baseImage: "pinacledev/pinacle-base",
-    tier: "dev.large",
-    cpuCores: 2,
-    memoryGb: 4,
-    storageGb: 20,
-
-    services: ["code-server", "claude-code", "web-terminal"],
-    defaultPorts: [
-      { name: "jupyter", internal: 8888 },
-      { name: "code", internal: 8726 },
-      { name: "claude", internal: 2528 },
-      { name: "terminal", internal: 7681 },
-    ],
-    environment: {
-      JUPYTER_ENABLE_LAB: "yes",
-      JUPYTER_TOKEN: "",
-      PYTHON_ENV: "development",
-      PYTHONPATH: "/workspace",
-    },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
-
-    templateType: "python",
-    initScript: [
-      "cd /workspace",
-      "python3 -m venv venv",
-      "source venv/bin/activate",
-      "pip install jupyter pandas numpy matplotlib scikit-learn",
-    ],
-  },
-
   "mastra-ai": {
     id: "mastra-ai",
-    name: "Mastra AI Agent",
-    description: "Build AI agents with Mastra framework.",
+    name: "Mastra",
+    icon: "/logos/mastra.svg",
+    iconAlt: "Mastra",
+    techStack: "TypeScript, Mastra, Mastra Playground",
+    mainUseCase: "For building AI agents",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
     category: "ai",
-    pricePerMonth: 12,
 
     baseImage: "pinacledev/pinacle-base",
     tier: "dev.medium",
@@ -267,6 +163,243 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
     templateType: "python",
     initScript: ["cd /workspace", "pip install mastra", "mastra init"],
   },
+
+  "nodejs-blank": {
+    id: "nodejs-blank",
+    name: "Node.js Blank",
+    icon: "/logos/nodejs.svg",
+    iconAlt: "Node.js",
+    techStack: "Node.js, pnpm",
+    mainUseCase: "For custom backend development",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
+    category: "backend",
+    popular: false,
+
+    baseImage: "pinacledev/pinacle-base",
+    tier: "dev.small",
+    cpuCores: 0.5,
+    memoryGb: 1,
+    storageGb: 10,
+
+    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    defaultPorts: [
+      { name: "app", internal: 3000 },
+      { name: "code", internal: 8726 },
+      { name: "kanban", internal: 5262 },
+      { name: "claude", internal: 2528 },
+      { name: "terminal", internal: 7681 },
+    ],
+    environment: {
+      NODE_ENV: "development",
+    },
+    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+
+    templateType: "nodejs",
+    initScript: [
+      "cd /workspace",
+      "npm init -y",
+      "echo 'console.log(\"Hello from Node.js!\")' > index.js",
+    ],
+  },
+
+  "python-blank": {
+    id: "python-blank",
+    name: "Python Blank",
+    icon: "/logos/python.svg",
+    iconAlt: "Python",
+    techStack: "Python, uv",
+    mainUseCase: "For custom Python development",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
+    category: "backend",
+    popular: false,
+
+    baseImage: "pinacledev/pinacle-base",
+    tier: "dev.small",
+    cpuCores: 0.5,
+    memoryGb: 1,
+    storageGb: 10,
+
+    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    defaultPorts: [
+      { name: "app", internal: 8000 },
+      { name: "code", internal: 8726 },
+      { name: "kanban", internal: 5262 },
+      { name: "claude", internal: 2528 },
+      { name: "terminal", internal: 7681 },
+    ],
+    environment: {
+      PYTHON_ENV: "development",
+      PYTHONPATH: "/workspace",
+    },
+    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+
+    templateType: "python",
+    initScript: [
+      "cd /workspace",
+      "python3 -m venv venv",
+      "echo 'print(\"Hello from Python!\")' > main.py",
+    ],
+  },
+
+  agno: {
+    id: "agno",
+    name: "Agno",
+    icon: "/logos/agno.svg",
+    iconAlt: "Agno",
+    techStack: "Python, FastAPI, Agno, AgentUI",
+    mainUseCase: "For building AI agents",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
+    category: "ai",
+    popular: false,
+
+    baseImage: "pinacledev/pinacle-base",
+    tier: "dev.small",
+    cpuCores: 0.5,
+    memoryGb: 1,
+    storageGb: 10,
+
+    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    defaultPorts: [
+      { name: "app", internal: 8000 },
+      { name: "code", internal: 8726 },
+      { name: "kanban", internal: 5262 },
+      { name: "claude", internal: 2528 },
+      { name: "terminal", internal: 7681 },
+    ],
+    environment: {
+      PYTHON_ENV: "development",
+      PYTHONPATH: "/workspace",
+    },
+    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+
+    templateType: "python",
+    initScript: [
+      "cd /workspace",
+      "python3 -m venv venv",
+      "source venv/bin/activate",
+      "pip install agno fastapi uvicorn",
+    ],
+  },
+
+  "nextjs-chatbot": {
+    id: "nextjs-chatbot",
+    name: "Next.js AI Chatbot",
+    icon: "/logos/nextjs.svg",
+    iconAlt: "Next.js",
+    techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS",
+    mainUseCase: "For building AI agents",
+    advertisedTools: [
+      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
+      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
+    category: "ai",
+    popular: false,
+
+    baseImage: "pinacledev/pinacle-base",
+    tier: "dev.small",
+    cpuCores: 0.5,
+    memoryGb: 1,
+    storageGb: 10,
+
+    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    defaultPorts: [
+      { name: "app", internal: 3000 },
+      { name: "code", internal: 8726 },
+      { name: "kanban", internal: 5262 },
+      { name: "claude", internal: 2528 },
+      { name: "terminal", internal: 7681 },
+    ],
+    environment: {
+      NODE_ENV: "development",
+      PORT: "3000",
+      NEXT_TELEMETRY_DISABLED: "1",
+    },
+    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+
+    templateType: "nextjs",
+    initScript: [
+      "cd /workspace",
+      "npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias '@/*' --no-git",
+      "npm install ai @ai-sdk/anthropic",
+    ],
+  },
+
+  langflow: {
+    id: "langflow",
+    name: "Langflow",
+    icon: "/logos/langflow.svg",
+    iconAlt: "Langflow",
+    techStack: "Python, Langflow",
+    mainUseCase: "For building AI automations",
+    advertisedTools: [
+      { icon: "/logos/langflow.svg", name: "Langflow UI", alt: "Langflow" },
+      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
+    ],
+    category: "ai",
+    popular: false,
+
+    baseImage: "pinacledev/pinacle-base",
+    tier: "dev.small",
+    cpuCores: 0.5,
+    memoryGb: 1,
+    storageGb: 10,
+
+    services: ["code-server", "web-terminal"],
+    defaultPorts: [
+      { name: "langflow", internal: 7860 },
+      { name: "code", internal: 8726 },
+      { name: "terminal", internal: 7681 },
+    ],
+    environment: {
+      PYTHON_ENV: "development",
+      PYTHONPATH: "/workspace",
+      LANGFLOW_DATABASE_URL: "sqlite:///./langflow.db",
+    },
+    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+
+    templateType: "python",
+    initScript: [
+      "cd /workspace",
+      "python3 -m venv venv",
+      "source venv/bin/activate",
+      "pip install langflow",
+    ],
+  },
+};
+
+/**
+ * List of templates to show publicly in UI
+ * Order matches landing page exactly - no more, no less
+ */
+export const PUBLIC_TEMPLATES = [
+  "vite",
+  "nextjs",
+  "agno",
+  "mastra-ai",
+  "nextjs-chatbot",
+  "langflow",
+  "nodejs-blank",
+  "python-blank",
+] as const;
+
+/**
+ * Get all public templates
+ */
+export const getPublicTemplates = (): PodTemplate[] => {
+  return PUBLIC_TEMPLATES.map((id) => POD_TEMPLATES[id]).filter(Boolean);
 };
 
 /**

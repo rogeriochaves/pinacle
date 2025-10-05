@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -27,9 +27,26 @@ export default function InstallPage() {
   const searchParams = useSearchParams();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Get all params to preserve through redirects
   const setupType = searchParams.get("type") || "repository";
-  const returnTo =
-    searchParams.get("returnTo") || `/setup/project?type=${setupType}`;
+  const template = searchParams.get("template");
+  const tier = searchParams.get("tier");
+  const agent = searchParams.get("agent");
+
+  // Build URL with all params preserved - memoized with useCallback
+  const buildUrl = useCallback(
+    (path: string) => {
+      const params = new URLSearchParams();
+      params.set("type", setupType);
+      if (template) params.set("template", template);
+      if (tier) params.set("tier", tier);
+      if (agent) params.set("agent", agent);
+      return `${path}?${params.toString()}`;
+    },
+    [setupType, template, tier, agent],
+  );
+
+  const returnTo = searchParams.get("returnTo") || buildUrl("/setup/project");
 
   // Check if user has GitHub App installations
   const { data: installationData, isLoading: installationsLoading } =
@@ -46,14 +63,14 @@ export default function InstallPage() {
 
     if (!session) {
       // User is not signed in, redirect to setup flow
-      router.push(`/setup?type=${setupType}`);
+      router.replace(buildUrl("/setup"));
       return;
     }
 
     // Check if user already has GitHub App installed
     if (installationData?.hasInstallations) {
       // User already has the app installed, redirect to project selection
-      router.push(`/setup/project?type=${setupType}`);
+      router.replace(buildUrl("/setup/project"));
       return;
     }
 
@@ -69,7 +86,7 @@ export default function InstallPage() {
     installationData,
     installationsLoading,
     router,
-    setupType,
+    buildUrl,
     installationUrl,
     isRedirecting,
   ]);

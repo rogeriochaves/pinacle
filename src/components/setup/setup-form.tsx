@@ -31,6 +31,8 @@ const SetupForm = () => {
       newRepoName: "",
       podName: "",
       bundle: "",
+      tier: undefined,
+      agent: undefined,
       envVars: {},
     },
   });
@@ -41,7 +43,7 @@ const SetupForm = () => {
   const { data: installationUrl } = api.githubApp.getInstallationUrl.useQuery({
     returnTo: `/setup/project?type=${form.watch("setupType")}`,
   });
-  const { data: appRepositories = [] } =
+  const { data: appRepositories = [], isLoading: isLoadingRepositories } =
     api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
       enabled: installationData?.hasInstallations,
     });
@@ -61,6 +63,9 @@ const SetupForm = () => {
     const org = searchParams.get("org");
     const name = searchParams.get("name");
     const bundle = searchParams.get("bundle");
+    const template = searchParams.get("template");
+    const tier = searchParams.get("tier");
+    const agent = searchParams.get("agent");
 
     if (type) {
       form.setValue("setupType", type);
@@ -77,8 +82,25 @@ const SetupForm = () => {
       form.setValue("newRepoName", name);
       form.setValue("podName", name);
     }
+    // Prefer bundle param, but fall back to template param (from landing page)
     if (bundle) {
       form.setValue("bundle", bundle);
+    } else if (template) {
+      form.setValue("bundle", template);
+    }
+    // Set tier from landing page selection
+    if (
+      tier &&
+      (tier === "dev.small" ||
+        tier === "dev.medium" ||
+        tier === "dev.large" ||
+        tier === "dev.xlarge")
+    ) {
+      form.setValue("tier", tier);
+    }
+    // Set agent from landing page selection
+    if (agent) {
+      form.setValue("agent", agent);
     }
 
     // Determine current step based on URL params
@@ -133,9 +155,9 @@ const SetupForm = () => {
     } else {
       const selectedOrg = form.getValues("selectedOrg");
       const newRepoName = form.getValues("newRepoName");
-      const selectedBundle = form.getValues("bundle");
+      const selectedTemplate = form.getValues("bundle");
       router.push(
-        `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedBundle!)}`,
+        `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedTemplate!)}`,
       );
     }
   };
@@ -147,13 +169,16 @@ const SetupForm = () => {
       throw new Error("No team found. Please contact support.");
     }
 
-    // Get bundle configuration
-    const { bundles } = await import("../../config/bundles");
-    const selectedBundleData = bundles.find((b) => b.id === data.bundle);
+    // Get template configuration
+    const { POD_TEMPLATES } = await import("../../lib/pod-orchestration/template-registry");
+    const selectedTemplate = POD_TEMPLATES[data.bundle];
 
-    if (!selectedBundleData) {
-      throw new Error("Invalid bundle selection");
+    if (!selectedTemplate) {
+      throw new Error("Invalid template selection");
     }
+
+    // Get tier (use selected tier or template default)
+    const tier = data.tier || selectedTemplate.tier;
 
     // Create the pod (this handles repository creation internally if needed)
     await createPodMutation.mutateAsync({
@@ -166,14 +191,14 @@ const SetupForm = () => {
       isNewProject: data.setupType === "new",
       newRepoName: data.newRepoName,
       selectedOrg: data.selectedOrg,
-      tier: selectedBundleData.tier,
-      cpuCores: selectedBundleData.cpuCores,
-      memoryMb: selectedBundleData.memoryGb * 1024,
-      storageMb: selectedBundleData.storageGb * 1024,
+      tier: tier,
+      cpuCores: selectedTemplate.cpuCores,
+      memoryMb: selectedTemplate.memoryGb * 1024,
+      storageMb: selectedTemplate.storageGb * 1024,
       envVars: data.envVars,
       config: {
-        template: selectedBundleData.template,
-        services: selectedBundleData.services,
+        template: selectedTemplate.id,
+        services: selectedTemplate.services,
       },
     });
 
@@ -206,6 +231,7 @@ const SetupForm = () => {
           }))}
           installationUrl={installationUrl ?? null}
           onContinue={handleProjectContinue}
+          isLoadingRepositories={isLoadingRepositories}
         />
       ) : (
         <ConfigureStep

@@ -29,24 +29,24 @@ const cleanupOldMetrics = async () => {
     const serverMetricsDeleted = await db
       .delete(serverMetrics)
       .where(lt(serverMetrics.createdAt, fiveDaysAgo))
-      .execute();
+      .returning();
 
     // Delete old pod metrics
     const podMetricsDeleted = await db
       .delete(podMetrics)
       .where(lt(podMetrics.createdAt, fiveDaysAgo))
-      .execute();
+      .returning();
 
     // Delete old pod logs
     const podLogsDeleted = await db
       .delete(podLogs)
       .where(lt(podLogs.createdAt, fiveDaysAgo))
-      .execute();
+      .returning();
 
     console.log("[Metrics Cleanup] ✅ Cleanup completed successfully");
-    console.log(`  - Server metrics deleted: ${serverMetricsDeleted.rowCount || 0}`);
-    console.log(`  - Pod metrics deleted: ${podMetricsDeleted.rowCount || 0}`);
-    console.log(`  - Pod logs deleted: ${podLogsDeleted.rowCount || 0}`);
+    console.log(`  - Server metrics deleted: ${serverMetricsDeleted.length || 0}`);
+    console.log(`  - Pod metrics deleted: ${podMetricsDeleted.length || 0}`);
+    console.log(`  - Pod logs deleted: ${podLogsDeleted.length || 0}`);
   } catch (error) {
     console.error("[Metrics Cleanup] ❌ Error:", error);
   }
