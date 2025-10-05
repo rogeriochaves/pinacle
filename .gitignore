@@ -47,3 +47,5 @@ worktrees
 
 !.cursorindexingignore
 !.specstory
+
+.specstory/history/2025-10-02_18-35Z-define-server-management-and-pod-provisioning-tasks.md

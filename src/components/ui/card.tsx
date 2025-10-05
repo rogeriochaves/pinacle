@@ -2,17 +2,21 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.ComponentProps<"div">) {
+function Card({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "border-2 border-border-contrast bg-card p-6 text-card-foreground relative flex flex-1 flex-col rounded-sm",
-        "after:absolute after:-bottom-2 after:-right-2 after:left-2 after:top-2 after:-z-10 after:content-[''] after:bg-dotted",
+        "border-2 border-border-contrast text-card-foreground relative flex flex-1 flex-col rounded-sm",
+        "after:absolute after:-bottom-2 after:-right-2 after:left-2 after:top-2 after:z-0 after:content-[''] after:bg-dotted",
         className,
       )}
       {...props}
-    />
+    >
+      <div className="relative z-1 bg-card p-6 h-full flex flex-col">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -72,7 +76,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center [.border-t]:pt-6", className)}
+      className={cn("flex [.border-t]:pt-6", className)}
       {...props}
     />
   );

@@ -1,15 +1,25 @@
 "use client";
 
 import {
+  Clock,
   Code2,
   Kanban,
-  Terminal,
-  Smartphone,
-  Clock,
   Shield,
-  Zap,
+  Smartphone,
+  Terminal,
   Users,
+  Zap,
 } from "lucide-react";
+import Image from "next/image";
+import { Button } from "../ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 
 const features = [
   {
@@ -64,8 +74,8 @@ const features = [
 
 export const Features = () => {
   return (
-    <section className="bg-slate-100 py-24 sm:py-32">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+    <section className="bg-slate-100 py-12 sm:py-12">
+      <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold font-mono tracking-tight text-foreground sm:text-4xl">
             EVERYTHING YOU NEED FOR AI DEVELOPMENT
