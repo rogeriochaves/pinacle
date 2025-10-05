@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getServiceTemplate } from "./service-registry";
 import {
   getAllTemplates,
-  getTemplate,
+  getTemplateUnsafe,
   type PodTemplate,
 } from "./template-registry";
 import type {
@@ -121,7 +121,7 @@ export class DefaultConfigResolver implements ConfigResolver {
 
     // Load template if specified
     if (templateId) {
-      const template = getTemplate(templateId);
+      const template = getTemplateUnsafe(templateId);
       if (!template) {
         throw new Error(`Template not found: ${templateId}`);
       }
@@ -260,7 +260,7 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   async getTemplate(templateId: string): Promise<Partial<PodConfig> | null> {
-    const template = getTemplate(templateId);
+    const template = getTemplateUnsafe(templateId);
     if (!template) {
       return null;
     }

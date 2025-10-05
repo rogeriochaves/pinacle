@@ -28,7 +28,7 @@ export type ServiceTemplate = {
  * Central registry of all service templates
  * Used by ServiceProvisioner to install and manage services
  */
-export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
+export const SERVICE_TEMPLATES = {
   "code-server": {
     name: "code-server",
     displayName: "VS Code Server",
@@ -203,15 +203,27 @@ export const SERVICE_TEMPLATES: Record<string, ServiceTemplate> = {
       JUPYTER_ENABLE_LAB: "yes",
     },
   },
+} satisfies Record<string, ServiceTemplate>;
+
+/**
+ * Type-safe service name
+ */
+export type ServiceName = keyof typeof SERVICE_TEMPLATES;
+
+/**
+ * Get service template by name (type-safe)
+ */
+export const getServiceTemplate = (serviceName: ServiceName): ServiceTemplate => {
+  return SERVICE_TEMPLATES[serviceName];
 };
 
 /**
- * Get service template by name
+ * Get service template by name (unsafe, for external input)
  */
-export const getServiceTemplate = (
+export const getServiceTemplateUnsafe = (
   serviceName: string,
 ): ServiceTemplate | undefined => {
-  return SERVICE_TEMPLATES[serviceName];
+  return SERVICE_TEMPLATES[serviceName as ServiceName];
 };
 
 /**

@@ -1,4 +1,6 @@
-import type { ResourceTier, ServiceConfig } from "./types";
+import type { TierId } from "./resource-tier-registry";
+import type { ServiceName } from "./service-registry";
+import type { ServiceConfig } from "./types";
 
 /**
  * Template definition that combines bundle info (pricing, display)
@@ -18,13 +20,13 @@ export type PodTemplate = {
 
   // Pod configuration
   baseImage: string;
-  tier: ResourceTier;
+  tier: TierId;
   cpuCores: number;
   memoryGb: number;
   storageGb: number;
 
   // Services and setup (actual backend services)
-  services: string[]; // Service names to enable (from SERVICE_TEMPLATES)
+  services: ServiceName[]; // Service names to enable (from SERVICE_TEMPLATES)
   serviceConfigs?: ServiceConfig[]; // Optional custom service configs
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
@@ -39,7 +41,7 @@ export type PodTemplate = {
  * Central registry of all pod templates
  * Used by both frontend (bundles) and backend (pod orchestration)
  */
-export const POD_TEMPLATES: Record<string, PodTemplate> = {
+export const POD_TEMPLATES = {
   vite: {
     id: "vite",
     name: "Vite Template",
@@ -378,7 +380,12 @@ export const POD_TEMPLATES: Record<string, PodTemplate> = {
       "pip install langflow",
     ],
   },
-};
+} satisfies Record<string, PodTemplate>;
+
+/**
+ * Type-safe template ID
+ */
+export type TemplateId = keyof typeof POD_TEMPLATES;
 
 /**
  * List of templates to show publicly in UI
@@ -403,10 +410,19 @@ export const getPublicTemplates = (): PodTemplate[] => {
 };
 
 /**
- * Get template by ID
+ * Get template by ID (type-safe)
  */
-export const getTemplate = (templateId: string): PodTemplate | undefined => {
+export const getTemplate = (templateId: TemplateId): PodTemplate => {
   return POD_TEMPLATES[templateId];
+};
+
+/**
+ * Get template by ID (unsafe, for external input)
+ */
+export const getTemplateUnsafe = (
+  templateId: string,
+): PodTemplate | undefined => {
+  return POD_TEMPLATES[templateId as TemplateId];
 };
 
 /**

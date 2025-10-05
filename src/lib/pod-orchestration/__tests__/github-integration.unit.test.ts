@@ -157,7 +157,7 @@ describe("GitHub Integration Tests", () => {
       const nextjsScriptStr = nextjsTemplate?.initScript?.join(" ") || "";
       expect(nextjsScriptStr).toContain("create-next-app");
 
-      const viteTemplate = getTemplate("vite-starter");
+      const viteTemplate = getTemplate("vite");
       expect(viteTemplate).toBeDefined();
       expect(viteTemplate?.initScript).toBeDefined();
       const viteScriptStr = viteTemplate?.initScript?.join(" ") || "";

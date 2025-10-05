@@ -15,7 +15,7 @@ import {
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { RESOURCE_TIERS } from "../../../lib/pod-orchestration/resource-tier-registry";
-import { POD_TEMPLATES } from "../../../lib/pod-orchestration/template-registry";
+import { getTemplateUnsafe } from "../../../lib/pod-orchestration/template-registry";
 import type { SetupFormValues } from "../../../types/setup";
 import { TierSelector } from "../../shared/tier-selector";
 import { Button } from "../../ui/button";
@@ -60,7 +60,7 @@ export const ConfigureStep = ({
   const tier = form.watch("tier");
 
   // Get selected template data
-  const selectedTemplate = bundle ? POD_TEMPLATES[bundle] : undefined;
+  const selectedTemplate = bundle ? getTemplateUnsafe(bundle) : undefined;
 
   // Get selected tier or use template's default tier
   const selectedTier = tier || selectedTemplate?.tier || "dev.small";

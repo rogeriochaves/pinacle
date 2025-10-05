@@ -673,7 +673,7 @@ describe("Pod Orchestration Integration Tests", () => {
       id: githubTestId,
       name: "GitHub Integration Test Pod",
       slug: "github-test-pod",
-      template: "nodejs",
+      template: "nodejs-blank",
       teamId: testTeamId,
       ownerId: testUserId,
       githubRepo: testRepo,

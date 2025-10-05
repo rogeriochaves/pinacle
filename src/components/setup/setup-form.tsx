@@ -170,8 +170,8 @@ const SetupForm = () => {
     }
 
     // Get template configuration
-    const { POD_TEMPLATES } = await import("../../lib/pod-orchestration/template-registry");
-    const selectedTemplate = POD_TEMPLATES[data.bundle];
+    const { getTemplateUnsafe } = await import("../../lib/pod-orchestration/template-registry");
+    const selectedTemplate = getTemplateUnsafe(data.bundle);
 
     if (!selectedTemplate) {
       throw new Error("Invalid template selection");

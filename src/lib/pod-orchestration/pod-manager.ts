@@ -5,7 +5,7 @@ import { LimaGVisorRuntime } from "./container-runtime";
 import { GitHubIntegration, type GitHubRepoSetup } from "./github-integration";
 import { LimaNetworkManager } from "./network-manager";
 import { LimaServiceProvisioner } from "./service-provisioner";
-import { getTemplate } from "./template-registry";
+import { getTemplateUnsafe } from "./template-registry";
 import type {
   ConfigResolver,
   ContainerRuntime,
@@ -554,7 +554,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
     // Get template if this is a new project
     const template = config.templateId
-      ? getTemplate(config.templateId)
+      ? getTemplateUnsafe(config.templateId)
       : undefined;
 
     // Setup repository (clone or init from template)

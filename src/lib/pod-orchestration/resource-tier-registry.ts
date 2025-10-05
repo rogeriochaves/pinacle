@@ -15,7 +15,7 @@ export type ResourceTier = {
  * Central registry of all resource tiers
  * Used by both frontend (pricing) and backend (pod provisioning)
  */
-export const RESOURCE_TIERS: Record<string, ResourceTier> = {
+export const RESOURCE_TIERS = {
   "dev.small": {
     id: "dev.small",
     name: "dev.small",
@@ -48,13 +48,25 @@ export const RESOURCE_TIERS: Record<string, ResourceTier> = {
     storage: 80,
     price: 48,
   },
+} satisfies Record<string, ResourceTier>;
+
+/**
+ * Type-safe tier ID
+ */
+export type TierId = keyof typeof RESOURCE_TIERS;
+
+/**
+ * Get resource tier by ID (type-safe)
+ */
+export const getResourceTier = (tierId: TierId): ResourceTier => {
+  return RESOURCE_TIERS[tierId];
 };
 
 /**
- * Get resource tier by ID
+ * Get resource tier by ID (unsafe, for external input)
  */
-export const getResourceTier = (tierId: string): ResourceTier | undefined => {
-  return RESOURCE_TIERS[tierId];
+export const getResourceTierUnsafe = (tierId: string): ResourceTier | undefined => {
+  return RESOURCE_TIERS[tierId as TierId];
 };
 
 /**

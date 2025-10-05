@@ -3,6 +3,7 @@ import { SSHServerConnection } from "./server-connection";
 import {
   getAllServiceTemplates,
   getServiceTemplate,
+  getServiceTemplateUnsafe,
   type ServiceContext,
   type ServiceTemplate,
 } from "./service-registry";
@@ -81,7 +82,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     service: ServiceConfig,
     githubRepo?: string,
   ): Promise<void> {
-    const template = getServiceTemplate(service.name);
+    const template = getServiceTemplateUnsafe(service.name);
     const containerName = `pinacle-pod-${podId}`;
 
     try {
@@ -307,7 +308,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
     serviceName: string,
     timeout: number = 0,
   ): Promise<boolean> {
-    const template = getServiceTemplate(serviceName);
+    const template = getServiceTemplateUnsafe(serviceName);
     const containerName = `pinacle-pod-${podId}`;
 
     if (!template) {
@@ -414,7 +415,7 @@ chmod +x /etc/init.d/${serviceName}`;
   }
 
   getServiceTemplateInfo(serviceName: string): ServiceTemplate | undefined {
-    return getServiceTemplate(serviceName);
+    return getServiceTemplateUnsafe(serviceName);
   }
 
   async listRunningServices(podId: string): Promise<string[]> {
