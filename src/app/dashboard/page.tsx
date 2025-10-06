@@ -1,281 +1,155 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { Loader2, Server } from "lucide-react";
 import Link from "next/link";
-import {
-  Server,
-  Users,
-  Clock,
-  TrendingUp,
-  Plus,
-  ExternalLink,
-} from "lucide-react";
+import { useState } from "react";
+import { PodDetailsPanel } from "../../components/dashboard/pod-details-panel";
+import { PodSelector } from "../../components/dashboard/pod-selector";
+import { Workbench } from "../../components/dashboard/workbench";
 import { Button } from "../../components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
 import { api } from "../../lib/trpc/client";
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "running":
-        return "bg-green-100 text-green-800";
-      case "stopped":
-        return "bg-gray-100 text-gray-800";
-      case "creating":
-      case "starting":
-        return "bg-yellow-100 text-yellow-800";
-      case "error":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+export default function Dashboard() {
+  const [showPodSelector, setShowPodSelector] = useState(false);
+  const [showPodDetails, setShowPodDetails] = useState(false);
+  const [selectedPodId, setSelectedPodId] = useState<string | null>(null);
+
+  const { data: pods, isLoading, refetch } = api.pods.getUserPods.useQuery();
+  const startPodMutation = api.pods.start.useMutation();
+  const stopPodMutation = api.pods.stop.useMutation();
+  const deletePodMutation = api.pods.delete.useMutation();
+
+  // Get the first running pod, or the first pod if none are running
+  const runningPod = pods?.find((pod) => pod.status === "running");
+  const activePod = selectedPodId
+    ? pods?.find((p) => p.id === selectedPodId)
+    : runningPod || pods?.[0];
+
+  const handleStartPod = async (podId: string) => {
+    try {
+      await startPodMutation.mutateAsync({ id: podId });
+      refetch();
+    } catch (error) {
+      console.error("Failed to start pod:", error);
     }
   };
 
-  return <Badge className={getStatusColor(status)}>{status}</Badge>;
-};
+  const handleStopPod = async (podId: string) => {
+    try {
+      await stopPodMutation.mutateAsync({ id: podId });
+      refetch();
+    } catch (error) {
+      console.error("Failed to stop pod:", error);
+    }
+  };
 
-export default function Dashboard() {
-  const { data: session } = useSession();
-  const { data: pods, isLoading: podsLoading } =
-    api.pods.getUserPods.useQuery();
-  const { data: teams, isLoading: teamsLoading } =
-    api.teams.getUserTeams.useQuery();
+  const handleDeletePod = async (podId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this pod? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
 
-  const runningPods = pods?.filter((pod) => pod.status === "running") || [];
-  const totalPods = pods?.length || 0;
-  const totalTeams = teams?.length || 0;
+    try {
+      await deletePodMutation.mutateAsync({ id: podId });
+      refetch();
+      if (selectedPodId === podId) {
+        setSelectedPodId(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete pod:", error);
+    }
+  };
 
-  const stats = [
-    {
-      name: "Total Pods",
-      value: totalPods,
-      icon: Server,
-      change: "+12%",
-    },
-    {
-      name: "Running Pods",
-      value: runningPods.length,
-      icon: Server,
-      change: "+19%",
-    },
-    {
-      name: "Teams",
-      value: totalTeams,
-      icon: Users,
-      change: "+2",
-    },
-    {
-      name: "Uptime",
-      value: "99.9%",
-      icon: Clock,
-      change: "+0.1%",
-    },
-  ];
+  const handleSelectPod = (podId: string) => {
+    setSelectedPodId(podId);
+  };
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            Welcome back, {session?.user?.name?.split(" ")[0]}
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Here's what's happening with your development environments today.
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+          <p className="text-white font-mono text-lg font-bold">
+            Loading your workspace...
           </p>
         </div>
-        <Button asChild className="bg-blue-600 hover:bg-blue-700">
-          <Link href="/dashboard/pods/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Pod
-          </Link>
-        </Button>
       </div>
+    );
+  }
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={stat.name}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      {stat.name}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stat.value}
-                    </p>
-                  </div>
-                  <Icon className="h-8 w-8 text-gray-400" />
-                </div>
-                <div className="mt-4 flex items-center">
-                  <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-                  <span className="text-sm text-green-600">{stat.change}</span>
-                  <span className="text-sm text-gray-500 ml-1">
-                    from last month
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+  // No pods - show empty state
+  if (!pods || pods.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <Server className="w-8 h-8 text-slate-600" />
+          </div>
+          <h1 className="text-white font-mono text-2xl font-bold mb-2">
+            No Pods Yet
+          </h1>
+          <p className="text-slate-400 font-mono text-sm mb-8">
+            Create your first development environment to get started
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold"
+          >
+            <Link href="/setup">Create Your First Pod</Link>
+          </Button>
+        </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Pods */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Pods</CardTitle>
-                <CardDescription>
-                  Your latest development environments
-                </CardDescription>
-              </div>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/pods">View all</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {podsLoading ? (
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={`pod-skeleton-${i}`} className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            ) : pods && pods.length > 0 ? (
-              <div className="space-y-4">
-                {pods.slice(0, 5).map((pod) => (
-                  <div
-                    key={pod.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Server className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="font-medium text-gray-900">{pod.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {pod.cpuCores} vCPU •{" "}
-                          {Math.round(pod.memoryMb / 1024)}GB RAM
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <StatusBadge status={pod.status} />
-                      {pod.publicUrl && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={pod.publicUrl} target="_blank">
-                            <ExternalLink className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Server className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No pods yet
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Get started by creating your first development environment.
-                </p>
-                <div className="mt-6">
-                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
-                    <Link href="/dashboard/pods/new">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create your first pod
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Teams */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Teams</CardTitle>
-                <CardDescription>
-                  Collaborate with your team members
-                </CardDescription>
-              </div>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/teams">View all</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {teamsLoading ? (
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={`team-skeleton-${i}`} className="animate-pulse">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                ))}
-              </div>
-            ) : teams && teams.length > 0 ? (
-              <div className="space-y-4">
-                {teams.slice(0, 5).map((team) => (
-                  <div
-                    key={team.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Users className="h-5 w-5 text-gray-400" />
-                      <div>
-                        <p className="font-medium text-gray-900">{team.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {team.role} • Created{" "}
-                          {new Date(team.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">{team.role}</Badge>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
-                  No teams yet
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Create a team to collaborate with others.
-                </p>
-                <div className="mt-6">
-                  <Button asChild variant="outline">
-                    <Link href="/dashboard/teams/new">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create team
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+  // No active pod (shouldn't happen, but just in case)
+  if (!activePod) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-white font-mono">No active pod</p>
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <Workbench
+        pod={activePod}
+        onPodSwitch={() => setShowPodSelector(true)}
+      />
+
+      {showPodSelector && pods && (
+        <PodSelector
+          pods={pods}
+          currentPodId={activePod.id}
+          onSelect={handleSelectPod}
+          onClose={() => setShowPodSelector(false)}
+          onStartPod={handleStartPod}
+          onStopPod={handleStopPod}
+          onDeletePod={handleDeletePod}
+          onViewDetails={(podId) => {
+            setSelectedPodId(podId);
+            setShowPodSelector(false);
+            setShowPodDetails(true);
+          }}
+        />
+      )}
+
+      {showPodDetails && (
+        <PodDetailsPanel
+          pod={{
+            ...activePod,
+            storageMb: 10240, // TODO: Add storageMb to getUserPods query
+          }}
+          onClose={() => setShowPodDetails(false)}
+        />
+      )}
+    </>
   );
 }

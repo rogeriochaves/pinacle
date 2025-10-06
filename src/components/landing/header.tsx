@@ -3,6 +3,7 @@
 import { Code, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 
@@ -15,6 +16,7 @@ const navigation = [
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <header>
@@ -48,12 +50,20 @@ export const Header = () => {
               <Link href={item.href}>{item.name}</Link>
             </Button>
           ))}
-          <Button variant="ghost" asChild>
-            <Link href="/auth/signin">Sign in</Link>
-          </Button>
-          <Button variant="accent" asChild>
-            <Link href="/auth/signup">Get started</Link>
-          </Button>
+          {session ? (
+            <Button variant="accent" asChild>
+              <Link href="/dashboard">Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link href="/auth/signin">Sign in</Link>
+              </Button>
+              <Button variant="accent" asChild>
+                <Link href="/auth/signup">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -97,12 +107,20 @@ export const Header = () => {
                   ))}
                 </div>
                 <div className="py-6 space-y-2">
-                  <Button variant="ghost" asChild className="w-full">
-                    <Link href="/auth/signin">SIGN IN</Link>
-                  </Button>
-                  <Button variant="accent" asChild className="w-full">
-                    <Link href="/auth/signup">GET STARTED</Link>
-                  </Button>
+                  {session ? (
+                    <Button variant="accent" asChild className="w-full">
+                      <Link href="/dashboard">DASHBOARD</Link>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button variant="ghost" asChild className="w-full">
+                        <Link href="/auth/signin">SIGN IN</Link>
+                      </Button>
+                      <Button variant="accent" asChild className="w-full">
+                        <Link href="/auth/signup">GET STARTED</Link>
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -204,4 +204,30 @@ export const githubAppRouter = createTRPCRouter({
       return [];
     }
   }),
+
+  // Get user's GitHub installations for account page
+  getUserInstallations: protectedProcedure.query(async ({ ctx }) => {
+    const userId = (ctx.session.user as any).id;
+
+    try {
+      const userInstallations = await ctx.db
+        .select({
+          id: githubInstallations.id,
+          installationId: githubInstallations.installationId,
+          accountLogin: githubInstallations.accountLogin,
+          accountType: githubInstallations.accountType,
+        })
+        .from(userGithubInstallations)
+        .innerJoin(
+          githubInstallations,
+          eq(userGithubInstallations.installationId, githubInstallations.id),
+        )
+        .where(eq(userGithubInstallations.userId, userId));
+
+      return userInstallations;
+    } catch (error) {
+      console.error("Failed to get user installations:", error);
+      return [];
+    }
+  }),
 });

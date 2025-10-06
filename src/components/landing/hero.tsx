@@ -1,6 +1,7 @@
 "use client";
 
 import { GithubIcon, Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { Header } from "./header";
@@ -107,6 +108,7 @@ export const Hero = () => {
   const [currentTab, setCurrentTab] = useState<
     "claude" | "vibe" | "vs-code" | "browser"
   >("claude");
+  const { data: session } = useSession();
 
   return (
     <section className="relative bg-gray-900 py-6 px-6 lg:px-8 text-background">
@@ -122,18 +124,26 @@ export const Hero = () => {
               real tools for real software development
             </h2>
             <div className="flex gap-4 pt-4">
-              <Button asChild>
-                <a href="/setup?type=repository">
-                  <GithubIcon size={16} />
-                  Open Repository
-                </a>
-              </Button>
-              <Button variant="accent" asChild>
-                <a href="/setup?type=new">
-                  <Plus size={16} />
-                  New Project
-                </a>
-              </Button>
+              {session ? (
+                <Button variant="accent" asChild size="lg">
+                  <a href="/dashboard">Go to Dashboard</a>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild>
+                    <a href="/setup?type=repository">
+                      <GithubIcon size={16} />
+                      Open Repository
+                    </a>
+                  </Button>
+                  <Button variant="accent" asChild>
+                    <a href="/setup?type=new">
+                      <Plus size={16} />
+                      New Project
+                    </a>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
           {currentTab === "claude" &&

@@ -1,8 +1,10 @@
 import { Octokit } from "@octokit/rest";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import {
   githubInstallations,
+  podLogs,
+  podMetrics,
   pods,
   teamMembers,
   userGithubInstallations,
@@ -44,7 +46,7 @@ const createPodSchema = z.object({
 });
 
 export const podsRouter = createTRPCRouter({
-  getTemplates: publicProcedure.query(async ({ ctx }) => {
+  getTemplates: publicProcedure.query(async () => {
     const templates = POD_TEMPLATES;
 
     return templates;
@@ -465,5 +467,111 @@ export const podsRouter = createTRPCRouter({
       await ctx.db.delete(pods).where(eq(pods.id, input.id));
 
       return { success: true };
+    }),
+
+  // Get latest metrics for a pod
+  getMetrics: protectedProcedure
+    .input(z.object({ podId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!pod) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      // Get latest metrics
+      const [latestMetric] = await ctx.db
+        .select()
+        .from(podMetrics)
+        .where(eq(podMetrics.podId, input.podId))
+        .orderBy(desc(podMetrics.timestamp))
+        .limit(1);
+
+      return latestMetric || null;
+    }),
+
+  // Get pod metrics history
+  getMetricsHistory: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        hoursAgo: z.number().min(1).max(168).default(24),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!pod) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      const since = new Date(Date.now() - input.hoursAgo * 60 * 60 * 1000);
+
+      const metrics = await ctx.db
+        .select()
+        .from(podMetrics)
+        .where(
+          and(
+            eq(podMetrics.podId, input.podId),
+            gte(podMetrics.timestamp, since),
+          ),
+        )
+        .orderBy(podMetrics.timestamp);
+
+      return metrics;
+    }),
+
+  // Get pod provisioning logs
+  getLogs: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        lines: z.number().min(1).max(1000).default(100),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!pod) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      const logs = await ctx.db
+        .select()
+        .from(podLogs)
+        .where(eq(podLogs.podId, input.podId))
+        .orderBy(desc(podLogs.timestamp))
+        .limit(input.lines);
+
+      // Format logs as strings
+      return logs.reverse().map((log) => {
+        const prefix = log.label ? `${log.label} ` : "";
+        const output = log.stdout || log.stderr || "";
+        return `${prefix}${output}`.trim();
+      });
     }),
 });
