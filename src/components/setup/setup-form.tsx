@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { api } from "../../lib/trpc/client";
 import {
@@ -11,16 +11,12 @@ import {
   type SetupType,
   setupFormSchema,
 } from "../../types/setup";
-import { ConfigureStep } from "./steps/configure-step";
-import { ProjectSelectionStep } from "./steps/project-selection-step";
+import { ConfigureForm } from "./configure-form";
 
 const SetupForm = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [currentStep, setCurrentStep] = useState<"project" | "configure">(
-    "project",
-  );
 
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupFormSchema),
@@ -43,7 +39,7 @@ const SetupForm = () => {
   const { data: installationUrl } = api.githubApp.getInstallationUrl.useQuery({
     returnTo: `/setup/project?type=${form.watch("setupType")}`,
   });
-  const { data: appRepositories = [], isLoading: isLoadingRepositories } =
+  const { data: appRepositories = [] } =
     api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
       enabled: installationData?.hasInstallations,
     });
@@ -102,13 +98,6 @@ const SetupForm = () => {
     if (agent) {
       form.setValue("agent", agent);
     }
-
-    // Determine current step based on URL params
-    if (repo || (org && name)) {
-      setCurrentStep("configure");
-    } else {
-      setCurrentStep("project");
-    }
   }, [searchParams, form]);
 
   // Auto-select organization for new projects
@@ -136,32 +125,6 @@ const SetupForm = () => {
     }
   }, [session, status, form, router, installationData, installationsLoading]);
 
-  const handleProjectContinue = (data: Partial<SetupFormValues>) => {
-    // Update form with project selection data
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) {
-        form.setValue(key as keyof SetupFormValues, value);
-      }
-    });
-
-    // Navigate to configure step
-    const setupType = form.getValues("setupType");
-    if (setupType === "repository") {
-      const selectedRepo = form.getValues("selectedRepo");
-      const repo = appRepositories.find((r) => r.full_name === selectedRepo);
-      router.push(
-        `/setup/configure?type=repository&repo=${encodeURIComponent(selectedRepo!)}&branch=${repo?.default_branch || "main"}`,
-      );
-    } else {
-      const selectedOrg = form.getValues("selectedOrg");
-      const newRepoName = form.getValues("newRepoName");
-      const selectedTemplate = form.getValues("bundle");
-      router.push(
-        `/setup/configure?type=new&org=${encodeURIComponent(selectedOrg!)}&name=${encodeURIComponent(newRepoName!)}&bundle=${encodeURIComponent(selectedTemplate!)}`,
-      );
-    }
-  };
-
   const handleFinalSubmit = async (data: SetupFormValues) => {
     const personalTeam = teams?.find((team) => team.role === "owner");
 
@@ -182,9 +145,8 @@ const SetupForm = () => {
     // Get tier (use selected tier or template default)
     const tier = data.tier || selectedTemplate.tier;
 
-    // Create the pod (this handles repository creation internally if needed)
+    // Create the pod (name and resources auto-generated on backend)
     await createPodMutation.mutateAsync({
-      name: data.podName,
       description: `Development environment for ${data.setupType === "new" ? `${data.selectedOrg}/${data.newRepoName}` : data.selectedRepo || "project"}`,
       teamId: personalTeam.id,
       githubRepo:
@@ -193,10 +155,7 @@ const SetupForm = () => {
       isNewProject: data.setupType === "new",
       newRepoName: data.newRepoName,
       selectedOrg: data.selectedOrg,
-      tier: tier,
-      cpuCores: selectedTemplate.cpuCores,
-      memoryMb: selectedTemplate.memoryGb * 1024,
-      storageMb: selectedTemplate.storageGb * 1024,
+      tier: tier, // Backend derives CPU/memory/storage from tier
       envVars: data.envVars,
       config: {
         template: selectedTemplate.id,
@@ -224,28 +183,16 @@ const SetupForm = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {currentStep === "project" ? (
-        <ProjectSelectionStep
-          form={form}
-          repositories={appRepositories}
-          organizations={appAccounts.map((account) => ({
-            ...account,
-            description: null,
-          }))}
-          installationUrl={installationUrl ?? null}
-          onContinue={handleProjectContinue}
-          isLoadingRepositories={isLoadingRepositories}
-        />
-      ) : (
-        <ConfigureStep
-          form={form}
-          onSubmit={handleFinalSubmit}
-          onBack={() => {
-            setCurrentStep("project");
-            router.push(`/setup/project?type=${form.getValues("setupType")}`);
-          }}
-        />
-      )}
+      <ConfigureForm
+        form={form}
+        onSubmit={handleFinalSubmit}
+        repositories={appRepositories}
+        organizations={appAccounts.map((account) => ({
+          ...account,
+          description: null,
+        }))}
+        installationUrl={installationUrl ?? null}
+      />
     </div>
   );
 };

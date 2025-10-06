@@ -7,7 +7,7 @@ export const setupFormSchema = z.object({
   selectedRepo: z.string().optional(),
   selectedOrg: z.string().optional(),
   newRepoName: z.string().optional(),
-  podName: z.string().min(1, "Pod name is required"),
+  podName: z.string().optional(), // Auto-generated on backend
   bundle: z.string().min(1, "Bundle selection is required"),
   tier: z
     .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])

@@ -10,7 +10,9 @@ import {
   userGithubInstallations,
 } from "../../db/schema";
 import { getInstallationOctokit } from "../../github-app";
+import { RESOURCE_TIERS } from "../../pod-orchestration/resource-tier-registry";
 import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
+import { generateKSUID } from "../../utils";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -18,7 +20,7 @@ import {
 } from "../server";
 
 const createPodSchema = z.object({
-  name: z.string().min(2).max(255),
+  name: z.string().min(2).max(255).optional(), // Auto-generated if not provided
   description: z.string().optional(),
   template: z.string().optional(),
   teamId: z.string(),
@@ -32,13 +34,10 @@ const createPodSchema = z.object({
   newRepoName: z.string().optional(), // name for new repository
   selectedOrg: z.string().optional(), // organization to create repo in
 
-  // Resource specifications
+  // Resource specifications - tier only, resources are derived from tier
   tier: z
     .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
     .default("dev.small"),
-  cpuCores: z.number().min(1).max(8).default(1),
-  memoryMb: z.number().min(512).max(16384).default(1024),
-  storageMb: z.number().min(1024).max(100000).default(10240),
 
   // Configuration
   config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object
@@ -56,7 +55,7 @@ export const podsRouter = createTRPCRouter({
     .input(createPodSchema)
     .mutation(async ({ ctx, input }) => {
       const {
-        name,
+        name: inputName,
         description,
         template,
         teamId,
@@ -66,13 +65,27 @@ export const podsRouter = createTRPCRouter({
         newRepoName,
         selectedOrg,
         tier,
-        cpuCores,
-        memoryMb,
-        storageMb,
         config,
         envVars,
       } = input;
       const userId = ctx.session.user.id;
+
+      // Auto-generate pod name if not provided
+      const podId = generateKSUID("pod");
+      let name = inputName;
+      if (!name) {
+        const baseName = isNewProject
+          ? newRepoName || "pod"
+          : githubRepo?.split("/")[1] || "pod";
+        const randomSuffix = podId.slice(podId.length - 5);
+        name = `${baseName}-${randomSuffix}`;
+      }
+
+      // Derive resources from tier
+      const tierData = RESOURCE_TIERS[tier];
+      const cpuCores = tierData.cpu;
+      const memoryMb = tierData.memory * 1024; // Convert GB to MB
+      const storageMb = tierData.storage * 1024; // Convert GB to MB
 
       // Check if user is member of the team
       const membership = await ctx.db

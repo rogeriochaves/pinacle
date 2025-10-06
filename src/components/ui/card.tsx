@@ -2,7 +2,12 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Card({ className, children, ...props }: React.ComponentProps<"div">) {
+function Card({
+  className,
+  children,
+  propsInner: { className: classNameInner, ...propsInner } = {},
+  ...props
+}: React.ComponentProps<"div"> & { propsInner?: React.ComponentProps<"div"> }) {
   return (
     <div
       data-slot="card"
@@ -13,7 +18,13 @@ function Card({ className, children, ...props }: React.ComponentProps<"div">) {
       )}
       {...props}
     >
-      <div className="relative z-1 bg-card p-6 h-full flex flex-col">
+      <div
+        className={cn(
+          "relative z-1 bg-card p-6 h-full flex flex-col",
+          classNameInner,
+        )}
+        {...propsInner}
+      >
         {children}
       </div>
     </div>

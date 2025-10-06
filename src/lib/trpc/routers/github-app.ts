@@ -162,6 +162,11 @@ export const githubAppRouter = createTRPCRouter({
           );
           allRepositories.push(...repos);
         }
+        allRepositories.sort(
+          (a, b) =>
+            (b.pushed_at ? new Date(b.pushed_at).getTime() : 0) -
+            (a.pushed_at ? new Date(a.pushed_at).getTime() : 0),
+        );
 
         return allRepositories;
       } catch (error) {

@@ -47,11 +47,24 @@ export const getUserInstallations = async (_userId: string) => {
 export const getInstallationRepositories = async (installationId: number) => {
   try {
     const octokit = await getInstallationOctokit(installationId);
-    const { data } = await octokit.request("GET /installation/repositories", {
-      per_page: 100,
-    });
 
-    return data.repositories || [];
+    // Fetch repos sorted by most recently updated
+    // We'll fetch up to 300 repos (3 pages) to get a good selection of recent repos
+    const allRepos = [];
+
+    for (let page = 1; page <= 10; page++) {
+      const { data } = await octokit.request("GET /installation/repositories", {
+        per_page: 100,
+        page,
+      });
+
+      allRepos.push(...(data.repositories || []));
+
+      // Stop if we got less than 100 repos (last page)
+      if ((data.repositories || []).length < 100) break;
+    }
+
+    return allRepos;
   } catch (error) {
     console.error("Failed to get installation repositories:", error);
     return [];
