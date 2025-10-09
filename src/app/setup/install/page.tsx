@@ -98,6 +98,16 @@ export default function InstallPage() {
     }
   };
 
+  const [initialRender, setInitialRender] = useState(true);
+
+  useEffect(() => {
+    if (initialRender) {
+      setTimeout(() => {
+        setInitialRender(false);
+      }, 2000);
+    }
+  }, [initialRender]);
+
   // If GitHub App is not configured, this is a development/deployment issue
   if (!urlLoading && !installationUrl) {
     return (
@@ -129,16 +139,17 @@ export default function InstallPage() {
     status === "loading" ||
     installationsLoading ||
     urlLoading ||
-    isRedirecting
+    isRedirecting ||
+    initialRender
   ) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono">
             {isRedirecting ? "Redirecting to GitHub..." : "Loading..."}
           </h2>
-          <p className="text-gray-600">
+          <p className="text-slate-400 font-mono">
             {isRedirecting
               ? "Setting up GitHub App installation..."
               : "Checking your GitHub App installations..."}

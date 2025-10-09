@@ -71,15 +71,25 @@ const SetupPage = () => {
     router.replace(buildUrl("/setup/install"));
   }, [session, status, setupType, router, template, tier, agent]);
 
-  if (status === "loading" || isRedirecting) {
+  const [initialRender, setInitialRender] = useState(true);
+
+  useEffect(() => {
+    if (initialRender) {
+      setTimeout(() => {
+        setInitialRender(false);
+      }, 2000);
+    }
+  }, [initialRender]);
+
+  if (status === "loading" || isRedirecting || initialRender) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono">
             Setting up your development environment...
           </h2>
-          <p className="text-gray-600">
+          <p className="text-slate-400 font-mono">
             {!session
               ? "Redirecting to GitHub authentication..."
               : "Connecting your GitHub account..."}
