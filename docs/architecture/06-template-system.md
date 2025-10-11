@@ -1,764 +1,254 @@
-# Template System and Project Detection
+# Template System
 
 ## Overview
 
-The template system provides pre-configured development environments for various frameworks and languages, while the project detection system automatically identifies project types and suggests optimal configurations. Templates are stored as code in the repository for version control and easy updates.
+Templates provide pre-configured base setups for common technology stacks, simplifying pod creation and ensuring best practices.
 
-## Template Architecture
+**Implementation:** `src/lib/pod-orchestration/template-registry.ts`
 
-```mermaid
-graph TB
-    subgraph "Template Sources"
-        Builtin[Built-in Templates]
-        Community[Community Templates]
-        Custom[Custom Templates]
-    end
+## Architecture
 
-    subgraph "Template Engine"
-        Parser[Template Parser]
-        Validator[Template Validator]
-        Resolver[Variable Resolver]
-        Merger[Config Merger]
-    end
+### Template Structure
 
-    subgraph "Detection System"
-        Scanner[File Scanner]
-        Analyzer[Pattern Analyzer]
-        AI[AI Detector]
-        Scorer[Confidence Scorer]
-    end
+Each template defines:
+- **Base configuration**: Docker image, services, default tier
+- **Technology stack**: Languages, frameworks, tools for UI display
+- **Environment defaults**: Required env vars with static or generated values
+- **Services**: AI assistants, dev tools, databases
 
-    subgraph "Output"
-        Config[Pod Configuration]
-        Scripts[Setup Scripts]
-        Services[Service Configs]
-    end
+### Template Registry
 
-    Builtin --> Parser
-    Community --> Parser
-    Custom --> Parser
+**File:** `src/lib/pod-orchestration/template-registry.ts`
 
-    Parser --> Validator
-    Validator --> Resolver
-    Resolver --> Merger
-
-    Scanner --> Analyzer
-    Analyzer --> AI
-    AI --> Scorer
-    Scorer --> Merger
-
-    Merger --> Config
-    Merger --> Scripts
-    Merger --> Services
-```
-
-## Template Structure
-
-### Template Directory Layout
-
-```
-/templates/
-├── base/                      # Base OS images
-│   ├── ubuntu-22.04.yaml
-│   ├── debian-12.yaml
-│   └── alpine-3.18.yaml
-├── frameworks/                # Framework templates
-│   ├── frontend/
-│   │   ├── nextjs.yaml
-│   │   ├── vite.yaml
-│   │   ├── react.yaml
-│   │   ├── vue.yaml
-│   │   └── angular.yaml
-│   ├── backend/
-│   │   ├── express.yaml
-│   │   ├── fastify.yaml
-│   │   ├── django.yaml
-│   │   └── rails.yaml
-│   └── fullstack/
-│       ├── remix.yaml
-│       ├── nuxt.yaml
-│       └── sveltekit.yaml
-├── languages/                 # Language-specific
-│   ├── javascript.yaml
-│   ├── typescript.yaml
-│   ├── python.yaml
-│   ├── ruby.yaml
-│   └── go.yaml
-├── services/                  # Service templates
-│   ├── claude-code.yaml
-│   ├── vibe-kanban.yaml
-│   ├── code-server.yaml
-│   └── jupyter.yaml
-├── bundles/                   # Pre-made combinations
-│   ├── ai-developer.yaml
-│   ├── data-science.yaml
-│   └── web-developer.yaml
-└── scripts/                   # Setup scripts
-    ├── install/
-    ├── configure/
-    └── start/
-```
-
-### Template Schema
+Centralized registry of all available templates:
 
 ```typescript
-interface Template {
-  // Metadata
-  metadata: {
-    name: string;
-    version: string;
-    description: string;
-    author: string;
-    category: string;
-    tags: string[];
-    icon: string;
-    homepage?: string;
-    repository?: string;
-  };
-
-  // Base configuration
-  base: {
-    image: string;              // Base Docker/OCI image
-    extends?: string;           // Parent template to extend
-  };
-
-  // Resource recommendations
-  resources: {
-    recommended: {
-      tier: string;             // e.g., "dev.medium"
-      cpu: number;
-      memory: number;
-      storage: number;
-    };
-    minimum: {
-      cpu: number;
-      memory: number;
-      storage: number;
-    };
-  };
-
-  // Setup configuration
-  setup: {
-    // Package managers
-    packageManagers: {
-      preferred: string;        // npm, yarn, pnpm, bun
-      install: string;          // Install command template
-      lockFile: string;         // Lock file name
-    };
-
-    // Dependencies to install
-    systemPackages: string[];  // apt/yum packages
-    globalPackages: string[];  // npm/pip global packages
-
-    // Setup scripts
-    scripts: {
-      preInstall?: string;
-      install: string;
-      postInstall?: string;
-      build?: string;
-      start: string;
-      dev?: string;
-      test?: string;
-    };
-  };
-
-  // Service configurations
-  services: {
-    [key: string]: {
-      enabled: boolean;
-      image?: string;
-      command?: string;
-      port?: number;
-      environment?: Record<string, string>;
-      volumes?: string[];
-      healthCheck?: {
-        command: string;
-        interval: number;
-        timeout: number;
-        retries: number;
-      };
-    };
-  };
-
-  // Port configurations
-  ports: {
-    [key: string]: {
-      internal: number;
-      protocol: 'tcp' | 'udp';
-      expose: boolean;
-      public: boolean;
-      description: string;
-    };
-  };
-
-  // Environment variables
-  environment: {
-    required: Array<{
-      name: string;
-      description: string;
-      type: string;
-      default?: string;
-      validation?: string;      // Regex pattern
-    }>;
-    optional: Record<string, string>;
-    computed: Record<string, string>; // Template expressions
-  };
-
-  // File templates
-  files: Array<{
-    path: string;
-    content: string;            // Can use template variables
-    permissions?: string;
-  }>;
-
-  // Detection patterns
-  detection: {
-    files: string[];            // Files that indicate this template
-    patterns: Array<{
-      file: string;
-      contains: string;         // Content pattern
-      weight: number;           // Confidence weight
-    }>;
-  };
-}
+export const POD_TEMPLATES: Record<TemplateId, PodTemplate> = {
+  "nextjs": { ... },
+  "vite": { ... },
+  "langflow": { ... },
+  "nodejs-blank": { ... },
+  "python-blank": { ... },
+};
 ```
 
-## Built-in Templates
+## Available Templates
 
-### Next.js Template
+### nextjs - Next.js Application
 
-```yaml
-# /templates/frameworks/frontend/nextjs.yaml
-metadata:
-  name: "Next.js Development"
-  version: "1.0.0"
-  description: "Full-stack React framework with SSR/SSG"
-  category: "frontend"
-  tags: ["react", "typescript", "fullstack", "ssr"]
-  icon: "nextjs"
+**Base image:** `pinacledev/pinacle-base` (Node.js + pnpm)
 
-base:
-  image: "node:20-alpine"
+**Services:**
+- claude-code (AI assistant)
+- vibe-kanban (project management)
+- code-server (VS Code)
 
-resources:
-  recommended:
-    tier: "dev.medium"
-    cpu: 1
-    memory: 2048
-    storage: 20
-  minimum:
-    cpu: 0.5
-    memory: 1024
-    storage: 10
+**Tech stack:** Next.js, React, TypeScript, Tailwind CSS
 
-setup:
-  packageManagers:
-    preferred: "pnpm"
-    install: "pnpm install"
-    lockFile: "pnpm-lock.yaml"
+**Environment defaults:**
+- `NEXTAUTH_SECRET` - Generated via `openssl rand -hex 32`
+- `DATABASE_URL` - Static: `postgresql://postgres:postgres@localhost:5432/app`
 
-  systemPackages:
-    - "git"
-    - "curl"
-    - "build-essential"
+### vite - Vite/React Application
 
-  scripts:
-    install: |
-      # Install pnpm if not present
-      if ! command -v pnpm &> /dev/null; then
-        npm install -g pnpm
-      fi
+**Base image:** `pinacledev/pinacle-base`
 
-      # Install dependencies
-      pnpm install
+**Services:**
+- claude-code
+- vibe-kanban
+- code-server
 
-    build: "pnpm run build"
-    start: "pnpm run dev"
-    dev: "pnpm run dev"
+**Tech stack:** Vite, React, TypeScript
 
-services:
-  claude-code:
-    enabled: true
-    command: "claude-code serve --port 9000"
-    port: 9000
-    environment:
-      CLAUDE_WORKSPACE: "/workspace"
+**Environment defaults:** None (Vite uses `.env` files)
 
-  vibe-kanban:
-    enabled: true
-    port: 3001
-    environment:
-      VITE_API_URL: "http://localhost:3000"
+### langflow - Langflow AI Application
 
-ports:
-  app:
-    internal: 3000
-    protocol: "tcp"
-    expose: true
-    public: false
-    description: "Next.js application"
+**Base image:** `pinacledev/pinacle-base`
 
-  kanban:
-    internal: 3001
-    protocol: "tcp"
-    expose: true
-    public: false
-    description: "Vibe Kanban"
+**Services:**
+- claude-code (Langflow-specific AI assistant)
+- code-server (VS Code)
 
-environment:
-  required:
-    - name: "ANTHROPIC_API_KEY"
-      description: "Claude AI API key"
-      type: "string"
+**Tech stack:** Langflow, Python, AI/ML
 
-  optional:
-    NODE_ENV: "development"
-    NEXT_TELEMETRY_DISABLED: "1"
+**Environment defaults:**
+- `LANGFLOW_DATABASE_URL` - PostgreSQL connection
+- `LANGFLOW_SECRET_KEY` - Generated secret
 
-  computed:
-    NEXT_PUBLIC_APP_URL: "https://${POD_SUBDOMAIN}.pinacle.dev"
-    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/${POD_NAME}"
+### nodejs-blank - Blank Node.js Environment
 
-files:
-  - path: ".env.local"
-    content: |
-      # Generated by Pinacle
-      NODE_ENV=${NODE_ENV}
-      NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
-      DATABASE_URL=${DATABASE_URL}
+**Base image:** `pinacledev/pinacle-base`
 
-detection:
-  files:
-    - "next.config.js"
-    - "next.config.mjs"
-    - "next.config.ts"
-  patterns:
-    - file: "package.json"
-      contains: '"next":'
-      weight: 10
-    - file: "package.json"
-      contains: '"react":'
-      weight: 5
-```
+**Services:**
+- claude-code
+- code-server
 
-### Template Bundle Example
+**Tech stack:** Node.js, npm/pnpm
 
-```yaml
-# /templates/bundles/ai-developer.yaml
-metadata:
-  name: "AI Developer Bundle"
-  version: "1.0.0"
-  description: "Complete AI-assisted development environment"
-  category: "bundle"
-  tags: ["ai", "claude", "copilot", "productivity"]
-  icon: "robot"
+**Environment defaults:** None (user configures as needed)
 
-includes:
-  - template: "frameworks/frontend/nextjs"
-    override:
-      services:
-        claude-code:
-          enabled: true
-          model: "claude-3-opus"
+### python-blank - Blank Python Environment
 
-  - template: "services/github-copilot"
-    config:
-      autoSuggest: true
+**Base image:** `pinacledev/pinacle-python-base`
 
-  - template: "services/jupyter"
-    config:
-      kernels: ["python3", "javascript"]
+**Services:**
+- claude-code
+- code-server
 
-resources:
-  recommended:
-    tier: "dev.large"
-    cpu: 2
-    memory: 4096
-    storage: 40
+**Tech stack:** Python, pip
 
-pricing:
-  monthly: 64
-  hourly: 0.09
-  included:
-    - "Claude Code Pro"
-    - "GitHub Copilot"
-    - "4GB RAM"
-    - "2 vCPUs"
-    - "40GB Storage"
-```
+**Environment defaults:** None
 
-## Project Detection System
+## Template Selection
 
-### File-Based Detection
+### Setup Form Integration
+
+**Component:** `src/components/setup/template-selector.tsx`
+
+**Filtering logic:**
+- **New repository**: Show all templates (user chooses stack)
+- **Existing repository**: Show only blank templates (repo has existing code)
+
+**URL parameter:** `?template=nextjs`
+
+### Template Application
+
+**File:** `src/lib/pod-orchestration/config-resolver.ts`
+
+When creating pod:
+1. Read template from registry
+2. Apply base configuration
+3. Merge user customizations
+4. Expand to full `PodSpec`
+
+## Environment Variable Defaults
+
+**Implementation:** `src/lib/pod-orchestration/template-registry.ts`
+
+Each template can define environment defaults:
 
 ```typescript
-class FileBasedDetector {
-  private detectors: Map<string, FileDetector> = new Map([
-    ['nextjs', new NextJSDetector()],
-    ['vite', new ViteDetector()],
-    ['django', new DjangoDetector()],
-    ['rails', new RailsDetector()],
-    ['wordpress', new WordPressDetector()],
-  ]);
+type EnvVarDefaults = {
+  [key: string]: string | (() => string);
+};
+```
 
-  async detectProject(repoPath: string): Promise<DetectionResult[]> {
-    const files = await this.scanDirectory(repoPath);
-    const results: DetectionResult[] = [];
-
-    for (const [name, detector] of this.detectors) {
-      const confidence = await detector.detect(files);
-      if (confidence > 0) {
-        results.push({
-          template: name,
-          confidence,
-          evidence: detector.getEvidence()
-        });
-      }
-    }
-
-    return results.sort((a, b) => b.confidence - a.confidence);
-  }
-}
-
-class NextJSDetector implements FileDetector {
-  private evidence: string[] = [];
-
-  async detect(files: FileInfo[]): Promise<number> {
-    let confidence = 0;
-    this.evidence = [];
-
-    // Check for Next.js config files
-    if (files.find(f => f.name.match(/^next\.config\.(js|mjs|ts)$/))) {
-      confidence += 30;
-      this.evidence.push('Found next.config file');
-    }
-
-    // Check package.json
-    const packageJson = files.find(f => f.name === 'package.json');
-    if (packageJson) {
-      const content = await this.readFile(packageJson.path);
-      const pkg = JSON.parse(content);
-
-      if (pkg.dependencies?.next || pkg.devDependencies?.next) {
-        confidence += 40;
-        this.evidence.push('Next.js in dependencies');
-      }
-
-      if (pkg.scripts?.dev?.includes('next dev')) {
-        confidence += 20;
-        this.evidence.push('Next.js dev script');
-      }
-    }
-
-    // Check for pages or app directory
-    if (files.find(f => f.path.match(/^(pages|app)\//))) {
-      confidence += 10;
-      this.evidence.push('Found pages/app directory');
-    }
-
-    return Math.min(confidence, 100);
-  }
-
-  getEvidence(): string[] {
-    return this.evidence;
-  }
+**Static values:**
+```typescript
+envVarDefaults: {
+  "DATABASE_URL": "postgresql://localhost:5432/app",
 }
 ```
 
-### AI-Powered Detection
+**Generated values:**
+```typescript
+envVarDefaults: {
+  "NEXTAUTH_SECRET": generateRandomSecret,
+}
+```
+
+**Generator function:**
+```typescript
+const generateRandomSecret = (): string => {
+  // Executes: openssl rand -hex 32
+  return crypto.randomBytes(32).toString('hex');
+};
+```
+
+### UI Integration
+
+**Component:** `src/components/setup/environment-variables.tsx`
+
+- Auto-populated fields marked with hint
+- Generated values displayed but editable
+- User can override defaults
+
+## Service Configuration
+
+### Default Services
+
+Templates define which services to include:
 
 ```typescript
-class AIProjectAnalyzer {
-  private ai: AIService;
-
-  async analyzeProject(repoPath: string): Promise<ProjectAnalysis> {
-    // Collect key files
-    const files = await this.collectKeyFiles(repoPath);
-
-    // Prepare context for AI
-    const context = await this.prepareContext(files);
-
-    // Generate analysis prompt
-    const prompt = this.generatePrompt(context);
-
-    // Get AI analysis
-    const response = await this.ai.analyze(prompt);
-
-    // Parse and validate response
-    return this.parseAnalysis(response);
-  }
-
-  private async collectKeyFiles(repoPath: string): Promise<FileContent[]> {
-    const keyFiles = [
-      'package.json',
-      'composer.json',
-      'requirements.txt',
-      'Gemfile',
-      'go.mod',
-      'Cargo.toml',
-      'pom.xml',
-      'build.gradle',
-      'Dockerfile',
-      'docker-compose.yml',
-      '.env.example',
-      'README.md'
-    ];
-
-    const files: FileContent[] = [];
-
-    for (const file of keyFiles) {
-      const path = `${repoPath}/${file}`;
-      if (await this.fileExists(path)) {
-        const content = await this.readFile(path);
-        files.push({ path: file, content });
-      }
-    }
-
-    return files;
-  }
-
-  private generatePrompt(context: ProjectContext): string {
-    return `
-      Analyze this project and provide configuration recommendations.
-
-      Project files:
-      ${context.files.map(f => `${f.path}:\n${f.content.slice(0, 500)}`).join('\n\n')}
-
-      Directory structure:
-      ${context.structure}
-
-      Please identify:
-      1. Project type and primary framework
-      2. Programming language(s)
-      3. Package manager
-      4. Build commands
-      5. Start/dev commands
-      6. Required environment variables
-      7. Required services (database, cache, etc.)
-      8. Exposed ports
-      9. Recommended resource tier
-
-      Respond in JSON format:
-      {
-        "projectType": "...",
-        "framework": "...",
-        "language": "...",
-        "packageManager": "...",
-        "commands": {
-          "install": "...",
-          "build": "...",
-          "start": "...",
-          "dev": "..."
-        },
-        "environment": {
-          "required": [...],
-          "optional": {...}
-        },
-        "services": [...],
-        "ports": [...],
-        "resources": {
-          "cpu": ...,
-          "memory": ...,
-          "storage": ...
-        },
-        "confidence": 0.0-1.0
-      }
-    `;
-  }
-
-  private parseAnalysis(response: string): ProjectAnalysis {
-    try {
-      const analysis = JSON.parse(response);
-
-      // Validate and sanitize
-      return {
-        projectType: analysis.projectType || 'unknown',
-        framework: analysis.framework || 'none',
-        language: analysis.language || 'javascript',
-        packageManager: analysis.packageManager || 'npm',
-        commands: {
-          install: analysis.commands?.install || 'npm install',
-          build: analysis.commands?.build,
-          start: analysis.commands?.start || 'npm start',
-          dev: analysis.commands?.dev || 'npm run dev'
-        },
-        environment: {
-          required: analysis.environment?.required || [],
-          optional: analysis.environment?.optional || {}
-        },
-        services: analysis.services || [],
-        ports: analysis.ports || [3000],
-        resources: {
-          cpu: analysis.resources?.cpu || 1,
-          memory: analysis.resources?.memory || 2048,
-          storage: analysis.resources?.storage || 20
-        },
-        confidence: analysis.confidence || 0.5
-      };
-    } catch (error) {
-      console.error('Failed to parse AI analysis:', error);
-      return this.getDefaultAnalysis();
-    }
-  }
+{
+  services: ["claude-code", "vibe-kanban", "code-server"]
 }
 ```
 
-## Template Composition
+### Service Customization
 
-### Template Merger
+**Component:** `src/components/setup/service-customizer.tsx`
 
-```typescript
-class TemplateMerger {
-  async mergeTemplates(
-    base: Template,
-    overrides: Partial<Template>,
-    userConfig?: Partial<Template>
-  ): Promise<Template> {
-    // Start with base template
-    let merged = { ...base };
+Users can:
+- **Switch AI assistant**: claude-code → openai-codex, cursor-cli, gemini-cli
+- **Remove tools**: Uncheck vibe-kanban, code-server
+- **Add more**: Select from registry (future)
 
-    // Apply template overrides
-    merged = this.deepMerge(merged, overrides);
+**Form integration:** `customServices` field in React Hook Form
 
-    // Apply user configuration
-    if (userConfig) {
-      merged = this.deepMerge(merged, userConfig);
-    }
+## Template Extensions
 
-    // Resolve variables
-    merged = await this.resolveVariables(merged);
+### Future Features
 
-    // Validate final configuration
-    await this.validate(merged);
+**Not yet implemented:**
 
-    return merged;
-  }
+1. **User-defined templates**
+   - Users can create custom templates
+   - Share templates with team
+   - Community template marketplace
 
-  private deepMerge(target: any, source: any): any {
-    const output = { ...target };
+2. **Template inheritance**
+   - Extend existing templates
+   - Override specific settings
+   - Compose multiple templates
 
-    if (isObject(target) && isObject(source)) {
-      Object.keys(source).forEach(key => {
-        if (isObject(source[key])) {
-          if (!(key in target)) {
-            output[key] = source[key];
-          } else {
-            output[key] = this.deepMerge(target[key], source[key]);
-          }
-        } else if (Array.isArray(source[key])) {
-          // Special handling for arrays
-          if (key === 'systemPackages' || key === 'globalPackages') {
-            // Concatenate package lists
-            output[key] = [...(target[key] || []), ...source[key]];
-          } else {
-            // Replace arrays by default
-            output[key] = source[key];
-          }
-        } else {
-          output[key] = source[key];
-        }
-      });
-    }
+3. **Framework detection**
+   - Auto-detect framework from repository
+   - Suggest appropriate template
+   - Apply best practices automatically
 
-    return output;
-  }
+4. **Multi-service templates**
+   - Templates with databases
+   - Templates with Redis, Elasticsearch
+   - Full-stack templates (frontend + backend)
 
-  private async resolveVariables(template: Template): Promise<Template> {
-    const context = {
-      POD_NAME: process.env.POD_NAME,
-      POD_ID: process.env.POD_ID,
-      POD_SUBDOMAIN: process.env.POD_SUBDOMAIN,
-      USER_NAME: process.env.USER_NAME,
-      TEAM_NAME: process.env.TEAM_NAME,
-      ...template.environment?.computed
-    };
+## Best Practices
 
-    // Recursively resolve template strings
-    return this.resolveTemplateStrings(template, context);
-  }
-}
-```
+### Creating Templates
 
-## Template Marketplace
+**Guidelines for future template additions:**
 
-### Community Templates
+1. **Base image selection**
+   - Use official Pinacle base images
+   - Include common tools (git, ssh, curl)
+   - Keep images small
 
-```typescript
-interface CommunityTemplate {
-  id: string;
-  name: string;
-  description: string;
-  author: {
-    id: string;
-    name: string;
-    avatar: string;
-    verified: boolean;
-  };
-  repository: string;
-  stars: number;
-  downloads: number;
-  version: string;
-  compatibility: string[];
-  pricing: {
-    type: 'free' | 'paid' | 'freemium';
-    price?: number;
-    features?: string[];
-  };
-  reviews: {
-    rating: number;
-    count: number;
-  };
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+2. **Service selection**
+   - Include AI assistant (default: claude-code)
+   - Include code-server for IDE access
+   - Add framework-specific tools
 
-class TemplateMarketplace {
-  async searchTemplates(query: string, filters?: TemplateFilters): Promise<CommunityTemplate[]> {
-    const templates = await db.communityTemplates.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } },
-          { tags: { hasSome: [query] } }
-        ],
-        ...(filters?.category && { category: filters.category }),
-        ...(filters?.pricing && { 'pricing.type': filters.pricing }),
-        ...(filters?.minRating && { 'reviews.rating': { gte: filters.minRating } })
-      },
-      orderBy: filters?.sortBy || { downloads: 'desc' },
-      take: filters?.limit || 20
-    });
+3. **Environment defaults**
+   - Provide sensible development defaults
+   - Use generators for secrets
+   - Document required variables
 
-    return templates;
-  }
+4. **Documentation**
+   - Describe tech stack clearly
+   - List included services
+   - Provide setup instructions
 
-  async installTemplate(templateId: string, userId: string): Promise<void> {
-    const template = await this.getTemplate(templateId);
+### Template Naming
 
-    // Check permissions
-    if (template.pricing.type === 'paid') {
-      await this.verifyPurchase(userId, templateId);
-    }
+**Conventions:**
+- Framework templates: `<framework>` (e.g., `nextjs`, `django`)
+- Language templates: `<language>-blank` (e.g., `nodejs-blank`, `python-blank`)
+- Stack templates: `<stack>` (e.g., `langflow`, `jupyter`)
 
-    // Download template
-    const content = await this.downloadTemplate(template.repository);
+## Related Documentation
 
-    // Install to user's templates
-    await db.userTemplates.create({
-      data: {
-        userId,
-        templateId,
-        content,
-        installedAt: new Date()
-      }
-    });
-
-    // Increment download count
-    await db.communityTemplates.update({
-      where: { id: templateId },
-      data: { downloads: { increment: 1 } }
-    });
-  }
-}
-```
+- [pod-config-representations.md](./pod-config-representations.md) - Configuration architecture
+- [02-pod-configuration.md](./02-pod-configuration.md) - Configuration details
+- `src/lib/pod-orchestration/service-registry.ts` - Service definitions
+- `src/lib/pod-orchestration/template-registry.ts` - Template implementations

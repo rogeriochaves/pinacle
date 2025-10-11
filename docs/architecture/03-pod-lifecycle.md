@@ -2,463 +2,307 @@
 
 ## Overview
 
-Pod lifecycle management covers the journey from creation to termination, including provisioning, running, hibernation, and cleanup. The system is designed to be simple and reliable, using pg-boss for job processing.
+Pod lifecycle management covers the journey from creation to termination, including provisioning, running, and cleanup. The system uses pg-boss for background job processing.
+
+**Implementation:**
+- `src/lib/trpc/routers/pods.ts` - API endpoints
+- `src/lib/pod-orchestration/pod-provisioning-service.ts` - Provisioning logic
+- `src/lib/pod-orchestration/pod-manager.ts` - Container operations
 
 ## Lifecycle States
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: Create Request
-    Pending --> Provisioning: Host Available
-    Pending --> Failed: No Resources
+    [*] --> creating: Create Request
+    creating --> running: Provisioning Complete
+    creating --> error: Provisioning Failed
 
-    Provisioning --> Starting: Container Created
-    Provisioning --> Failed: Creation Failed
+    running --> stopped: Stop Request
+    running --> error: Crash
 
-    Starting --> Running: Services Started
-    Starting --> Failed: Start Failed
+    stopped --> running: Start Request
+    stopped --> [*]: Delete Request
 
-    Running --> Stopping: Stop Request
-    Running --> Hibernating: Hibernate Request
-    Running --> Failed: Crash
-
-    Hibernating --> Hibernated: Snapshot Created
-    Hibernated --> Waking: Wake Request
-    Waking --> Running: Restored
-
-    Stopping --> Stopped: Stopped
-    Stopped --> Starting: Start Request
-    Stopped --> Terminating: Delete Request
-
-    Failed --> Provisioning: Retry
-    Failed --> Terminating: Give Up
-
-    Terminating --> [*]: Cleaned Up
+    error --> creating: Retry
+    error --> [*]: Delete
 ```
 
 ## State Definitions
 
-```typescript
-enum PodState {
-  PENDING = "pending",           // Awaiting resources
-  PROVISIONING = "provisioning", // Creating container
-  STARTING = "starting",         // Starting services
-  RUNNING = "running",          // Fully operational
-  STOPPING = "stopping",        // Stopping services
-  STOPPED = "stopped",          // Stopped but not destroyed
-  HIBERNATING = "hibernating",  // Creating snapshot
-  HIBERNATED = "hibernated",    // Snapshot saved, resources freed
-  WAKING = "waking",           // Restoring from snapshot
-  FAILED = "failed",           // Error state
-  TERMINATING = "terminating", // Cleaning up
-}
-```
+**Database:** `src/lib/db/schema.ts` (`pods.status` column)
+
+| State | Description | Next States |
+|-------|-------------|-------------|
+| `creating` | Provisioning container, network, services | `running`, `error` |
+| `running` | Container running, services healthy | `stopped`, `error` |
+| `stopped` | Container stopped, data preserved | `running`, deleted |
+| `error` | Provisioning or runtime failure | `creating` (retry), deleted |
 
 ## Provisioning Process
 
-### Simple Pod Creation
+### 1. Pod Creation Request
 
-```typescript
-async function createPod(userId: string, config: CreatePodSpec) {
-  // 1. Create pod record
-  const pod = await db.pods.create({
-    data: {
-      id: generateId(),
-      name: config.name,
-      ownerId: userId,
-      tier: config.tier,
-      githubRepo: config.repository,
-      status: 'pending',
-      config,
-      createdAt: new Date()
-    }
-  });
+**Endpoint:** `pods.create` in `src/lib/trpc/routers/pods.ts`
 
-  // 2. Queue provisioning job
-  await boss.send('provision-pod', {
-    podId: pod.id,
-    config
-  });
+Flow:
+1. User submits setup form
+2. Validate input via Zod schema
+3. Generate `PinacleConfig` via `generatePinacleConfigFromForm()`
+4. Create pod record in database:
+   - `status = "creating"`
+   - `config` = JSON of `PinacleConfig`
+   - `envVars` = JSON of environment variables
+5. Queue provisioning job via pg-boss
 
-  return pod;
-}
+**Job name:** `provision-pod`
 
-async function provisionPod(job: PgBoss.Job) {
-  const { podId, config } = job.data;
+### 2. Provisioning Job
 
-  try {
-    // Update status
-    await updatePodStatus(podId, 'provisioning');
+**Implementation:** `src/lib/pod-orchestration/pod-provisioning-service.ts`
 
-    // Pick a host with available resources
-    const host = await pickAvailableHost(config.tier);
+**Job handler:** Background process picks up job and calls `PodProvisioningService.provisionPod()`
 
-    // Generate SSH key for GitHub
-    const sshKey = await generateSSHKeyPair();
+Steps:
+1. **Load Configuration**
+   - Read pod record from database
+   - Parse `PinacleConfig` via `podRecordToPinacleConfig()`
+   - Derive resources via `getResourcesFromTier()`
 
-    // Add deploy key to GitHub
-    const githubKeyId = await addDeployKey(
-      config.repository,
-      sshKey.publicKey
-    );
+2. **Expand to PodSpec**
+   - Load template from registry
+   - Expand services from registry
+   - Merge environment variables
+   - Result: Complete `PodSpec` for orchestration
 
-    // Store SSH key
-    await db.sshKeys.create({
-      data: {
-        podId,
-        publicKey: sshKey.publicKey,
-        privateKeyEncrypted: encrypt(sshKey.privateKey),
-        githubKeyId
-      }
-    });
+3. **Provision Infrastructure**
+   - Allocate network (subnet, gateway, IP)
+   - Allocate external port (30000+)
+   - Create Docker network
+   - Store in `pods.ports` JSON
 
-    // Create pod on host (via SSH or HTTP)
-    const podInfo = await createPodOnHost(host, podId, config);
+4. **Create Container**
+   - Pull base image
+   - Generate Nginx config (hostname routing)
+   - Create gVisor container
+   - Mount volumes (`/workspace`, `/data`)
+   - Set resource limits (CPU, memory)
 
-    // Update pod with host info
-    await db.pods.update({
-      where: { id: podId },
-      data: {
-        hostIp: host.ip,
-        internalIp: podInfo.internalIp,
-        status: 'starting'
-      }
-    });
+5. **Clone Repository**
+   - Clone GitHub repo via SSH
+   - Checkout specified branch
+   - Set up SSH keys for private repos
 
-    // Set up services
-    await setupServices(podId, config);
+6. **Provision Services**
+   - Install each service via `installScript`
+   - Create OpenRC service definitions
+   - Start services
+   - Verify health checks
 
-    // Clone repository
-    await cloneRepository(podId, config.repository, sshKey.privateKey);
+7. **Inject pinacle.yaml**
+   - Serialize `PinacleConfig` to YAML
+   - Write to `/workspace/pinacle.yaml`
+   - User can commit to version control
 
-    // Start services
-    await startServices(podId);
+8. **Update Status**
+   - `status = "running"`
+   - `containerId = <docker-id>`
+   - `internalIp = <ip>`
+   - `lastStartedAt = now()`
 
-    // Update status to running
-    await updatePodStatus(podId, 'running');
+**On failure:**
+- `status = "error"`
+- Clean up partial resources
+- Store error message
 
-  } catch (error) {
-    await updatePodStatus(podId, 'failed', error.message);
-    throw error; // Let pg-boss retry
-  }
-}
-```
+### 3. Service Startup
 
-### Host Selection
+**Implementation:** `src/lib/pod-orchestration/service-provisioner.ts`
 
-```typescript
-async function pickAvailableHost(tier: string): Promise<Host> {
-  // Simple round-robin or least-loaded
-  const hosts = await db.hosts.findMany({
-    where: { status: 'active' },
-    orderBy: { currentPods: 'asc' }
-  });
+For each service:
+1. Read service definition from registry
+2. Execute installation script
+3. Create OpenRC service file
+4. Start via `rc-service <name> start`
+5. Poll health check until healthy (or timeout)
 
-  for (const host of hosts) {
-    const available = await checkHostResources(host, tier);
-    if (available) {
-      // Increment pod count
-      await db.hosts.update({
-        where: { id: host.id },
-        data: { currentPods: { increment: 1 } }
-      });
-      return host;
-    }
-  }
+**Health check types:**
+- HTTP: GET request to endpoint
+- TCP: Socket connection
+- Process: Check if process running
 
-  throw new Error('No hosts available');
-}
-```
+**Timeout:** 2 minutes per service
 
 ## Running State
 
+### Container Management
+
+**Implementation:** `src/lib/pod-orchestration/pod-manager.ts`
+
+Operations:
+- **Status check**: Query Docker container state
+- **Logs**: Stream container logs via `docker logs -f`
+- **Execute command**: Run command in container via `docker exec`
+- **Restart service**: Restart individual service via OpenRC
+
 ### Health Monitoring
 
-```typescript
-// Simple health check job
-await boss.schedule('health-check', '*/5 * * * *', {});
+**Not yet implemented**
 
-async function checkHealth() {
-  const runningPods = await db.pods.findMany({
-    where: { status: 'running' }
-  });
+Future: Health checks, metrics collection, automatic restarts
 
-  for (const pod of runningPods) {
-    try {
-      const response = await fetch(
-        `http://${pod.internalIp}:8080/health`,
-        { timeout: 5000 }
-      );
+### Updates
 
-      if (!response.ok) {
-        // Simple recovery: just restart
-        await boss.send('restart-pod', { podId: pod.id });
-      }
+**Changing services:**
+1. Update `pods.config` JSON
+2. Re-inject `pinacle.yaml`
+3. Provision new services (if added)
+4. Remove old services (if deleted)
 
-      await db.pods.update({
-        where: { id: pod.id },
-        data: { lastHealthCheck: new Date() }
-      });
+**Changing tier:**
+1. Update `pods.config` with new tier
+2. Restart container with new resource limits
+3. Re-inject `pinacle.yaml`
 
-    } catch (error) {
-      console.error(`Health check failed for ${pod.id}:`, error);
-    }
-  }
-}
-```
+## Stop/Start
 
-## Hibernation
+### Stop Pod
 
-### Hibernate Process
+**Endpoint:** `pods.stop` (not yet implemented)
 
-```typescript
-async function hibernatePod(podId: string) {
-  const pod = await db.pods.findUnique({ where: { id: podId } });
-  if (!pod) throw new Error('Pod not found');
+**Implementation:** `pod-manager.ts` (`stopPod()` method)
 
-  // Update status
-  await updatePodStatus(podId, 'hibernating');
+Flow:
+1. Stop all services via OpenRC
+2. Stop container via `docker stop`
+3. Update `status = "stopped"`
+4. Update `lastStoppedAt = now()`
 
-  // Create snapshot
-  const snapshot = await createSnapshot(pod);
+**Data preserved:**
+- Container filesystem
+- Network configuration
+- Database records
 
-  // Stop and remove pod
-  await stopPodOnHost(pod.hostIp, podId);
+### Start Pod
 
-  // Free up host resources
-  await db.hosts.update({
-    where: { ip: pod.hostIp },
-    data: { currentPods: { decrement: 1 } }
-  });
+**Endpoint:** `pods.start` (not yet implemented)
 
-  // Update pod status
-  await db.pods.update({
-    where: { id: podId },
-    data: {
-      status: 'hibernated',
-      hibernatedAt: new Date(),
-      lastSnapshotId: snapshot.id,
-      hostIp: null,
-      internalIp: null
-    }
-  });
-}
-```
+**Implementation:** `pod-manager.ts` (`startPod()` method)
 
-### Wake Process
+Flow:
+1. Start container via `docker start`
+2. Start all services via OpenRC
+3. Verify health checks
+4. Update `status = "running"`
+5. Update `lastStartedAt = now()`
 
-```typescript
-async function wakePod(podId: string) {
-  const pod = await db.pods.findUnique({
-    where: { id: podId },
-    include: { lastSnapshot: true }
-  });
+## Deletion
 
-  if (!pod.lastSnapshot) {
-    throw new Error('No snapshot available');
-  }
+### Delete Pod
 
-  // Update status
-  await updatePodStatus(podId, 'waking');
+**Endpoint:** `pods.delete` in `src/lib/trpc/routers/pods.ts`
 
-  // Find new host
-  const host = await pickAvailableHost(pod.tier);
+**Implementation:** `pod-manager.ts` (`destroyPod()` method)
 
-  // Create pod on host
-  const podInfo = await createPodOnHost(host, podId, pod.config);
+Flow:
+1. Stop container (if running)
+2. Remove container via `docker rm`
+3. Remove network via `docker network rm`
+4. Clean up port allocation
+5. Delete pod record from database
+6. Delete associated logs (`pod_logs` table)
 
-  // Restore from snapshot
-  await restoreSnapshot(pod.lastSnapshot, podInfo);
+**Data lost:**
+- Container filesystem (including `/workspace`)
+- Service data
+- Logs
 
-  // Update pod
-  await db.pods.update({
-    where: { id: podId },
-    data: {
-      status: 'running',
-      hostIp: host.ip,
-      internalIp: podInfo.internalIp,
-      wokeAt: new Date()
-    }
-  });
-}
-```
-
-## Termination
-
-### Cleanup Process
-
-```typescript
-async function terminatePod(podId: string) {
-  const pod = await db.pods.findUnique({
-    where: { id: podId },
-    include: { sshKeys: true }
-  });
-
-  if (!pod) return;
-
-  // Update status
-  await updatePodStatus(podId, 'terminating');
-
-  // Remove from host if running
-  if (pod.hostIp) {
-    await removePodFromHost(pod.hostIp, podId);
-
-    // Free up host resources
-    await db.hosts.update({
-      where: { ip: pod.hostIp },
-      data: { currentPods: { decrement: 1 } }
-    });
-  }
-
-  // Remove GitHub deploy keys
-  for (const key of pod.sshKeys) {
-    if (key.githubKeyId) {
-      await removeGitHubDeployKey(key.githubKeyId);
-    }
-  }
-
-  // Delete snapshots from S3
-  const snapshots = await db.snapshots.findMany({
-    where: { podId }
-  });
-
-  for (const snapshot of snapshots) {
-    await deleteFromS3(snapshot.storageUrl);
-  }
-
-  // Delete pod record (cascades to related tables)
-  await db.pods.delete({ where: { id: podId } });
-}
-```
+**Data preserved:**
+- Database metadata (audit trail)
+- Snapshots (future feature)
 
 ## Error Handling
 
-### Simple Retry Logic
+### Provisioning Errors
 
-```typescript
-// pg-boss handles retries automatically
-const boss = new PgBoss({
-  retryLimit: 3,
-  retryDelay: 60,      // seconds
-  retryBackoff: true,  // exponential backoff
-});
+**Common failures:**
+- Network allocation conflict
+- Docker container creation failed
+- Service installation failed
+- Health check timeout
+- GitHub clone failed
 
-// In job handlers
-async function provisionPod(job: PgBoss.Job) {
-  const { podId } = job.data;
+**Handling:**
+1. Set `status = "error"`
+2. Store error message in database
+3. Clean up partial resources
+4. Allow retry via `pods.retry` endpoint (future)
 
-  try {
-    // ... provisioning logic
-  } catch (error) {
-    // Log error
-    console.error(`Failed to provision pod ${podId}:`, error);
+### Runtime Errors
 
-    // Update pod status
-    await db.pods.update({
-      where: { id: podId },
-      data: {
-        status: 'failed',
-        error: error.message
-      }
-    });
+**Common failures:**
+- Container crashed
+- Service died
+- Out of memory
+- Disk full
 
-    // Check if should retry
-    if (job.retryCount < 3 && isRetryableError(error)) {
-      throw error; // pg-boss will retry
-    }
+**Handling:**
+1. Set `status = "error"`
+2. Store error message
+3. Stop other services
+4. Notify user (future)
+5. Allow manual restart
 
-    // Give up - notify user
-    await notifyUser(podId, 'Pod provisioning failed');
-  }
-}
+## Background Jobs
 
-function isRetryableError(error: Error): boolean {
-  // Network errors are retryable
-  if (error.message.includes('ECONNREFUSED')) return true;
-  if (error.message.includes('ETIMEDOUT')) return true;
+**Implementation:** `src/lib/background-jobs/pods.ts` (future)
 
-  // Resource issues might resolve
-  if (error.message.includes('No hosts available')) return true;
+**Job types:**
+- `provision-pod` - Provision new pod
+- `start-pod` - Start stopped pod
+- `stop-pod` - Stop running pod
+- `delete-pod` - Delete pod and clean up
 
-  // Configuration errors are not retryable
-  if (error.message.includes('Invalid configuration')) return false;
-  if (error.message.includes('GitHub repository not found')) return false;
+**Job queue:** pg-boss (PostgreSQL-based)
 
-  return true;
-}
-```
+**Concurrency:** 5 concurrent provisioning jobs per server
 
-## Lifecycle Events
+**Retries:**
+- Automatic: 3 retries with exponential backoff
+- Manual: User can retry failed provisioning
 
-### Simple Event System
+## Future Enhancements
 
-```typescript
-// Just log important events
-async function logPodEvent(
-  podId: string,
-  event: string,
-  metadata?: any
-) {
-  await db.podEvents.create({
-    data: {
-      podId,
-      event,
-      metadata,
-      timestamp: new Date()
-    }
-  });
-}
+**Planned features:**
 
-// Usage
-await logPodEvent(podId, 'provisioning_started');
-await logPodEvent(podId, 'services_started', { services: ['vibe-kanban', 'claude-code'] });
-await logPodEvent(podId, 'snapshot_created', { snapshotId, size });
-```
+1. **Hibernation/Snapshots**
+   - Snapshot container filesystem
+   - Store in S3/MinIO
+   - Restore from snapshot
+   - Save costs when not in use
 
-## Resource Limits
+2. **Auto-stop**
+   - Stop pods after inactivity period
+   - Configurable timeout
+   - Notify before stopping
 
-### Simple Resource Management
+3. **Health monitoring**
+   - Continuous health checks
+   - Automatic service restart
+   - Alert on failures
 
-```typescript
-const resourceLimits = {
-  'dev.small': {
-    cpu: '500m',      // 0.5 CPU
-    memory: '1Gi',    // 1 GB RAM
-    storage: '10Gi',  // 10 GB disk
-  },
-  'dev.medium': {
-    cpu: '1000m',     // 1 CPU
-    memory: '2Gi',    // 2 GB RAM
-    storage: '20Gi',  // 20 GB disk
-  },
-  'dev.large': {
-    cpu: '2000m',     // 2 CPUs
-    memory: '4Gi',    // 4 GB RAM
-    storage: '40Gi',  // 40 GB disk
-  },
-  'dev.xlarge': {
-    cpu: '4000m',     // 4 CPUs
-    memory: '8Gi',    // 8 GB RAM
-    storage: '80Gi',  // 80 GB disk
-  }
-};
+4. **Pod migration**
+   - Move pod between servers
+   - Zero-downtime migration
+   - Load balancing
 
-// Apply limits when creating container
-async function createContainer(podId: string, tier: string) {
-  const limits = resourceLimits[tier];
+5. **Rollback**
+   - Snapshot before changes
+   - Rollback to previous state
+   - Config history
 
-  return await docker.createContainer({
-    name: `pod-${podId}`,
-    Image: 'ubuntu:22.04',
-    HostConfig: {
-      Runtime: 'runsc',  // gVisor
-      Memory: parseMemory(limits.memory),
-      CpuQuota: parseCpu(limits.cpu) * 100000,
-      CpuPeriod: 100000,
-      StorageOpt: {
-        size: limits.storage
-      }
-    }
-  });
-}
-```
+## Related Documentation
+
+- [pod-config-representations.md](./pod-config-representations.md) - Configuration architecture
+- [13-pod-orchestration-implementation.md](./13-pod-orchestration-implementation.md) - Implementation details
+- [09-background-jobs.md](./09-background-jobs.md) - Job processing
+- [14-server-management-system.md](./14-server-management-system.md) - Server infrastructure

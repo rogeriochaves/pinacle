@@ -1,600 +1,200 @@
 # Pod Configuration System
 
-## Overview
+##Overview
 
-The pod configuration system uses YAML files (`pinacle.yaml`) stored in user repositories to define pod setup, runtime configuration, and service requirements. This approach enables version control, portability, and infrastructure-as-code practices.
+The pod configuration system uses three distinct representations (see [pod-config-representations.md](./pod-config-representations.md) for detailed comparison):
 
-## Configuration Schema
+1. **PinacleConfig** - User-facing YAML file (`pinacle.yaml`) stored in repositories
+2. **Database Schema** - Normalized storage in `pods` table
+3. **PodSpec** - Runtime specification used during orchestration
 
-### Complete pinacle.yaml Structure
+This architecture enables version control, portability, and infrastructure-as-code practices while maintaining separation of concerns.
+
+## PinacleConfig (pinacle.yaml)
+
+**Implementation:** `src/lib/pod-orchestration/pinacle-config.ts`
+**Public docs:** `docs/pinacle-yaml.mdx`
+
+The `pinacle.yaml` file is a **simplified, user-editable** configuration that defines:
+- Resource tier (e.g., "dev.small", "dev.medium")
+- Services to include (e.g., claude-code, vibe-kanban)
+- Optional name, template, and UI tabs
+
+**Key design principle:** Excludes secrets, environment variables, and runtime state - only version-controllable configuration.
+
+### Schema (v1.0)
 
 ```yaml
-# pinacle.yaml - Pod Configuration File
 version: "1.0"
-
-# Pod metadata
-metadata:
-  name: "my-nextjs-app"                    # Pod display name
-  description: "Next.js e-commerce app"    # Optional description
-  template: "nextjs"                       # Base template to extend
-  tier: "dev.medium"                       # Resource tier (can be overridden)
-
-# Runtime configuration
-runtime:
-  # Base image/environment
-  base: "ubuntu:22.04"                     # Base OS image
-
-  # Project setup
-  project:
-    # Repository settings (auto-detected if in repo)
-    repository: "github.com/user/repo"     # Optional, auto-detected
-    branch: "main"                         # Default branch
-    path: "/"                              # Project path in repo
-
-    # Build configuration
-    build:
-      # Package manager detection (auto-detected)
-      packageManager: "pnpm"               # npm, yarn, pnpm, bun
-
-      # Install command (auto-generated if not specified)
-      install: "pnpm install"
-
-      # Build command (optional)
-      build: "pnpm run build"
-
-      # Post-install hooks
-      postInstall:
-        - "pnpm db:migrate"
-        - "pnpm db:seed"
-
-    # Start configuration
-    start:
-      # Development server
-      dev:
-        command: "pnpm run dev"
-        port: 3000
-        healthCheck:
-          path: "/"
-          interval: 30
-          timeout: 5
-          retries: 3
-
-      # Production server (optional)
-      prod:
-        command: "pnpm start"
-        port: 3000
-
-      # Additional processes
-      workers:
-        - name: "queue-worker"
-          command: "pnpm run worker"
-          autoRestart: true
-
-# Services configuration
-services:
-  # AI Assistant
-  ai:
-    provider: "claude"                     # claude, openai, copilot
-    model: "claude-3-opus"                 # Optional model specification
-    features:
-      - "code-completion"
-      - "chat"
-      - "terminal-commands"
-
-  # Development tools
-  tools:
-    - name: "vibe-kanban"
-      enabled: true
-      port: 3001
-      config:
-        projectName: "${POD_NAME}"
-
-    - name: "code-server"
-      enabled: true
-      port: 8080
-      config:
-        extensions:
-          - "dbaeumer.vscode-eslint"
-          - "esbenp.prettier-vscode"
-          - "prisma.prisma"
-        settings:
-          "editor.formatOnSave": true
-          "editor.defaultFormatter": "esbenp.prettier-vscode"
-
-# Port exposure configuration
-ports:
-  # Application ports
-  - name: "app"
-    internal: 3000
-    external: auto                        # Auto-assign external port
-    subdomain: "${POD_NAME}"              # username-podname.pinacle.dev
-    auth: true                            # Require authentication
-    public: false                         # Public access (overrides auth)
-
-  - name: "api"
-    internal: 8000
-    external: auto
-    subdomain: "${POD_NAME}-api"
-    auth: true
-
-  # Tool ports (auto-configured from services)
-  - name: "vibe-kanban"
-    internal: 3001
-    external: auto
-    subdomain: "${POD_NAME}-kanban"
-    auth: true
-
-  - name: "code-server"
-    internal: 8080
-    external: auto
-    subdomain: "${POD_NAME}-code"
-    auth: true
-
-# Environment variables
-environment:
-  # Required variables (user must provide)
-  required:
-    - name: "ANTHROPIC_API_KEY"
-      description: "API key for Claude AI"
-      service: "ai"                       # Links to service config
-
-    - name: "DATABASE_URL"
-      description: "PostgreSQL connection string"
-      default: "postgresql://localhost:5432/myapp"
-
-  # Optional variables with defaults
-  variables:
-    - name: "NODE_ENV"
-      value: "development"
-
-    - name: "NEXT_PUBLIC_APP_URL"
-      value: "https://${POD_SUBDOMAIN}.pinacle.dev"
-
-    - name: "PORT"
-      value: "${PORT_APP}"                # Reference to port config
-
-  # Secrets (stored encrypted, shared across pods for same project)
-  secrets:
-    - name: "NEXTAUTH_SECRET"
-      generate: true                      # Auto-generate if not exists
-      length: 32
-
-    - name: "JWT_SECRET"
-      shared: true                        # Share across team pods
-
-# Resource requirements
-resources:
-  tier: "dev.medium"                      # Default tier
-
-  # Custom resource allocation (overrides tier)
-  custom:
-    cpu: 1.5                             # vCPUs
-    memory: 3072                         # MB
-    storage: 30                          # GB
-
-  # Auto-scaling (future feature)
-  autoscale:
-    enabled: false
-    minCpu: 0.5
-    maxCpu: 2
-    targetCpuPercent: 70
-
-# Tabs configuration for UI
-tabs:
-  default:
-    - id: "app"
-      type: "browser"
-      name: "Application"
-      url: "https://${POD_SUBDOMAIN}.pinacle.dev"
-      icon: "globe"
-
-    - id: "kanban"
-      type: "browser"
-      name: "Vibe Kanban"
-      url: "https://${POD_SUBDOMAIN}-kanban.pinacle.dev"
-      icon: "kanban"
-
-    - id: "code"
-      type: "browser"
-      name: "VS Code"
-      url: "https://${POD_SUBDOMAIN}-code.pinacle.dev"
-      icon: "code"
-
-    - id: "claude"
-      type: "terminal"
-      name: "Claude Code"
-      command: "claude-code"
-      icon: "bot"
-
-    - id: "terminal"
-      type: "terminal"
-      name: "Terminal"
-      command: "bash"
-      icon: "terminal"
-
-  # Allow custom tabs
-  allowCustom: true
-  maxTabs: 10
-
-# Health monitoring
-monitoring:
-  enabled: true
-
-  # Service health checks
-  checks:
-    - name: "app-health"
-      type: "http"
-      url: "http://localhost:3000/api/health"
-      interval: 60
-      timeout: 10
-
-    - name: "database"
-      type: "tcp"
-      host: "localhost"
-      port: 5432
-      interval: 30
-
-  # Alerts
-  alerts:
-    - condition: "cpu > 90"
-      duration: 300                       # 5 minutes
-      action: "notify"
-
-    - condition: "memory > 95"
-      duration: 60
-      action: "restart"
-
-    - condition: "disk > 90"
-      action: "notify"
-
-# Lifecycle hooks
-hooks:
-  # Pre-start hooks
-  preStart:
-    - "echo 'Starting pod ${POD_NAME}'"
-
-  # Post-start hooks
-  postStart:
-    - "curl -X POST https://api.pinacle.dev/webhooks/pod-started"
-
-  # Pre-stop hooks
-  preStop:
-    - "pnpm run cleanup"
-
-  # Scheduled tasks (cron)
-  scheduled:
-    - name: "backup"
-      schedule: "0 2 * * *"               # Daily at 2 AM
-      command: "pnpm run backup"
-
-# Advanced configuration
-advanced:
-  # Network configuration
-  network:
-    dns:
-      - "8.8.8.8"
-      - "8.8.4.4"
-    proxy:
-      http: "${HTTP_PROXY}"
-      https: "${HTTPS_PROXY}"
-      noProxy: "localhost,127.0.0.1"
-
-  # Security settings
-  security:
-    readOnlyRootFilesystem: false
-    allowPrivilegeEscalation: false
-    runAsNonRoot: true
-    capabilities:
-      drop:
-        - "ALL"
-      add:
-        - "NET_BIND_SERVICE"
-
-  # Custom mounts
-  mounts:
-    - source: "/data/shared"
-      target: "/mnt/shared"
-      readOnly: true
+name: "My App"                    # Optional
+template: "nextjs"                # Optional base template
+tier: "dev.medium"                # Required: dev.small|dev.medium|dev.large|dev.xlarge
+services:                         # Optional, defaults based on template
+  - claude-code
+  - vibe-kanban
+  - code-server
+tabs:                             # Optional, auto-generated if not specified
+  - name: "App"
+    url: "http://localhost:3000"
+  - name: "VS Code"
+    url: "http://localhost:8726"
 ```
 
-## Configuration Inheritance and Templates
+## Configuration Flow
 
-### Base Templates
+### Pod Creation
 
-Templates are stored in the codebase at `/templates/pods/`:
+**Implementation:** `src/lib/trpc/routers/pods.ts` (create mutation)
 
-```typescript
-// /templates/pods/nextjs.yaml
-export const nextjsTemplate = `
-version: "1.0"
-metadata:
-  template: "nextjs"
-  tier: "dev.small"
+1. User submits setup form
+2. Form data → `PinacleConfig` via `generatePinacleConfigFromForm()`
+3. Store in database:
+   - `pods.config` = JSON of `PinacleConfig`
+   - `pods.envVars` = JSON of environment variables (separate)
+4. Trigger provisioning job
 
-runtime:
-  base: "node:24-alpine"
-  project:
-    build:
-      packageManager: "pnpm"
-      install: "pnpm install"
-      build: "pnpm run build"
-    start:
-      dev:
-        command: "pnpm run dev"
-        port: 3000
+### Pod Provisioning
 
-services:
-  ai:
-    provider: "claude"
-  tools:
-    - name: "vibe-kanban"
-      enabled: true
-    - name: "code-server"
-      enabled: true
+**Implementation:** `src/lib/pod-orchestration/pod-provisioning-service.ts`
 
-ports:
-  - name: "app"
-    internal: 3000
-    auth: true
+1. Read pod record from database
+2. Parse `PinacleConfig` via `podRecordToPinacleConfig()`
+3. Expand to full `PodSpec`:
+   - Derive resources from tier via `getResourcesFromTier()`
+   - Expand services via `ConfigResolver.loadConfig()`
+   - Merge environment variables
+4. Provision pod via `PodManager.createPod()`
+5. Inject `pinacle.yaml` into `/workspace` via `serializePinacleConfig()`
 
-environment:
-  required:
-    - name: "ANTHROPIC_API_KEY"
-  variables:
-    - name: "NODE_ENV"
-      value: "development"
-  secrets:
-    - name: "NEXTAUTH_SECRET"
-      generate: true
-`;
-```
+### Template System
 
-### Template Categories
+**Implementation:** `src/lib/pod-orchestration/template-registry.ts`
 
-```typescript
-enum TemplateCategory {
-  // Frontend frameworks
-  NEXTJS = "nextjs",
-  VITE = "vite",
-  REACT = "react",
-  VUE = "vue",
-  ANGULAR = "angular",
-  SVELTE = "svelte",
+Templates provide base configurations for common stacks:
+- Base images (e.g., `pinacledev/pinacle-base`)
+- Default services (e.g., Next.js includes claude-code, vibe-kanban, code-server)
+- Environment variable defaults with generators
+- Technology stack indicators
 
-  // Backend frameworks
-  EXPRESS = "express",
-  FASTIFY = "fastify",
-  NESTJS = "nestjs",
-  DJANGO = "django",
-  FLASK = "flask",
-  RAILS = "rails",
+Available templates:
+- `nextjs` - Next.js applications
+- `vite` - Vite/React applications
+- `langflow` - Langflow AI applications
+- `nodejs-blank` - Blank Node.js environment
+- `python-blank` - Blank Python environment
 
-  // Full-stack
-  REMIX = "remix",
-  NUXT = "nuxt",
-  SVELTEKIT = "sveltekit",
+### Service Registry
 
-  // CMS
-  WORDPRESS = "wordpress",
-  STRAPI = "strapi",
-  DIRECTUS = "directus",
+**Implementation:** `src/lib/pod-orchestration/service-registry.ts`
 
-  // Custom
-  BLANK = "blank",
-  CUSTOM = "custom"
-}
-```
+Services are modular components that can be added to pods:
 
-## Configuration Resolution
+**AI Coding Assistants:**
+- `claude-code` - Anthropic Claude
+- `openai-codex` - OpenAI Codex
+- `cursor-cli` - Cursor CLI
+- `gemini-cli` - Google Gemini
 
-### Priority Order
+**Development Tools:**
+- `code-server` - VS Code in browser
+- `vibe-kanban` - Project management
+- `web-terminal` - Web-based terminal
 
-1. User's `pinacle.yaml` in repository
-2. User's custom configuration in UI
-3. Template defaults
-4. System defaults
+**Databases:**
+- `postgres` - PostgreSQL
+- `redis` - Redis
 
-### Merge Strategy
+**Other:**
+- `jupyter` - Jupyter notebooks
 
-```typescript
-interface ConfigMergeStrategy {
-  // Deep merge objects
-  metadata: "merge",
-  runtime: "merge",
-  services: "merge",
+Each service defines:
+- Display name and icon
+- Default port
+- Install script
+- Start command (OpenRC service)
+- Health check configuration
 
-  // Replace arrays
-  ports: "replace",
-  environment: "replace",
+### Resource Tiers
 
-  // Append arrays
-  hooks: "append",
-  tabs: "append"
-}
-```
+**Implementation:** `src/lib/pod-orchestration/resource-tier-registry.ts`
 
-## Auto-Detection System
+Tiers abstract away CPU/memory/storage allocation:
 
-### Project Type Detection
+| Tier | CPU | Memory | Storage | Price |
+|------|-----|--------|---------|-------|
+| dev.small | 0.5 | 1GB | 10GB | $10/mo |
+| dev.medium | 1 | 2GB | 20GB | $20/mo |
+| dev.large | 2 | 4GB | 40GB | $40/mo |
+| dev.xlarge | 4 | 8GB | 80GB | $80/mo |
 
-```typescript
-interface ProjectDetector {
-  detect(repoPath: string): Promise<ProjectType>;
-}
+Resources are derived at runtime via `getResourcesFromTier(tierId)`.
 
-class SmartProjectDetector implements ProjectDetector {
-  private detectors = [
-    new PackageJsonDetector(),    // Node.js projects
-    new ComposerJsonDetector(),   // PHP projects
-    new RequirementsTxtDetector(), // Python projects
-    new GemfileDetector(),        // Ruby projects
-    new PomXmlDetector(),         // Java projects
-    new CargoTomlDetector(),      // Rust projects
-    new GoModDetector(),          // Go projects
-  ];
+## Environment Variables
 
-  async detect(repoPath: string): Promise<ProjectType> {
-    // Run detectors in parallel
-    const results = await Promise.all(
-      this.detectors.map(d => d.detect(repoPath))
-    );
+**Current implementation:** Stored in `pods.envVars` as JSON
+**Future:** Will move to separate `environment_profiles` table for reusability
 
-    // Return highest confidence match
-    return results
-      .filter(r => r.confidence > 0.5)
-      .sort((a, b) => b.confidence - a.confidence)[0];
-  }
-}
-```
+Environment variables are:
+- **Not** stored in `pinacle.yaml` (to avoid committing secrets)
+- Managed separately in the database
+- Can have template-defined defaults (e.g., `DATABASE_URL`)
+- Can be auto-generated (e.g., `NEXTAUTH_SECRET` via `openssl rand -hex 32`)
 
-### AI-Powered Detection
-
-```typescript
-class AIProjectAnalyzer {
-  async analyze(repoPath: string): Promise<PodSpec> {
-    const files = await this.scanRepository(repoPath);
-
-    const prompt = `
-      Analyze this repository structure and suggest:
-      1. Project type and framework
-      2. Build commands
-      3. Start commands
-      4. Required ports
-      5. Environment variables
-
-      Files:
-      ${files.map(f => f.path).join('\n')}
-
-      Key files content:
-      ${files.slice(0, 5).map(f => `${f.path}:\n${f.content}`).join('\n\n')}
-    `;
-
-    const response = await ai.complete(prompt);
-    return this.parseAIResponse(response);
-  }
-}
-```
+**Implementation:** `src/lib/pod-orchestration/template-registry.ts` (envVarDefaults)
 
 ## Configuration Validation
 
-### Schema Validation
+**Implementation:** `src/lib/pod-orchestration/pinacle-config.ts`
 
-```typescript
-import { z } from 'zod';
+All `PinacleConfig` objects are validated via Zod schema:
+- `version` must be "1.0" (or numeric 1.0)
+- `tier` must be valid tier ID from registry
+- `services` must be valid service names from registry
+- `tabs` must have name and url fields
 
-const PodSpecSchema = z.object({
-  version: z.literal("1.0"),
-  metadata: z.object({
-    name: z.string().min(1).max(50),
-    description: z.string().optional(),
-    template: z.string().optional(),
-    tier: z.enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
-  }),
-  runtime: z.object({
-    base: z.string(),
-    project: z.object({
-      repository: z.string().optional(),
-      branch: z.string().default("main"),
-      build: z.object({
-        packageManager: z.enum(["npm", "yarn", "pnpm", "bun"]).optional(),
-        install: z.string().optional(),
-        build: z.string().optional()
-      }).optional(),
-      start: z.object({
-        dev: z.object({
-          command: z.string(),
-          port: z.number()
-        }),
-        prod: z.object({
-          command: z.string(),
-          port: z.number()
-        }).optional()
-      })
-    })
-  }),
-  // ... rest of schema
-});
-```
+Invalid configs throw descriptive errors during:
+- Parsing YAML via `parsePinacleConfig()`
+- Form submission via `generatePinacleConfigFromForm()`
+- Database reads via `podRecordToPinacleConfig()`
 
-### Validation Rules
+## File Injection
 
-1. **Port Conflicts**: No duplicate internal ports
-2. **Resource Limits**: Within tier boundaries
-3. **Required Variables**: All required env vars defined
-4. **Service Dependencies**: Required services configured
-5. **Security Constraints**: No privileged operations
+**Implementation:** `src/lib/pod-orchestration/github-integration.ts`
 
-## Configuration Storage
+On pod creation, the `pinacle.yaml` file is:
+1. Generated from `PinacleConfig`
+2. Serialized with helpful comments via `serializePinacleConfig()`
+3. Injected into `/workspace/pinacle.yaml` in the container
+4. User can commit it to their repository
 
-### Repository Storage
-- Primary location: `pinacle.yaml` in repo root
-- Alternative: `.pinacle/config.yaml`
-- Override: `pinacle.{env}.yaml` for environments
+This enables:
+- Version control of pod configuration
+- Sharing configurations across team
+- Infrastructure-as-code workflows
+- Easy pod recreation from existing repos
 
-### Database Storage
-- Cached configuration for performance
-- Version history for rollback
-- Team-shared configurations
+## Future Enhancements
 
-### Encryption
-- Secrets encrypted at rest
-- AES-256-GCM encryption
-- Key rotation every 90 days
+**Planned improvements:**
 
-## Configuration API
+1. **Environment Profiles** (Task #19)
+   - Separate `environment_profiles` table
+   - Reusable env var groups across pods
+   - Attach/detach profiles as needed
 
-### REST Endpoints
+2. **Reading pinacle.yaml from existing repos**
+   - Detect existing `pinacle.yaml` during setup
+   - Pre-populate form with values
+   - Skip template selection if config exists
 
-```typescript
-// Get configuration
-GET /api/pods/{podId}/config
+3. **Live sync of changes**
+   - Watch for changes to running pod
+   - Update `pinacle.yaml` automatically
+   - Sync back to repository
 
-// Update configuration
-PUT /api/pods/{podId}/config
-{
-  "config": { /* YAML as JSON */ }
-}
+## Related Documentation
 
-// Validate configuration
-POST /api/config/validate
-{
-  "config": { /* YAML as JSON */ }
-}
-
-// Get template
-GET /api/templates/{templateId}
-
-// Detect project type
-POST /api/config/detect
-{
-  "repository": "github.com/user/repo"
-}
-```
-
-### Configuration Hot Reload
-
-```typescript
-interface ConfigWatcher {
-  watch(podId: string): void;
-  onConfigChange(callback: (spec: PodSpec) => void): void;
-}
-
-class GitConfigWatcher implements ConfigWatcher {
-  async watch(podId: string) {
-    // Watch for commits to pinacle.yaml
-    const webhook = await github.createWebhook({
-      events: ['push'],
-      config: {
-        url: `https://api.pinacle.dev/webhooks/github`,
-        content_type: 'json'
-      }
-    });
-
-    // Store webhook ID for cleanup
-    await db.podWebhooks.create({
-      podId,
-      webhookId: webhook.id
-    });
-  }
-}
-```
+- [pod-config-representations.md](./pod-config-representations.md) - Detailed comparison of three representations
+- [03-pod-lifecycle.md](./03-pod-lifecycle.md) - Pod provisioning and lifecycle
+- [06-template-system.md](./06-template-system.md) - Template architecture
+- `docs/pinacle-yaml.mdx` - Public user documentation

@@ -1,793 +1,360 @@
-# Server Management & Monitoring System
+# Server Management System
 
 ## Overview
 
-Pinacle's server management system enables horizontal scaling by managing multiple physical or virtual servers (hosts) where user pods are deployed. The system includes automatic server registration, real-time metrics collection, unified SSH abstraction, and comprehensive provisioning logs.
+The server management system handles registration, monitoring, and lifecycle of pod host servers. Servers can be production machines or Lima VMs for local development.
 
-**Status**: ✅ **Fully Implemented and Tested**
+**Implementation:**
+- `server-agent/` - Agent running on each server
+- `scripts/provision-server.sh` - Server provisioning script
+- `src/lib/trpc/routers/servers.ts` - Server API endpoints
+- `src/lib/db/schema.ts` - `servers` table
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph "Main Pinacle App"
-        API[tRPC API]
-        DB[(PostgreSQL)]
-        Worker[Background Worker]
-    end
-
-    subgraph "Server 1 (Production/Lima)"
-        Agent1[Server Agent<br/>Node.js Service]
-        Docker1[Docker + gVisor]
-        Pods1[User Pods]
-    end
-
-    subgraph "Server 2 (Production)"
-        Agent2[Server Agent<br/>Node.js Service]
-        Docker2[Docker + gVisor]
-        Pods2[User Pods]
-    end
-
-    subgraph "Server N"
-        AgentN[Server Agent<br/>Node.js Service]
-        DockerN[Docker + gVisor]
-        PodsN[User Pods]
-    end
-
-    Agent1 -->|Self-Register| API
-    Agent2 -->|Self-Register| API
-    AgentN -->|Self-Register| API
-
-    Agent1 -->|Metrics Every 5s| API
-    Agent2 -->|Metrics Every 5s| API
-    AgentN -->|Metrics Every 5s| API
-
-    API -->|SSH Commands| Docker1
-    API -->|SSH Commands| Docker2
-    API -->|SSH Commands| DockerN
-
-    Docker1 --> Pods1
-    Docker2 --> Pods2
-    DockerN --> PodsN
-
-    Worker -->|Cleanup Old Metrics| DB
+```
+┌────────────────────────────────────────┐
+│         Pinacle API Server             │
+│  ┌──────────────────────────────────┐  │
+│  │  Server Registry                 │  │
+│  │  (PostgreSQL servers table)      │  │
+│  └──────────────┬───────────────────┘  │
+└─────────────────┼──────────────────────┘
+                  │
+      ┌───────────┴───────────┐
+      │                       │
+┌─────▼──────┐        ┌───────▼────────┐
+│ Lima VM    │        │ Production     │
+│ (macOS)    │        │ Server         │
+│            │        │                │
+│ Agent      │        │ Agent          │
+│ (reports)  │        │ (reports)      │
+└────────────┘        └────────────────┘
 ```
 
-## Components
+## Server Agent
 
-### 1. Server Agent
+**Location:** `server-agent/`
 
-A lightweight Node.js service that runs on each server to handle self-registration and metrics reporting.
+**Purpose:** Reports server hardware info and metrics to API
 
-**Location**: `server-agent/`
+### Agent Responsibilities
 
-#### Features
-- **Self-Registration**: Automatically registers with main app on startup
-- **System Metrics**: Reports CPU, memory, disk usage every 5 seconds
-- **Per-Pod Metrics**: Collects resource usage for each Docker container
-- **SSH Details**: Reports hostname, port, and user for SSH connectivity
-- **Heartbeat**: Regular status updates to confirm server availability
+1. **Registration**
+   - Report hostname, IP, CPU, memory, disk
+   - Identify Lima VMs via `LIMA_VM_NAME` env var
+   - Receive server ID from API
 
-#### Implementation
+2. **Heartbeat**
+   - Send heartbeat every 30 seconds
+   - Report current metrics (CPU, memory, disk usage)
+   - Update server status to "online"
 
+3. **Graceful Shutdown**
+   - On SIGTERM/SIGINT, notify API
+   - Set server status to "offline"
+   - Clean exit
+
+### Implementation
+
+**Main file:** `server-agent/src/index.ts`
+
+**Key functions:**
+
+`getServerInfo()` - Collects hardware info:
+- Hostname via `os.hostname()`
+- IP address (first non-internal IPv4)
+- CPU cores via `os.cpus().length`
+- Memory via `os.totalmem()`
+- Disk space via `df` command
+- SSH host/port/user from env vars
+- Lima VM name (if `LIMA_VM_NAME` set)
+
+`registerServer()` - Posts to API:
+- Endpoint: `servers.registerServer` (tRPC)
+- Sends all hardware info
+- Receives server ID
+- Stores for subsequent heartbeats
+
+`sendHeartbeat()` - Updates metrics:
+- Endpoint: `servers.heartbeat` (tRPC)
+- Sends server ID
+- Reports current CPU/memory/disk usage
+- Runs every 30s
+
+### Authentication
+
+**Server Agent Token:** `process.env.SERVER_AGENT_TOKEN`
+
+- Set in `.env` during provisioning
+- Validated via tRPC middleware
+- Scoped to server operations only
+
+## Server Provisioning
+
+**Script:** `scripts/provision-server.sh`
+
+**Usage:**
+```bash
+./scripts/provision-server.sh <host> [--test]
+```
+
+**Host formats:**
+- `lima:gvisor-alpine` - Lima VM (local development)
+- `user@server-ip` - Remote server (production)
+
+### Provisioning Steps
+
+1. **Prerequisites check**
+   - SSH connection
+   - Docker installed
+   - gVisor runtime available
+
+2. **Docker setup**
+   - Install gVisor runtime (`runsc`)
+   - Configure Docker daemon
+   - Restart Docker service
+
+3. **Agent setup**
+   - Copy agent source to server
+   - Install Node.js (if needed)
+   - Install dependencies
+   - Build agent
+
+4. **Environment configuration**
+   - Create `.env` file
+   - Set `API_URL`, `SERVER_AGENT_TOKEN`
+   - Set SSH connection details
+   - Add `LIMA_VM_NAME` if Lima VM
+
+5. **Service setup**
+   - Create systemd service (Linux)
+   - Create launchd service (macOS/Lima)
+   - Start agent
+   - Verify registration
+
+### Lima VM Handling
+
+**Lima VMs are identified by:**
+- Host format: `lima:<vm-name>`
+- `LIMA_VM_NAME` in agent's `.env`
+- Reported to API during registration
+
+**Dynamic port handling:**
+- Lima VM SSH ports change on restart
+- API retrieves port via `getLimaSshPort(vmName)`
+- No hardcoded ports in database
+
+**Implementation:** `src/lib/pod-orchestration/lima-utils.ts`
+
+## Server Database Schema
+
+**Table:** `servers` in `src/lib/db/schema.ts`
+
+**Columns:**
+- `id` - Server ID (KSUID)
+- `hostname` - Server hostname
+- `ipAddress` - Server IP
+- `cpuCores` - Number of CPU cores
+- `memoryMb` - Total memory (MB)
+- `diskGb` - Total disk space (GB)
+- `sshHost` - SSH hostname/IP
+- `sshPort` - SSH port
+- `sshUser` - SSH username
+- `limaVmName` - Lima VM name (null for production)
+- `status` - online/offline/error
+- `lastHeartbeatAt` - Last heartbeat timestamp
+- `createdAt` - Registration timestamp
+
+## Server API Endpoints
+
+**File:** `src/lib/trpc/routers/servers.ts`
+
+### `registerServer`
+
+**Auth:** Server agent token required
+
+**Input:**
+```typescript
+{
+  hostname: string
+  ipAddress: string
+  cpuCores: number
+  memoryMb: number
+  diskGb: number
+  sshHost: string
+  sshPort: number
+  sshUser: string
+  limaVmName?: string  // Optional, for Lima VMs
+}
+```
+
+**Returns:** Server record with ID
+
+**Behavior:**
+- Creates new server record
+- Sets status to "online"
+- Records timestamp
+
+### `heartbeat`
+
+**Auth:** Server agent token required
+
+**Input:**
+```typescript
+{
+  serverId: string
+  cpuUsage?: number
+  memoryUsage?: number
+  diskUsage?: number
+}
+```
+
+**Returns:** Success/failure
+
+**Behavior:**
+- Updates `lastHeartbeatAt`
+- Updates metrics if provided
+- Sets status to "online"
+
+### `getServers` (Future)
+
+**Auth:** Admin user required
+
+Lists all registered servers with status
+
+### `removeServer` (Future)
+
+**Auth:** Admin user required
+
+Deregisters server and cleans up
+
+## Lima VM Support
+
+### Problem
+
+Lima VMs use dynamic SSH ports that change on every VM restart. Hardcoding ports (like `52111`) breaks on VM restart.
+
+### Solution
+
+1. **Store VM name:** `servers.limaVmName` column
+2. **Dynamic port retrieval:** `getLimaSshPort(vmName)` via `limactl show-ssh`
+3. **Just-in-time resolution:** Retrieve port when needed, not stored
+
+### Implementation
+
+**Provisioning:**
+```bash
+# In provision-server.sh for Lima hosts
+if [[ $HOST == lima:* ]]; then
+  ENV_CONTENT="$ENV_CONTENT
+LIMA_VM_NAME=$LIMA_VM"
+fi
+```
+
+**Agent registration:**
 ```typescript
 // server-agent/src/index.ts
-const MAIN_APP_URL = process.env.MAIN_APP_URL;
-const SERVER_API_KEY = process.env.SERVER_API_KEY;
-const INTERVAL = 5000; // 5 seconds
-
-let serverId: string | null = null;
-
-async function registerServer() {
-  const serverInfo = {
-    hostname: os.hostname(),
-    ipAddress: getLocalIP(),
-    cpuCores: os.cpus().length,
-    totalRamGb: os.totalmem() / (1024 ** 3),
-    totalDiskGb: await getDiskSpace(),
-    sshHost: await getSshHost(),
-    sshPort: await getSshPort(),
-    sshUser: process.env.USER || 'root',
-  };
-
-  const response = await fetch(`${MAIN_APP_URL}/api/trpc/servers.registerServer`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SERVER_API_KEY}`,
-    },
-    body: JSON.stringify({ json: serverInfo }),
-  });
-
-  const data = await response.json();
-  serverId = data.result.data.json.id;
-}
-
-async function sendMetrics() {
-  if (!serverId) return;
-
-  const metrics = await collectMetrics();
-  const podMetrics = await collectPodMetrics();
-
-  await fetch(`${MAIN_APP_URL}/api/trpc/servers.reportMetrics`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SERVER_API_KEY}`,
-    },
-    body: JSON.stringify({
-      json: {
-        serverId,
-        ...metrics,
-        podMetrics,
-      }
-    }),
-  });
-}
-
-// Metrics collection
-async function collectMetrics() {
-  const cpuUsage = await getCpuUsage();
-  const memInfo = process.memoryUsage();
-
-  return {
-    cpuUsagePercent: cpuUsage,
-    ramUsageGb: memInfo.rss / (1024 ** 3),
-    diskUsageGb: await getDiskUsage(),
-    activePodsCount: await getActivePodCount(),
-  };
-}
-
-async function collectPodMetrics() {
-  const containers = await getDockerContainers();
-  const metrics = [];
-
-  for (const container of containers) {
-    if (container.name.startsWith('pinacle-pod-')) {
-      const podId = container.name.replace('pinacle-pod-', '');
-      const stats = await getContainerStats(container.id);
-
-      metrics.push({
-        podId,
-        cpuPercent: stats.cpu,
-        memoryMb: stats.memory,
-        diskMb: stats.disk,
-        networkRxBytes: stats.networkRx,
-        networkTxBytes: stats.networkTx,
-      });
-    }
-  }
-
-  return metrics;
+if (process.env.LIMA_VM_NAME) {
+  serverInfo.limaVmName = process.env.LIMA_VM_NAME;
 }
 ```
 
-#### Provisioning Script
-
-**Location**: `scripts/provision-server.sh`
-
-Automates server setup with:
-- Node.js installation (via fnm)
-- Docker and gVisor setup
-- Server agent installation and configuration
-- SSH key installation for main app access
-- OpenRC service configuration for auto-start
-
-```bash
-#!/bin/bash
-set -e
-
-# Usage: ./provision-server.sh <server_ssh_string>
-# Example: ./provision-server.sh user@server-ip
-
-SERVER=$1
-MAIN_APP_URL=${MAIN_APP_URL:-"http://localhost:3000"}
-SERVER_API_KEY=${SERVER_API_KEY:-""}
-SSH_PUBLIC_KEY=${SSH_PUBLIC_KEY:-""}
-
-if [ -z "$SSH_PUBLIC_KEY" ]; then
-  echo "Error: SSH_PUBLIC_KEY environment variable is required"
-  exit 1
-fi
-
-echo "📦 Provisioning server: $SERVER"
-
-# Install Node.js via fnm
-ssh $SERVER << 'EOF'
-  curl -fsSL https://fnm.vercel.app/install | bash
-  source ~/.bashrc
-  fnm install 20
-  fnm use 20
-EOF
-
-# Copy and install server agent
-tar czf /tmp/server-agent.tar.gz -C server-agent dist package.json
-scp /tmp/server-agent.tar.gz $SERVER:/tmp/
-ssh $SERVER << 'EOF'
-  sudo mkdir -p /opt/pinacle/server-agent
-  sudo tar xzf /tmp/server-agent.tar.gz -C /opt/pinacle/server-agent
-  cd /opt/pinacle/server-agent
-  pnpm install --prod
-EOF
-
-# Configure environment
-ssh $SERVER << EOF
-  sudo tee /opt/pinacle/server-agent/.env > /dev/null <<ENVEOF
-MAIN_APP_URL=${MAIN_APP_URL}
-SERVER_API_KEY=${SERVER_API_KEY}
-NODE_ENV=production
-ENVEOF
-EOF
-
-# Install SSH public key
-ssh $SERVER << EOF
-  mkdir -p ~/.ssh
-  echo "${SSH_PUBLIC_KEY}" >> ~/.ssh/authorized_keys
-  chmod 600 ~/.ssh/authorized_keys
-EOF
-
-# Setup OpenRC service
-ssh $SERVER << 'EOF'
-  sudo tee /etc/init.d/pinacle-agent > /dev/null <<'SERVICEEOF'
-#!/sbin/openrc-run
-
-name="pinacle-agent"
-description="Pinacle Server Agent"
-command="/root/.local/share/fnm/node-versions/v20.*/installation/bin/node"
-command_args="/opt/pinacle/server-agent/dist/index.js"
-command_background="yes"
-pidfile="/run/pinacle-agent.pid"
-directory="/opt/pinacle/server-agent"
-
-depend() {
-    need net
-    after docker
-}
-SERVICEEOF
-
-  sudo chmod +x /etc/init.d/pinacle-agent
-  sudo rc-update add pinacle-agent default
-  sudo rc-service pinacle-agent start
-EOF
-
-echo "✅ Server provisioned successfully!"
-```
-
-### 2. SSH Connection Abstraction
-
-**Location**: `src/lib/pod-orchestration/server-connection.ts`
-
-Provides a unified interface for executing commands on servers, abstracting away Lima-specific commands and direct SSH.
-
-#### Interface
-
+**Port retrieval:**
 ```typescript
-export interface ServerConnection {
-  exec(
-    command: string,
-    options?: {
-      sudo?: boolean;
-      label?: string;
-      containerCommand?: string;
-    }
-  ): Promise<{ stdout: string; stderr: string }>;
+// src/lib/pod-orchestration/lima-utils.ts
+export const getLimaSshPort = async (vmName: string): Promise<number> => {
+  const { stdout } = await execAsync(`limactl show-ssh ${vmName}`);
+  const portMatch = stdout.match(/Port=(\d+)/);
+  return Number.parseInt(portMatch[1], 10);
+};
+```
 
-  testConnection(): Promise<boolean>;
-  setPodId(podId: string): void;
-}
-
-export interface ServerConnectionConfig {
-  host: string;
-  port: number;
-  user: string;
-  privateKey: string; // SSH private key content
+**Usage in provisioning:**
+```typescript
+// src/lib/pod-orchestration/pod-provisioning-service.ts
+if (server.limaVmName) {
+  const sshPort = await getLimaSshPort(server.limaVmName);
+  const connection = new SSHServerConnection({ ...config, sshPort });
 }
 ```
 
-#### Implementation
-
-```typescript
-export class SSHServerConnection implements ServerConnection {
-  private config: ServerConnectionConfig;
-  private podId: string | null = null;
-
-  constructor(config: ServerConnectionConfig, podId?: string) {
-    this.config = config;
-    this.podId = podId || null;
-  }
-
-  async exec(
-    command: string,
-    options: { sudo?: boolean; label?: string; containerCommand?: string } = {},
-  ): Promise<{ stdout: string; stderr: string }> {
-    const keyPath = await this.getKeyFilePath();
-    const sudoPrefix = options.sudo ? "sudo " : "";
-    const fullCommand = `${sudoPrefix}${command}`;
-
-    // Escape command for SSH
-    const escapedCommand = fullCommand.replace(/'/g, "'\\''");
-    const sshCommand = [
-      "ssh",
-      "-i", keyPath,
-      "-o", "StrictHostKeyChecking=no",
-      "-o", "UserKnownHostsFile=/dev/null",
-      "-o", "LogLevel=ERROR",
-      "-p", this.config.port.toString(),
-      `${this.config.user}@${this.config.host}`,
-      `'${escapedCommand}'`,
-    ].join(" ");
-
-    const startTime = Date.now();
-    let exitCode = 0;
-
-    try {
-      const result = await execAsync(sshCommand);
-
-      // Log command execution if podId is set
-      if (this.podId) {
-        await this.logCommand({
-          command: fullCommand,
-          containerCommand: options.containerCommand,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode,
-          duration: Date.now() - startTime,
-          label: options.label,
-        });
-      }
-
-      return result;
-    } catch (error) {
-      // Handle errors and log failures
-      exitCode = 1;
-      if (this.podId) {
-        await this.logCommand({ /* ... */ });
-      }
-      throw error;
-    } finally {
-      await unlink(keyPath); // Cleanup temp key file
-    }
-  }
-}
-```
-
-#### Benefits
-
-- ✅ **Unified Interface**: Same code for Lima (dev) and remote servers (prod)
-- ✅ **Automatic Logging**: All commands logged to database when podId is set
-- ✅ **Secure**: Temporary key files with proper permissions
-- ✅ **Lima Transparent**: Lima VMs treated as regular SSH servers
-
-### 3. Pod Provisioning Logs
-
-**Location**: Database table `pod_logs`
-
-Comprehensive logging of all commands executed during pod provisioning, distinguishing between infrastructure commands and container commands.
-
-#### Schema
-
-```sql
-CREATE TABLE pod_logs (
-  id TEXT PRIMARY KEY,
-  pod_id TEXT NOT NULL,
-  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-  command TEXT NOT NULL,                 -- Full command (with docker exec wrapper)
-  container_command TEXT,                 -- Original command inside container (user-facing)
-  stdout TEXT DEFAULT '',
-  stderr TEXT DEFAULT '',
-  exit_code INTEGER NOT NULL,
-  duration INTEGER NOT NULL,              -- Milliseconds
-  label TEXT,                            -- Optional context (e.g., "📦 Cloning repository")
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-#### Command Types
-
-**Infrastructure Commands** (`container_command IS NULL`):
-- `docker network create ...`
-- `docker create ...`
-- `docker start ...`
-- `docker inspect ...`
-
-**Container Commands** (`container_command IS NOT NULL`):
-- `git clone ...`
-- `pnpm install ...`
-- `rc-service code-server start`
-- `mkdir -p /workspace/.ssh`
-
-#### Frontend Query Examples
-
-```typescript
-// User-facing logs (what happened in their pod)
-const userLogs = await db.query.podLogs.findMany({
-  where: and(
-    eq(podLogs.podId, podId),
-    isNotNull(podLogs.containerCommand)
-  ),
-  orderBy: asc(podLogs.timestamp),
-});
-
-// Debug logs (infrastructure + container commands)
-const debugLogs = await db.query.podLogs.findMany({
-  where: eq(podLogs.podId, podId),
-  orderBy: asc(podLogs.timestamp),
-});
-
-// Failed commands only
-const errors = await db.query.podLogs.findMany({
-  where: and(
-    eq(podLogs.podId, podId),
-    ne(podLogs.exitCode, 0)
-  ),
-});
-```
-
-### 4. Database Schema
-
-#### Servers Table
-
-```sql
-CREATE TABLE server (
-  id TEXT PRIMARY KEY,
-  hostname VARCHAR(255) NOT NULL,
-  ip_address VARCHAR(45) NOT NULL,
-  cpu_cores INTEGER NOT NULL,
-  total_ram_gb REAL NOT NULL,
-  total_disk_gb REAL NOT NULL,
-  ssh_host VARCHAR(255) NOT NULL DEFAULT '',
-  ssh_port INTEGER NOT NULL DEFAULT 22,
-  ssh_user VARCHAR(50) NOT NULL DEFAULT 'root',
-  status VARCHAR(50) NOT NULL DEFAULT 'active',
-  last_heartbeat TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-#### Server Metrics Table
-
-```sql
-CREATE TABLE server_metrics (
-  id TEXT PRIMARY KEY,
-  server_id TEXT NOT NULL REFERENCES server(id),
-  cpu_usage_percent REAL NOT NULL,
-  ram_usage_gb REAL NOT NULL,
-  disk_usage_gb REAL NOT NULL,
-  active_pods_count INTEGER NOT NULL DEFAULT 0,
-  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-#### Pod Metrics Table
-
-```sql
-CREATE TABLE pod_metrics (
-  id TEXT PRIMARY KEY,
-  pod_id TEXT NOT NULL, -- No FK constraint - pod may not exist yet
-  cpu_percent REAL NOT NULL,
-  memory_mb REAL NOT NULL,
-  disk_mb REAL NOT NULL DEFAULT 0,
-  network_rx_bytes REAL NOT NULL DEFAULT 0,
-  network_tx_bytes REAL NOT NULL DEFAULT 0,
-  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-#### Pods Table (Updated)
-
-```sql
-CREATE TABLE pod (
-  id TEXT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  owner_id TEXT NOT NULL REFERENCES user(id),
-  team_id TEXT REFERENCES team(id),
-  server_id TEXT REFERENCES server(id), -- NEW: Server assignment
-  host_ip VARCHAR(45),
-  internal_ip VARCHAR(45),
-  status VARCHAR(50),
-  tier VARCHAR(50),
-  github_repo VARCHAR(500),
-  config JSONB,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-### 5. tRPC API Endpoints
-
-**Location**: `src/lib/trpc/routers/servers.ts`
-
-#### Server Registration
-
-```typescript
-registerServer: publicProcedure
-  .input(z.object({
-    hostname: z.string(),
-    ipAddress: z.string().ip(),
-    cpuCores: z.number().int().positive(),
-    totalRamGb: z.number().positive(),
-    totalDiskGb: z.number().positive(),
-    sshHost: z.string(),
-    sshPort: z.number().int().positive(),
-    sshUser: z.string(),
-  }))
-  .mutation(async ({ input, ctx }) => {
-    // Validate API key
-    const apiKey = ctx.req.headers.authorization?.replace('Bearer ', '');
-    if (apiKey !== env.SERVER_API_KEY) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' });
-    }
-
-    // Check if server already exists
-    const existing = await ctx.db.query.servers.findFirst({
-      where: eq(servers.hostname, input.hostname),
-    });
-
-    if (existing) {
-      // Update existing server
-      await ctx.db
-        .update(servers)
-        .set({
-          ...input,
-          status: 'active',
-          lastHeartbeat: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(servers.id, existing.id));
-
-      return { id: existing.id };
-    }
-
-    // Create new server
-    const [server] = await ctx.db
-      .insert(servers)
-      .values({
-        id: generateKSUID('server'),
-        ...input,
-        status: 'active',
-        lastHeartbeat: new Date(),
-      })
-      .returning();
-
-    return { id: server.id };
-  }),
-```
-
-#### Metrics Reporting
-
-```typescript
-reportMetrics: publicProcedure
-  .input(z.object({
-    serverId: z.string(),
-    cpuUsagePercent: z.number().min(0).max(100),
-    ramUsageGb: z.number().positive(),
-    diskUsageGb: z.number().positive(),
-    activePodsCount: z.number().int().min(0),
-    podMetrics: z.array(z.object({
-      podId: z.string(),
-      cpuPercent: z.number().min(0),
-      memoryMb: z.number().positive(),
-      diskMb: z.number().min(0).default(0),
-      networkRxBytes: z.number().min(0).default(0),
-      networkTxBytes: z.number().min(0).default(0),
-    })),
-  }))
-  .mutation(async ({ input, ctx }) => {
-    // Validate API key
-    const apiKey = ctx.req.headers.authorization?.replace('Bearer ', '');
-    if (apiKey !== env.SERVER_API_KEY) {
-      throw new TRPCError({ code: 'UNAUTHORIZED' });
-    }
-
-    // Insert server metrics
-    await ctx.db.insert(serverMetrics).values({
-      id: generateKSUID('server_metric'),
-      serverId: input.serverId,
-      cpuUsagePercent: input.cpuUsagePercent,
-      ramUsageGb: input.ramUsageGb,
-      diskUsageGb: input.diskUsageGb,
-      activePodsCount: input.activePodsCount,
-    });
-
-    // Insert pod metrics
-    if (input.podMetrics.length > 0) {
-      await ctx.db.insert(podMetrics).values(
-        input.podMetrics.map(pm => ({
-          id: generateKSUID('pod_metric'),
-          podId: pm.podId,
-          cpuPercent: pm.cpuPercent,
-          memoryMb: pm.memoryMb,
-          diskMb: pm.diskMb,
-          networkRxBytes: pm.networkRxBytes,
-          networkTxBytes: pm.networkTxBytes,
-        }))
-      );
-    }
-
-    // Update heartbeat
-    await ctx.db
-      .update(servers)
-      .set({ lastHeartbeat: new Date() })
-      .where(eq(servers.id, input.serverId));
-
-    return { success: true };
-  }),
-```
-
-### 6. Background Worker
-
-**Location**: `src/worker.ts`
-
-Cleans up old metrics data to prevent database bloat.
-
-```typescript
-async function cleanupOldMetrics() {
-  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-
-  // Delete old server metrics
-  const serverMetricsDeleted = await db
-    .delete(serverMetrics)
-    .where(lt(serverMetrics.createdAt, fiveDaysAgo))
-    .execute();
-
-  // Delete old pod metrics
-  const podMetricsDeleted = await db
-    .delete(podMetrics)
-    .where(lt(podMetrics.createdAt, fiveDaysAgo))
-    .execute();
-
-  // Delete old pod logs
-  const podLogsDeleted = await db
-    .delete(podLogs)
-    .where(lt(podLogs.createdAt, fiveDaysAgo))
-    .execute();
-
-  console.log('✅ Cleaned up old metrics:', {
-    serverMetrics: serverMetricsDeleted.rowCount || 0,
-    podMetrics: podMetricsDeleted.rowCount || 0,
-    podLogs: podLogsDeleted.rowCount || 0,
-  });
-}
-
-// Run every hour
-setInterval(cleanupOldMetrics, 60 * 60 * 1000);
-```
-
-## Integration Tests
-
-**Location**: `src/lib/server-agent/__tests__/agent-integration.test.ts`
-
-Tests the complete flow using Lima VM as a test server:
-
-```typescript
-describe('Server Agent Integration', () => {
-  it('should register server on first startup', async () => {
-    // Verify agent can register
-    const servers = await db.query.servers.findMany({
-      where: eq(servers.hostname, 'lima-gvisor-alpine'),
-    });
-
-    expect(servers).toHaveLength(1);
-    expect(servers[0].cpuCores).toBeGreaterThan(0);
-    expect(servers[0].totalRamGb).toBeGreaterThan(0);
-  });
-
-  it('should send heartbeat updates', async () => {
-    // Wait for heartbeat
-    await new Promise(resolve => setTimeout(resolve, 7000));
-
-    const server = await db.query.servers.findFirst({
-      where: eq(servers.hostname, 'lima-gvisor-alpine'),
-    });
-
-    expect(server.lastHeartbeat).toBeTruthy();
-    expect(server.lastHeartbeat.getTime()).toBeGreaterThan(
-      Date.now() - 10000
-    );
-  });
-
-  it('should report server metrics', async () => {
-    const metrics = await db.query.serverMetrics.findMany({
-      where: eq(serverMetrics.serverId, serverId),
-      orderBy: desc(serverMetrics.timestamp),
-      limit: 1,
-    });
-
-    expect(metrics).toHaveLength(1);
-    expect(metrics[0].cpuUsagePercent).toBeGreaterThan(0);
-    expect(metrics[0].ramUsageGb).toBeGreaterThan(0);
-  });
-
-  it('should collect per-pod metrics', async () => {
-    // Create a test pod
-    const pod = await createTestPod();
-
-    // Wait for metrics collection
-    await new Promise(resolve => setTimeout(resolve, 7000));
-
-    const metrics = await db.query.podMetrics.findMany({
-      where: eq(podMetrics.podId, pod.id),
-    });
-
-    expect(metrics.length).toBeGreaterThan(0);
-    expect(metrics[0].cpuPercent).toBeGreaterThanOrEqual(0);
-    expect(metrics[0].memoryMb).toBeGreaterThan(0);
-  });
-});
-```
-
-## Production Deployment
-
-### Environment Variables
-
-```bash
-# Main App
-DATABASE_URL=postgresql://...
-SERVER_API_KEY=your-secure-api-key-here
-SSH_PRIVATE_KEY="-----BEGIN OPENSSH PRIVATE KEY-----..."
-SSH_PUBLIC_KEY="ssh-ed25519 AAAA..."
-ADMIN_EMAILS=admin@example.com,admin2@example.com
-
-# Server Agent (on each server)
-MAIN_APP_URL=https://api.pinacle.dev
-SERVER_API_KEY=your-secure-api-key-here
-NODE_ENV=production
-```
-
-### Provisioning a New Server
-
-```bash
-# Set environment variables
-export MAIN_APP_URL=https://api.pinacle.dev
-export SERVER_API_KEY=your-secure-api-key-here
-export SSH_PUBLIC_KEY="$(cat .env.local | grep SSH_PUBLIC_KEY | cut -d '=' -f2-)"
-
-# Provision the server
-./scripts/provision-server.sh user@new-server-ip
-
-# Verify registration
-psql $DATABASE_URL -c "SELECT * FROM server ORDER BY created_at DESC LIMIT 1;"
-```
-
-### Server Requirements
-
-- **OS**: Linux (Alpine Linux recommended)
-- **RAM**: Minimum 8GB (16GB+ recommended)
-- **CPU**: 4+ cores
-- **Disk**: 100GB+ SSD
-- **Network**: Public IP with SSH access
-- **Software**: Docker, gVisor, OpenRC (installed by provision script)
-
-## Key Features
-
-✅ **Self-Registration**: Servers automatically register on startup
-✅ **Real-Time Metrics**: System and per-pod metrics every 5 seconds
-✅ **SSH Abstraction**: Unified interface for Lima and remote servers
-✅ **Comprehensive Logging**: Every command execution logged with stdout/stderr
-✅ **Automatic Cleanup**: Old metrics cleaned up after 5 days
-✅ **Health Monitoring**: Heartbeat tracking for server availability
-✅ **Dev/Prod Parity**: Same code works for Lima VMs and production servers
-
-## Admin Dashboard (Future)
-
-Users in `ADMIN_EMAILS` will have access to:
-
-- Server list with real-time status
-- CPU, memory, disk usage graphs
-- Active pod count per server
-- Pod allocation history
-- Server health alerts
-- Manual server registration/deregistration
-
-## Scaling Strategy
-
-1. **Add New Server**: Run provision script
-2. **Agent Auto-Registers**: Server appears in dashboard
-3. **Allocate Pods**: Main app can now deploy pods to new server
-4. **Monitor**: Metrics collected automatically
-
-**Capacity**: Each 64GB server can run ~50-100 dev pods depending on tier mix.
+## Server Selection
 
+**Current:** Single server (hardcoded or from database)
+
+**Future:** Intelligent server selection based on:
+- Available resources (CPU, memory, disk)
+- Current load
+- Geographic location
+- Cost optimization
+
+**Implementation:** `ServerOrchestrator` class (future)
+
+## Monitoring
+
+**Current:** Basic heartbeat tracking
+
+**Future:**
+- Real-time metrics dashboards
+- Alerting on server failures
+- Resource usage graphs
+- Predictive scaling
+
+## High Availability
+
+**Current:** No HA
+
+**Future:**
+- Multiple servers
+- Automatic failover
+- Load balancing
+- Pod migration between servers
+
+## Security
+
+**Agent authentication:**
+- Shared token (`SERVER_AGENT_TOKEN`)
+- Validated on every API call
+- Rotated periodically (future)
+
+**SSH access:**
+- Private key authentication
+- Key stored securely
+- Per-pod keys for isolation
+
+**Network isolation:**
+- Agents communicate via HTTPS only
+- API endpoints restricted to agent operations
+- No direct server-to-server communication
+
+## Troubleshooting
+
+**Agent not connecting:**
+- Check network connectivity
+- Verify `API_URL` in `.env`
+- Validate `SERVER_AGENT_TOKEN`
+- Check agent logs
+
+**Heartbeat failures:**
+- Check server status in database
+- Verify agent is running
+- Check API endpoint availability
+
+**Lima VM port issues:**
+- Verify VM is running: `limactl list`
+- Check port via: `limactl show-ssh <vmName>`
+- Restart VM if needed
+
+**SSH connection failures:**
+- Verify SSH key configuration
+- Check firewall rules
+- Test manual SSH connection
+
+## Related Documentation
+
+- [13-pod-orchestration-implementation.md](./13-pod-orchestration-implementation.md) - Pod orchestration
+- [03-pod-lifecycle.md](./03-pod-lifecycle.md) - Pod lifecycle
+- `server-agent/` - Agent source code
+- `scripts/provision-server.sh` - Provisioning script
+- `src/lib/trpc/routers/servers.ts` - API endpoints

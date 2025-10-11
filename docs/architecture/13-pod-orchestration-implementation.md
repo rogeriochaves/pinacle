@@ -20,6 +20,7 @@ This document describes the **implemented** pod orchestration system for Pinacle
        ├─────► ContainerRuntime    (Docker/gVisor operations)
        ├─────► NetworkManager      (Networking & port allocation)
        ├─────► ServiceProvisioner  (Service lifecycle)
+       ├─────► GitHubIntegration   (Repository management)
        └─────► ConfigResolver      (Configuration management)
 ```
 
@@ -27,14 +28,22 @@ This document describes the **implemented** pod orchestration system for Pinacle
 
 ```
 src/lib/pod-orchestration/
-├── pod-manager.ts          # Main orchestrator
-├── container-runtime.ts    # Docker/gVisor runtime
-├── network-manager.ts      # Networking & ports
-├── service-provisioner.ts  # Service templates
-├── config-resolver.ts      # Config validation
-├── types.ts                # Type definitions
+├── pod-manager.ts              # Main orchestrator
+├── container-runtime.ts        # Docker/gVisor runtime
+├── network-manager.ts          # Networking & ports
+├── service-provisioner.ts      # Service templates
+├── github-integration.ts       # Git operations
+├── config-resolver.ts          # Config validation
+├── server-connection.ts        # SSH abstraction
+├── lima-utils.ts               # Lima VM utilities
+├── types.ts                    # Type definitions (PodSpec)
+├── pinacle-config.ts           # PinacleConfig (YAML)
+├── template-registry.ts        # Pod templates
+├── service-registry.ts         # Service definitions
+├── resource-tier-registry.ts   # Resource tiers
 └── __tests__/
-    └── integration.test.ts # Integration tests
+    ├── integration.test.ts     # Integration tests
+    └── pinacle-yaml-integration.test.ts
 ```
 
 ## Key Features Implemented
@@ -45,659 +54,349 @@ src/lib/pod-orchestration/
 
 **Solution**: `ServerConnection` interface that abstracts SSH execution.
 
-```typescript
-// Unified interface for Lima VMs and remote servers
-export interface ServerConnection {
-  exec(
-    command: string,
-    options?: {
-      sudo?: boolean;
-      label?: string;
-      containerCommand?: string;
-    }
-  ): Promise<{ stdout: string; stderr: string }>;
+**Implementation:** `src/lib/pod-orchestration/server-connection.ts`
 
-  testConnection(): Promise<boolean>;
-  setPodId(podId: string): void; // Enable automatic logging
-}
-
-// Implementation using SSH
-class SSHServerConnection implements ServerConnection {
-  constructor(config: ServerConnectionConfig, podId?: string) {
-    // Works for both Lima (127.0.0.1:52111) and remote servers
-    this.config = config; // { host, port, user, privateKey }
-    this.podId = podId;
-  }
-
-  async exec(command: string, options = {}) {
-    // Execute via SSH
-    // Automatically logs to pod_logs table if podId is set
-    const sshCommand = `ssh -i ${keyPath} -p ${port} ${user}@${host} '${command}'`;
-    const result = await execAsync(sshCommand);
-
-    if (this.podId) {
-      await this.logCommand({
-        command,
-        containerCommand: options.containerCommand,
-        stdout: result.stdout,
-        stderr: result.stderr,
-        exitCode: result.exitCode,
-        duration: result.duration,
-        label: options.label,
-      });
-    }
-
-    return result;
-  }
-}
-
-// Usage: Same code for Lima and production
-const runtime = new LimaGVisorRuntime(limaConfig, undefined, podId);
-const connection = new SSHServerConnection({
-  host: "127.0.0.1",    // or production server IP
-  port: 52111,           // or 22 for production
-  user: process.env.USER,
-  privateKey: env.SSH_PRIVATE_KEY,
-}, podId);
-```
+The `SSHServerConnection` class:
+- Executes commands via SSH on Lima VMs or remote servers
+- Automatically logs all commands to `pod_logs` table
+- Tracks both infrastructure and container commands
+- Handles sudo, retries, and error handling
 
 **Benefits**:
-- ✅ **Unified Codebase**: Same code for local and production
-- ✅ **Automatic Logging**: All commands logged to `pod_logs` table
-- ✅ **Lima Transparent**: Lima VMs treated as regular SSH servers
-- ✅ **Container Command Tracking**: Separates infrastructure vs user commands
+- ✅ Unified codebase for local and production
+- ✅ Automatic command logging
+- ✅ Lima VMs treated as regular SSH servers
+- ✅ Container command tracking
 
-**Files**:
-- `server-connection.ts`: SSH abstraction implementation
-- `container-runtime.ts`: Uses ServerConnection for all Docker commands
-- `network-manager.ts`: Uses ServerConnection for networking
-- `service-provisioner.ts`: Uses ServerConnection for service management
+**Usage in:**
+- `container-runtime.ts` - All Docker commands
+- `network-manager.ts` - Networking setup
+- `service-provisioner.ts` - Service management
 
-### 2. Hostname-Based Port Routing
+### 2. Dynamic Lima Port Handling
+
+**Problem**: Lima VMs use dynamic SSH ports that change on every start.
+
+**Solution**: Retrieve ports dynamically via `limactl show-ssh` and store Lima VM name in database.
+
+**Implementation:**
+- `src/lib/pod-orchestration/lima-utils.ts` - `getLimaSshPort(vmName)`
+- `src/lib/db/schema.ts` - `servers.limaVmName` column
+- `scripts/provision-server.sh` - Passes `LIMA_VM_NAME` to agent
+- `server-agent/src/index.ts` - Reports Lima VM name during registration
+
+**Flow:**
+1. Server agent announces itself as Lima VM (if applicable)
+2. API stores `limaVmName` in `servers` table
+3. On pod provisioning, API calls `getLimaSshPort(limaVmName)`
+4. Dynamic port passed to `SSHServerConnection` and `LimaGVisorRuntime`
+
+### 3. Hostname-Based Port Routing
 
 **Problem**: Need dynamic port access without restarting pods or managing many external ports.
 
 **Solution**: Single external port per pod with Nginx proxy inside container.
 
-#### Architecture
+**Implementation:** `src/lib/pod-orchestration/container-runtime.ts`
 
+Nginx inside container:
+- Listens on port 80
+- Extracts target port from hostname (e.g., `localhost-8726.pod-test.localhost`)
+- Proxies to `localhost:<port>` inside container
+- Rewrites Host header for transparency
+
+**Example:**
 ```
 Browser: http://localhost-8726.pod-test.localhost:30000
-           ↓
+         ↓
 Lima VM forwards :30000 → container :80
-           ↓
-Nginx extracts "8726" from hostname
-           ↓
+         ↓
 Nginx proxies to localhost:8726 (code-server)
 ```
 
-#### Nginx Configuration
-
-```nginx
-server {
-    listen 80 default_server;
-
-    # Extract target port from hostname
-    set $target_port 3000;
-    if ($host ~* ^localhost-(\d+)\..*$) {
-        set $target_port $1;
-    }
-
-    location / {
-        proxy_pass http://127.0.0.1:$target_port;
-
-        # Critical: Rewrite Host header for transparency
-        proxy_set_header Host localhost:$target_port;
-
-        # WebSocket support
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-
-        # Long-running connections (7 days)
-        proxy_connect_timeout 7d;
-        proxy_send_timeout 7d;
-        proxy_read_timeout 7d;
-
-        # No buffering for real-time apps
-        proxy_buffering off;
-        proxy_request_buffering off;
-    }
-}
-```
-
-**Files**:
-- `docker/config/nginx.conf`: Full configuration
-- `docker/Dockerfile.base`: Lines 45-50 (Nginx installation)
-
-#### Benefits
-
-- ✅ **Single port per pod**: Simplifies firewall/routing
-- ✅ **Dynamic services**: Add new services without pod restart
-- ✅ **WebSocket support**: Full transparency for WS connections
-- ✅ **No DNS setup**: `.localhost` TLD works automatically in browsers
-
-### 3. Service Provisioning
-
-Pre-configured service templates with health checks and lifecycle management.
-
-#### Implemented Services
-
-| Service | Port | Description | Status |
-|---------|------|-------------|--------|
-| code-server | 8726 | VS Code in browser | ✅ Working |
-| vibe-kanban | 5262 | Kanban board | ✅ Working |
-| claude-code | 2528 | AI coding assistant | ✅ Working |
-| web-terminal | 7681 | ttyd web terminal | ✅ Working |
-
-#### Service Template Structure
-
-```typescript
-type ServiceTemplate = {
-  name: string;
-  installScript: string[];          // Installation commands
-  startCommand: string[];            // Service start command
-  cleanupCommand: string[];          // Cleanup on stop
-  healthCheckCommand: string[];      // Health check
-  defaultPort: number;               // Default internal port
-  preStartHooks?: string[];          // Pre-start setup
-  postStartHooks?: string[];         // Post-start verification
-  environmentVariables?: Record<string, string>;
-};
-```
-
-#### Code-Server Configuration
-
-The code-server service includes special flags for proxy transparency:
-
-```typescript
-startCommand: [
-  "code-server",
-  "--bind-addr", "0.0.0.0",
-  "--auth", "none",
-  "--trusted-origins", "*"  // ← Critical for WebSocket through proxy
-]
-```
-
-**Files**:
-- `service-provisioner.ts`: Lines 33-200 (All service templates)
-
-### 4. Pod Provisioning Logs
-
-**Status**: ✅ **Fully Implemented**
-
-Comprehensive logging of every command executed during pod provisioning, stored in PostgreSQL for user visibility and debugging.
-
-#### Database Schema
-
-```sql
-CREATE TABLE pod_logs (
-  id TEXT PRIMARY KEY,
-  pod_id TEXT NOT NULL,
-  timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-  command TEXT NOT NULL,                 -- Full command (with docker exec if applicable)
-  container_command TEXT,                 -- Original command inside container (NULL for infrastructure)
-  stdout TEXT DEFAULT '',
-  stderr TEXT DEFAULT '',
-  exit_code INTEGER NOT NULL,
-  duration INTEGER NOT NULL,              -- Milliseconds
-  label TEXT,                            -- Optional context (e.g., "📦 Cloning repository")
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-```
-
-#### Command Types
-
-**Infrastructure Commands** (`container_command IS NULL`):
-- Used for debugging and system administrators
-- Examples: `docker network create`, `docker inspect`, `netstat`
-
-**Container Commands** (`container_command IS NOT NULL`):
-- What users see - commands executed inside their pod
-- Examples: `git clone`, `pnpm install`, `rc-service code-server start`
-
-#### Automatic Logging
-
-All commands executed through `ServerConnection` are automatically logged:
-
-```typescript
-// In container-runtime.ts
-async execCommand(containerId: string, command: string[]): Promise<...> {
-  const commandStr = command.join(" ");
-  const dockerCommand = `docker exec ${containerId} ${commandStr}`;
-
-  // Automatically logs with both full command and original container command
-  const result = await this.exec(dockerCommand, true, commandStr);
-  //                                                    ^^^^^^^^^^
-  //                                        This becomes container_command in DB
-
-  return result;
-}
-```
-
-#### User-Facing Query
-
-```typescript
-// Get logs user cares about (commands inside their pod)
-const userLogs = await db.query.podLogs.findMany({
-  where: and(
-    eq(podLogs.podId, podId),
-    isNotNull(podLogs.containerCommand) // Only container commands
-  ),
-  orderBy: asc(podLogs.timestamp),
-});
-
-// Display like a terminal
-userLogs.forEach(log => {
-  if (log.label) console.log(log.label); // e.g., "📦 Cloning repository"
-  console.log(`$ ${log.containerCommand}`);
-  if (log.stdout) console.log(log.stdout);
-  if (log.stderr) console.error(log.stderr);
-  if (log.exitCode !== 0) console.error(`Exit code: ${log.exitCode}`);
-});
-```
-
-#### Benefits
-
-- ✅ **Terminal-Like Output**: Users see exactly what's happening in their pod
-- ✅ **Debugging**: Full command history with stdout/stderr/exit codes
-- ✅ **Performance Tracking**: Duration recorded for every command
-- ✅ **Automatic Cleanup**: Old logs deleted after 5 days
-- ✅ **Infrastructure Visibility**: Debug infrastructure issues separately
-
-**Files**:
-- `server-connection.ts`: Automatic logging in `exec()` method
-- `src/worker.ts`: Cleanup of old logs
-
-### 5. Network Isolation
-
-Each pod runs in an isolated Docker network with unique bridge.
-
-#### Network Configuration
-
-```typescript
-// Create unique network per pod
-const networkName = `pod-${podId}`;
-const bridgeName = `br-${podId.substring(0, 12)}`;
-
-await execDockerCommand(
-  `docker network create ${networkName} ` +
-  `--driver bridge ` +
-  `--opt com.docker.network.bridge.name=${bridgeName}`
-);
-```
-
-**Benefits**:
-- ✅ **Isolation**: Pods can't see each other
-- ✅ **Unique IPs**: No IP conflicts between pods
-- ✅ **Easy cleanup**: Delete network to clean up
-
-**Files**:
-- `network-manager.ts`: Lines 50-120 (Network creation)
-
-### 5. Port Allocation Strategy
-
-**Old Approach** (rejected):
-- Allocate external port for each service
-- Port conflicts across pods
-- Complex port management
-
-**Current Approach** (implemented):
-- **One** external port per pod (for Nginx proxy)
-- Nginx routes to internal services dynamically
-- Port range: 30000-40000
-
-```typescript
-class NetworkManager {
-  private portRange = { start: 30000, end: 40000 };
-  private allocatedPorts = new Set<number>();
-
-  async allocateExternalPort(): Promise<number> {
-    for (let port = this.portRange.start; port <= this.portRange.end; port++) {
-      if (!this.allocatedPorts.has(port) && await this.isPortAvailable(port)) {
-        this.allocatedPorts.add(port);
-        return port;
-      }
-    }
-    throw new Error('No available ports in range');
-  }
-}
-```
-
-**Files**:
-- `network-manager.ts`: Lines 200-280 (Port allocation)
-
-### 6. Configuration System
-
-Zod-based configuration validation with sensible defaults.
-
-#### Configuration Schema
-
-```typescript
-const PodSpecSchema = z.object({
-  name: z.string(),
-  slug: z.string(),
-  baseImage: z.string().optional().default('pinacledev/pinacle-base'),
-  services: z.array(z.string()).optional().default([]),
-  environment: z.record(z.string(), z.string()).optional().default({}),
-  ports: z.array(PortMappingSchema).optional().default([]),
-  hooks: z.object({
-    preStart: z.array(z.string()).optional(),
-    postStart: z.array(z.string()).optional(),
-  }).optional(),
-});
-```
-
-#### Port Conflict Validation
-
-```typescript
-validatePortConflicts(spec: PodSpec): ValidationResult {
-  const usedPorts = new Set<number>();
-
-  // Check network-level ports
-  for (const port of spec.ports) {
-    if (usedPorts.has(port.internal)) {
-      return { valid: false, error: `Port ${port.internal} already in use` };
-    }
-    usedPorts.add(port.internal);
-  }
-
-  // Check service ports (per-service, so reset for each)
-  for (const service of spec.services) {
-    const serviceConfig = this.getServiceTemplate(service);
-    const servicePorts = new Set<number>();
-
-    for (const port of serviceConfig.ports) {
-      if (servicePorts.has(port)) {
-        return { valid: false, error: `Service ${service} has duplicate port` };
-      }
-      servicePorts.add(port);
-    }
-  }
-
-  return { valid: true };
-}
-```
-
-**Files**:
-- `config-resolver.ts`: Lines 20-250 (Full validation)
-
-### 7. Lifecycle Management
-
-Complete pod lifecycle with state management and error handling.
-
-#### Pod States
-
-```typescript
-enum PodState {
-  PENDING = 'pending',           // Awaiting resources
-  PROVISIONING = 'provisioning', // Creating container
-  STARTING = 'starting',         // Starting services
-  RUNNING = 'running',          // Fully operational
-  STOPPING = 'stopping',        // Stopping services
-  STOPPED = 'stopped',          // Stopped but not destroyed
-  FAILED = 'failed',           // Error state
-  TERMINATING = 'terminating', // Cleaning up
-}
-```
-
-#### Lifecycle Flow
-
-```typescript
-async createPod(spec: PodSpec): Promise<Pod> {
-  // 1. Create container
-  const containerId = await this.runtime.createContainer(podId, spec);
-
-  // 2. Create network
-  const networkId = await this.network.createPodNetwork(podId);
-
-  // 3. Start container
-  await this.runtime.startContainer(containerId);
-
-  // 4. Allocate external port
-  const proxyPort = await this.network.allocateExternalPort();
-
-  // 5. Setup port forwarding (container :80 → host :proxyPort)
-  await this.network.setupPortForwarding(podId, containerId, proxyPort);
-
-  // 6. Install & start services
-  await this.provisioner.installServices(containerId, spec.services);
-  await this.provisioner.startServices(containerId, spec.services);
-
-  // 7. Run post-start hooks
-  if (spec.hooks?.postStart) {
-    for (const hook of config.hooks.postStart) {
-      await this.runtime.execCommand(containerId, hook);
-    }
-  }
-
-  return { podId, containerId, proxyPort, status: 'running' };
-}
-```
-
-**Files**:
-- `pod-manager.ts`: Lines 100-400 (Complete lifecycle)
+**Files:**
+- `container-runtime.ts` - Generates Nginx config
+- `network-manager.ts` - Port allocation and mapping
+
+### 4. gVisor Runtime (Rootless Security)
+
+**Problem**: Traditional containers run as root, security risk.
+
+**Solution**: gVisor provides lightweight VM-like isolation.
+
+**Implementation:** `src/lib/pod-orchestration/container-runtime.ts`
+
+- Uses `runsc` runtime via Docker
+- Runs in Lima VMs on macOS, native on Linux
+- OpenRC init system inside containers
+- Syscall filtering and namespace isolation
+
+**Lima VM Management:**
+- `LimaGVisorRuntime` class handles Lima-specific operations
+- Dynamic SSH port retrieval via `getLimaSshPort()`
+- Automatic VM health checks via `isLimaVmRunning()`
+
+**Files:**
+- `container-runtime.ts` - Docker operations with gVisor
+- `lima-utils.ts` - Lima VM utilities
+- `scripts/provision-server.sh` - Lima VM provisioning
+
+### 5. Network Architecture
+
+**Implementation:** `src/lib/pod-orchestration/network-manager.ts`
+
+Each pod gets:
+- **Dedicated subnet** (e.g., `10.249.1.0/24`)
+- **Gateway IP** (e.g., `10.249.1.1`)
+- **Container IP** (e.g., `10.249.1.2`)
+- **Single external port** (e.g., `30000`)
+
+Port allocation:
+- External ports start at 30000, increment per pod
+- Stored in database (`pods.ports` JSON)
+- Lima VM forwards external port → container:80
+
+**Container networking:**
+- Docker bridge network per pod
+- Internal DNS resolution
+- Services communicate via localhost
+- External access via single port + hostname routing
+
+### 6. Service Provisioning
+
+**Implementation:**
+- `src/lib/pod-orchestration/service-provisioner.ts` - Orchestration
+- `src/lib/pod-orchestration/service-registry.ts` - Service definitions
+
+Service lifecycle:
+1. Read service definition from registry
+2. Install dependencies via `installScript`
+3. Create OpenRC service with `startCommand`
+4. Configure health checks
+5. Start service and verify
+
+**Available services:**
+- AI: claude-code, openai-codex, cursor-cli, gemini-cli
+- Tools: code-server, vibe-kanban, web-terminal
+- Databases: postgres, redis
+- Other: jupyter
+
+Each service defines:
+- Display name, icon, port
+- Installation script
+- Start command (OpenRC service)
+- Health check (HTTP/TCP/process)
+
+### 7. GitHub Integration
+
+**Implementation:** `src/lib/pod-orchestration/github-integration.ts`
+
+Capabilities:
+- Clone repositories via Git
+- Read files via GitHub API
+- Inject `pinacle.yaml` into container
+- SSH key management for private repos
+
+**pinacle.yaml injection:**
+1. Generate `PinacleConfig` from form data
+2. Serialize to YAML via `serializePinacleConfig()`
+3. Write to `/workspace/pinacle.yaml` in container
+4. User can commit to version control
+
+**Files:**
+- `github-integration.ts` - Git operations
+- `pinacle-config.ts` - YAML serialization
+- `src/lib/trpc/routers/github-app.ts` - GitHub App API
+
+### 8. Configuration System
+
+**Implementation:** See [pod-config-representations.md](./pod-config-representations.md)
+
+Three representations:
+1. **PinacleConfig** - User-facing YAML (`pinacle-config.ts`)
+2. **Database Schema** - Normalized storage (`schema.ts`)
+3. **PodSpec** - Runtime specification (`types.ts`)
+
+**Configuration flow:**
+1. Form submission → `generatePinacleConfigFromForm()`
+2. Store in DB as JSON (`pods.config`)
+3. On provisioning → `podRecordToPinacleConfig()`
+4. Expand to PodSpec → `ConfigResolver.loadConfig()`
+5. Inject YAML → `serializePinacleConfig()`
+
+**Key functions:**
+- `src/lib/pod-orchestration/pinacle-config.ts` - All PinacleConfig helpers
+- `src/lib/pod-orchestration/config-resolver.ts` - PinacleConfig → PodSpec expansion
+
+### 9. Template System
+
+**Implementation:** `src/lib/pod-orchestration/template-registry.ts`
+
+Templates provide base configurations:
+- Base Docker image
+- Default services
+- Environment variable defaults (with generators)
+- Technology stack indicators
+
+**Available templates:**
+- `nextjs` - Next.js applications
+- `vite` - Vite/React applications
+- `langflow` - Langflow AI applications
+- `nodejs-blank` - Blank Node.js environment
+- `python-blank` - Blank Python environment
+
+**Environment defaults:**
+- Static values (e.g., `DATABASE_URL`)
+- Generated values (e.g., `NEXTAUTH_SECRET` via `openssl rand -hex 32`)
+- UI indicators for auto-generated values
+
+### 10. Resource Management
+
+**Implementation:** `src/lib/pod-orchestration/resource-tier-registry.ts`
+
+Tiers abstract CPU/memory/storage:
+
+| Tier | CPU | Memory | Storage | Price |
+|------|-----|--------|---------|-------|
+| dev.small | 0.5 | 1GB | 10GB | $10/mo |
+| dev.medium | 1 | 2GB | 20GB | $20/mo |
+| dev.large | 2 | 4GB | 40GB | $40/mo |
+| dev.xlarge | 4 | 8GB | 80GB | $80/mo |
+
+**Resource derivation:**
+- `PinacleConfig` stores tier ID only
+- Resources derived at runtime via `getResourcesFromTier(tierId)`
+- No duplication in database
+
+### 11. Command Logging
+
+**Implementation:** `src/lib/pod-orchestration/server-connection.ts`
+
+All SSH commands logged to `pod_logs` table:
+- Infrastructure commands (Docker, network setup)
+- Container commands (user actions)
+- stdout, stderr, exit code, duration
+- Timestamps and labels
+
+**Benefits:**
+- Debugging and auditing
+- Performance monitoring
+- User activity tracking
+- Error investigation
+
+### 12. Pod Lifecycle Management
+
+**Implementation:** `src/lib/pod-orchestration/pod-manager.ts`
+
+Lifecycle operations:
+- **Create**: Provision container, network, services, GitHub repo
+- **Start**: Start container and services
+- **Stop**: Stop container gracefully
+- **Destroy**: Remove container, network, clean up
+- **Status**: Get current pod state
+- **Logs**: Stream pod logs
+
+**Pod states:**
+- `creating` - Provisioning in progress
+- `running` - Container running
+- `stopped` - Container stopped
+- `error` - Provisioning or runtime error
+
+**Files:**
+- `pod-manager.ts` - Main orchestrator
+- `pod-provisioning-service.ts` - Provisioning job
+- `src/lib/trpc/routers/pods.ts` - API endpoints
 
 ## Testing
 
-### Integration Tests
+**Integration tests:** `src/lib/pod-orchestration/__tests__/integration.test.ts`
 
-**Location**: `src/lib/pod-orchestration/__tests__/integration.test.ts`
+Tests cover:
+- ✅ Pod creation end-to-end
+- ✅ Container lifecycle (start, stop, destroy)
+- ✅ Network configuration
+- ✅ Service provisioning
+- ✅ GitHub repository cloning
+- ✅ pinacle.yaml injection
+- ✅ Lima dynamic port handling
 
-**Test Coverage**:
-- ✅ Container creation with gVisor runtime
-- ✅ Network setup with unique bridges
-- ✅ Service provisioning (code-server, vibe-kanban, etc.)
-- ✅ Hostname-based routing (internal)
-- ✅ External access from macOS host (via curl)
-- ✅ WebSocket support
-- ✅ Template-based pod creation
-- ✅ Cleanup and resource management
+**Requirements:**
+- Running Lima VM (`gvisor-alpine`)
+- Test database
+- GitHub test repository
 
-**Run Tests**:
+**Run tests:**
 ```bash
-# All integration tests
-pnpm test:integration
-
-# Specific test
-pnpm test:pod-system
-
-# With verbose output
-NODE_ENV=development pnpm vitest --config=vitest.config.ts
+pnpm test src/lib/pod-orchestration/__tests__/integration.test.ts
 ```
 
-### Test Example: Hostname-Based Routing
+## Production Deployment
 
-```typescript
-it('should route requests via hostname-based Nginx proxy', async () => {
-  // 1. Create pod with Nginx proxy
-  const { podId, containerId, proxyPort } = await podManager.createPod({
-    name: 'proxy-test',
-    slug: 'test-pod',
-    services: []
-  });
+**Server provisioning:** `scripts/provision-server.sh`
 
-  // 2. Start test HTTP server on port 8080
-  await runtime.execCommand(
-    containerId,
-    `'mkdir -p /tmp/test-server && echo "Hello!" > /tmp/test-server/index.html && python3 -m http.server 8080 --directory /tmp/test-server'`
-  );
+Installs:
+- Docker with gVisor runtime
+- Server agent (reports metrics)
+- SSH key configuration
+- Environment variables
 
-  // 3. Test from inside container
-  const internal = await runtime.execCommand(
-    containerId,
-    ['wget', '-O-', 'http://localhost-8080.pod-test.localhost/']
-  );
-  expect(internal.stdout).toContain('Hello!');
+**Server agent:** `server-agent/`
 
-  // 4. Test from macOS host
-  const external = await execAsync(
-    `curl -s http://localhost-8080.pod-test-pod.localhost:${proxyPort}/`
-  );
-  expect(external.stdout).toContain('Hello!');
-});
-```
+- Reports hardware info to API
+- Sends heartbeat every 30s
+- Announces Lima VM name (if applicable)
+- Handles graceful shutdown
 
-## Key Implementation Decisions
+**API registration:** `src/lib/trpc/routers/servers.ts`
 
-### 1. Lima VM for macOS Development
+- Accepts server hardware info
+- Stores in `servers` table
+- Tracks online/offline status
+- Stores `limaVmName` for dynamic ports
 
-**Why**: gVisor requires a Linux kernel, which macOS doesn't provide natively.
+## Performance Considerations
 
-**Alternative Considered**: Docker Desktop's virtualization.
+**Optimizations:**
+- Port ranges prevent conflicts (30000-39999)
+- Network namespaces isolate pods
+- OpenRC parallel service startup
+- Nginx caching for static assets
+- Health checks prevent cascading failures
 
-**Decision**: Lima VM provides:
-- Lightweight Alpine Linux VM (4GB RAM, 8GB disk)
-- Native gVisor support
-- Automatic port forwarding
-- Better performance than Docker Desktop on M1/M2/M3
+**Limitations:**
+- One external port per pod (hostname routing adds latency)
+- OpenRC not as sophisticated as systemd
+- gVisor has ~10-20% performance overhead
+- Lima adds SSH latency on macOS
 
-### 2. Nginx Inside Container (Not External)
+## Future Improvements
 
-**Why**: Dynamic port routing without external service.
+**Planned enhancements:**
 
-**Alternative Considered**: External Nginx/Traefik reverse proxy.
+1. **Multi-server orchestration**
+   - Load balancing across servers
+   - Pod migration between servers
+   - Automatic failover
 
-**Decision**: In-container Nginx provides:
-- No external dependencies
-- Pod-level isolation
-- Easy to manage (one Nginx per pod)
-- Scales horizontally (each pod independent)
+2. **Advanced networking**
+   - Pod-to-pod communication
+   - Private networks for teams
+   - Custom DNS resolution
 
-### 3. `.localhost` TLD for Local Dev
+3. **Monitoring & observability**
+   - Metrics collection (CPU, memory, disk)
+   - Real-time logs streaming
+   - Performance dashboards
 
-**Why**: Avoid `/etc/hosts` modifications requiring sudo.
+4. **Autoscaling**
+   - Vertical scaling (change tier)
+   - Horizontal scaling (multiple instances)
+   - Resource limits and quotas
 
-**Alternative Considered**: `/etc/hosts` patching, custom DNS server.
+## Related Documentation
 
-**Decision**: `.localhost` is:
-- Built into all browsers (RFC 8375)
-- Automatically resolves to 127.0.0.1
-- No DNS configuration needed
-- No sudo required
-- Works on all platforms
-
-### 4. Single External Port Per Pod
-
-**Why**: Simplify port management and firewall rules.
-
-**Alternative Considered**: Multiple ports per pod (one per service).
-
-**Decision**: Single port provides:
-- Fewer port conflicts
-- Simpler firewall configuration
-- Dynamic service addition (no restart)
-- Easier to scale (10,000 pods = 10,000 ports vs. 40,000+)
-
-## Known Issues and Workarounds
-
-### 1. Nginx Permission Issues in gVisor
-
-**Issue**: Nginx couldn't create log/temp directories in `/var/lib/nginx` due to gVisor restrictions.
-
-**Solution**: Changed all Nginx paths to `/tmp/`:
-```nginx
-error_log /tmp/nginx-error.log;
-access_log /tmp/nginx-access.log;
-client_body_temp_path /tmp/nginx_client_body;
-proxy_temp_path /tmp/nginx_proxy;
-# etc.
-```
-
-**File**: `docker/config/nginx.conf`
-
-### 2. Code-Server WebSocket Rejection
-
-**Issue**: Code-server rejected WebSocket connections through the proxy with `403 Forbidden`.
-
-**Root Cause**: Origin header mismatch. Browser sends `Origin: http://localhost-8726.pod-test.localhost:30000`, but Nginx was rewriting `Host: localhost:8726`.
-
-**Solution**: Added `--trusted-origins *` flag to code-server:
-```typescript
-startCommand: ["code-server", "--auth", "none", "--trusted-origins", "*"]
-```
-
-**File**: `service-provisioner.ts`, Line 42
-
-### 3. Shell Command Quoting
-
-**Issue**: Commands with `sh -c "command && other"` were failing due to improper quoting.
-
-**Solution**: Caller is responsible for proper quoting:
-```typescript
-// GOOD: Caller quotes the entire shell command
-await execCommand(containerId, ['sh', '-c', "'mkdir -p /tmp && echo hello'"])
-
-// BAD: Let execCommand handle quoting (don't do this)
-await execCommand(containerId, ['sh', '-c', 'mkdir -p /tmp && echo hello'])
-```
-
-**Decision**: Keep quoting responsibility with the caller for clarity and flexibility.
-
-## Production Considerations
-
-### What's Ready for Production
-
-✅ **Core orchestration**: Pod lifecycle fully implemented
-✅ **Networking**: Isolated networks with hostname routing
-✅ **Service provisioning**: Multiple services working
-✅ **Error handling**: Comprehensive error handling and cleanup
-✅ **Testing**: Integration tests covering main flows
-
-### What Needs Work for Production
-
-❌ **Persistence**: Pod state needs to be persisted to database
-❌ **Snapshots**: Hibernation/wake functionality not yet implemented
-❌ **Monitoring**: Health checks exist but no metrics collection
-❌ **Scaling**: Currently single-host, needs multi-host support
-❌ **Security**: Need proper authentication/authorization for pod access
-❌ **Resource limits**: CPU/memory limits defined but not enforced
-
-### Next Steps
-
-1. **Database Integration**
-   - Store pod state in PostgreSQL
-   - Track service health and metrics
-   - Port allocation tracking
-
-2. **Snapshot System**
-   - Implement pod hibernation (save state to S3)
-   - Implement pod wake (restore from snapshot)
-   - Incremental snapshots for efficiency
-
-3. **Multi-Host Support**
-   - Host registration and health tracking
-   - Load balancing across hosts
-   - Pod migration between hosts
-
-4. **Production Networking**
-   - Replace `.localhost` with `.pinacle.dev`
-   - SSL/TLS termination at edge
-   - Rate limiting and DDoS protection
-
-5. **Monitoring & Observability**
-   - Metrics collection (Prometheus)
-   - Log aggregation (Loki)
-   - Tracing (Jaeger)
-
-## References
-
-- [gVisor Documentation](https://gvisor.dev/)
-- [Lima VM Project](https://lima-vm.io/)
-- [RFC 8375: .localhost TLD](https://www.rfc-editor.org/rfc/rfc8375.html)
-- [Nginx Proxy Configuration](http://nginx.org/en/docs/http/ngx_http_proxy_module.html)
-
-## Conclusion
-
-The pod orchestration system is **fully functional** for local development on macOS via Lima VM. The architecture is designed to scale to production with minimal changes (primarily adding database persistence and multi-host support).
-
-**Key Achievements**:
-- ✅ Cross-platform development (macOS + Linux)
-- ✅ Secure container isolation (gVisor)
-- ✅ Dynamic port routing (Nginx + hostname)
-- ✅ Service provisioning (code-server, kanban, etc.)
-- ✅ Comprehensive testing (integration tests)
-- ✅ Clean architecture (separation of concerns)
-
-**Status**: Ready for next phase (database integration and production deployment).
-
+- [pod-config-representations.md](./pod-config-representations.md) - Configuration architecture
+- [02-pod-configuration.md](./02-pod-configuration.md) - Configuration details
+- [03-pod-lifecycle.md](./03-pod-lifecycle.md) - Lifecycle states
+- [04-networking.md](./04-networking.md) - Network architecture
+- [14-server-management-system.md](./14-server-management-system.md) - Server infrastructure

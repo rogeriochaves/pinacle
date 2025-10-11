@@ -19,6 +19,7 @@ So here are the rules:
 - always use vitest/pytest/whatever is the default testing library of the language, don’t write one-off scripts for quick cheking yourself, quick debugs are fine but we should have a real integration test file to commit
 - when just starting a chat and I give you a task, I expect a HUGE list of tiny tasks, don't overengineer anything, in fact avoid overengineering, but just go very carefully, bit by bit, guranteering that things are working for real, really hitting what it should for sure, and then moving on
 - do not use `any`, use proper types, even in python, the types are even more powerful than the tests as an external way to validate yourself, so always think of types first and leverage them to be very typesafe
+- when writing docs, don't duplicate implementation code chunks there, as they will get outdated very quickly, just a reference to the file
 - tests can be heavy and take a while, so instead of running everything all the time, focus on what you are working on using the specific test name or `.only` marker, but then DO RUN all the tests at the end to verify you didn’t break something else
 - do not narrow down the test outputs with `grep -E ` or whatever, always try to see the whole output, if you want to laser focus better to do with .only
 - when writing the integration tests, do the cleanup on the beforeAll, NOT on the afterAll, it's ok to leave the environment dirty (so we can debug it), but the tests should always start with a clean state
