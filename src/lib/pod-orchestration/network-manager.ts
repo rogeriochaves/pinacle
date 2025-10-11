@@ -15,7 +15,7 @@ export class LimaNetworkManager implements NetworkManager {
   private portRange = { min: 30000, max: 40000 };
 
   constructor(
-    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    limaConfig: LimaConfig,
     serverConnection?: ServerConnection,
     podId?: string,
   ) {
@@ -30,7 +30,7 @@ export class LimaNetworkManager implements NetworkManager {
 
       this.serverConnection = new SSHServerConnection({
         host: "127.0.0.1",
-        port: limaConfig.sshPort || 52111,
+        port: limaConfig.sshPort,
         user: process.env.USER || "root",
         privateKey: env.SSH_PRIVATE_KEY,
       });

@@ -3,6 +3,10 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import {
+  getResourcesFromTier,
+  podRecordToPinacleConfig,
+} from "@/lib/pod-orchestration/pinacle-config";
 import type { RouterOutputs } from "@/lib/trpc/client";
 import { api } from "@/lib/trpc/client";
 import { MetricsChart } from "./metrics-chart";
@@ -22,6 +26,13 @@ export const PodRow = ({ pod }: { pod: PodWithDetails }) => {
     { podId: pod.id, hoursAgo: 6 },
     { enabled: expanded },
   );
+
+  // Parse pod config to get tier and resources
+  const podConfig = podRecordToPinacleConfig({
+    config: pod.config,
+    name: pod.name,
+  });
+  const resources = getResourcesFromTier(podConfig.tier);
 
   const metrics = pod.latestMetrics;
   const cpuPercent = metrics?.cpuUsagePercent || 0;
@@ -90,7 +101,7 @@ export const PodRow = ({ pod }: { pod: PodWithDetails }) => {
             </span>
           </div>
           <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
-            <span>Tier: {pod.tier}</span>
+            <span>Tier: {podConfig.tier}</span>
             <span>•</span>
             <span>
               Owner:{" "}
@@ -192,7 +203,7 @@ export const PodRow = ({ pod }: { pod: PodWithDetails }) => {
                 title="Memory Usage"
                 color="#3b82f6"
                 unit=" MB"
-                maxValue={pod.memoryMb}
+                maxValue={resources.memoryMb}
               />
               <MetricsChart
                 data={diskData}

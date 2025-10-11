@@ -9,6 +9,10 @@ import {
   teams,
   users,
 } from "@/lib/db/schema";
+import {
+  generatePinacleConfigFromForm,
+  pinacleConfigToJSON,
+} from "@/lib/pod-orchestration/pinacle-config";
 import { appRouter } from "@/lib/trpc/root";
 import { createInnerTRPCContext } from "@/lib/trpc/server";
 import { generateKSUID } from "@/lib/utils";
@@ -125,6 +129,13 @@ describe("Admin Router Integration Tests", () => {
     });
 
     // Create test pod
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "custom",
+      tier: "dev.medium",
+      customServices: ["claude-code"],
+      podName: "Test Pod",
+    });
+
     const [pod] = await db
       .insert(pods)
       .values({
@@ -133,10 +144,7 @@ describe("Admin Router Integration Tests", () => {
         teamId: testTeamId,
         ownerId: regularUserId,
         serverId: testServerId,
-        tier: "dev.medium",
-        cpuCores: 1,
-        memoryMb: 2048,
-        storageMb: 10240,
+        config: pinacleConfigToJSON(pinacleConfig),
         status: "running",
         monthlyPrice: 1200,
       })

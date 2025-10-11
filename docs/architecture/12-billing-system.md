@@ -372,7 +372,7 @@ const CreatePodFlow: React.FC = () => {
     setHasSubscription(active);
   };
 
-  const handleCreatePod = async (config: PodConfig) => {
+  const handleCreatePod = async (spec: PodSpec) => {
     // Check if user has active subscription
     if (!hasSubscription) {
       // Redirect to Stripe Checkout
@@ -393,7 +393,7 @@ const CreatePodFlow: React.FC = () => {
   return (
     <div>
       {step === 'config' && (
-        <PodConfigForm onSubmit={handleCreatePod} />
+        <PodSpecForm onSubmit={handleCreatePod} />
       )}
 
       {/* After Stripe redirect */}

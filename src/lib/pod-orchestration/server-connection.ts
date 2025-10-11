@@ -37,6 +37,9 @@ export class SSHServerConnection implements ServerConnection {
     // Build SSH command - wrap the command in single quotes to preserve it exactly
     // Escape any single quotes in the command by replacing ' with '\''
     const escapedCommand = fullCommand.replace(/'/g, "'\\''");
+    if (!this.config.port) {
+      throw new Error("Port is not defined for server connection");
+    }
     const sshCommand = [
       "ssh",
       "-i",
@@ -75,9 +78,21 @@ export class SSHServerConnection implements ServerConnection {
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const stderr = error && typeof error === 'object' && 'stderr' in error ? String((error as any).stderr) : message;
-      const stdout = error && typeof error === 'object' && 'stdout' in error ? String((error as any).stdout) : '';
-      exitCode = error && typeof error === 'object' && 'code' in error ? Number((error as any).code) : 1;
+      const stderr =
+        error && typeof error === "object" && "stderr" in error
+          // biome-ignore lint/suspicious/noExplicitAny: meh
+          ? String((error as any).stderr)
+          : message;
+      const stdout =
+        error && typeof error === "object" && "stdout" in error
+          // biome-ignore lint/suspicious/noExplicitAny: meh
+          ? String((error as any).stdout)
+          : "";
+      exitCode =
+        error && typeof error === "object" && "code" in error
+          // biome-ignore lint/suspicious/noExplicitAny: meh
+          ? Number((error as any).code)
+          : 1;
 
       // Log failed command execution if podId is set
       if (this.podId) {
@@ -92,7 +107,9 @@ export class SSHServerConnection implements ServerConnection {
         });
       }
 
-      console.error(`[ServerConnection] SSH command failed (exit code ${exitCode}): >${fullCommand}\n ${stdout} ${stderr}`);
+      console.error(
+        `[ServerConnection] SSH command failed (exit code ${exitCode}): >${fullCommand}\n ${stdout} ${stderr}`,
+      );
       throw error;
     }
   }
@@ -108,7 +125,15 @@ export class SSHServerConnection implements ServerConnection {
   }): Promise<void> {
     if (!this.podId) return;
 
-    const { command, containerCommand, stdout, stderr, exitCode, duration, label } = params;
+    const {
+      command,
+      containerCommand,
+      stdout,
+      stderr,
+      exitCode,
+      duration,
+      label,
+    } = params;
 
     try {
       await db.insert(podLogs).values({
@@ -124,7 +149,10 @@ export class SSHServerConnection implements ServerConnection {
         timestamp: new Date(),
       });
     } catch (error) {
-      console.error(`[ServerConnection] Failed to log command for pod ${this.podId}:`, error);
+      console.error(
+        `[ServerConnection] Failed to log command for pod ${this.podId}:`,
+        error,
+      );
     }
   }
 
@@ -150,7 +178,7 @@ export class SSHServerConnection implements ServerConnection {
       `pinacle-ssh-key-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     );
 
-    await writeFile(tempKeyPath, this.config.privateKey, {
+    await writeFile(tempKeyPath, `${this.config.privateKey}\n`, {
       mode: 0o600,
     });
 

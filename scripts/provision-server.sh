@@ -249,6 +249,12 @@ SSH_HOST=$SSH_HOST_ADDR
 SSH_PORT=$SSH_PORT
 SSH_USER=$SSH_USER"
 
+# Add Lima VM name for Lima hosts (for dynamic port retrieval)
+if [[ $HOST == lima:* ]]; then
+  ENV_CONTENT="$ENV_CONTENT
+LIMA_VM_NAME=$LIMA_VM"
+fi
+
 if [[ $HOST == lima:* ]]; then
   limactl shell "$LIMA_VM" -- sh -c "echo '$ENV_CONTENT' > $AGENT_PATH/.env"
 elif [[ $HOST == ssh:* ]]; then
@@ -275,6 +281,11 @@ pidfile="/run/pinacle-agent.pid"
 output_log="/var/log/pinacle-agent.log"
 error_log="/var/log/pinacle-agent.err"
 
+# Auto-restart configuration
+respawn_delay=5
+respawn_max=0
+respawn_period=60
+
 depend() {
     need net
     after docker
@@ -289,13 +300,14 @@ EOF
   limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent stop || true
   limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent start
 
-  echo "✅ Agent installed as OpenRC service"
+  echo "✅ Agent installed as OpenRC service (auto-restart enabled)"
 elif [[ $HOST == ssh:* ]]; then
   # Install as systemd service on remote servers
   ssh "$SSH_HOST" "cat > /etc/systemd/system/pinacle-agent.service" << EOF
 [Unit]
 Description=Pinacle Server Agent
 After=network.target docker.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -303,7 +315,9 @@ User=root
 WorkingDirectory=$AGENT_PATH
 ExecStart=/usr/bin/node $AGENT_PATH/dist/index.js
 Restart=always
-RestartSec=10
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -313,7 +327,7 @@ EOF
   ssh "$SSH_HOST" systemctl enable pinacle-agent
   ssh "$SSH_HOST" systemctl restart pinacle-agent
 
-  echo "✅ Agent installed as systemd service"
+  echo "✅ Agent installed as systemd service (auto-restart enabled)"
 else
   # Local: just start it
   cd "$AGENT_PATH"

@@ -10,7 +10,10 @@ import {
   userGithubInstallations,
 } from "../../db/schema";
 import { getInstallationOctokit } from "../../github-app";
-import { RESOURCE_TIERS } from "../../pod-orchestration/resource-tier-registry";
+import {
+  generatePinacleConfigFromForm,
+  pinacleConfigToJSON,
+} from "../../pod-orchestration/pinacle-config";
 import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
 import { generateKSUID } from "../../utils";
 import {
@@ -39,6 +42,9 @@ const createPodSchema = z.object({
     .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
     .default("dev.small"),
 
+  // Service selection
+  customServices: z.array(z.string()).optional(), // Custom service selection
+
   // Configuration
   config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object
   envVars: z.record(z.string(), z.string()).optional(), // environment variables
@@ -65,7 +71,7 @@ export const podsRouter = createTRPCRouter({
         newRepoName,
         selectedOrg,
         tier,
-        config,
+        customServices,
         envVars,
       } = input;
       const userId = ctx.session.user.id;
@@ -81,11 +87,14 @@ export const podsRouter = createTRPCRouter({
         name = `${baseName}-${randomSuffix}`;
       }
 
-      // Derive resources from tier
-      const tierData = RESOURCE_TIERS[tier];
-      const cpuCores = tierData.cpu;
-      const memoryMb = tierData.memory * 1024; // Convert GB to MB
-      const storageMb = tierData.storage * 1024; // Convert GB to MB
+      // Generate PinacleConfig from form data
+      const pinacleConfig = generatePinacleConfigFromForm({
+        template,
+        tier,
+        customServices,
+        podName: name,
+      });
+      const configJSON = pinacleConfigToJSON(pinacleConfig);
 
       // Check if user is member of the team
       const membership = await ctx.db
@@ -276,11 +285,7 @@ export const podsRouter = createTRPCRouter({
           githubRepo: finalGithubRepo,
           githubBranch,
           isNewProject,
-          tier,
-          cpuCores,
-          memoryMb,
-          storageMb,
-          config: config ? JSON.stringify(config) : null,
+          config: configJSON, // Store the validated PinacleConfig
           envVars: envVars ? JSON.stringify(envVars) : null,
           monthlyPrice,
           status: "creating",
@@ -328,8 +333,7 @@ export const podsRouter = createTRPCRouter({
         slug: pods.slug,
         description: pods.description,
         status: pods.status,
-        cpuCores: pods.cpuCores,
-        memoryMb: pods.memoryMb,
+        config: pods.config,
         monthlyPrice: pods.monthlyPrice,
         publicUrl: pods.publicUrl,
         createdAt: pods.createdAt,

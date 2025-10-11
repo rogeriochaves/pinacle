@@ -131,7 +131,7 @@ type JobType =
 interface JobData {
   'provision-pod': {
     podId: string;
-    config: PodConfig;
+    spec: PodSpec;
     userId: string;
   };
   'cleanup-pod': {
@@ -151,7 +151,7 @@ interface JobData {
 ### Pod Provisioning
 
 ```typescript
-async function provisionPod(podId: string, config: PodConfig) {
+async function provisionPod(podId: string, spec: PodSpec) {
   try {
     // Update status
     await db.pods.update({

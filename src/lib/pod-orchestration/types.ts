@@ -69,7 +69,7 @@ export interface ServiceConfig {
   dependsOn?: string[]; // Service dependencies
 }
 
-export interface PodConfig {
+export interface PodSpec {
   id: string;
   name: string;
   slug: string;
@@ -161,7 +161,7 @@ export interface ContainerInfo {
 
 export interface PodInstance {
   id: string;
-  config: PodConfig;
+  spec: PodSpec;
   status: PodStatus;
   container?: ContainerInfo;
   hostInfo?: {
@@ -200,13 +200,13 @@ export interface ServerConnection {
 // Lima integration types
 export interface LimaConfig {
   vmName: string;
-  sshPort?: number;
+  sshPort: number; // Required - must be retrieved via getLimaSshPort() helper
   dockerSocket?: string;
 }
 
 export interface ContainerRuntime {
   // Container lifecycle
-  createContainer(config: PodConfig): Promise<ContainerInfo>;
+  createContainer(spec: PodSpec): Promise<ContainerInfo>;
   startContainer(containerId: string): Promise<void>;
   stopContainer(containerId: string): Promise<void>;
   removeContainer(containerId: string): Promise<void>;
@@ -275,21 +275,21 @@ export interface ConfigResolver {
   // Configuration loading and merging
   loadConfig(
     templateId?: string,
-    userConfig?: Partial<PodConfig>,
-  ): Promise<PodConfig>;
+    userConfig?: Partial<PodSpec>,
+  ): Promise<PodSpec>;
   validateConfig(
-    config: PodConfig,
+    spec: PodSpec,
   ): Promise<{ valid: boolean; errors: string[] }>;
 
   // Auto-detection
   detectProjectType(repoPath: string): Promise<{
     type: string;
     confidence: number;
-    suggestions: Partial<PodConfig>;
+    suggestions: Partial<PodSpec>;
   }>;
 
   // Template management
-  getTemplate(templateId: string): Promise<Partial<PodConfig> | null>;
+  getTemplate(templateId: string): Promise<Partial<PodSpec> | null>;
   listTemplates(): Promise<
     Array<{ id: string; name: string; description: string }>
   >;
@@ -297,7 +297,7 @@ export interface ConfigResolver {
 
 export interface PodManager {
   // Pod lifecycle
-  createPod(config: PodConfig): Promise<PodInstance>;
+  createPod(spec: PodSpec): Promise<PodInstance>;
   startPod(podId: string): Promise<void>;
   stopPod(podId: string): Promise<void>;
   deletePod(podId: string): Promise<void>;

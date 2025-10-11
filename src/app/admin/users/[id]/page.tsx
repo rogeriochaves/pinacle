@@ -3,6 +3,7 @@
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { podRecordToPinacleConfig } from "@/lib/pod-orchestration/pinacle-config";
 import { api } from "@/lib/trpc/client";
 
 export default function UserDetailPage() {
@@ -248,7 +249,12 @@ export default function UserDetailPage() {
                         {pod.status}
                       </span>
                       <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                        {pod.tier}
+                        {
+                          podRecordToPinacleConfig({
+                            config: pod.config,
+                            name: pod.name,
+                          }).tier
+                        }
                       </span>
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">

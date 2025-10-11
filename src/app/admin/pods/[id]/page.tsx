@@ -4,6 +4,10 @@ import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { MetricsChart } from "@/components/admin/metrics-chart";
+import {
+  getResourcesFromTier,
+  podRecordToPinacleConfig,
+} from "@/lib/pod-orchestration/pinacle-config";
 import { api } from "@/lib/trpc/client";
 
 const formatBytes = (mb: number): string => {
@@ -66,6 +70,15 @@ export default function PodDetailPage() {
   }
 
   const { pod, owner, team, server, latestMetrics, logs } = data;
+
+  // Parse pod config to get tier and other details
+  const podConfig = podRecordToPinacleConfig({
+    config: pod.config,
+    name: pod.name,
+  });
+
+  // Derive resources from tier
+  const resources = getResourcesFromTier(podConfig.tier);
 
   // Prepare data for charts
   const cpuData =
@@ -148,7 +161,7 @@ export default function PodDetailPage() {
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">Tier</div>
-            <div className="mt-1 text-sm text-gray-900">{pod.tier}</div>
+            <div className="mt-1 text-sm text-gray-900">{podConfig.tier}</div>
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">
@@ -205,18 +218,18 @@ export default function PodDetailPage() {
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">CPU Cores</div>
-            <div className="mt-1 text-sm text-gray-900">{pod.cpuCores}</div>
+            <div className="mt-1 text-sm text-gray-900">{resources.cpuCores}</div>
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">Memory</div>
             <div className="mt-1 text-sm text-gray-900">
-              {formatBytes(pod.memoryMb)}
+              {formatBytes(resources.memoryMb)}
             </div>
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">Storage</div>
             <div className="mt-1 text-sm text-gray-900">
-              {formatBytes(pod.storageMb)}
+              {formatBytes(resources.storageMb)}
             </div>
           </div>
           <div>
@@ -314,7 +327,7 @@ export default function PodDetailPage() {
             title="Memory Usage (24h)"
             color="#3b82f6"
             unit=" MB"
-            maxValue={pod.memoryMb}
+            maxValue={resources.memoryMb}
             height={200}
           />
           <MetricsChart

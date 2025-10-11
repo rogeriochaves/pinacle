@@ -235,4 +235,107 @@ export const githubAppRouter = createTRPCRouter({
       return [];
     }
   }),
+
+  // Read pinacle.yaml from a GitHub repository
+  getPinacleConfig: protectedProcedure
+    .input(
+      z.object({
+        repository: z.string(), // owner/repo format
+        branch: z.string().optional().default("main"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = (ctx.session.user as any).id;
+
+      try {
+        // Extract owner and repo from the repository string
+        const [owner, repo] = input.repository.split("/");
+        if (!owner || !repo) {
+          throw new Error("Invalid repository format. Expected 'owner/repo'");
+        }
+
+        // Get user's installations to find the right one for this repository
+        const userInstallations = await ctx.db
+          .select({
+            installationId: githubInstallations.installationId,
+            accountLogin: githubInstallations.accountLogin,
+          })
+          .from(userGithubInstallations)
+          .innerJoin(
+            githubInstallations,
+            eq(userGithubInstallations.installationId, githubInstallations.id),
+          )
+          .where(eq(userGithubInstallations.userId, userId));
+
+        // Find installation for the repository owner
+        const installation = userInstallations.find(
+          (inst) => inst.accountLogin === owner,
+        );
+
+        if (!installation) {
+          return {
+            found: false,
+            content: null,
+            error: `GitHub App not installed on ${owner}`,
+          };
+        }
+
+        // Get Octokit instance for this installation
+        const { Octokit } = await import("@octokit/rest");
+        const { createAppAuth } = await import("@octokit/auth-app");
+
+        const auth = createAppAuth({
+          appId: env.GITHUB_APP_ID!,
+          privateKey: env.GITHUB_APP_PRIVATE_KEY!.replace(/\\n/g, "\n"),
+          installationId: installation.installationId,
+        });
+
+        const installationAuth = await auth({ type: "installation" });
+        const octokit = new Octokit({ auth: installationAuth.token });
+
+        // Try to get pinacle.yaml file content
+        try {
+          const { data } = await octokit.repos.getContent({
+            owner,
+            repo,
+            path: "pinacle.yaml",
+            ref: input.branch,
+          });
+
+          if ("content" in data && data.content) {
+            // Decode base64 content
+            const content = Buffer.from(data.content, "base64").toString("utf-8");
+            return {
+              found: true,
+              content,
+              error: null,
+            };
+          }
+
+          return {
+            found: false,
+            content: null,
+            error: "File found but could not read content",
+          };
+        } catch (error: any) {
+          if (error.status === 404) {
+            // File doesn't exist - this is not an error, just return not found
+            return {
+              found: false,
+              content: null,
+              error: null,
+            };
+          }
+
+          throw error;
+        }
+      } catch (error) {
+        console.error("Failed to read pinacle.yaml:", error);
+        return {
+          found: false,
+          content: null,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
 });

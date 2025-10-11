@@ -2,7 +2,6 @@ import { env } from "@/env";
 import { SSHServerConnection } from "./server-connection";
 import {
   getAllServiceTemplates,
-  getServiceTemplate,
   getServiceTemplateUnsafe,
   type ServiceContext,
   type ServiceTemplate,
@@ -18,7 +17,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
   private serverConnection: ServerConnection;
 
   constructor(
-    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    limaConfig: LimaConfig,
     serverConnection?: ServerConnection,
     podId?: string,
   ) {
@@ -33,7 +32,7 @@ export class LimaServiceProvisioner implements ServiceProvisioner {
 
       this.serverConnection = new SSHServerConnection({
         host: "127.0.0.1",
-        port: limaConfig.sshPort || 52111,
+        port: limaConfig.sshPort,
         user: process.env.USER || "root",
         privateKey: env.SSH_PRIVATE_KEY,
       });

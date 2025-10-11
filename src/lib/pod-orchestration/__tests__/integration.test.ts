@@ -1,11 +1,19 @@
 import { exec } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { pods, servers, teamMembers, teams, users } from "@/lib/db/schema";
 import { LimaGVisorRuntime } from "../container-runtime";
+import { getLimaSshPort } from "../lima-utils";
 import { LimaNetworkManager } from "../network-manager";
+import {
+  generatePinacleConfigFromForm,
+  pinacleConfigToJSON,
+} from "../pinacle-config";
 import { DefaultPodManager } from "../pod-manager";
 import { PodProvisioningService } from "../pod-provisioning-service";
 
@@ -21,30 +29,42 @@ describe("Pod Orchestration Integration Tests", () => {
   let testServerId: string;
 
   beforeAll(async () => {
-    // 1. Check if Lima VM is running
+    // 1. Set up Lima SSH key for authentication
+    const limaKeyPath = join(homedir(), ".lima", "_config", "user");
     try {
-      const { stdout } = await execAsync("limactl list --format json");
-      const vms = stdout
-        .trim()
-        .split("\n")
-        .map((json) => JSON.parse(json));
-      const vm = vms.find(
-        (vm) => vm.name === "gvisor-alpine" && vm.status === "Running",
-      );
+      const limaKey = readFileSync(limaKeyPath, "utf-8");
+      process.env.SSH_PRIVATE_KEY = limaKey;
+      console.log("🔑 Loaded Lima SSH key");
+    } catch (error) {
+      console.error("Failed to load Lima SSH key:", error);
+      throw error;
+    }
 
-      if (!vm) {
+    // 2. Check if Lima VM is running and get SSH port
+    let sshPort: number;
+    const vmName = "gvisor-alpine";
+
+    try {
+      const { isLimaVmRunning, getLimaSshPort } = await import("../lima-utils");
+
+      const isRunning = await isLimaVmRunning(vmName);
+      if (!isRunning) {
         throw new Error(
-          "gvisor-alpine Lima VM is not running. Start it with: limactl start gvisor-alpine",
+          `Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}`,
         );
       }
 
-      console.log(`✅ Lima VM ${vm.name} is running`);
+      console.log(`✅ Lima VM ${vmName} is running`);
+
+      // Get actual SSH port from Lima
+      sshPort = await getLimaSshPort(vmName);
+      console.log(`🔌 Lima SSH port: ${sshPort}`);
     } catch (error) {
       console.error("Lima VM check failed:", error);
       throw error;
     }
 
-    // 2. Clean up existing test data from database
+    // 3. Clean up existing test data from database
     console.log("🧹 Cleaning up test data from database...");
 
     // Find test team first (to clean up all related data)
@@ -81,8 +101,9 @@ describe("Pod Orchestration Integration Tests", () => {
       await db.delete(users).where(eq(users.id, existingTestUser.id));
     }
 
-    // 3. Clean up containers and networks
-    const limaConfig = { vmName: "gvisor-alpine" };
+    // 4. Clean up containers and networks
+    console.log("🧹 Cleaning up containers and networks...");
+    const limaConfig = { vmName, sshPort };
     podManager = new DefaultPodManager(limaConfig);
     const containerRuntime = new LimaGVisorRuntime(limaConfig);
 
@@ -115,7 +136,7 @@ describe("Pod Orchestration Integration Tests", () => {
       await networkManager.destroyPodNetwork(network.podId);
     }
 
-    // 4. Set up database records for testing
+    // 5. Set up database records for testing
     console.log("📦 Setting up test database records...");
 
     // Create test user
@@ -148,7 +169,7 @@ describe("Pod Orchestration Integration Tests", () => {
       role: "owner",
     });
 
-    // Create or get test server record for Lima VM
+    // Create or update test server record for Lima VM with current SSH port
     const [existingServer] = await db
       .select()
       .from(servers)
@@ -156,8 +177,15 @@ describe("Pod Orchestration Integration Tests", () => {
       .limit(1);
 
     if (existingServer) {
+      // Update SSH port and limaVmName to current values
+      await db
+        .update(servers)
+        .set({ sshPort, limaVmName: vmName })
+        .where(eq(servers.id, existingServer.id));
       testServerId = existingServer.id;
-      console.log(`✅ Using existing server: ${existingServer.hostname}`);
+      console.log(
+        `✅ Updated server SSH port: ${existingServer.hostname}:${sshPort}`,
+      );
     } else {
       const [testServer] = await db
         .insert(servers)
@@ -168,13 +196,14 @@ describe("Pod Orchestration Integration Tests", () => {
           memoryMb: 8192,
           diskGb: 100,
           sshHost: "127.0.0.1",
-          sshPort: 52111,
+          sshPort,
           sshUser: process.env.USER || "root",
+          limaVmName: vmName, // Mark this as a Lima VM
           status: "online",
         })
         .returning();
       testServerId = testServer.id;
-      console.log(`✅ Created test server: ${testServer.hostname}`);
+      console.log(`✅ Created test server: ${testServer.hostname}:${sshPort}`);
     }
 
     provisioningService = new PodProvisioningService();
@@ -184,6 +213,14 @@ describe("Pod Orchestration Integration Tests", () => {
   it.skip("should provision a pod from database through the full flow", async () => {
     // 1. Create pod record in database
     console.log("📝 Creating pod record in database...");
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "custom",
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "Integration Test Pod",
+    });
+
     const [podRecord] = await db
       .insert(pods)
       .values({
@@ -194,10 +231,7 @@ describe("Pod Orchestration Integration Tests", () => {
         template: "custom",
         teamId: testTeamId,
         ownerId: testUserId,
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
+        config: pinacleConfigToJSON(pinacleConfig),
         envVars: JSON.stringify({ TEST_VAR: "integration-test" }),
         monthlyPrice: 1000, // $10
         status: "creating",
@@ -274,16 +308,20 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Create pod in database
     console.log("📝 Creating lifecycle test pod in database...");
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "Lifecycle Test Pod",
+    });
+
     await db.insert(pods).values({
       id: lifecycleTestId,
       name: "Lifecycle Test Pod",
       slug: "lifecycle-test-pod",
       teamId: testTeamId,
       ownerId: testUserId,
-      tier: "dev.small",
-      cpuCores: 0.25,
-      memoryMb: 128,
-      storageMb: 512,
+      config: pinacleConfigToJSON(pinacleConfig),
       monthlyPrice: 500,
       status: "creating",
     });
@@ -376,6 +414,21 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Create test pods in database
     console.log("📝 Creating test pods in database...");
+
+    const config1 = generatePinacleConfigFromForm({
+      template: "nextjs",
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "List Test Pod 1",
+    });
+
+    const config2 = generatePinacleConfigFromForm({
+      template: "custom",
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "List Test Pod 2",
+    });
+
     await db.insert(pods).values([
       {
         id: listTestId1,
@@ -384,10 +437,7 @@ describe("Pod Orchestration Integration Tests", () => {
         template: "nextjs",
         teamId: testTeamId,
         ownerId: testUserId,
-        tier: "dev.small",
-        cpuCores: 0.25,
-        memoryMb: 128,
-        storageMb: 512,
+        config: pinacleConfigToJSON(config1),
         monthlyPrice: 500,
         status: "creating",
       },
@@ -398,10 +448,7 @@ describe("Pod Orchestration Integration Tests", () => {
         template: "custom",
         teamId: testTeamId,
         ownerId: testUserId,
-        tier: "dev.small",
-        cpuCores: 0.25,
-        memoryMb: 128,
-        storageMb: 512,
+        config: pinacleConfigToJSON(config2),
         monthlyPrice: 500,
         status: "creating",
       },
@@ -452,6 +499,14 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Create pod with template in database
     console.log("📝 Creating template-based pod in database...");
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nextjs",
+      tier: "dev.small",
+      customServices: ["claude-code", "code-server"],
+      podName: "Template Test Pod",
+    });
+
     await db.insert(pods).values({
       id: templateTestId,
       name: "Template Test Pod",
@@ -459,10 +514,7 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "nextjs",
       teamId: testTeamId,
       ownerId: testUserId,
-      tier: "dev.small",
-      cpuCores: 0.5,
-      memoryMb: 256,
-      storageMb: 1024,
+      config: pinacleConfigToJSON(pinacleConfig),
       envVars: JSON.stringify({
         CUSTOM_VAR: "template-test",
         NODE_ENV: "development",
@@ -520,6 +572,14 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Create pod in database
     console.log("📝 Creating proxy test pod in database...");
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "custom",
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "Proxy Test Pod",
+    });
+
     await db.insert(pods).values({
       id: proxyTestId,
       name: "Proxy Test Pod",
@@ -527,10 +587,7 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "custom",
       teamId: testTeamId,
       ownerId: testUserId,
-      tier: "dev.small",
-      cpuCores: 0.5,
-      memoryMb: 256,
-      storageMb: 1024,
+      config: pinacleConfigToJSON(pinacleConfig),
       envVars: JSON.stringify({ TEST_ENV: "hostname-routing" }),
       monthlyPrice: 1000,
       status: "creating",
@@ -669,6 +726,13 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Fingerprint: ${sshKeyPair.fingerprint}`);
 
     // 2. Create pod in database with GitHub repo
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["claude-code"],
+      podName: "GitHub Integration Test Pod",
+    });
+
     await db.insert(pods).values({
       id: githubTestId,
       name: "GitHub Integration Test Pod",
@@ -677,10 +741,7 @@ describe("Pod Orchestration Integration Tests", () => {
       teamId: testTeamId,
       ownerId: testUserId,
       githubRepo: testRepo,
-      tier: "dev.small",
-      cpuCores: 0.5,
-      memoryMb: 1024,
-      storageMb: 1024,
+      config: pinacleConfigToJSON(pinacleConfig),
       envVars: JSON.stringify({ NODE_ENV: "development" }),
       monthlyPrice: 1000,
       status: "creating",
@@ -714,7 +775,11 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Verify the repository was cloned correctly
     console.log("🔍 Verifying cloned repository...");
 
-    const containerRuntime = new LimaGVisorRuntime();
+    const sshPort = await getLimaSshPort("gvisor-alpine");
+    const containerRuntime = new LimaGVisorRuntime({
+      vmName: "gvisor-alpine",
+      sshPort,
+    });
     const { stdout: repoCheck } = await containerRuntime.execCommand(
       provisionedPod.containerId!,
       ["sh", "-c", "'cd /workspace/Hello-World && git remote -v && ls -la'"],

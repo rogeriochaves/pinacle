@@ -101,6 +101,7 @@ export class ServerAgent {
               sshHost: serverInfo.sshHost,
               sshPort: serverInfo.sshPort,
               sshUser: serverInfo.sshUser,
+              limaVmName: serverInfo.limaVmName,
             },
           }),
         },
@@ -243,7 +244,7 @@ export class ServerAgent {
     const sshPort = parseInt(process.env.SSH_PORT || "22", 10);
     const sshUser = process.env.SSH_USER || "root";
 
-    return {
+    const serverInfo: ServerInfo = {
       hostname: hostname(),
       ipAddress,
       cpuCores: cpuCount,
@@ -253,6 +254,14 @@ export class ServerAgent {
       sshPort,
       sshUser,
     };
+
+    // Add Lima VM name if this is a Lima VM (for dynamic port retrieval)
+    if (process.env.LIMA_VM_NAME) {
+      serverInfo.limaVmName = process.env.LIMA_VM_NAME;
+      console.log(`📌 Lima VM detected: ${process.env.LIMA_VM_NAME}`);
+    }
+
+    return serverInfo;
   }
 
   /**

@@ -451,7 +451,7 @@ class SmartProjectDetector implements ProjectDetector {
 
 ```typescript
 class AIProjectAnalyzer {
-  async analyze(repoPath: string): Promise<PodConfig> {
+  async analyze(repoPath: string): Promise<PodSpec> {
     const files = await this.scanRepository(repoPath);
 
     const prompt = `
@@ -482,7 +482,7 @@ class AIProjectAnalyzer {
 ```typescript
 import { z } from 'zod';
 
-const PodConfigSchema = z.object({
+const PodSpecSchema = z.object({
   version: z.literal("1.0"),
   metadata: z.object({
     name: z.string().min(1).max(50),
@@ -576,7 +576,7 @@ POST /api/config/detect
 ```typescript
 interface ConfigWatcher {
   watch(podId: string): void;
-  onConfigChange(callback: (config: PodConfig) => void): void;
+  onConfigChange(callback: (spec: PodSpec) => void): void;
 }
 
 class GitConfigWatcher implements ConfigWatcher {

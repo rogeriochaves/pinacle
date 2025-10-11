@@ -7,7 +7,7 @@ import {
 } from "./template-registry";
 import type {
   ConfigResolver,
-  PodConfig,
+  PodSpec,
   ResourceConfig,
   ResourceTier,
 } from "./types";
@@ -42,7 +42,7 @@ const ServiceConfigSchema = z.object({
   dependsOn: z.array(z.string()).optional().default([]),
 });
 
-const _PodConfigSchema = z.object({
+const _PodSpecSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
@@ -115,9 +115,9 @@ const _PodConfigSchema = z.object({
 export class DefaultConfigResolver implements ConfigResolver {
   async loadConfig(
     templateId?: string,
-    userConfig?: Partial<PodConfig>,
-  ): Promise<PodConfig> {
-    let baseConfig: Partial<PodConfig> = {};
+    userConfig?: Partial<PodSpec>,
+  ): Promise<PodSpec> {
+    let baseConfig: Partial<PodSpec> = {};
 
     // Load template if specified
     if (templateId) {
@@ -126,14 +126,14 @@ export class DefaultConfigResolver implements ConfigResolver {
         throw new Error(`Template not found: ${templateId}`);
       }
 
-      baseConfig = this.templateToPodConfig(template);
+      baseConfig = this.templateToPodSpec(template);
     }
 
     // Merge with user configuration
     const mergedConfig = this.mergeConfigs(baseConfig, userConfig || {});
 
     // Ensure required fields are present
-    const finalConfig: PodConfig = {
+    const finalSpec: PodSpec = {
       id: mergedConfig.id || this.generateId(),
       name: mergedConfig.name || "Unnamed Pod",
       slug:
@@ -171,29 +171,29 @@ export class DefaultConfigResolver implements ConfigResolver {
       healthChecks: mergedConfig.healthChecks || [],
     };
 
-    return finalConfig;
+    return finalSpec;
   }
 
   async validateConfig(
-    config: PodConfig,
+    spec: PodSpec,
   ): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
 
     // Basic validation without Zod for now
-    if (!config.id) {
+    if (!spec.id) {
       errors.push("Pod ID is required");
     }
-    if (!config.name) {
+    if (!spec.name) {
       errors.push("Pod name is required");
     }
-    if (!config.baseImage) {
+    if (!spec.baseImage) {
       errors.push("Base image is required");
     }
 
     // Additional validation logic
-    this.validatePortConflicts(config, errors);
-    this.validateResourceLimits(config, errors);
-    this.validateServiceDependencies(config, errors);
+    this.validatePortConflicts(spec, errors);
+    this.validateResourceLimits(spec, errors);
+    this.validateServiceDependencies(spec, errors);
 
     return {
       valid: errors.length === 0,
@@ -204,13 +204,13 @@ export class DefaultConfigResolver implements ConfigResolver {
   async detectProjectType(repoPath: string): Promise<{
     type: string;
     confidence: number;
-    suggestions: Partial<PodConfig>;
+    suggestions: Partial<PodSpec>;
   }> {
     // This is a simplified version - in a real implementation,
     // you'd analyze the repository structure and files
 
     // For now, return a basic detection based on common patterns
-    const suggestions: Partial<PodConfig> = {
+    const suggestions: Partial<PodSpec> = {
       baseImage: "alpine:3.22.1",
       resources: {
         tier: "dev.small" as ResourceTier,
@@ -259,13 +259,13 @@ export class DefaultConfigResolver implements ConfigResolver {
     };
   }
 
-  async getTemplate(templateId: string): Promise<Partial<PodConfig> | null> {
+  async getTemplate(templateId: string): Promise<Partial<PodSpec> | null> {
     const template = getTemplateUnsafe(templateId);
     if (!template) {
       return null;
     }
 
-    return this.templateToPodConfig(template);
+    return this.templateToPodSpec(template);
   }
 
   async listTemplates(): Promise<
@@ -279,7 +279,7 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   // Private helper methods
-  private templateToPodConfig(template: PodTemplate): Partial<PodConfig> {
+  private templateToPodSpec(template: PodTemplate): Partial<PodSpec> {
     // Convert service names to ServiceConfig objects using service-registry
     const services = template.services
       .map((serviceName) => {
@@ -329,9 +329,9 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   private mergeConfigs(
-    base: Partial<PodConfig>,
-    user: Partial<PodConfig>,
-  ): Partial<PodConfig> {
+    base: Partial<PodSpec>,
+    user: Partial<PodSpec>,
+  ): Partial<PodSpec> {
     // Merge resources separately to handle typing correctly
     let mergedResources: ResourceConfig | undefined;
     if (base.resources || user.resources) {
@@ -386,10 +386,10 @@ export class DefaultConfigResolver implements ConfigResolver {
     };
   }
 
-  private validatePortConflicts(config: PodConfig, errors: string[]): void {
+  private validatePortConflicts(spec: PodSpec, errors: string[]): void {
     const usedPorts = new Set<number>();
 
-    for (const port of config.network.ports) {
+    for (const port of spec.network.ports) {
       if (usedPorts.has(port.internal)) {
         errors.push(
           `Port conflict: internal port ${port.internal} is used multiple times`,
@@ -400,7 +400,7 @@ export class DefaultConfigResolver implements ConfigResolver {
 
     // Check service ports
     usedPorts.clear();
-    for (const service of config.services) {
+    for (const service of spec.services) {
       for (const port of service.ports || []) {
         if (usedPorts.has(port.internal)) {
           errors.push(
@@ -412,8 +412,8 @@ export class DefaultConfigResolver implements ConfigResolver {
     }
   }
 
-  private validateResourceLimits(config: PodConfig, errors: string[]): void {
-    const { resources } = config;
+  private validateResourceLimits(spec: PodSpec, errors: string[]): void {
+    const { resources } = spec;
 
     // Validate tier-specific limits
     const tierLimits = {
@@ -439,12 +439,12 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   private validateServiceDependencies(
-    config: PodConfig,
+    spec: PodSpec,
     errors: string[],
   ): void {
-    const serviceNames = new Set(config.services.map((s) => s.name));
+    const serviceNames = new Set(spec.services.map((s) => s.name));
 
-    for (const service of config.services) {
+    for (const service of spec.services) {
       for (const dependency of service.dependsOn || []) {
         if (!serviceNames.has(dependency)) {
           errors.push(

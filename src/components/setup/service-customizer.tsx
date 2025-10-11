@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown, LucidePlus, X } from "lucide-react";
+import { Check, LucidePlus, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import type { ServiceName } from "../../lib/pod-orchestration/service-registry";

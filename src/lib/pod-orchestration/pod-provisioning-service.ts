@@ -10,9 +10,14 @@ import { db } from "../db";
 import { podLogs, pods, servers } from "../db/schema";
 import { DefaultConfigResolver } from "./config-resolver";
 import type { GitHubRepoSetup } from "./github-integration";
+import {
+  getResourcesFromTier,
+  getTierFromConfig,
+  podRecordToPinacleConfig,
+} from "./pinacle-config";
 import { DefaultPodManager } from "./pod-manager";
 import { SSHServerConnection } from "./server-connection";
-import type { PodConfig, ResourceTier, ServerConnection } from "./types";
+import type { ServerConnection } from "./types";
 
 export type ProvisionPodInput = {
   podId: string;
@@ -87,10 +92,21 @@ export class PodProvisioningService {
         })
         .where(eq(pods.id, podId));
 
-      // 4. Create SSH connection to server
+      // 4. Get SSH port (dynamic for Lima VMs)
+      let sshPort = server.sshPort;
+      if (server.limaVmName) {
+        // For Lima VMs, dynamically retrieve the current SSH port
+        const { getLimaSshPort } = await import("./lima-utils");
+        sshPort = await getLimaSshPort(server.limaVmName);
+        console.log(
+          `[PodProvisioningService] Retrieved Lima SSH port for ${server.limaVmName}: ${sshPort}`,
+        );
+      }
+
+      // 5. Create SSH connection to server
       const serverConnection: ServerConnection = new SSHServerConnection({
         host: server.sshHost,
-        port: server.sshPort,
+        port: sshPort,
         user: server.sshUser,
         privateKey: process.env.SSH_PRIVATE_KEY!,
       });
@@ -98,29 +114,44 @@ export class PodProvisioningService {
       // Set podId for logging
       serverConnection.setPodId(podId);
 
-      // 5. Create PodManager with Lima config
+      // 6. Create PodManager with Lima config
       // The PodManager will create its own components internally
       // but they won't use the serverConnection we created above yet
       // TODO: Pass serverConnection to PodManager constructor
-      const limaConfig = { vmName: server.hostname };
+      const limaConfig = {
+        vmName: server.limaVmName || server.hostname,
+        sshPort,
+      };
       const podManager = new DefaultPodManager(limaConfig);
 
-      // 6. Build PodConfig using ConfigResolver (handles template loading)
+      // 7. Parse PinacleConfig from database and derive resources
       console.log(
-        `[PodProvisioningService] Building config for pod ${podId}${podRecord.template ? ` with template: ${podRecord.template}` : ""}`,
+        `[PodProvisioningService] Parsing pinacle config for pod ${podId}`,
+      );
+
+      const pinacleConfig = podRecordToPinacleConfig({
+        config: podRecord.config,
+        name: podRecord.name,
+      });
+
+      const tierId = getTierFromConfig(pinacleConfig);
+      const resources = getResourcesFromTier(tierId);
+
+      console.log(
+        `[PodProvisioningService] Building config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
       );
 
       const config = await this.configResolver.loadConfig(
-        podRecord.template || undefined,
+        pinacleConfig.template || undefined,
         {
           id: podRecord.id,
           name: podRecord.name,
           slug: podRecord.slug,
           resources: {
-            tier: podRecord.tier as ResourceTier,
-            cpuCores: podRecord.cpuCores,
-            memoryMb: podRecord.memoryMb,
-            storageMb: podRecord.storageMb,
+            tier: tierId,
+            cpuCores: resources.cpuCores,
+            memoryMb: resources.memoryMb,
+            storageMb: resources.storageMb,
           },
           network: {
             ports: podRecord.ports ? JSON.parse(podRecord.ports) : [],

@@ -264,7 +264,7 @@ environment:
 ### Loading Configuration
 
 ```typescript
-async function loadPodConfig(repository: string): Promise<PodConfig> {
+async function loadPodSpec(repository: string): Promise<PodSpec> {
   // Try to fetch pinacle.yaml from repo
   const config = await fetchFileFromGitHub(
     repository,

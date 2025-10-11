@@ -7,6 +7,10 @@ import { PodDetailsPanel } from "../../components/dashboard/pod-details-panel";
 import { PodSelector } from "../../components/dashboard/pod-selector";
 import { Workbench } from "../../components/dashboard/workbench";
 import { Button } from "../../components/ui/button";
+import {
+  getResourcesFromTier,
+  podRecordToPinacleConfig,
+} from "../../lib/pod-orchestration/pinacle-config";
 import { api } from "../../lib/trpc/client";
 
 export default function Dashboard() {
@@ -145,7 +149,12 @@ export default function Dashboard() {
         <PodDetailsPanel
           pod={{
             ...activePod,
-            storageMb: 10240, // TODO: Add storageMb to getUserPods query
+            storageMb: getResourcesFromTier(
+              podRecordToPinacleConfig({
+                config: activePod.config,
+                name: activePod.name,
+              }).tier,
+            ).storageMb,
           }}
           onClose={() => setShowPodDetails(false)}
         />

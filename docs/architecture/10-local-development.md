@@ -100,7 +100,7 @@ The pod orchestration system is implemented in TypeScript with the following key
 ```typescript
 // src/lib/pod-orchestration/pod-manager.ts
 class PodManager {
-  async createPod(config: PodConfig): Promise<Pod>
+  async createPod(spec: PodSpec): Promise<Pod>
   async startPod(podId: string): Promise<void>
   async stopPod(podId: string): Promise<void>
   async deletePod(podId: string): Promise<void>
@@ -109,7 +109,7 @@ class PodManager {
 
 // src/lib/pod-orchestration/container-runtime.ts
 class ContainerRuntime {
-  async createContainer(podId: string, config: PodConfig): Promise<string>
+  async createContainer(podId: string, spec: PodSpec): Promise<string>
   async startContainer(containerId: string): Promise<void>
   async execCommand(containerId: string, command: string[]): Promise<string>
 }
@@ -130,9 +130,9 @@ class ServiceProvisioner {
 
 // src/lib/pod-orchestration/config-resolver.ts
 class ConfigResolver {
-  async resolveConfig(source: ConfigSource): Promise<PodConfig>
-  async validateConfig(config: PodConfig): Promise<ValidationResult>
-  async mergeConfigs(base: PodConfig, override: PodConfig): Promise<PodConfig>
+  async resolveConfig(source: ConfigSource): Promise<PodSpec>
+  async validateConfig(spec: PodSpec): Promise<ValidationResult>
+  async mergeConfigs(base: PodSpec, override: PodSpec): Promise<PodSpec>
 }
 ```
 

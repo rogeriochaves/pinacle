@@ -1,5 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import type { PinacleConfig } from "./pinacle-config";
+import { serializePinacleConfig } from "./pinacle-config";
 import type { PodTemplate } from "./template-registry";
 import type { PodManager } from "./types";
 
@@ -300,5 +302,54 @@ export class GitHubIntegration {
         setup.sshKeyPair,
       );
     }
+  }
+
+  /**
+   * Inject pinacle.yaml configuration file into the pod's workspace
+   * This allows users to commit the file and version control their pod configuration
+   */
+  async injectPinacleConfig(
+    podId: string,
+    spec: PinacleConfig,
+    repository: string,
+  ): Promise<void> {
+    console.log(`[GitHubIntegration] Injecting pinacle.yaml into pod ${podId}`);
+
+    try {
+      // Serialize the config to YAML format
+      const yamlContent = serializePinacleConfig(spec);
+
+      // Escape the content for shell
+      const escapedContent = yamlContent.replace(/'/g, "'\\''");
+
+      // Write the file to the workspace root
+      const projectFolder = this.getProjectFolder(repository);
+      await this.podManager.execInPod(podId, [
+        "sh",
+        "-c",
+        `echo '${escapedContent}' > /workspace/${projectFolder}/pinacle.yaml`,
+      ]);
+
+      console.log(
+        `[GitHubIntegration] Successfully wrote pinacle.yaml to /workspace`,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[GitHubIntegration] Failed to inject pinacle.yaml: ${errorMessage}`,
+      );
+      throw new Error(`Failed to write pinacle.yaml: ${errorMessage}`);
+    }
+  }
+
+  getProjectFolder(repository: string | undefined): string | undefined {
+    // Works for urls like:
+    // - git@github.com:owner/repo.git
+    // - https://github.com/owner/repo.git
+    // - owner/repo
+    return repository
+      ? /.*\/(.*?)(\.git)?$/.exec(repository)?.[1]
+      : undefined;
   }
 }

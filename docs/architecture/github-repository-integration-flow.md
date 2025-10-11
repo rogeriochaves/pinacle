@@ -186,24 +186,24 @@ await podManager.createPod({
 **Code Location:** `src/lib/pod-orchestration/pod-manager.ts`
 
 ```typescript
-async createPod(config: PodConfig): Promise<PodInstance> {
+async createPod(spec: PodSpec): Promise<PodInstance> {
   // 1. Create network
-  await this.networkManager.createPodNetwork(config.id);
+  await this.networkManager.createPodNetwork(spec.id);
 
   // 2. Create & start container
-  const container = await this.containerRuntime.createContainer(config);
+  const container = await this.containerRuntime.createContainer(spec);
   await this.containerRuntime.startContainer(container.id);
 
   // 3. Setup GitHub repository (if configured)
-  if (config.githubRepo && config.githubRepoSetup) {
-    await this.setupGitHubRepository(container.id, config);
+  if (spec.githubRepo && spec.githubRepoSetup) {
+    await this.setupGitHubRepository(container.id, spec);
   }
 
   // 4. Provision services (code-server, vibe-kanban, etc.)
-  await this.provisionServices(config);
+  await this.provisionServices(spec);
 
   // 5. Start services
-  await this.startServices(config);
+  await this.startServices(spec);
 
   // 6. Pod is now running!
   return podInstance;

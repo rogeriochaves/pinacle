@@ -4,7 +4,7 @@ import type {
   ContainerInfo,
   ContainerRuntime,
   LimaConfig,
-  PodConfig,
+  PodSpec,
   PortMapping,
   ServerConnection,
 } from "./types";
@@ -13,7 +13,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
   private serverConnection: ServerConnection;
 
   constructor(
-    limaConfig: LimaConfig = { vmName: "gvisor-alpine" },
+    limaConfig: LimaConfig,
     serverConnection?: ServerConnection,
     podId?: string,
   ) {
@@ -28,7 +28,7 @@ export class LimaGVisorRuntime implements ContainerRuntime {
 
       this.serverConnection = new SSHServerConnection({
         host: "127.0.0.1",
-        port: limaConfig.sshPort || 52111,
+        port: limaConfig.sshPort,
         user: process.env.USER || "root",
         privateKey: env.SSH_PRIVATE_KEY,
       });
@@ -62,8 +62,8 @@ export class LimaGVisorRuntime implements ContainerRuntime {
     return `pinacle-pod-${podId}`;
   }
 
-  private parseResourceLimits(config: PodConfig): string {
-    const { resources } = config;
+  private parseResourceLimits(spec: PodSpec): string {
+    const { resources } = spec;
     const limits: string[] = [];
 
     // Memory limit
@@ -102,11 +102,11 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       .join(" ");
   }
 
-  async createContainer(config: PodConfig): Promise<ContainerInfo> {
-    const containerName = this.generateContainerName(config.id);
-    const resourceLimits = this.parseResourceLimits(config);
-    const portMappings = this.parsePortMappings(config.network.ports);
-    const envVars = this.parseEnvironmentVars(config.environment);
+  async createContainer(spec: PodSpec): Promise<ContainerInfo> {
+    const containerName = this.generateContainerName(spec.id);
+    const resourceLimits = this.parseResourceLimits(spec);
+    const portMappings = this.parsePortMappings(spec.network.ports);
+    const envVars = this.parseEnvironmentVars(spec.environment);
 
     // Build Docker run command with gVisor runtime - use array to avoid shell escaping issues
     const dockerArgs = [
@@ -119,9 +119,9 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       ...portMappings.split(" ").filter(Boolean),
       ...envVars.split(" ").filter(Boolean),
       "--workdir",
-      config.workingDir || "/workspace",
+      spec.workingDir || "/workspace",
       "--user",
-      config.user || "root",
+      spec.user || "root",
       // Security options for gVisor
       "--security-opt",
       "seccomp=unconfined",
@@ -134,8 +134,8 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       "--volume",
       "/tmp:/tmp",
       "--volume",
-      `pinacle-${config.id}-workspace:/workspace`,
-      config.baseImage,
+      `pinacle-${spec.id}-workspace:/workspace`,
+      spec.baseImage,
       // Default command
       "/sbin/init",
     ].filter(Boolean);
@@ -337,7 +337,11 @@ export class LimaGVisorRuntime implements ContainerRuntime {
       const commandStr = quotedArgs.join(" ");
       const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
-      const { stdout, stderr } = await this.exec(dockerCommand, true, commandStr);
+      const { stdout, stderr } = await this.exec(
+        dockerCommand,
+        true,
+        commandStr,
+      );
 
       return {
         stdout,
@@ -350,9 +354,12 @@ export class LimaGVisorRuntime implements ContainerRuntime {
         typeof error === "object" && error !== null && "code" in error
           ? String((error as Record<string, unknown>).code)
           : "unknown";
-      throw new Error(
-        `Failed to execute command (exit code ${code}): ${message}`,
-      );
+      if (code !== "unknown") {
+        throw new Error(
+          `Failed to execute command (exit code ${code}): ${message}`,
+        );
+      }
+      throw error;
     }
   }
 

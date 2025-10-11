@@ -130,6 +130,7 @@ export const servers = pgTable("server", {
   sshHost: varchar("ssh_host", { length: 255 }).notNull().default(""),
   sshPort: integer("ssh_port").notNull().default(22),
   sshUser: varchar("ssh_user", { length: 100 }).notNull().default("root"),
+  limaVmName: varchar("lima_vm_name", { length: 100}), // If this is a Lima VM, store VM name for dynamic port retrieval
 
   // Hardware specs
   cpuCores: real("cpu_cores").notNull(),
@@ -162,16 +163,13 @@ export const pods = pgTable("pod", {
   githubBranch: varchar("github_branch", { length: 255 }).default(""),
   isNewProject: boolean("is_new_project").default(false),
 
-  // Resource specifications
-  tier: varchar("tier", { length: 50 }).notNull().default("dev.small"), // dev.small, dev.medium, etc.
-  cpuCores: real("cpu_cores").notNull().default(1),
-  memoryMb: real("memory_mb").notNull().default(1024),
-  storageMb: real("storage_mb").notNull().default(10240), // 10GB default
+  // Configuration - stores the validated PinacleConfig as JSON
+  // All pod configuration (tier, services, tabs) is stored here
+  config: text("config").notNull(), // JSON string of PinacleConfig (validated pinacle.yaml)
 
-  // Configuration
-  config: text("config"), // JSON string of pinacle.yaml config
-  ports: text("ports"), // JSON string of port mappings
-  envVars: text("env_vars"), // JSON string of environment variables
+  // Runtime state
+  ports: text("ports"), // JSON string of actual port mappings (runtime info)
+  envVars: text("env_vars"), // JSON string of environment variables (not in config, stored separately)
 
   // Status and metadata
   status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, running, stopped, error

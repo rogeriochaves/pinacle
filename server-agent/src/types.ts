@@ -8,6 +8,7 @@ export type ServerInfo = {
   sshHost: string;
   sshPort: number;
   sshUser: string;
+  limaVmName?: string; // For Lima VMs, enables dynamic port retrieval
 };
 
 export type PodMetrics = {

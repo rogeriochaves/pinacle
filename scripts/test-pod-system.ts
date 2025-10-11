@@ -6,16 +6,18 @@
  */
 
 import { DefaultConfigResolver } from "../src/lib/pod-orchestration/config-resolver";
+import { getLimaSshPort } from "../src/lib/pod-orchestration/lima-utils";
 import { DefaultPodManager } from "../src/lib/pod-orchestration/pod-manager";
 import type {
-  PodConfig,
+  PodSpec,
   ResourceTier,
 } from "../src/lib/pod-orchestration/types";
 
 async function main() {
   console.log("🚀 Starting Pinacle Pod System Test...\n");
 
-  const podManager = new DefaultPodManager({ vmName: "gvisor-alpine" });
+  const sshPort = await getLimaSshPort("gvisor-alpine");
+  const podManager = new DefaultPodManager({ vmName: "gvisor-alpine", sshPort });
   const configResolver = new DefaultConfigResolver();
 
   try {
@@ -34,7 +36,7 @@ async function main() {
     console.log(`🏗️  Creating test pod: ${testPodId}`);
 
     // Create a simple configuration without templates to avoid port conflicts
-    const config: PodConfig = {
+    const spec: PodSpec = {
       id: testPodId,
       name: "Test Pod",
       slug: "test-pod",
@@ -62,7 +64,7 @@ async function main() {
     console.log("✅ Configuration loaded and validated");
 
     // Create the pod
-    const pod = await podManager.createPod(config);
+    const pod = await podManager.createPod(spec);
     console.log(`✅ Pod created successfully! Status: ${pod.status}`);
     console.log(`   Container ID: ${pod.container?.id}`);
     console.log(`   Internal IP: ${pod.container?.internalIp || "N/A"}`);
@@ -126,7 +128,7 @@ async function main() {
     console.log("\n📝 Current pods:");
     const pods = await podManager.listPods();
     pods.forEach((p) => {
-      console.log(`   - ${p.id}: ${p.config.name} (${p.status})`);
+      console.log(`   - ${p.id}: ${p.spec.name} (${p.status})`);
     });
 
     // Test 7: Test pod lifecycle

@@ -38,6 +38,7 @@ export const serversRouter = createTRPCRouter({
         sshHost: z.string().min(1),
         sshPort: z.number().int().positive().default(22),
         sshUser: z.string().min(1).default("root"),
+        limaVmName: z.string().optional(), // For Lima VMs
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -52,6 +53,7 @@ export const serversRouter = createTRPCRouter({
           sshHost: input.sshHost,
           sshPort: input.sshPort,
           sshUser: input.sshUser,
+          limaVmName: input.limaVmName || null, // Store Lima VM name if provided
           status: "online",
           lastHeartbeatAt: new Date(),
         })

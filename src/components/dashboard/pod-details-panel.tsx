@@ -10,6 +10,10 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import {
+  getResourcesFromTier,
+  podRecordToPinacleConfig,
+} from "../../lib/pod-orchestration/pinacle-config";
 import { api } from "../../lib/trpc/client";
 import { MetricsChart } from "../admin/metrics-chart";
 import { Button } from "../ui/button";
@@ -19,9 +23,8 @@ type Pod = {
   name: string;
   status: string;
   description?: string | null;
-  cpuCores: number;
-  memoryMb: number;
-  storageMb: number;
+  config: string;
+  storageMb: number; // Temporarily keep this for the prop passing
   publicUrl?: string | null;
 };
 
@@ -38,6 +41,13 @@ const formatBytes = (mb: number) => {
 
 export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("metrics");
+
+  // Parse pod config to get resources
+  const podConfig = podRecordToPinacleConfig({
+    config: pod.config,
+    name: pod.name,
+  });
+  const resources = getResourcesFromTier(podConfig.tier);
 
   // Fetch metrics (non-admin endpoint - we need to create this)
   // For now, using the pod.getUserPodMetrics query
@@ -185,7 +195,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                       {formatBytes(metrics.memoryUsageMb)}
                     </p>
                     <p className="text-xs text-slate-600 font-mono mt-1">
-                      of {formatBytes(pod.memoryMb)}
+                      of {formatBytes(resources.memoryMb)}
                     </p>
                   </div>
 
@@ -237,7 +247,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                       title="Memory Usage"
                       color="#3b82f6"
                       unit=" MB"
-                      maxValue={pod.memoryMb}
+                      maxValue={resources.memoryMb}
                     />
                     <MetricsChart
                       data={diskData}
@@ -322,19 +332,19 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                   <div className="flex justify-between">
                     <span className="text-slate-600">CPU:</span>
                     <span className="text-slate-900 font-bold">
-                      {pod.cpuCores} vCPU
+                      {resources.cpuCores} vCPU
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Memory:</span>
                     <span className="text-slate-900 font-bold">
-                      {Math.round(pod.memoryMb / 1024)}GB
+                      {Math.round(resources.memoryMb / 1024)}GB
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Storage:</span>
                     <span className="text-slate-900 font-bold">
-                      {Math.round(pod.storageMb / 1024)}GB
+                      {Math.round(resources.storageMb / 1024)}GB
                     </span>
                   </div>
                   {pod.publicUrl && (

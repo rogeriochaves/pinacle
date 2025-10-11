@@ -374,7 +374,7 @@ Zod-based configuration validation with sensible defaults.
 #### Configuration Schema
 
 ```typescript
-const PodConfigSchema = z.object({
+const PodSpecSchema = z.object({
   name: z.string(),
   slug: z.string(),
   baseImage: z.string().optional().default('pinacledev/pinacle-base'),
@@ -391,11 +391,11 @@ const PodConfigSchema = z.object({
 #### Port Conflict Validation
 
 ```typescript
-validatePortConflicts(config: PodConfig): ValidationResult {
+validatePortConflicts(spec: PodSpec): ValidationResult {
   const usedPorts = new Set<number>();
 
   // Check network-level ports
-  for (const port of config.ports) {
+  for (const port of spec.ports) {
     if (usedPorts.has(port.internal)) {
       return { valid: false, error: `Port ${port.internal} already in use` };
     }
@@ -403,7 +403,7 @@ validatePortConflicts(config: PodConfig): ValidationResult {
   }
 
   // Check service ports (per-service, so reset for each)
-  for (const service of config.services) {
+  for (const service of spec.services) {
     const serviceConfig = this.getServiceTemplate(service);
     const servicePorts = new Set<number>();
 
@@ -444,9 +444,9 @@ enum PodState {
 #### Lifecycle Flow
 
 ```typescript
-async createPod(config: PodConfig): Promise<Pod> {
+async createPod(spec: PodSpec): Promise<Pod> {
   // 1. Create container
-  const containerId = await this.runtime.createContainer(podId, config);
+  const containerId = await this.runtime.createContainer(podId, spec);
 
   // 2. Create network
   const networkId = await this.network.createPodNetwork(podId);
@@ -461,11 +461,11 @@ async createPod(config: PodConfig): Promise<Pod> {
   await this.network.setupPortForwarding(podId, containerId, proxyPort);
 
   // 6. Install & start services
-  await this.provisioner.installServices(containerId, config.services);
-  await this.provisioner.startServices(containerId, config.services);
+  await this.provisioner.installServices(containerId, spec.services);
+  await this.provisioner.startServices(containerId, spec.services);
 
   // 7. Run post-start hooks
-  if (config.hooks?.postStart) {
+  if (spec.hooks?.postStart) {
     for (const hook of config.hooks.postStart) {
       await this.runtime.execCommand(containerId, hook);
     }

@@ -11,6 +11,10 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  getResourcesFromTier,
+  podRecordToPinacleConfig,
+} from "../../lib/pod-orchestration/pinacle-config";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
@@ -19,8 +23,7 @@ type Pod = {
   name: string;
   status: string;
   description?: string | null;
-  cpuCores: number;
-  memoryMb: number;
+  config: string;
   publicUrl?: string | null;
 };
 
@@ -162,8 +165,14 @@ export const PodSelector = ({
 
                 <div className="flex items-center justify-between text-xs text-slate-500 font-mono mb-3">
                   <span>
-                    {pod.cpuCores} vCPU • {Math.round(pod.memoryMb / 1024)}GB
-                    RAM
+                    {(() => {
+                      const podConfig = podRecordToPinacleConfig({
+                        config: pod.config,
+                        name: pod.name,
+                      });
+                      const resources = getResourcesFromTier(podConfig.tier);
+                      return `${resources.cpuCores} vCPU • ${Math.round(resources.memoryMb / 1024)}GB RAM`;
+                    })()}
                   </span>
                 </div>
 

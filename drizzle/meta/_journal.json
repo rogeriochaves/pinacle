@@ -71,6 +71,13 @@
       "when": 1759598267102,
       "tag": "0009_glossy_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1760208542142,
+      "tag": "0010_simple_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

@@ -1,15 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { GitHubIntegration } from "../github-integration";
+import { getLimaSshPort } from "../lima-utils";
 import { DefaultPodManager } from "../pod-manager";
-import type { PodConfig } from "../types";
+import type { PodSpec } from "../types";
 
 describe("GitHub Integration Tests", () => {
   let podManager: DefaultPodManager;
   let githubIntegration: GitHubIntegration;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     // Initialize managers
-    podManager = new DefaultPodManager();
+    const sshPort = await getLimaSshPort("gvisor-alpine");
+    const limaConfig = { vmName: "gvisor-alpine", sshPort };
+    podManager = new DefaultPodManager(limaConfig);
     githubIntegration = new GitHubIntegration(podManager);
   });
 
@@ -104,7 +107,7 @@ describe("GitHub Integration Tests", () => {
         fingerprint: "SHA256:MockFingerprint",
       };
 
-      const config: Partial<PodConfig> = {
+      const config: Partial<PodSpec> = {
         id: "test-github-pod",
         name: "GitHub Test Pod",
         slug: "github-test-pod",
@@ -130,7 +133,7 @@ describe("GitHub Integration Tests", () => {
     });
 
     it("should support pods without GitHub integration", async () => {
-      const config: Partial<PodConfig> = {
+      const config: Partial<PodSpec> = {
         id: "test-no-github-pod",
         name: "No GitHub Pod",
         slug: "no-github-pod",
@@ -259,7 +262,7 @@ describe("GitHub Integration Tests", () => {
       };
 
       // 3. Create pod config with GitHub setup
-      const podConfig: Partial<PodConfig> = {
+      const podConfig: Partial<PodSpec> = {
         id: "e2e-test",
         name: "E2E Test Pod",
         slug: "e2e-test-pod",

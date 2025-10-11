@@ -59,7 +59,7 @@ enum PodState {
 ### Simple Pod Creation
 
 ```typescript
-async function createPod(userId: string, config: CreatePodConfig) {
+async function createPod(userId: string, config: CreatePodSpec) {
   // 1. Create pod record
   const pod = await db.pods.create({
     data: {
