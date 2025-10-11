@@ -53,6 +53,8 @@ export const RepositorySelector = ({
     (repo) => repo.full_name === selectedRepo,
   );
 
+  const errors = form.formState.errors;
+
   // Scroll to top when search value changes
   useEffect(() => {
     if (listRef.current && searchValue) {
@@ -105,6 +107,7 @@ export const RepositorySelector = ({
                         }
                       } else {
                         form.setValue("selectedOrg", value);
+                        form.clearErrors("selectedOrg");
                       }
                     }}
                   >
@@ -130,6 +133,11 @@ export const RepositorySelector = ({
                       </SelectItem>
                     </SelectContent>
                   </Select>
+                  {errors.selectedOrg?.message && (
+                    <p className="text-red-500 text-xs mt-1 font-mono">
+                      {errors.selectedOrg.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Repository Name Input */}
@@ -139,13 +147,15 @@ export const RepositorySelector = ({
                   </Label>
                   <Input
                     placeholder="my-awesome-project"
-                    value={newRepoName || ""}
-                    onChange={(e) =>
-                      form.setValue("newRepoName", e.target.value)
-                    }
+                    {...form.register("newRepoName")}
                     className="font-mono"
                   />
-                  {selectedOrg && newRepoName && (
+                  {errors.newRepoName?.message && (
+                    <p className="text-red-500 text-xs mt-1 font-mono">
+                      {errors.newRepoName.message}
+                    </p>
+                  )}
+                  {selectedOrg && newRepoName && !errors.newRepoName && (
                     <p className="text-sm text-slate-500 mt-2 font-mono">
                       {selectedOrg}/{newRepoName}
                     </p>
@@ -224,6 +234,7 @@ export const RepositorySelector = ({
                               keywords={[repo.full_name]}
                               onSelect={() => {
                                 form.setValue("selectedRepo", repo.full_name);
+                                form.clearErrors("selectedRepo");
                                 setOpen(false);
                               }}
                             >
@@ -281,6 +292,11 @@ export const RepositorySelector = ({
                     </Command>
                   </PopoverContent>
                 </Popover>
+                {errors.selectedRepo?.message && (
+                  <p className="text-red-500 text-xs mt-2 font-mono">
+                    {errors.selectedRepo.message}
+                  </p>
+                )}
               </div>
             )}
           </div>

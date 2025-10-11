@@ -1,5 +1,5 @@
 ---
-description: Best practices
+description: Best practices for tasks that require backend development
 globs:
 alwaysApply: true
 ---

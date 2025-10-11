@@ -8,14 +8,24 @@ type TemplateSelectorProps = {
   selectedTemplate?: string;
   onTemplateChange: (templateId: string) => void;
   compact?: boolean;
+  showOnlyBlank?: boolean; // Only show blank templates for existing repositories
 };
 
 export const TemplateSelector = ({
   selectedTemplate,
   onTemplateChange,
   compact = false,
+  showOnlyBlank = false,
 }: TemplateSelectorProps) => {
-  const templates = getPublicTemplates();
+  const allTemplates = getPublicTemplates();
+
+  // Filter templates based on showOnlyBlank flag
+  const templates = showOnlyBlank
+    ? allTemplates.filter(
+        (template) =>
+          template.id === "nodejs-blank" || template.id === "python-blank"
+      )
+    : allTemplates;
 
   if (compact) {
     return (

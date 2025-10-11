@@ -31,10 +31,22 @@ export type PodTemplate = {
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
   requiredEnvVars: string[];
+  envVarDefaults?: Record<string, string | (() => string)>; // Default values or generator functions for env vars
 
   // Template initialization
   templateType: "blank" | "vite" | "nextjs" | "nodejs" | "python" | "custom";
   initScript?: string[]; // Commands to run after cloning/creating repo
+};
+
+/**
+ * Generate a random hex string (equivalent to openssl rand -hex 32)
+ */
+export const generateRandomSecret = (bytes = 32): string => {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
 };
 
 /**
@@ -75,7 +87,7 @@ export const POD_TEMPLATES = {
       NODE_ENV: "development",
       PORT: "5173",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "vite",
     initScript: [
@@ -118,7 +130,11 @@ export const POD_TEMPLATES = {
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY", "NEXTAUTH_SECRET", "DATABASE_URL"],
+    requiredEnvVars: ["NEXTAUTH_SECRET", "DATABASE_URL"],
+    envVarDefaults: {
+      NEXTAUTH_SECRET: () => generateRandomSecret(32),
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/app",
+    },
 
     templateType: "nextjs",
     initScript: [
@@ -160,7 +176,7 @@ export const POD_TEMPLATES = {
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "python",
     initScript: ["cd /workspace", "pip install mastra", "mastra init"],
@@ -168,7 +184,7 @@ export const POD_TEMPLATES = {
 
   "nodejs-blank": {
     id: "nodejs-blank",
-    name: "Node.js Blank",
+    name: "Node.js",
     icon: "/logos/nodejs.svg",
     iconAlt: "Node.js",
     techStack: "Node.js, pnpm",
@@ -198,7 +214,7 @@ export const POD_TEMPLATES = {
     environment: {
       NODE_ENV: "development",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "nodejs",
     initScript: [
@@ -210,7 +226,7 @@ export const POD_TEMPLATES = {
 
   "python-blank": {
     id: "python-blank",
-    name: "Python Blank",
+    name: "Python",
     icon: "/logos/python.svg",
     iconAlt: "Python",
     techStack: "Python, uv",
@@ -241,7 +257,7 @@ export const POD_TEMPLATES = {
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "python",
     initScript: [
@@ -284,7 +300,7 @@ export const POD_TEMPLATES = {
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "python",
     initScript: [
@@ -329,7 +345,7 @@ export const POD_TEMPLATES = {
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "nextjs",
     initScript: [
@@ -370,7 +386,7 @@ export const POD_TEMPLATES = {
       PYTHONPATH: "/workspace",
       LANGFLOW_DATABASE_URL: "sqlite:///./langflow.db",
     },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    requiredEnvVars: [],
 
     templateType: "python",
     initScript: [

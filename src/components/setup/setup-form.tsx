@@ -20,6 +20,7 @@ const SetupForm = () => {
 
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupFormSchema),
+    mode: "onChange", // Validate on change to clear errors as user types
     defaultValues: {
       setupType: "repository",
       selectedRepo: "",

@@ -169,7 +169,7 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
 };
 
 export const Templates = () => {
-  const templates = getPublicTemplates();
+  const templates = getPublicTemplates().slice(0, 6);
 
   return (
     <section className="bg-slate-100 py-12 sm:py-12">

@@ -10,8 +10,7 @@ type ConfigurationSummaryProps = {
   projectName: string;
   selectedTemplate: ReturnType<typeof getTemplateUnsafe> | undefined;
   tierData: (typeof RESOURCE_TIERS)[keyof typeof RESOURCE_TIERS];
-  onSubmit: () => Promise<void>;
-  canCreate: () => boolean;
+  onSubmit: () => void;
   isCreating: boolean;
 };
 
@@ -20,7 +19,6 @@ export const ConfigurationSummary = ({
   selectedTemplate,
   tierData,
   onSubmit,
-  canCreate,
   isCreating,
 }: ConfigurationSummaryProps) => {
   return (
@@ -147,7 +145,7 @@ export const ConfigurationSummary = ({
             {/* Create Button */}
             <Button
               onClick={onSubmit}
-              disabled={!canCreate() || isCreating}
+              disabled={isCreating}
               size="lg"
               className="w-full bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold h-12"
             >
