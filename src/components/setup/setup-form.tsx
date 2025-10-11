@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
@@ -170,13 +171,13 @@ const SetupForm = () => {
 
   if (status === "loading" || installationsLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="h-12 w-12 animate-spin mx-auto mb-4 border-4 border-orange-500 border-t-transparent rounded-full" />
-          <h2 className="text-xl font-mono font-bold text-slate-900 mb-2">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono">
             Loading your repositories...
           </h2>
-          <p className="text-sm text-slate-600 font-mono">Just a moment</p>
+          <p className="text-slate-400 font-mono">Just a moment</p>
         </div>
       </div>
     );

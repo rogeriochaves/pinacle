@@ -4,6 +4,7 @@ import { LucideLayers } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { SERVICE_TEMPLATES } from "@/lib/pod-orchestration/service-registry";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
 import { TierSelector } from "../shared/tier-selector";
 import { Badge } from "../ui/badge";
@@ -64,6 +65,18 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
     CODING_AGENTS.find((agent) => agent.id === selectedAgent) ||
     CODING_AGENTS[0];
 
+  // Get services with icons, excluding terminal (respects template order)
+  const servicesWithIcons = (template.services
+    .filter((serviceName) => serviceName !== "web-terminal")
+    .map((serviceName) => SERVICE_TEMPLATES[serviceName])
+    .filter((service) => service.icon) as Array<{
+      name: string;
+      displayName: string;
+      icon: string;
+      iconAlt?: string;
+    }>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -93,9 +106,9 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
               {template.techStack}
             </li>
           )}
-          {template.advertisedTools?.map((tool) => {
+          {servicesWithIcons.map((service) => {
             // Special case for coding agent selector
-            if (tool.name === "Claude Code") {
+            if (service.displayName === "Claude Code") {
               return (
                 <li key="coding-agent" className="flex items-start gap-4">
                   <Image
@@ -133,15 +146,15 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
             }
 
             return (
-              <li key={tool.name} className="flex items-start gap-4">
+              <li key={service.name} className="flex items-start gap-4">
                 <Image
-                  src={tool.icon}
-                  alt={tool.alt}
+                  src={service.icon}
+                  alt={service.iconAlt || service.displayName}
                   width={14}
                   height={14}
                   className="min-w-4 min-h-4 mt-1"
                 />
-                {tool.name}
+                {service.displayName}
               </li>
             );
           })}

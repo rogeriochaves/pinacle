@@ -14,6 +14,8 @@ export type ServiceTemplate = {
   name: string;
   displayName: string;
   description: string;
+  icon?: string; // Path to icon for UI display
+  iconAlt?: string; // Alt text for icon
   image?: string; // Optional Docker image for sidecar services
   installScript: string[]; // Commands to install service dependencies
   startCommand: (context: ServiceContext) => string[]; // Function that returns command and args to start the service
@@ -31,8 +33,10 @@ export type ServiceTemplate = {
 export const SERVICE_TEMPLATES = {
   "code-server": {
     name: "code-server",
-    displayName: "VS Code Server",
+    displayName: "VS Code",
     description: "VS Code in the browser",
+    icon: "/logos/vscode.svg",
+    iconAlt: "VS Code",
     installScript: [], // Pre-installed in base image
     startCommand: (context: ServiceContext) => {
       const workingDir = context.projectFolder
@@ -62,6 +66,8 @@ export const SERVICE_TEMPLATES = {
     name: "vibe-kanban",
     displayName: "Vibe Kanban",
     description: "Kanban board for project management",
+    icon: "/logos/vibe-kanban.svg",
+    iconAlt: "Vibe",
     installScript: [], // Pre-installed in base image
     startCommand: () => ["vibe-kanban"],
     cleanupCommand: [],
@@ -79,6 +85,8 @@ export const SERVICE_TEMPLATES = {
     name: "claude-code",
     displayName: "Claude Code",
     description: "AI coding assistant via terminal",
+    icon: "/logos/claude.svg",
+    iconAlt: "Claude",
     installScript: ["pnpm install -g @anthropic-ai/claude-code"],
     startCommand: (context: ServiceContext) => {
       const workingDir = context.projectFolder
@@ -111,10 +119,114 @@ export const SERVICE_TEMPLATES = {
     requiredEnvVars: ["ANTHROPIC_API_KEY"],
   },
 
+  "openai-codex": {
+    name: "openai-codex",
+    displayName: "OpenAI Codex",
+    description: "OpenAI powered coding assistant",
+    icon: "/logos/openai.svg",
+    iconAlt: "OpenAI",
+    installScript: ["pip install openai"],
+    startCommand: (context: ServiceContext) => {
+      const workingDir = context.projectFolder
+        ? `/workspace/${context.projectFolder}`
+        : "/workspace";
+
+      return [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        workingDir,
+        "--writable",
+        "--",
+        "bash",
+      ];
+    },
+    cleanupCommand: [],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
+    defaultPort: 2528,
+    environment: {
+      IS_SANDBOX: "1",
+    },
+    requiredEnvVars: ["OPENAI_API_KEY"],
+  },
+
+  "cursor-cli": {
+    name: "cursor-cli",
+    displayName: "Cursor CLI",
+    description: "Cursor AI coding assistant",
+    icon: "/logos/cursor.svg",
+    iconAlt: "Cursor",
+    installScript: ["npm install -g cursor-cli"],
+    startCommand: (context: ServiceContext) => {
+      const workingDir = context.projectFolder
+        ? `/workspace/${context.projectFolder}`
+        : "/workspace";
+
+      return [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        workingDir,
+        "--writable",
+        "--",
+        "bash",
+      ];
+    },
+    cleanupCommand: [],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
+    defaultPort: 2528,
+    environment: {
+      IS_SANDBOX: "1",
+    },
+    requiredEnvVars: [],
+  },
+
+  "gemini-cli": {
+    name: "gemini-cli",
+    displayName: "Gemini CLI",
+    description: "Google Gemini coding assistant",
+    icon: "/logos/gemini.svg",
+    iconAlt: "Gemini",
+    installScript: ["pip install google-generativeai"],
+    startCommand: (context: ServiceContext) => {
+      const workingDir = context.projectFolder
+        ? `/workspace/${context.projectFolder}`
+        : "/workspace";
+
+      return [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        workingDir,
+        "--writable",
+        "--",
+        "bash",
+      ];
+    },
+    cleanupCommand: [],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
+    defaultPort: 2528,
+    environment: {
+      IS_SANDBOX: "1",
+    },
+    requiredEnvVars: ["GEMINI_API_KEY"],
+  },
+
   "web-terminal": {
     name: "web-terminal",
-    displayName: "Web Terminal",
+    displayName: "Terminal",
     description: "Browser-based terminal with tmux",
+    icon: "/window.svg",
+    iconAlt: "Terminal",
     installScript: [], // Pre-installed in base image (ttyd)
     startCommand: (context: ServiceContext) => {
       const workingDir = context.projectFolder
@@ -148,6 +260,8 @@ export const SERVICE_TEMPLATES = {
     name: "postgres",
     displayName: "PostgreSQL",
     description: "PostgreSQL database server",
+    icon: "/file.svg",
+    iconAlt: "PostgreSQL",
     installScript: [
       "apk add --no-cache postgresql postgresql-contrib",
       "mkdir -p /var/lib/postgresql/data",
@@ -174,6 +288,8 @@ export const SERVICE_TEMPLATES = {
     name: "redis",
     displayName: "Redis",
     description: "In-memory data store",
+    icon: "/file.svg",
+    iconAlt: "Redis",
     installScript: ["apk add --no-cache redis"],
     startCommand: () => ["redis-server", "--bind", "0.0.0.0"],
     cleanupCommand: [],
@@ -185,6 +301,8 @@ export const SERVICE_TEMPLATES = {
     name: "jupyter",
     displayName: "Jupyter Lab",
     description: "Interactive notebook environment",
+    icon: "/file.svg",
+    iconAlt: "Jupyter",
     installScript: ["pip install jupyter jupyterlab pandas numpy matplotlib"],
     startCommand: () => [
       "jupyter",

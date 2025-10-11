@@ -3,6 +3,8 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import type { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
+import type { ServiceName } from "../../lib/pod-orchestration/service-registry";
+import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry";
 import type { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { Button } from "../ui/button";
 
@@ -12,7 +14,15 @@ type ConfigurationSummaryProps = {
   tierData: (typeof RESOURCE_TIERS)[keyof typeof RESOURCE_TIERS];
   onSubmit: () => void;
   isCreating: boolean;
+  selectedServices?: ServiceName[];
 };
+
+const CODING_ASSISTANTS: ServiceName[] = [
+  "claude-code",
+  "openai-codex",
+  "cursor-cli",
+  "gemini-cli",
+];
 
 export const ConfigurationSummary = ({
   projectName,
@@ -20,7 +30,22 @@ export const ConfigurationSummary = ({
   tierData,
   onSubmit,
   isCreating,
+  selectedServices,
 }: ConfigurationSummaryProps) => {
+  // Use selectedServices if provided, otherwise fall back to template's default services
+  const allServices: ServiceName[] = (selectedServices ||
+    selectedTemplate?.services ||
+    []) as ServiceName[];
+
+  // Sort services to always show coding assistant first (create a copy to avoid mutation)
+  const servicesToDisplay = [...allServices].sort((a, b) => {
+    const aIsCodingAssistant = CODING_ASSISTANTS.includes(a);
+    const bIsCodingAssistant = CODING_ASSISTANTS.includes(b);
+
+    if (aIsCodingAssistant && !bIsCodingAssistant) return -1;
+    if (!aIsCodingAssistant && bIsCodingAssistant) return 1;
+    return 0; // Keep original order for non-coding assistants
+  });
   return (
     <div className="flex-3 bg-slate-900 border-l border-slate-800 flex justify-start overflow-y-auto">
       <div className="w-full max-w-md p-8 pt-34 space-y-8">
@@ -94,6 +119,65 @@ export const ConfigurationSummary = ({
                       <p className="text-white font-mono text-sm">
                         {selectedTemplate.name}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tools */}
+              {servicesToDisplay.length > 0 && (
+                <div className="flex items-start gap-3 text-sm">
+                  <svg
+                    className="w-4 h-4 text-green-400 mt-0.5 shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-slate-300 font-mono text-xs mb-2">
+                      Tools
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {(
+                        servicesToDisplay
+                          .filter(
+                            (serviceName) => serviceName !== "web-terminal",
+                          )
+                          .map((serviceName) => SERVICE_TEMPLATES[serviceName])
+                          .filter((service) => service.icon) as Array<{
+                          name: string;
+                          displayName: string;
+                          icon: string;
+                          iconAlt?: string;
+                        }>
+                      ).map((service) => (
+                        <div
+                          key={service.name}
+                          className="flex items-center gap-1.5 bg-slate-800 rounded px-2 py-1"
+                        >
+                          <Image
+                            src={
+                              service.icon === "/logos/vibe-kanban.svg"
+                                ? "/logos/vibe-kanban-white.svg"
+                                : service.icon === "/logos/openai.svg"
+                                  ? "/logos/openai-white.svg"
+                                  : service.icon
+                            }
+                            alt={service.iconAlt || service.displayName}
+                            width={14}
+                            height={14}
+                            className="shrink-0"
+                          />
+                          <span className="text-white font-mono text-xs">
+                            {service.displayName}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

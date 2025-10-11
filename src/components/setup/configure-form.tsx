@@ -5,6 +5,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
+import type { ServiceName } from "../../lib/pod-orchestration/service-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
 import { Button } from "../ui/button";
@@ -12,6 +13,7 @@ import { Label } from "../ui/label";
 import { ConfigurationSummary } from "./configuration-summary";
 import { EnvironmentVariables } from "./environment-variables";
 import { RepositorySelector } from "./repository-selector";
+import { ServiceCustomizer } from "./service-customizer";
 import { TemplateSelector } from "./template-selector";
 import { TierSelectorSetup } from "./tier-selector-setup";
 
@@ -30,6 +32,20 @@ type ConfigureFormProps = {
   installationUrl: string | null;
 };
 
+const DEFAULT_SERVICES: ServiceName[] = [
+  "claude-code",
+  "vibe-kanban",
+  "code-server",
+];
+
+// Map agent IDs from landing page to service names
+const AGENT_TO_SERVICE_MAP: Record<string, ServiceName> = {
+  claude: "claude-code",
+  openai: "openai-codex",
+  cursor: "cursor-cli",
+  gemini: "gemini-cli",
+};
+
 export const ConfigureForm = ({
   form,
   onSubmit,
@@ -40,6 +56,8 @@ export const ConfigureForm = ({
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showSecrets, setShowSecrets] = useState<Record<number, boolean>>({});
   const [isCreating, setIsCreating] = useState(false);
+  const [customServices, setCustomServices] =
+    useState<ServiceName[]>(DEFAULT_SERVICES);
 
   const setupType = form.watch("setupType");
   const selectedRepo = form.watch("selectedRepo");
@@ -47,6 +65,7 @@ export const ConfigureForm = ({
   const newRepoName = form.watch("newRepoName");
   const bundle = form.watch("bundle");
   const tier = form.watch("tier");
+  const agent = form.watch("agent");
 
   // Get selected template data
   const selectedTemplate = bundle ? getTemplateUnsafe(bundle) : undefined;
@@ -67,11 +86,25 @@ export const ConfigureForm = ({
     }
   }, [setupType, organizations, selectedOrg, form]);
 
+  // Initialize services with agent from URL before template is selected
+  React.useEffect(() => {
+    if (agent && AGENT_TO_SERVICE_MAP[agent] && !selectedTemplate) {
+      const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
+      setCustomServices((prev) => {
+        const withoutCodingAssistant = prev.filter(
+          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service)
+        );
+        return [selectedCodingAssistant, ...withoutCodingAssistant];
+      });
+    }
+  }, [agent, selectedTemplate]);
+
   // Clear template selection if switching to "repository" mode with non-blank template
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only want to run when setupType changes
   React.useEffect(() => {
     if (setupType === "repository" && bundle) {
-      const isBlankTemplate = bundle === "nodejs-blank" || bundle === "python-blank";
+      const isBlankTemplate =
+        bundle === "nodejs-blank" || bundle === "python-blank";
       if (!isBlankTemplate) {
         form.setValue("bundle", "");
         form.clearErrors("bundle");
@@ -80,9 +113,10 @@ export const ConfigureForm = ({
     }
   }, [setupType]);
 
-  // Initialize environment variables when bundle changes
+  // Initialize environment variables and services when bundle changes
   React.useEffect(() => {
     if (selectedTemplate) {
+      // Initialize environment variables
       const newEnvVars = selectedTemplate.requiredEnvVars.map((key) => {
         const defaultValue = selectedTemplate.envVarDefaults?.[key];
         let value = "";
@@ -111,9 +145,26 @@ export const ConfigureForm = ({
         };
       });
       setEnvVars(newEnvVars);
+
+      // Update custom services to match template's services
+      let newServices = [...selectedTemplate.services];
+
+      // If there's an agent from URL, replace the template's coding assistant with the selected one
+      if (agent && AGENT_TO_SERVICE_MAP[agent]) {
+        const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
+        // Remove any coding assistants from template services
+        newServices = newServices.filter(
+          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service)
+        );
+        // Add the selected coding assistant at the beginning
+        newServices = [selectedCodingAssistant, ...newServices];
+      }
+
+      setCustomServices(newServices);
+
       form.setValue("bundle", selectedTemplate.id);
     }
-  }, [selectedTemplate, form]);
+  }, [selectedTemplate, form, agent]);
 
   const addEnvVar = () => {
     setEnvVars([...envVars, { key: "", value: "", isSecret: false }]);
@@ -184,6 +235,7 @@ export const ConfigureForm = ({
       });
 
       data.envVars = envVarsObject;
+      data.customServices = customServices;
 
       await onSubmit(data);
     } catch (error) {
@@ -229,6 +281,13 @@ export const ConfigureForm = ({
               repositories={repositories}
               organizations={organizations}
               installationUrl={installationUrl}
+            />
+
+            {/* Service Customization */}
+            <ServiceCustomizer
+              defaultServices={DEFAULT_SERVICES}
+              selectedServices={customServices}
+              onChange={setCustomServices}
             />
 
             {/* Template Selection */}
@@ -301,6 +360,7 @@ export const ConfigureForm = ({
         tierData={tierData}
         onSubmit={onFormSubmit}
         isCreating={isCreating}
+        selectedServices={customServices}
       />
     </div>
   );

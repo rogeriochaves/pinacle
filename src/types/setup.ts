@@ -15,6 +15,7 @@ export const setupFormSchema = z
       .optional(),
     agent: z.string().optional(),
     envVars: z.record(z.string(), z.string()),
+    customServices: z.array(z.string()).optional(), // Custom service selection
   })
   .refine(
     (data) => {

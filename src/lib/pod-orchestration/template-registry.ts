@@ -14,7 +14,6 @@ export type PodTemplate = {
   iconAlt?: string; // Alt text for icon
   techStack?: string; // Tech stack description for landing page
   mainUseCase?: string; // Main use case description (e.g., "For building websites")
-  advertisedTools?: Array<{ icon: string; name: string; alt: string }>; // Tools to show in marketing/landing page (decoupled from actual services)
   category: string;
   popular?: boolean;
 
@@ -26,7 +25,7 @@ export type PodTemplate = {
   storageGb: number;
 
   // Services and setup (actual backend services)
-  services: ServiceName[]; // Service names to enable (from SERVICE_TEMPLATES)
+  services: ServiceName[]; // Service names to enable (from SERVICE_TEMPLATES) - also displayed as tools in UI
   serviceConfigs?: ServiceConfig[]; // Optional custom service configs
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
@@ -61,11 +60,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Vite",
     techStack: "React, TypeScript, Tailwind CSS",
     mainUseCase: "For building websites",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "frontend",
     popular: true,
 
@@ -75,7 +69,7 @@ export const POD_TEMPLATES = {
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 5173 }, // Vite default port
       { name: "code", internal: 8726 },
@@ -104,11 +98,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Next.js",
     techStack: "React, TypeScript, Tailwind CSS, NextAuth, PostgreSQL, tRPC",
     mainUseCase: "For building SaaS applications",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "fullstack",
 
     baseImage: "pinacledev/pinacle-base",
@@ -117,7 +106,7 @@ export const POD_TEMPLATES = {
     memoryGb: 2,
     storageGb: 20,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
@@ -151,11 +140,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Mastra",
     techStack: "TypeScript, Mastra, Mastra Playground",
     mainUseCase: "For building AI agents",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "ai",
 
     baseImage: "pinacledev/pinacle-base",
@@ -164,7 +148,7 @@ export const POD_TEMPLATES = {
     memoryGb: 2,
     storageGb: 15,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
@@ -189,11 +173,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Node.js",
     techStack: "Node.js, pnpm",
     mainUseCase: "For custom backend development",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "backend",
     popular: false,
 
@@ -203,7 +182,7 @@ export const POD_TEMPLATES = {
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
@@ -231,11 +210,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Python",
     techStack: "Python, uv",
     mainUseCase: "For custom Python development",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "backend",
     popular: false,
 
@@ -245,7 +219,7 @@ export const POD_TEMPLATES = {
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
@@ -274,11 +248,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Agno",
     techStack: "Python, FastAPI, Agno, AgentUI",
     mainUseCase: "For building AI agents",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "ai",
     popular: false,
 
@@ -288,7 +257,7 @@ export const POD_TEMPLATES = {
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
@@ -318,11 +287,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Next.js",
     techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS",
     mainUseCase: "For building AI agents",
-    advertisedTools: [
-      { icon: "/logos/claude.svg", name: "Claude Code", alt: "Claude" },
-      { icon: "/logos/vibe-kanban.svg", name: "Vibe Kanban", alt: "Vibe" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "ai",
     popular: false,
 
@@ -332,7 +296,7 @@ export const POD_TEMPLATES = {
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "vibe-kanban", "claude-code", "web-terminal"],
+    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
       { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
@@ -362,10 +326,6 @@ export const POD_TEMPLATES = {
     iconAlt: "Langflow",
     techStack: "Python, Langflow",
     mainUseCase: "For building AI automations",
-    advertisedTools: [
-      { icon: "/logos/langflow.svg", name: "Langflow UI", alt: "Langflow" },
-      { icon: "/logos/vscode.svg", name: "VS Code", alt: "VS Code" },
-    ],
     category: "ai",
     popular: false,
 
