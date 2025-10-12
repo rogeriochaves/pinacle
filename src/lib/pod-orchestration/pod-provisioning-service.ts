@@ -158,7 +158,7 @@ export class PodProvisioningService {
         }
       }
 
-      const config = await this.configResolver.loadConfig(
+      const spec = await this.configResolver.loadConfig(
         pinacleConfig.template || undefined,
         {
           id: podRecord.id,
@@ -180,13 +180,13 @@ export class PodProvisioningService {
         },
       );
 
-      console.log(`   Base image: ${config.baseImage}`);
       console.log(
-        `   Services: ${config.services.map((s) => s.name).join(", ")}`,
+        "[PodProvisioningService] Provisioning pod with spec:",
+        JSON.stringify(spec, null, 2),
       );
 
       // 7. Provision the pod
-      const podInstance = await podManager.createPod(config);
+      const podInstance = await podManager.createPod(spec);
 
       // 8. Update pod in database with provisioning results
       await db
@@ -194,9 +194,9 @@ export class PodProvisioningService {
         .set({
           status: "running",
           containerId: podInstance.container?.id,
-          internalIp: config.network.podIp,
+          internalIp: spec.network.podIp,
           publicUrl: `https://${podRecord.slug}.pinacle.dev`,
-          ports: JSON.stringify(config.network.ports),
+          ports: JSON.stringify(spec.network.ports),
           lastStartedAt: new Date(),
           updatedAt: new Date(),
         })

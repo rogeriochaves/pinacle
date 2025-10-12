@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -17,6 +18,7 @@ import {
   pinacleConfigToJSON,
 } from "../../pod-orchestration/pinacle-config";
 import { PodProvisioningService } from "../../pod-orchestration/pod-provisioning-service";
+import { getResourceTierUnsafe } from "../../pod-orchestration/resource-tier-registry";
 import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
 import { generateKSUID } from "../../utils";
 import {
@@ -95,7 +97,6 @@ export const podsRouter = createTRPCRouter({
         template,
         tier,
         customServices,
-        podName: name,
       });
       const configJSON = pinacleConfigToJSON(pinacleConfig);
 
@@ -259,16 +260,15 @@ export const podsRouter = createTRPCRouter({
         }
       }
 
-      // Calculate pricing based on tier
-      const tierPricing = {
-        "dev.small": { hourly: 0.008, monthly: 6 },
-        "dev.medium": { hourly: 0.017, monthly: 12 },
-        "dev.large": { hourly: 0.033, monthly: 24 },
-        "dev.xlarge": { hourly: 0.067, monthly: 48 },
-      };
-
-      const pricing = tierPricing[tier];
-      const monthlyPrice = pricing.monthly * 100; // in cents
+      // Calculate pricing based on tier from resource tier registry
+      const resourceTier = getResourceTierUnsafe(tier);
+      if (!resourceTier) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid resource tier",
+        });
+      }
+      const monthlyPrice = resourceTier.price * 100; // in cents
 
       // Generate slug from name
       const slug = name
@@ -756,7 +756,7 @@ export const podsRouter = createTRPCRouter({
       // Only allow retry if pod is in error state
       if (pod.status !== "error") {
         throw new Error(
-          "Can only retry failed provisioning. Current status: " + pod.status,
+          `Can only retry failed provisioning. Current status: ${pod.status}`,
         );
       }
 

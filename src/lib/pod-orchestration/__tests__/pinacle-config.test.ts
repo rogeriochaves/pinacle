@@ -60,7 +60,6 @@ describe("PinacleConfig Schema Validation", () => {
   it("should validate a full config", () => {
     const config: PinacleConfig = {
       version: "1.0",
-      name: "my-project",
       template: "nextjs",
       tier: "dev.medium",
       services: ["openai-codex", "vibe-kanban", "code-server"],
@@ -93,7 +92,6 @@ describe("YAML Serialization", () => {
   it("should serialize full config to YAML", () => {
     const config: PinacleConfig = {
       version: "1.0",
-      name: "test-project",
       template: "nextjs",
       tier: "dev.medium",
       services: ["openai-codex", "vibe-kanban", "code-server"],
@@ -101,7 +99,6 @@ describe("YAML Serialization", () => {
 
     const yaml = serializePinacleConfig(config);
 
-    expect(yaml).toContain("name: test-project");
     expect(yaml).toContain("template: nextjs");
     expect(yaml).toContain("tier: dev.medium");
     expect(yaml).toContain("  - openai-codex");
@@ -173,7 +170,6 @@ services:
     const config = parsePinacleConfig(yaml);
 
     expect(config.version).toBe("1.0");
-    expect(config.name).toBe("my-awesome-project");
     expect(config.template).toBe("nextjs");
     expect(config.tier).toBe("dev.large");
     expect(config.services).toEqual([
@@ -218,7 +214,6 @@ services:
 
     expect(config.version).toBe("1.0");
     expect(config.tier).toBe("dev.medium");
-    expect(config.name).toBeUndefined();
     expect(config.template).toBeUndefined();
   });
 });
@@ -227,7 +222,6 @@ describe("Round-trip: Serialize -> Parse", () => {
   it("should maintain config through round-trip", () => {
     const original: PinacleConfig = {
       version: "1.0",
-      name: "test-project",
       template: "vite",
       tier: "dev.xlarge",
       services: ["gemini-cli", "code-server"],
@@ -259,13 +253,11 @@ describe("Form Data Conversion", () => {
       template: "nextjs",
       tier: "dev.medium",
       customServices: ["claude-code", "vibe-kanban", "code-server"],
-      podName: "my-next-app",
     };
 
     const config = generatePinacleConfigFromForm(formData);
 
     expect(config.version).toBe("1.0");
-    expect(config.name).toBe("my-next-app");
     expect(config.template).toBe("nextjs");
     expect(config.tier).toBe("dev.medium");
     expect(config.services).toEqual([
@@ -293,7 +285,6 @@ describe("Form Data Conversion", () => {
 
     const config = generatePinacleConfigFromForm(formData);
 
-    expect(config.name).toBeUndefined();
     expect(config.template).toBeUndefined();
     expect(config.tier).toBe("dev.large");
     expect(config.services).toEqual(["openai-codex"]);
@@ -329,7 +320,6 @@ services:
 
     const config = parsePinacleConfig(yaml);
 
-    expect(config.name).toBe("saas-app");
     expect(config.template).toBe("nextjs");
     expect(config.tier).toBe("dev.medium");
     expect(config.services).toHaveLength(3);
@@ -366,7 +356,6 @@ services:
 
     const config = parsePinacleConfig(yaml);
 
-    expect(config.name).toBe("team-project");
     expect(config.services).toHaveLength(4);
     expect(config.services).toContain("web-terminal");
   });

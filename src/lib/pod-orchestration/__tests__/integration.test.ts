@@ -219,7 +219,6 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "custom",
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "Integration Test Pod",
     });
 
     // Create env set
@@ -325,7 +324,6 @@ describe("Pod Orchestration Integration Tests", () => {
     const pinacleConfig = generatePinacleConfigFromForm({
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "Lifecycle Test Pod",
     });
 
     await db.insert(pods).values({
@@ -432,14 +430,12 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "nextjs",
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "List Test Pod 1",
     });
 
     const config2 = generatePinacleConfigFromForm({
       template: "custom",
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "List Test Pod 2",
     });
 
     await db.insert(pods).values([
@@ -517,7 +513,6 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "nextjs",
       tier: "dev.small",
       customServices: ["claude-code", "code-server"],
-      podName: "Template Test Pod",
     });
 
     // Create env set
@@ -602,7 +597,6 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "custom",
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "Proxy Test Pod",
     });
 
     // Create env set
@@ -767,7 +761,6 @@ describe("Pod Orchestration Integration Tests", () => {
       template: "nodejs-blank",
       tier: "dev.small",
       customServices: ["claude-code"],
-      podName: "GitHub Integration Test Pod",
     });
 
     // Create env set

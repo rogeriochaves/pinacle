@@ -49,9 +49,6 @@ export const PinacleConfigSchema = z.object({
     .transform(() => "1.0" as const)
     .default("1.0"),
 
-  // Pod/project name (optional, defaults to repo name)
-  name: z.string().optional(),
-
   // Resource tier - determines CPU, memory, storage
   // Valid values are derived from RESOURCE_TIERS registry
   tier: z.enum(TIER_IDS).default("dev.small"),
@@ -132,12 +129,10 @@ export const generatePinacleConfigFromForm = (formData: {
   template?: string;
   tier?: string;
   customServices?: string[];
-  podName?: string;
   tabs?: Array<{ name: string; url: string }>;
 }): PinacleConfig => {
   return PinacleConfigSchema.parse({
     version: "1.0",
-    name: formData.podName,
     template: formData.template,
     tier: formData.tier || "dev.small",
     services:
@@ -276,10 +271,6 @@ export const podConfigToPinacleConfig = (
   };
 
   // Add optional fields if present
-  if (podConfig.name) {
-    pinacleConfig.name = podConfig.name;
-  }
-
   if (podConfig.templateId) {
     pinacleConfig.template = podConfig.templateId;
   }

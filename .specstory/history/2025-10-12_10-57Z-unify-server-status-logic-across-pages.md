@@ -783,3 +783,385 @@ This is a lightweight solution that only loads what's needed (Prism with YAML su
 
 ---
 
+_**User (2025-10-11 14:26Z)**_
+
+hmmm the name shouldn't really live as part of pinacle-config right, as its goal is exactly to be reused when creating other pods, so it doesn't make much sense
+
+can you remove it from the type definition, then go accross the codebase checking for type issues seeing if anybody needed that .name?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user wants me to:
+1. Remove `name` from the PinacleConfig type definition
+2. Check across the codebase for any type issues or code that was using the `.name` property
+3. Fix any issues that arise
+
+Let me start by looking at the pinacle-config.ts file to see the current type definition and remove the `name` field.</details></think>
+
+---
+
+You're absolutely right! The `name` field doesn't belong in the `pinacle.yaml` config since it's meant to be reusable. Let me remove it from the type definition and check for any issues across the codebase.
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pinacle-config.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 3
+
+```diff
+@@ -50,7 +50,4 @@
+      .default("1.0"),
+  
+-   // Pod/project name (optional, defaults to repo name)
+-   name: z.string().optional(),
+- 
+    // Resource tier - determines CPU, memory, storage
+    // Valid values are derived from RESOURCE_TIERS registry
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to update the functions that were using or setting the `name` field. Let me check the `generatePinacleConfigFromForm` function and the `podConfigToPinacleConfig` function in the same file.</details></think>
+
+---
+
+Now let me update the functions that were setting the `name` field:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pinacle-config.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 2
+
+```diff
+@@ -130,10 +130,8 @@
+    tier?: string;
+    customServices?: string[];
+-   podName?: string;
+    tabs?: Array<{ name: string; url: string }>;
+  }): PinacleConfig => {
+    return PinacleConfigSchema.parse({
+      version: "1.0",
+-     name: formData.podName,
+      template: formData.template,
+      tier: formData.tier || "dev.small",
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now let me update the `podConfigToPinacleConfig` function that was also setting the name field.</details></think>
+
+---
+
+Cancelled
+
+---
+
+_**User (2025-10-11 14:26Z)**_
+
+sorry continue
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user wants me to continue with the task. I was in the middle of removing the `name` field from the PinacleConfig type and checking for any issues across the codebase. Let me continue by:
+
+1. Updating the `podConfigToPinacleConfig` function that also sets the name field
+2. Running TypeScript checks to find any type errors
+3. Searching for any usages of `.name` on PinacleConfig objects
+4. Fixing any issues found
+
+Let me start by updating the `podConfigToPinacleConfig` function and then search for any references to the name field.</details></think>
+
+---
+
+No problem! Let me continue removing the `name` field. Now let me update the `podConfigToPinacleConfig` function:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pinacle-config.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 4
+
+```diff
+@@ -272,8 +272,4 @@
+  
+    // Add optional fields if present
+-   if (podConfig.name) {
+-     pinacleConfig.name = podConfig.name;
+-   }
+- 
+    if (podConfig.templateId) {
+      pinacleConfig.template = podConfig.templateId;
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me check for linting errors and also search for any code that might be accessing `.name` on PinacleConfig objects to see if there are any type issues.</details></think>
+
+---
+
+Now let me check for any type errors and search for usages of the name field:
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pinacle-config.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "\.name" in "src/lib/pod-orchestration" • 57 matches</summary>
+
+Output mode: content
+
+
+| Content | Line |
+|------|------|
+| ``Invalid pod config in database for pod $\{podRecord.name\}: $\{error instanceof Error ? error.message : String(error)\}`,` | L190 |
+| `const services = podConfig.services.map((service) => service.name);` | L264 |
+| `.where(eq(teams.name, "Integration Test Team"))` | L75 |
+| `expect(ports[0].name).toBe("nginx-proxy");` | L652 |
+| `name: podRecord.name,` | L134 |
+| ``[PodProvisioningService] Loaded $\{Object.keys(environment).length\} env vars from env set: $\{envSet.name\}`,` | L156 |
+| `name: podRecord.name,` | L165 |
+| ``   Services: $\{config.services.map((s) => s.name).join(", ")\}`,` | L185 |
+| `console.log(`[PodManager] Creating pod: $\{spec.name\} ($\{spec.id\})`);` | L81 |
+| ``[PodManager] Successfully created pod: $\{spec.name\} ($\{spec.id\})`,` | L175 |
+| `service.name,` | L412 |
+| `const proxyPort = spec.network.ports.find((p) => p.name === "nginx-proxy");` | L531 |
+| `if (startedServices.has(service.name) \|\| !service.enabled) \{` | L607 |
+| `const depService = spec.services.find((s) => s.name === depName);` | L613 |
+| `await serviceProvisioner.startService(spec.id, service.name);` | L619 |
+| `startedServices.add(service.name);` | L620 |
+| `await serviceProvisioner.stopService(spec.id, service.name);` | L637 |
+| ``[PodManager] Failed to stop service $\{service.name\}: $\{message\}`,` | L641 |
+| `await serviceProvisioner.removeService(spec.id, service.name);` | L653 |
+| ``[PodManager] Failed to remove service $\{service.name\}: $\{message\}`,` | L657 |
+| `"user.name",` | L135 |
+| `"user.name",` | L207 |
+| ``'cd /workspace && git commit -m "Initial commit from Pinacle ($\{template.name\})" \|\| true'`,` | L254 |
+| `const template = getServiceTemplateUnsafe(service.name);` | L84 |
+| ``[ServiceProvisioner] Provisioning service $\{service.name\} for pod $\{podId\}`,` | L89 |
+| ``[ServiceProvisioner] Installing $\{service.name\} using template`,` | L109 |
+| `service.name,` | L120 |
+| ``[ServiceProvisioner] Custom service $\{service.name\} with image $\{service.image\}`,` | L127 |
+| ``[ServiceProvisioner] Custom service $\{service.name\} with custom commands`,` | L133 |
+| ``[ServiceProvisioner] Successfully provisioned service $\{service.name\}`,` | L142 |
+| ``[ServiceProvisioner] Failed to provision service $\{service.name\}: $\{message\}`,` | L147 |
+| `return getAllServiceTemplates().map((t) => t.name);` | L413 |
+| `const status = await this.getServiceStatus(podId, template.name);` | L424 |
+| `runningServices.push(template.name);` | L426 |
+| ``--opt com.docker.network.bridge.name=br-$\{podId.substring(0, 12)\}`,` | L111 |
+| ``[NetworkManager] Set up port forwarding for $\{mapping.name\}: $\{mapping.internal\} -> $\{mapping.external\}`,` | L216 |
+| ``[NetworkManager] Removed port forwarding for $\{mapping.name\}: $\{mapping.internal\} -> $\{mapping.external\}`,` | L227 |
+| `(vm) => vm.name === "gvisor-alpine" && vm.status === "Running",` | L37 |
+| `console.log(`✅ Lima VM $\{vm.name\} is running`);` | L46 |
+| `expect(config.name).toBe("test-nextjs-app");` | L91 |
+| `expect(parsedConfig.name).toBe("my-test-app");` | L178 |
+| `name: mergedConfig.name \|\| "Unnamed Pod",` | L138 |
+| `this.generateSlug(mergedConfig.name \|\| "unnamed-pod"),` | L141 |
+| `if (!spec.name) \{` | L186 |
+| `name: template.name,` | L276 |
+| `name: port.name,` | L322 |
+| ``Port conflict: service $\{service.name\} uses already allocated port $\{port.internal\}`,` | L407 |
+| `const serviceNames = new Set(spec.services.map((s) => s.name));` | L445 |
+| ``Service $\{service.name\} depends on non-existent service: $\{dependency\}`,` | L451 |
+| `const vm = vms.find((v) => v.name === vmName);` | L60 |
+| `expect(config.name).toBe("my-awesome-project");` | L176 |
+| `expect(config.name).toBeUndefined();` | L221 |
+| `expect(config.name).toBe("my-next-app");` | L268 |
+| `expect(config.name).toBeUndefined();` | L296 |
+| `expect(config.name).toBe("saas-app");` | L332 |
+| `expect(config.name).toBe("team-project");` | L369 |
+| `return getAllResourceTiers().find((tier) => tier.name === name);` | L83 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>I can see several places where `.name` is being accessed on PinacleConfig objects. Let me look at the test files specifically to see what's breaking:
+
+1. `src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts` - lines 91, 178
+2. `src/lib/pod-orchestration/__tests__/pinacle-config.test.ts` - lines 176, 221, 268, 296, 332, 369
+3. `src/lib/pod-orchestration/config-resolver.ts` - lines 138, 141, 186
+
+The most critical one is in `config-resolver.ts` which is using `mergedConfig.name` to generate pod name and slug. Let me check these files in detail.</details></think>
+
+---
+
+I can see several places accessing `.name` on PinacleConfig. Let me check the critical files:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/config-resolver.ts
+
+---
+
+<think><details><summary>Thought Process</summary>I see! The `config-resolver.ts` is using `mergedConfig.name` which is the merged config (PodSpec), not the PinacleConfig. The PinacleConfig is a subset of the full PodSpec. So this is actually not accessing PinacleConfig.name, it's accessing PodSpec.name. That's fine.
+
+Let me check the test files to see if they're actually testing the PinacleConfig.name field:</details></think>
+
+---
+
+Let me check the test files that are accessing `.name`:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>Now I found the tests that are checking for `config.name`. These tests need to be updated since we removed the `name` field from PinacleConfig. Let me update all these test files to remove assertions about the name field.</details></think>
+
+---
+
+Now I need to update the tests to remove references to `config.name`. Let me start with the pinacle-config tests:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -174,5 +174,4 @@
+  
+      expect(config.version).toBe("1.0");
+-     expect(config.name).toBe("my-awesome-project");
+      expect(config.template).toBe("nextjs");
+      expect(config.tier).toBe("dev.large");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me find and update the other test assertions. Let me search for the specific lines to update them.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -218,5 +218,4 @@
+      expect(config.version).toBe("1.0");
+      expect(config.tier).toBe("dev.medium");
+-     expect(config.name).toBeUndefined();
+      expect(config.template).toBeUndefined();
+    });
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Let me continue searching for the other occurrences in this file. Let me read more of the test file to find the other assertions.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>I can see several issues in the test file:
+
+1. Line 228: In the round-trip test, there's a `name: "test-project"` in the test config which needs to be removed
+2. Line 266: Assertion checking `config.name` needs to be removed
+3. Line 294: Assertion checking `config.name` needs to be removed
+
+Let me fix these one by one.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -226,5 +226,4 @@
+      const original: PinacleConfig = {
+        version: "1.0",
+-       name: "test-project",
+        template: "vite",
+        tier: "dev.xlarge",
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me fix the form data conversion tests.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+---
+
+
+
+---
+

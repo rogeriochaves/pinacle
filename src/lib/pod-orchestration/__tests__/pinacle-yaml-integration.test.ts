@@ -80,7 +80,6 @@ describe("Pinacle YAML Integration Tests", () => {
       template: "nextjs",
       tier: "dev.medium",
       customServices: ["claude-code", "vibe-kanban", "code-server"],
-      podName: "test-nextjs-app",
     };
 
     // Generate config
@@ -88,7 +87,6 @@ describe("Pinacle YAML Integration Tests", () => {
 
     // Verify the config matches expectations
     expect(config.version).toBe("1.0");
-    expect(config.name).toBe("test-nextjs-app");
     expect(config.template).toBe("nextjs");
     expect(config.tier).toBe("dev.medium");
     expect(config.services).toEqual([
@@ -134,7 +132,6 @@ describe("Pinacle YAML Integration Tests", () => {
       template: "nextjs",
       tier: "dev.medium",
       customServices: ["openai-codex", "vibe-kanban"],
-      podName: "my-test-app",
     });
 
     console.log(`\n📝 Injecting pinacle.yaml...`);
@@ -175,7 +172,6 @@ describe("Pinacle YAML Integration Tests", () => {
 
     // Parse the content to verify it's valid
     const parsedConfig = parsePinacleConfig(fileContent);
-    expect(parsedConfig.name).toBe("my-test-app");
     expect(parsedConfig.template).toBe("nextjs");
     expect(parsedConfig.tier).toBe("dev.medium");
     expect(parsedConfig.services).toEqual(["openai-codex", "vibe-kanban"]);

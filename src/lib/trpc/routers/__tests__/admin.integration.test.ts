@@ -15,7 +15,6 @@ import {
 } from "@/lib/pod-orchestration/pinacle-config";
 import { appRouter } from "@/lib/trpc/root";
 import { createInnerTRPCContext } from "@/lib/trpc/server";
-import { generateKSUID } from "@/lib/utils";
 
 describe("Admin Router Integration Tests", () => {
   let adminUserId: string;
@@ -133,7 +132,6 @@ describe("Admin Router Integration Tests", () => {
       template: "custom",
       tier: "dev.medium",
       customServices: ["claude-code"],
-      podName: "Test Pod",
     });
 
     const [pod] = await db
