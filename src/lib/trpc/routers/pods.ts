@@ -2,10 +2,12 @@ import { Octokit } from "@octokit/rest";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import {
+  envSets,
   githubInstallations,
   podLogs,
   podMetrics,
   pods,
+  servers,
   teamMembers,
   userGithubInstallations,
 } from "../../db/schema";
@@ -14,6 +16,7 @@ import {
   generatePinacleConfigFromForm,
   pinacleConfigToJSON,
 } from "../../pod-orchestration/pinacle-config";
+import { PodProvisioningService } from "../../pod-orchestration/pod-provisioning-service";
 import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
 import { generateKSUID } from "../../utils";
 import {
@@ -273,51 +276,112 @@ export const podsRouter = createTRPCRouter({
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
-      const [pod] = await ctx.db
-        .insert(pods)
-        .values({
-          name,
-          slug,
-          description,
-          template,
-          teamId,
-          ownerId: userId,
-          githubRepo: finalGithubRepo,
-          githubBranch,
-          isNewProject,
-          config: configJSON, // Store the validated PinacleConfig
-          envVars: envVars ? JSON.stringify(envVars) : null,
-          monthlyPrice,
-          status: "creating",
-        })
-        .returning();
-
-      // TODO: Queue pod provisioning job
-      // This will:
-      // 1. Generate SSH key pair
-      // 2. Add deploy key to GitHub repo
-      // 3. Create gVisor container
-      // 4. Clone repository
-      // 5. Set up services
-      // 6. Start everything
-
-      // For now, we'll just simulate it
-      setTimeout(async () => {
-        try {
-          await ctx.db
-            .update(pods)
-            .set({
-              status: "running",
-              containerId: `container-${pod.id}`,
-              internalIp: "192.168.1.100",
-              publicUrl: `https://${slug}.pinacle.dev`,
-              lastStartedAt: new Date(),
+      // Create env set and pod in a transaction
+      const pod = await ctx.db.transaction(async (tx) => {
+        // Create env set if there are environment variables
+        let envSetId: string | undefined;
+        if (envVars && Object.keys(envVars).length > 0) {
+          const [envSet] = await tx
+            .insert(envSets)
+            .values({
+              id: generateKSUID("env_set"),
+              name: `${name}-env`,
+              description: `Environment variables for ${name}`,
+              ownerId: userId,
+              teamId,
+              variables: JSON.stringify(envVars),
             })
-            .where(eq(pods.id, pod.id));
-        } catch (error) {
-          console.error("Failed to update pod status:", error);
+            .returning();
+          envSetId = envSet.id;
         }
-      }, 5000);
+
+        // Create pod with env set reference
+        const [newPod] = await tx
+          .insert(pods)
+          .values({
+            name,
+            slug,
+            description,
+            template,
+            teamId,
+            ownerId: userId,
+            githubRepo: finalGithubRepo,
+            githubBranch,
+            isNewProject,
+            config: configJSON, // Store the validated PinacleConfig
+            envSetId, // Attach env set if created
+            monthlyPrice,
+            status: "creating",
+          })
+          .returning();
+
+        return newPod;
+      });
+
+      // Kick off provisioning asynchronously (fire and forget)
+      // Don't await - let it run in background
+      (async () => {
+        try {
+          console.log(
+            `[pods.create] Starting async provisioning for pod: ${pod.id}`,
+          );
+
+          // Auto-select a server for provisioning
+          const [availableServer] = await ctx.db
+            .select()
+            .from(servers)
+            .where(eq(servers.status, "online"))
+            .limit(1);
+
+          if (!availableServer) {
+            throw new Error("No available servers found");
+          }
+
+          const provisioningService = new PodProvisioningService();
+
+          // Set up 30 minute timeout
+          const timeoutMs = 30 * 60 * 1000; // 30 minutes
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Provisioning timed out after 30 minutes"));
+            }, timeoutMs);
+          });
+
+          // Race between provisioning and timeout
+          await Promise.race([
+            provisioningService.provisionPod({
+              podId: pod.id,
+              serverId: availableServer.id,
+            }),
+            timeoutPromise,
+          ]);
+
+          console.log(`[pods.create] Successfully provisioned pod: ${pod.id}`);
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `[pods.create] Failed to provision pod ${pod.id}:`,
+            errorMessage,
+          );
+
+          // Update pod status to error
+          try {
+            await ctx.db
+              .update(pods)
+              .set({
+                status: "error",
+                updatedAt: new Date(),
+              })
+              .where(eq(pods.id, pod.id));
+          } catch (updateError) {
+            console.error(
+              `[pods.create] Failed to update pod status to error:`,
+              updateError,
+            );
+          }
+        }
+      })();
 
       return pod;
     }),
@@ -590,5 +654,187 @@ export const podsRouter = createTRPCRouter({
         const output = log.stdout || log.stderr || "";
         return `${prefix}${output}`.trim();
       });
+    }),
+
+  // Get pod status with logs for polling (used during provisioning)
+  getStatusWithLogs: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        lastLogId: z.string().optional(), // For incremental log fetching
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod and get status
+      const [result] = await ctx.db
+        .select({
+          id: pods.id,
+          name: pods.name,
+          status: pods.status,
+          containerId: pods.containerId,
+          publicUrl: pods.publicUrl,
+          createdAt: pods.createdAt,
+          lastStartedAt: pods.lastStartedAt,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      // Get logs (only new ones if lastLogId provided)
+      let logsQuery = ctx.db
+        .select()
+        .from(podLogs)
+        .where(eq(podLogs.podId, input.podId))
+        .orderBy(podLogs.timestamp)
+        .limit(100);
+
+      // If lastLogId provided, only fetch logs after that ID
+      if (input.lastLogId) {
+        const [lastLog] = await ctx.db
+          .select()
+          .from(podLogs)
+          .where(eq(podLogs.id, input.lastLogId))
+          .limit(1);
+
+        if (lastLog) {
+          logsQuery = ctx.db
+            .select()
+            .from(podLogs)
+            .where(
+              and(
+                eq(podLogs.podId, input.podId),
+                gte(podLogs.timestamp, lastLog.timestamp),
+              ),
+            )
+            .orderBy(podLogs.timestamp)
+            .limit(100);
+        }
+      }
+
+      const logs = await logsQuery;
+
+      return {
+        pod: result,
+        logs: logs.map((log) => ({
+          id: log.id,
+          timestamp: log.timestamp,
+          label: log.label,
+          stdout: log.stdout,
+          stderr: log.stderr,
+          exitCode: log.exitCode,
+        })),
+      };
+    }),
+
+  // Retry failed pod provisioning
+  retryProvisioning: protectedProcedure
+    .input(z.object({ podId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod
+      const [result] = await ctx.db
+        .select()
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      const pod = result.pod;
+
+      // Only allow retry if pod is in error state
+      if (pod.status !== "error") {
+        throw new Error(
+          "Can only retry failed provisioning. Current status: " + pod.status,
+        );
+      }
+
+      // Update status back to creating
+      await ctx.db
+        .update(pods)
+        .set({
+          status: "creating",
+          updatedAt: new Date(),
+        })
+        .where(eq(pods.id, input.podId));
+
+      // Kick off provisioning again (same logic as create)
+      (async () => {
+        try {
+          console.log(
+            `[retryProvisioning] Starting retry for pod: ${input.podId}`,
+          );
+
+          // Auto-select a server for provisioning
+          const [availableServer] = await ctx.db
+            .select()
+            .from(servers)
+            .where(eq(servers.status, "online"))
+            .limit(1);
+
+          if (!availableServer) {
+            throw new Error("No available servers found");
+          }
+
+          const provisioningService = new PodProvisioningService();
+
+          // Set up 30 minute timeout
+          const timeoutMs = 30 * 60 * 1000; // 30 minutes
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error("Provisioning timed out after 30 minutes"));
+            }, timeoutMs);
+          });
+
+          // Race between provisioning and timeout
+          await Promise.race([
+            provisioningService.provisionPod({
+              podId: input.podId,
+              serverId: availableServer.id,
+            }),
+            timeoutPromise,
+          ]);
+
+          console.log(
+            `[retryProvisioning] Successfully provisioned pod: ${input.podId}`,
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `[retryProvisioning] Failed to provision pod ${input.podId}:`,
+            errorMessage,
+          );
+
+          // Update pod status to error
+          try {
+            await ctx.db
+              .update(pods)
+              .set({
+                status: "error",
+                updatedAt: new Date(),
+              })
+              .where(eq(pods.id, input.podId));
+          } catch (updateError) {
+            console.error(
+              `[retryProvisioning] Failed to update pod status to error:`,
+              updateError,
+            );
+          }
+        }
+      })();
+
+      return { success: true, message: "Provisioning retry started" };
     }),
 });

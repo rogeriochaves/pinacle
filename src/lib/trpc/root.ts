@@ -1,5 +1,6 @@
 import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
+import { envSetsRouter } from "./routers/env-sets";
 import { githubRouter } from "./routers/github";
 import { githubAppRouter } from "./routers/github-app";
 import { podsRouter } from "./routers/pods";
@@ -11,6 +12,7 @@ export const appRouter = createTRPCRouter({
   auth: authRouter,
   teams: teamsRouter,
   pods: podsRouter,
+  envSets: envSetsRouter,
   github: githubRouter,
   githubApp: githubAppRouter,
   servers: serversRouter,

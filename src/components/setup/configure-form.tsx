@@ -28,6 +28,7 @@ type ConfigureFormProps = {
   form: UseFormReturn<SetupFormValues>;
   onSubmit: (data: SetupFormValues) => Promise<void>;
   repositories: GitHubRepo[];
+  isLoadingRepositories: boolean;
   organizations: GitHubOrg[];
   installationUrl: string | null;
 };
@@ -50,6 +51,7 @@ export const ConfigureForm = ({
   form,
   onSubmit,
   repositories,
+  isLoadingRepositories,
   organizations,
   installationUrl,
 }: ConfigureFormProps) => {
@@ -279,6 +281,7 @@ export const ConfigureForm = ({
             <RepositorySelector
               form={form}
               repositories={repositories}
+              isLoadingRepositories={isLoadingRepositories}
               organizations={organizations}
               installationUrl={installationUrl}
             />

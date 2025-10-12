@@ -3,10 +3,13 @@
 import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { MetricsChart } from "@/components/admin/metrics-chart";
 import {
   getResourcesFromTier,
   podRecordToPinacleConfig,
+  serializePinacleConfig,
 } from "@/lib/pod-orchestration/pinacle-config";
 import { api } from "@/lib/trpc/client";
 
@@ -79,6 +82,9 @@ export default function PodDetailPage() {
 
   // Derive resources from tier
   const resources = getResourcesFromTier(podConfig.tier);
+
+  // Generate YAML representation
+  const configYaml = serializePinacleConfig(podConfig);
 
   // Prepare data for charts
   const cpuData =
@@ -218,7 +224,9 @@ export default function PodDetailPage() {
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">CPU Cores</div>
-            <div className="mt-1 text-sm text-gray-900">{resources.cpuCores}</div>
+            <div className="mt-1 text-sm text-gray-900">
+              {resources.cpuCores}
+            </div>
           </div>
           <div>
             <div className="text-xs font-medium text-gray-500">Memory</div>
@@ -309,6 +317,29 @@ export default function PodDetailPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Pod Configuration (YAML) */}
+      <div className="mb-8 rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="border-b border-gray-200 p-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Pod Configuration (pinacle.yaml)
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Configuration as it would appear in pinacle.yaml
+          </p>
+        </div>
+        <SyntaxHighlighter
+          language="yaml"
+          style={oneDark}
+          customStyle={{
+            margin: 0,
+            borderRadius: 0,
+            fontSize: "0.75rem",
+          }}
+        >
+          {configYaml}
+        </SyntaxHighlighter>
       </div>
 
       {/* Metrics Charts */}

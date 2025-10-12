@@ -7,7 +7,7 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { podLogs, pods, servers } from "../db/schema";
+import { envSets, podLogs, pods, servers } from "../db/schema";
 import { DefaultConfigResolver } from "./config-resolver";
 import type { GitHubRepoSetup } from "./github-integration";
 import {
@@ -141,6 +141,23 @@ export class PodProvisioningService {
         `[PodProvisioningService] Building config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
       );
 
+      // Load environment variables from env set if attached
+      let environment: Record<string, string> = {};
+      if (podRecord.envSetId) {
+        const [envSet] = await db
+          .select()
+          .from(envSets)
+          .where(eq(envSets.id, podRecord.envSetId))
+          .limit(1);
+
+        if (envSet) {
+          environment = JSON.parse(envSet.variables);
+          console.log(
+            `[PodProvisioningService] Loaded ${Object.keys(environment).length} env vars from env set: ${envSet.name}`,
+          );
+        }
+      }
+
       const config = await this.configResolver.loadConfig(
         pinacleConfig.template || undefined,
         {
@@ -156,7 +173,7 @@ export class PodProvisioningService {
           network: {
             ports: podRecord.ports ? JSON.parse(podRecord.ports) : [],
           },
-          environment: podRecord.envVars ? JSON.parse(podRecord.envVars) : {},
+          environment,
           githubRepo: podRecord.githubRepo || undefined,
           githubBranch: podRecord.githubBranch || undefined,
           githubRepoSetup: githubRepoSetup, // Pass through the SSH key pair if provided

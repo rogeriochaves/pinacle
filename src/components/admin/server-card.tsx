@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { isServerOnline } from "@/lib/server-status";
 import type { RouterOutputs } from "@/lib/trpc/client";
 
 type Server = RouterOutputs["admin"]["getAllServers"][number];
@@ -25,10 +26,7 @@ const formatBytes = (mb: number): string => {
 };
 
 export const ServerCard = ({ server }: { server: Server }) => {
-  const isOnline =
-    server.status === "online" &&
-    server.lastHeartbeatAt &&
-    server.lastHeartbeatAt > new Date(Date.now() - 1000 * 60);
+  const isOnline = isServerOnline(server.status, server.lastHeartbeatAt);
   const metrics = server.latestMetrics;
 
   // Calculate percentages

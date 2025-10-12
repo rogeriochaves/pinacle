@@ -6,7 +6,8 @@ import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { pods, servers, teamMembers, teams, users } from "@/lib/db/schema";
+import { envSets, pods, servers, teamMembers, teams, users } from "@/lib/db/schema";
+import { generateKSUID } from "@/lib/utils";
 import { LimaGVisorRuntime } from "../container-runtime";
 import { getLimaSshPort } from "../lima-utils";
 import { LimaNetworkManager } from "../network-manager";
@@ -221,6 +222,18 @@ describe("Pod Orchestration Integration Tests", () => {
       podName: "Integration Test Pod",
     });
 
+    // Create env set
+    const [envSet] = await db
+      .insert(envSets)
+      .values({
+        id: generateKSUID("env_set"),
+        name: "Integration Test Env",
+        ownerId: testUserId,
+        teamId: testTeamId,
+        variables: JSON.stringify({ TEST_VAR: "integration-test" }),
+      })
+      .returning();
+
     const [podRecord] = await db
       .insert(pods)
       .values({
@@ -232,7 +245,7 @@ describe("Pod Orchestration Integration Tests", () => {
         teamId: testTeamId,
         ownerId: testUserId,
         config: pinacleConfigToJSON(pinacleConfig),
-        envVars: JSON.stringify({ TEST_VAR: "integration-test" }),
+        envSetId: envSet.id,
         monthlyPrice: 1000, // $10
         status: "creating",
       })
@@ -507,6 +520,21 @@ describe("Pod Orchestration Integration Tests", () => {
       podName: "Template Test Pod",
     });
 
+    // Create env set
+    const [templateEnvSet] = await db
+      .insert(envSets)
+      .values({
+        id: generateKSUID("env_set"),
+        name: "Template Test Env",
+        ownerId: testUserId,
+        teamId: testTeamId,
+        variables: JSON.stringify({
+          CUSTOM_VAR: "template-test",
+          NODE_ENV: "development",
+        }),
+      })
+      .returning();
+
     await db.insert(pods).values({
       id: templateTestId,
       name: "Template Test Pod",
@@ -515,10 +543,7 @@ describe("Pod Orchestration Integration Tests", () => {
       teamId: testTeamId,
       ownerId: testUserId,
       config: pinacleConfigToJSON(pinacleConfig),
-      envVars: JSON.stringify({
-        CUSTOM_VAR: "template-test",
-        NODE_ENV: "development",
-      }),
+      envSetId: templateEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });
@@ -580,6 +605,18 @@ describe("Pod Orchestration Integration Tests", () => {
       podName: "Proxy Test Pod",
     });
 
+    // Create env set
+    const [proxyEnvSet] = await db
+      .insert(envSets)
+      .values({
+        id: generateKSUID("env_set"),
+        name: "Proxy Test Env",
+        ownerId: testUserId,
+        teamId: testTeamId,
+        variables: JSON.stringify({ TEST_ENV: "hostname-routing" }),
+      })
+      .returning();
+
     await db.insert(pods).values({
       id: proxyTestId,
       name: "Proxy Test Pod",
@@ -588,7 +625,7 @@ describe("Pod Orchestration Integration Tests", () => {
       teamId: testTeamId,
       ownerId: testUserId,
       config: pinacleConfigToJSON(pinacleConfig),
-      envVars: JSON.stringify({ TEST_ENV: "hostname-routing" }),
+      envSetId: proxyEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });
@@ -733,6 +770,18 @@ describe("Pod Orchestration Integration Tests", () => {
       podName: "GitHub Integration Test Pod",
     });
 
+    // Create env set
+    const [githubEnvSet] = await db
+      .insert(envSets)
+      .values({
+        id: generateKSUID("env_set"),
+        name: "GitHub Test Env",
+        ownerId: testUserId,
+        teamId: testTeamId,
+        variables: JSON.stringify({ NODE_ENV: "development" }),
+      })
+      .returning();
+
     await db.insert(pods).values({
       id: githubTestId,
       name: "GitHub Integration Test Pod",
@@ -742,7 +791,7 @@ describe("Pod Orchestration Integration Tests", () => {
       ownerId: testUserId,
       githubRepo: testRepo,
       config: pinacleConfigToJSON(pinacleConfig),
-      envVars: JSON.stringify({ NODE_ENV: "development" }),
+      envSetId: githubEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { api } from "../../lib/trpc/client";
 import {
   type SetupFormValues,
@@ -41,7 +42,7 @@ const SetupForm = () => {
   const { data: installationUrl } = api.githubApp.getInstallationUrl.useQuery({
     returnTo: `/setup/project?type=${form.watch("setupType")}`,
   });
-  const { data: appRepositories = [] } =
+  const { data: appRepositories = [], isLoading: isLoadingRepositories } =
     api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
       enabled: installationData?.hasInstallations,
     });
@@ -135,9 +136,6 @@ const SetupForm = () => {
     }
 
     // Get template configuration
-    const { getTemplateUnsafe } = await import(
-      "../../lib/pod-orchestration/template-registry"
-    );
     const selectedTemplate = getTemplateUnsafe(data.bundle);
 
     if (!selectedTemplate) {
@@ -148,7 +146,7 @@ const SetupForm = () => {
     const tier = data.tier || selectedTemplate.tier;
 
     // Create the pod (name and resources auto-generated on backend)
-    await createPodMutation.mutateAsync({
+    const pod = await createPodMutation.mutateAsync({
       description: `Development environment for ${data.setupType === "new" ? `${data.selectedOrg}/${data.newRepoName}` : data.selectedRepo || "project"}`,
       teamId: personalTeam.id,
       githubRepo:
@@ -165,8 +163,8 @@ const SetupForm = () => {
       },
     });
 
-    // Redirect to dashboard
-    router.push(`/dashboard/pods`);
+    // Redirect to provisioning page to watch progress
+    router.push(`/pods/${pod.id}/provisioning`);
   };
 
   if (status === "loading" || installationsLoading) {
@@ -189,6 +187,7 @@ const SetupForm = () => {
         form={form}
         onSubmit={handleFinalSubmit}
         repositories={appRepositories}
+        isLoadingRepositories={isLoadingRepositories}
         organizations={appAccounts.map((account) => ({
           ...account,
           description: null,

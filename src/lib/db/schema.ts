@@ -141,6 +141,23 @@ export const servers = pgTable("server", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Env Sets (reusable environment variable collections)
+export const envSets = pgTable("env_set", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("env_set")),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  teamId: text("team_id").references(() => teams.id, { onDelete: "cascade" }),
+  variables: text("variables").notNull(), // JSON string of key-value pairs
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
 // Pod instances (the actual VMs/containers)
 export const pods = pgTable("pod", {
   id: text("id").primaryKey().notNull().$defaultFn(generateKsuidBuilder("pod")),
@@ -167,9 +184,11 @@ export const pods = pgTable("pod", {
   // All pod configuration (tier, services, tabs) is stored here
   config: text("config").notNull(), // JSON string of PinacleConfig (validated pinacle.yaml)
 
+  // Environment variables - reference to env set
+  envSetId: text("env_set_id").references(() => envSets.id),
+
   // Runtime state
   ports: text("ports"), // JSON string of actual port mappings (runtime info)
-  envVars: text("env_vars"), // JSON string of environment variables (not in config, stored separately)
 
   // Status and metadata
   status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, running, stopped, error

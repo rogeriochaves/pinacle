@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { MetricsChart } from "@/components/admin/metrics-chart";
 import { PodRow } from "@/components/admin/pod-row";
+import { getServerDisplayStatus } from "@/lib/server-status";
 import { api } from "@/lib/trpc/client";
 
 const formatBytes = (mb: number): string => {
@@ -77,6 +78,10 @@ export default function ServerDetailPage() {
   }
 
   const metrics = server.latestMetrics;
+  const displayStatus = getServerDisplayStatus(
+    server.status,
+    server.lastHeartbeatAt,
+  );
   const cpuPercent = metrics?.cpuUsagePercent || 0;
   const memoryPercent = metrics
     ? (metrics.memoryUsageMb / server.memoryMb) * 100
@@ -129,12 +134,12 @@ export default function ServerDetailPage() {
           <div className="flex items-center gap-3">
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${
-                server.status === "online"
+                displayStatus === "Online"
                   ? "bg-green-100 text-green-800"
                   : "bg-red-100 text-red-800"
               }`}
             >
-              {server.status}
+              {displayStatus}
             </span>
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
