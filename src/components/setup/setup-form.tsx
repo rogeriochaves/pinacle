@@ -155,12 +155,10 @@ const SetupForm = () => {
       isNewProject: data.setupType === "new",
       newRepoName: data.newRepoName,
       selectedOrg: data.selectedOrg,
+      template: selectedTemplate.id,
       tier: tier, // Backend derives CPU/memory/storage from tier
+      customServices: selectedTemplate.services, // Send services at root level
       envVars: data.envVars,
-      config: {
-        template: selectedTemplate.id,
-        services: selectedTemplate.services,
-      },
     });
 
     // Redirect to provisioning page to watch progress

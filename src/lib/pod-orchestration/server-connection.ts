@@ -3,9 +3,9 @@ import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { podLogs } from "../db/schema";
-import { generateKSUID } from "../utils";
 import type { ServerConnection, ServerConnectionConfig } from "./types";
 
 const execAsync = promisify(exec);
@@ -56,22 +56,28 @@ export class SSHServerConnection implements ServerConnection {
       `'${escapedCommand}'`,
     ].join(" ");
 
+    // Create log entry BEFORE execution starts
+    const logId = this.podId
+      ? await this.createCommandLog({
+          command: fullCommand,
+          containerCommand: options.containerCommand,
+          label: options.label,
+        })
+      : null;
+
     const startTime = Date.now();
     let exitCode = 0;
 
     try {
       const result = await execAsync(sshCommand);
 
-      // Log command execution if podId is set
-      if (this.podId) {
-        await this.logCommand({
-          command: fullCommand,
-          containerCommand: options.containerCommand,
+      // Update log with successful execution results
+      if (logId) {
+        await this.updateCommandLog(logId, {
           stdout: result.stdout,
           stderr: result.stderr,
           exitCode,
           duration: Date.now() - startTime,
-          label: options.label,
         });
       }
 
@@ -94,16 +100,13 @@ export class SSHServerConnection implements ServerConnection {
           ? Number((error as any).code)
           : 1;
 
-      // Log failed command execution if podId is set
-      if (this.podId) {
-        await this.logCommand({
-          command: fullCommand,
-          containerCommand: options.containerCommand,
+      // Update log with failed execution results
+      if (logId) {
+        await this.updateCommandLog(logId, {
           stdout,
           stderr,
           exitCode,
           duration: Date.now() - startTime,
-          label: options.label,
         });
       }
 
@@ -114,43 +117,73 @@ export class SSHServerConnection implements ServerConnection {
     }
   }
 
-  private async logCommand(params: {
+  /**
+   * Create a log entry before command execution starts
+   * Returns the log ID so it can be updated later
+   */
+  private async createCommandLog(params: {
     command: string;
     containerCommand?: string;
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-    duration: number;
     label?: string;
-  }): Promise<void> {
-    if (!this.podId) return;
+  }): Promise<string | null> {
+    if (!this.podId) return null;
 
-    const {
-      command,
-      containerCommand,
-      stdout,
-      stderr,
-      exitCode,
-      duration,
-      label,
-    } = params;
+    const { command, containerCommand, label } = params;
 
     try {
-      await db.insert(podLogs).values({
-        id: generateKSUID("pod_log"),
-        podId: this.podId,
-        command,
-        containerCommand: containerCommand || null,
-        stdout: stdout || "",
-        stderr: stderr || "",
-        exitCode,
-        duration,
-        label: label || null,
-        timestamp: new Date(),
-      });
+      const [inserted] = await db
+        .insert(podLogs)
+        .values({
+          podId: this.podId,
+          command,
+          containerCommand: containerCommand || null,
+          stdout: "", // Will be updated after execution
+          stderr: "", // Will be updated after execution
+          exitCode: null, // Will be updated after execution
+          duration: null, // Will be updated after execution
+          label: label || null,
+          timestamp: new Date(),
+        })
+        .returning({ id: podLogs.id });
+      return inserted?.id || null;
     } catch (error) {
       console.error(
-        `[ServerConnection] Failed to log command for pod ${this.podId}:`,
+        `[ServerConnection] Failed to create command log for pod ${this.podId}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Update a command log entry with execution results
+   */
+  private async updateCommandLog(
+    logId: string,
+    params: {
+      stdout: string;
+      stderr: string;
+      exitCode: number;
+      duration: number;
+    },
+  ): Promise<void> {
+    if (!this.podId || !logId) return;
+
+    const { stdout, stderr, exitCode, duration } = params;
+
+    try {
+      await db
+        .update(podLogs)
+        .set({
+          stdout: stdout || "",
+          stderr: stderr || "",
+          exitCode,
+          duration,
+        })
+        .where(eq(podLogs.id, logId));
+    } catch (error) {
+      console.error(
+        `[ServerConnection] Failed to update command log ${logId} for pod ${this.podId}:`,
         error,
       );
     }

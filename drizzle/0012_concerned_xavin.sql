@@ -1,0 +1,1 @@
+ALTER TABLE "pod" ADD COLUMN "archived_at" timestamp;

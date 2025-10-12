@@ -1159,9 +1159,923 @@ Lines added: undefined, lines removed: 1
 
 Tool use: **search_replace**
 
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 2
+
+```diff
+@@ -257,11 +257,9 @@
+        tier: "dev.medium",
+        customServices: ["claude-code", "vibe-kanban", "code-server"],
+-       podName: "my-next-app",
+      };
+  
+      const config = generatePinacleConfigFromForm(formData);
+  
+      expect(config.version).toBe("1.0");
+-     expect(config.name).toBe("my-next-app");
+      expect(config.template).toBe("nextjs");
+      expect(config.tier).toBe("dev.medium");
+```
+
+</details>
+
 ---
 
+<think><details><summary>Thought Process</summary>Now let me update the assertion that checks for name being undefined.</details></think>
 
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -289,5 +289,4 @@
+      const config = generatePinacleConfigFromForm(formData);
+  
+-     expect(config.name).toBeUndefined();
+      expect(config.template).toBeUndefined();
+      expect(config.tier).toBe("dev.large");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me find the remaining test assertions. Let me search for the other two instances.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>Found them! Lines 326 and 363 have assertions for config.name. Let me also check the YAML definitions - they also include name fields which will now be ignored by the schema. Let me update both.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -324,5 +324,4 @@
+      const config = parsePinacleConfig(yaml);
+  
+-     expect(config.name).toBe("saas-app");
+      expect(config.template).toBe("nextjs");
+      expect(config.tier).toBe("dev.medium");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me update the last one.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -360,5 +360,4 @@
+      const config = parsePinacleConfig(yaml);
+  
+-     expect(config.name).toBe("team-project");
+      expect(config.services).toHaveLength(4);
+      expect(config.services).toContain("web-terminal");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me update the pinacle-yaml-integration test file.</details></think>
+
+---
+
+Now let me update the integration test file:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -89,5 +89,4 @@
+      // Verify the config matches expectations
+      expect(config.version).toBe("1.0");
+-     expect(config.name).toBe("test-nextjs-app");
+      expect(config.template).toBe("nextjs");
+      expect(config.tier).toBe("dev.medium");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me check if there's another reference to config.name in this file. Let me read more to check.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Found another one on line 177. Let me update it.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -175,5 +175,4 @@
+      // Parse the content to verify it's valid
+      const parsedConfig = parsePinacleConfig(fileContent);
+-     expect(parsedConfig.name).toBe("my-test-app");
+      expect(parsedConfig.template).toBe("nextjs");
+      expect(parsedConfig.tier).toBe("dev.medium");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me also check where the formData is defined to remove the podName field from the test setup.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! I need to remove the `podName` field from line 83. Let me update it.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -81,5 +81,4 @@
+        tier: "dev.medium",
+        customServices: ["claude-code", "vibe-kanban", "code-server"],
+-       podName: "test-nextjs-app",
+      };
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me run the TypeScript compiler to see if there are any other type issues in the codebase.</details></think>
+
+---
+
+Now let me check for lint errors and run TypeScript to verify everything is working:
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration`
+
+Lint results
+
+Lint errors for `src/lib/pod-orchestration/config-resolver.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| '_PodSpecSchema' is declared but its value is never read. | 45:7-45:21 | DIAGNOSTIC_SEVERITY_HINT |
+| '(from: number, length?: number \| undefined): string' is deprecated. | 459:60-459:66 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+Lint errors for `src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| '_keyPair' is declared but its value is never read. | 214:13-214:21 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+Lint errors for `src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 135:7-135:14 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+Lint errors for `src/lib/pod-orchestration/__tests__/integration.test.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 222:7-222:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 328:7-328:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 435:7-435:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 442:7-442:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 520:7-520:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 605:7-605:14 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'podName' does not exist in type '\{ template?: string \| undefined; tier?: string \| undefined; customServices?: string[] \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 770:7-770:14 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+Lint errors for `src/lib/pod-orchestration/__tests__/pinacle-config.test.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'name' does not exist in type '\{ version: "1.0"; tier: "dev.medium" \| "dev.small" \| "dev.large" \| "dev.xlarge"; services: string[]; template?: string \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 63:7-63:11 | DIAGNOSTIC_SEVERITY_ERROR |
+| Object literal may only specify known properties, and 'name' does not exist in type '\{ version: "1.0"; tier: "dev.medium" \| "dev.small" \| "dev.large" \| "dev.xlarge"; services: string[]; template?: string \| undefined; tabs?: \{ name: string; url: string; \}[] \| undefined; \}'. | 96:7-96:11 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+</details>
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/rchaves/Projects/pinacle && pnpm tsc --noEmit 2>&1 | grep -i "pinacle-config\|error TS" | head -20
+```
+
+```
+src/lib/pod-orchestration/__tests__/integration.test.ts(222,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(328,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(435,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(442,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(520,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(605,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/integration.test.ts(770,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.   
+src/lib/pod-orchestration/__tests__/pinacle-config.test.ts(63,7): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '{ version: "1.0"; tier: "dev.small" | "dev.medium" | "dev.large" | "dev.xlarge"; services: string[]; template?: string | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.                                                                               
+src/lib/pod-orchestration/__tests__/pinacle-config.test.ts(96,7): error TS2353: Object literal may only specify known properties, and 'name' does not exist in type '{ version: "1.0"; tier: "dev.small" | "dev.medium" | "dev.large" | "dev.xlarge"; services: string[]; template?: string | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.                                                                               
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(135,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.                                                                                                  
+src/lib/trpc/routers/__tests__/admin.integration.test.ts(136,7): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.  
+src/lib/trpc/routers/pods.ts(98,9): error TS2353: Object literal may only specify known properties, and 'podName' does not exist in type '{ template?: string | undefined; tier?: string | undefined; customServices?: string[] | undefined; tabs?: { name: string; url: string; }[] | undefined; }'.                               
+```
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Perfect! Now I can see all the type errors. I need to fix:
+
+1. `pinacle-config.test.ts` - lines 63, 96 (using `name` in test objects)
+2. `pinacle-yaml-integration.test.ts` - line 135 (using `podName`)
+3. `integration.test.ts` - lines 222, 328, 435, 442, 520, 605, 770 (using `podName`)
+4. `admin.integration.test.ts` - line 136 (using `podName`)
+5. `pods.ts` (router) - line 98 (using `podName`)
+
+Let me fix them one by one.</details></think>
+
+---
+
+Great! I can see all the type errors. Let me fix them systematically:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+I see the issues on lines 63 and 96. Let me fix these.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -61,5 +61,4 @@
+      const config: PinacleConfig = {
+        version: "1.0",
+-       name: "my-project",
+        template: "nextjs",
+        tier: "dev.medium",
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me fix line 96.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -93,5 +93,4 @@
+      const config: PinacleConfig = {
+        version: "1.0",
+-       name: "test-project",
+        template: "nextjs",
+        tier: "dev.medium",
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Now I see that line 102 also has an assertion checking for "name: test-project" in the YAML, which should also be removed since we no longer have that field.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-config.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -100,5 +100,4 @@
+      const yaml = serializePinacleConfig(config);
+  
+-     expect(yaml).toContain("name: test-project");
+      expect(yaml).toContain("template: nextjs");
+      expect(yaml).toContain("tier: dev.medium");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me fix the pinacle-yaml-integration.test.ts file. I need to find and remove the `podName` field on line 135.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Found it! Line 135 has `podName: "my-test-app"`. I need to remove it.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -133,5 +133,4 @@
+        tier: "dev.medium",
+        customServices: ["openai-codex", "vibe-kanban"],
+-       podName: "my-test-app",
+      });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me fix the integration.test.ts file which has multiple occurrences. Let me find them and fix them.</details></think>
+
+---
+
+Now let me fix the integration.test.ts file with multiple occurrences of `podName`:
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "podName:" in "src/lib/pod-orchestration/__tests__/integration.test.ts" • 7 matches</summary>
+
+Output mode: content
+
+
+| Content | Line |
+|------|------|
+| `podName: "Integration Test Pod",` | L222 |
+| `podName: "Lifecycle Test Pod",` | L328 |
+| `podName: "List Test Pod 1",` | L435 |
+| `podName: "List Test Pod 2",` | L442 |
+| `podName: "Template Test Pod",` | L520 |
+| `podName: "Proxy Test Pod",` | L605 |
+| `podName: "GitHub Integration Test Pod",` | L770 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+I can see 7 occurrences of `podName:` in integration.test.ts. Let me fix them all.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -220,5 +220,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "Integration Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Let me continue with the rest.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -325,5 +325,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "Lifecycle Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -431,5 +431,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "List Test Pod 1",
+      });
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -437,5 +437,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "List Test Pod 2",
+      });
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -514,5 +514,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code", "code-server"],
+-       podName: "Template Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Let me do the remaining two.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -598,5 +598,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "Proxy Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -762,5 +762,4 @@
+        tier: "dev.small",
+        customServices: ["claude-code"],
+-       podName: "GitHub Integration Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now I need to fix the admin.integration.test.ts and pods.ts router. Let me find those.</details></think>
+
+---
+
+Now let me fix the admin.integration.test.ts:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/admin.integration.test.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Found it! Line 136.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/admin.integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -134,5 +134,4 @@
+        tier: "dev.medium",
+        customServices: ["claude-code"],
+-       podName: "Test Pod",
+      });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me fix the pods.ts router which is the last one.</details></think>
+
+---
+
+Now let me fix the pods.ts router:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Found it! Line 100 has `podName: name,`. Let me remove it.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -98,5 +98,4 @@
+          tier,
+          customServices,
+-         podName: name,
+        });
+        const configJSON = pinacleConfigToJSON(pinacleConfig);
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Perfect! Now let me run the TypeScript compiler again to check if there are any remaining errors.</details></think>
+
+---
+
+Perfect! Now let me run the type checker again to verify all errors are fixed:
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/rchaves/Projects/pinacle && pnpm tsc --noEmit 2>&1 | grep -i "pinacle-config\|error TS" | head -20
+```
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Excellent! No errors found. Let me also run the linter to make sure everything is clean.</details></think>
+
+---
+
+Excellent! No type errors. Let me check the linter one more time:
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pinacle-config.ts`
+- `/Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Perfect! Everything is clean. Let me now check if there are any other files that might be using PinacleConfig.name by searching for it more broadly.</details></think>
+
+---
+
+Perfect! Let me do a final check to see if there are any other usages of `config.name` where config might be a PinacleConfig:
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "config\.name|pinacleConfig\.name" in "src" • 2 matches</summary>
+
+Output mode: content
+
+
+| Content | Line |
+|------|------|
+| `name: mergedConfig.name \|\| "Unnamed Pod",` | L138 |
+| `this.generateSlug(mergedConfig.name \|\| "unnamed-pod"),` | L141 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+These are fine - these are accessing `mergedConfig.name`, which is a `PodSpec` (the full runtime config), not a `PinacleConfig`. The `mergedConfig` is of type `Partial<PodSpec>`, and `PodSpec` still has a `name` field, which is correct since that's the actual pod's name at runtime.
+
+Let me verify this is correct by checking what type mergedConfig is.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/config-resolver.ts
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Those references to `mergedConfig.name` are for `PodSpec`, not `PinacleConfig`. The `PodSpec` type has a `name` field which represents the actual pod's name at runtime, while `PinacleConfig` is just the configuration file content which should be reusable and not include the pod name.
+
+Let me create a summary of what was done.</details></think>
+
+---
+
+Perfect! Those references are to `PodSpec.name`, not `PinacleConfig.name`, which is correct. Let me create a summary:
+
+## Summary
+
+I've successfully removed the `name` field from the `PinacleConfig` type definition. Here's what was changed:
+
+### Core Changes:
+1. **`pinacle-config.ts`** - Removed `name` field from `PinacleConfigSchema`
+2. **`generatePinacleConfigFromForm`** - Removed `podName` parameter and no longer sets `name`
+3. **`podConfigToPinacleConfig`** - Removed logic that sets `name` field
+
+### Test File Updates:
+4. **`pinacle-config.test.ts`** (10 fixes)
+   - Removed `name` fields from test PinacleConfig objects
+   - Removed assertions checking for `config.name`
+   - Removed YAML content assertions for `name:`
+
+5. **`pinacle-yaml-integration.test.ts`** (2 fixes)
+   - Removed `podName` from form data
+   - Removed `config.name` assertion
+
+6. **`integration.test.ts`** (7 fixes)
+   - Removed `podName` from all test form data submissions
+
+7. **`admin.integration.test.ts`** (1 fix)
+   - Removed `podName` from test form data
+
+8. **`pods.ts` router** (1 fix)
+   - Removed `podName` from `generatePinacleConfigFromForm` call
+
+### Verification:
+✅ All TypeScript type errors resolved
+✅ No linter errors
+✅ The `name` field now only exists in `PodSpec` (runtime config), not in `PinacleConfig` (reusable file config)
+
+The `pinacle.yaml` configuration is now properly reusable since it doesn't contain pod-specific information like the name!
 
 ---
 

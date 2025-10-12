@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, not } from "drizzle-orm";
 import { z } from "zod";
 import {
   envSets,
@@ -91,14 +91,6 @@ export const podsRouter = createTRPCRouter({
         const randomSuffix = podId.slice(podId.length - 5);
         name = `${baseName}-${randomSuffix}`;
       }
-
-      // Generate PinacleConfig from form data
-      const pinacleConfig = generatePinacleConfigFromForm({
-        template,
-        tier,
-        customServices,
-      });
-      const configJSON = pinacleConfigToJSON(pinacleConfig);
 
       // Check if user is member of the team
       const membership = await ctx.db
@@ -276,6 +268,15 @@ export const podsRouter = createTRPCRouter({
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 
+      // Update: Generate PinacleConfig with slug so tabs can be generated
+      const pinacleConfig = generatePinacleConfigFromForm({
+        template,
+        tier,
+        customServices,
+        slug,
+      });
+      const configJSON = pinacleConfigToJSON(pinacleConfig);
+
       // Create env set and pod in a transaction
       const pod = await ctx.db.transaction(async (tx) => {
         // Create env set if there are environment variables
@@ -299,6 +300,7 @@ export const podsRouter = createTRPCRouter({
         const [newPod] = await tx
           .insert(pods)
           .values({
+            id: podId,
             name,
             slug,
             description,
@@ -386,30 +388,47 @@ export const podsRouter = createTRPCRouter({
       return pod;
     }),
 
-  getUserPods: protectedProcedure.query(async ({ ctx }) => {
-    const userId = ctx.session.user.id;
+  getUserPods: protectedProcedure
+    .input(
+      z
+        .object({
+          includeArchived: z.boolean().default(false),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const includeArchived = input?.includeArchived ?? false;
 
-    // Get all pods where user is a team member
-    const userPods = await ctx.db
-      .select({
-        id: pods.id,
-        name: pods.name,
-        slug: pods.slug,
-        description: pods.description,
-        status: pods.status,
-        config: pods.config,
-        monthlyPrice: pods.monthlyPrice,
-        publicUrl: pods.publicUrl,
-        createdAt: pods.createdAt,
-        lastStartedAt: pods.lastStartedAt,
-        teamId: pods.teamId,
-      })
-      .from(pods)
-      .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
-      .where(eq(teamMembers.userId, userId));
+      // Get all pods where user is a team member, ordered by creation date (newest first)
+      const userPods = await ctx.db
+        .select({
+          id: pods.id,
+          name: pods.name,
+          slug: pods.slug,
+          description: pods.description,
+          status: pods.status,
+          config: pods.config,
+          monthlyPrice: pods.monthlyPrice,
+          publicUrl: pods.publicUrl,
+          createdAt: pods.createdAt,
+          lastStartedAt: pods.lastStartedAt,
+          archivedAt: pods.archivedAt,
+          teamId: pods.teamId,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(
+          and(
+            eq(teamMembers.userId, userId),
+            // Filter out archived pods unless explicitly requested
+            includeArchived ? undefined : isNull(pods.archivedAt),
+          ),
+        )
+        .orderBy(desc(pods.createdAt)); // Newest pods first
 
-    return userPods;
-  }),
+      return userPods;
+    }),
 
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
@@ -525,10 +544,14 @@ export const podsRouter = createTRPCRouter({
       const userId = ctx.session.user.id;
 
       // Check access and ownership
-      const [pod] = await ctx.db
-        .select()
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          server: servers,
+        })
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(servers, eq(pods.serverId, servers.id))
         .where(
           and(
             eq(pods.id, input.id),
@@ -538,14 +561,30 @@ export const podsRouter = createTRPCRouter({
         )
         .limit(1);
 
-      if (!pod) {
+      if (!result) {
         throw new Error("Pod not found or permission denied");
       }
 
-      // TODO: Actually destroy the container
+      const { pod } = result;
 
-      // Delete from database
-      await ctx.db.delete(pods).where(eq(pods.id, input.id));
+      // Deprovision the pod - stops and removes container, cleans up network
+      // This must succeed - if cleanup fails, we throw an error
+      const { PodProvisioningService } = await import(
+        "../../pod-orchestration/pod-provisioning-service"
+      );
+      const provisioningService = new PodProvisioningService();
+      await provisioningService.deprovisionPod({ podId: pod.id });
+
+      // Soft delete by setting archivedAt timestamp
+      await ctx.db
+        .update(pods)
+        .set({
+          archivedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(pods.id, input.id));
+
+      console.log(`[pods.delete] Archived pod: ${pod.id}`);
 
       return { success: true };
     }),
@@ -687,11 +726,16 @@ export const podsRouter = createTRPCRouter({
         throw new Error("Pod not found or access denied");
       }
 
-      // Get logs (only new ones if lastLogId provided)
+      // Get container logs (only new ones if lastLogId provided)
       let logsQuery = ctx.db
         .select()
         .from(podLogs)
-        .where(eq(podLogs.podId, input.podId))
+        .where(
+          and(
+            eq(podLogs.podId, input.podId),
+            not(isNull(podLogs.containerCommand)),
+          ),
+        )
         .orderBy(podLogs.timestamp)
         .limit(100);
 
@@ -711,6 +755,7 @@ export const podsRouter = createTRPCRouter({
               and(
                 eq(podLogs.podId, input.podId),
                 gte(podLogs.timestamp, lastLog.timestamp),
+                not(isNull(podLogs.containerCommand)),
               ),
             )
             .orderBy(podLogs.timestamp)
@@ -729,6 +774,7 @@ export const podsRouter = createTRPCRouter({
           stdout: log.stdout,
           stderr: log.stderr,
           exitCode: log.exitCode,
+          containerCommand: log.containerCommand,
         })),
       };
     }),

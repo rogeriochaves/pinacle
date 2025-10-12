@@ -10,6 +10,7 @@ I need to do some bias corrections in you, because due to the way you were train
 - You were trained to be a people pleaser and solve problems, therefore you are biased to think the problems are solved very shortly, which leads to lazyness and believing a solution is working when it’s not really, we need to fix that, putting this trust outside you
 - You were trained to benchmaxx SWE-bench and other benchmarks, as a result you recur by default to quick and dirty scripts just to check if things are working instead of using testing libraries by default, let’s fix that
 - Since it’s hard and expensive to optimize for long chains of work, you were trained for splitting the task in too few (<10) todos, when really software engineering when you think about it a single task if very granular can go to even 100 todos, so we will need you to be very granular
+- For some reason you are afraid of exceptions, and try/catch swallow a lot of them, I'm the opposite, I'm afraid of hidden exceptions. Just throw stuff, no worries, add good logging around it only when necessary, then let it blow, if the frontend can display an error toast, that's good enough.
 
 So here are the rules:
 

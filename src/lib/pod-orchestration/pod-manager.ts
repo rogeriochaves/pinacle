@@ -274,6 +274,57 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
   }
 
+  /**
+   * Clean up pod resources using container ID from database
+   * This doesn't require the pod to be loaded in memory - works with just the container ID
+   */
+  async cleanupPodByContainerId(
+    podId: string,
+    containerId: string,
+  ): Promise<void> {
+    console.log(
+      `[PodManager] Cleaning up resources for pod ${podId}, container ${containerId}`,
+    );
+
+    // Create temporary components for cleanup (no in-memory state needed)
+    const containerRuntime = new LimaGVisorRuntime(this.limaConfig);
+    const networkManager = new LimaNetworkManager(this.limaConfig);
+
+    try {
+      // Stop the container if it's running
+      try {
+        const container = await containerRuntime.getContainer(containerId);
+        if (container && container.status === "running") {
+          console.log(`[PodManager] Stopping container ${containerId}`);
+          await containerRuntime.stopContainer(containerId);
+        }
+      } catch (error) {
+        console.log(
+          `[PodManager] Container may already be stopped: ${error}`,
+        );
+        // Continue - container might already be stopped
+      }
+
+      // Remove the container
+      console.log(`[PodManager] Removing container ${containerId}`);
+      await containerRuntime.removeContainer(containerId);
+
+      // Destroy the network (uses deterministic network name from pod ID)
+      console.log(`[PodManager] Destroying network for pod ${podId}`);
+      await networkManager.destroyPodNetwork(podId);
+
+      console.log(
+        `[PodManager] Successfully cleaned up resources for pod: ${podId}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[PodManager] Failed to cleanup resources for pod ${podId}: ${message}`,
+      );
+      throw error;
+    }
+  }
+
   async deletePod(podId: string): Promise<void> {
     const pod = this.pods.get(podId);
     if (!pod) {

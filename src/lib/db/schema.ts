@@ -203,6 +203,7 @@ export const pods = pgTable("pod", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   lastStartedAt: timestamp("last_started_at", { mode: "date" }),
   lastStoppedAt: timestamp("last_stopped_at", { mode: "date" }),
+  archivedAt: timestamp("archived_at", { mode: "date" }), // Soft delete timestamp
 });
 
 // Pod usage logs for billing
@@ -262,8 +263,8 @@ export const podLogs = pgTable("pod_logs", {
   containerCommand: text("container_command"), // Original command executed inside container (without docker exec wrapper)
   stdout: text("stdout").default(""), // Standard output
   stderr: text("stderr").default(""), // Standard error
-  exitCode: integer("exit_code").notNull(), // Exit code (0 = success)
-  duration: integer("duration").notNull(), // Duration in milliseconds
+  exitCode: integer("exit_code"), // Exit code (0 = success) - nullable for in-progress commands
+  duration: integer("duration"), // Duration in milliseconds - nullable for in-progress commands
   label: text("label"), // Optional human-readable label (e.g., "📦 Cloning repository")
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });

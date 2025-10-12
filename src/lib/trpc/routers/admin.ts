@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   githubInstallations,
@@ -64,7 +64,7 @@ export const adminRouter = createTRPCRouter({
           .orderBy(desc(serverMetrics.timestamp))
           .limit(1);
 
-        // Count active pods on this server
+        // Count active pods on this server (excluding archived)
         const activePods = await ctx.db
           .select({ count: sql<number>`count(*)` })
           .from(pods)
@@ -72,6 +72,7 @@ export const adminRouter = createTRPCRouter({
             and(
               eq(pods.serverId, server.id),
               or(eq(pods.status, "running"), eq(pods.status, "starting")),
+              isNull(pods.archivedAt), // Exclude archived pods
             ),
           );
 
@@ -163,7 +164,12 @@ export const adminRouter = createTRPCRouter({
         .from(pods)
         .leftJoin(users, eq(pods.ownerId, users.id))
         .leftJoin(teams, eq(pods.teamId, teams.id))
-        .where(eq(pods.serverId, input.serverId));
+        .where(
+          and(
+            eq(pods.serverId, input.serverId),
+            isNull(pods.archivedAt), // Exclude archived pods
+          ),
+        );
 
       // Get latest metrics for each pod
       const podsWithMetrics = await Promise.all(
@@ -249,12 +255,12 @@ export const adminRouter = createTRPCRouter({
         })
         .from(users)
         .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
-        .leftJoin(pods, eq(users.id, pods.ownerId))
+        .leftJoin(pods, and(eq(users.id, pods.ownerId), isNull(pods.archivedAt))) // Exclude archived pods
         .groupBy(users.id)
         .$dynamic();
 
       // Add search filter if provided
-      if (input.search && input.search.trim()) {
+      if (input.search?.trim()) {
         const searchTerm = `%${input.search.trim()}%`;
         query = query.where(
           or(
@@ -297,7 +303,7 @@ export const adminRouter = createTRPCRouter({
         .innerJoin(teams, eq(teamMembers.teamId, teams.id))
         .where(eq(teamMembers.userId, input.userId));
 
-      // Get user's pods
+      // Get user's pods (excluding archived)
       const userPods = await ctx.db
         .select({
           pod: pods,
@@ -308,7 +314,12 @@ export const adminRouter = createTRPCRouter({
         })
         .from(pods)
         .leftJoin(teams, eq(pods.teamId, teams.id))
-        .where(eq(pods.ownerId, input.userId));
+        .where(
+          and(
+            eq(pods.ownerId, input.userId),
+            isNull(pods.archivedAt), // Exclude archived pods
+          ),
+        );
 
       // Get user's GitHub installations
       const githubInstalls = await ctx.db
@@ -459,13 +470,17 @@ export const adminRouter = createTRPCRouter({
 
     const [totalPods] = await ctx.db
       .select({ count: sql<number>`count(*)` })
-      .from(pods);
+      .from(pods)
+      .where(isNull(pods.archivedAt)); // Exclude archived pods
 
     const [activePods] = await ctx.db
       .select({ count: sql<number>`count(*)` })
       .from(pods)
       .where(
-        or(eq(pods.status, "running"), eq(pods.status, "starting")),
+        and(
+          or(eq(pods.status, "running"), eq(pods.status, "starting")),
+          isNull(pods.archivedAt), // Exclude archived pods
+        ),
       );
 
     const [totalServers] = await ctx.db

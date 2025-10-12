@@ -62,12 +62,60 @@ export class LimaNetworkManager implements NetworkManager {
     return `pinacle-net-${podId}`;
   }
 
-  private generateSubnet(podId: string): string {
-    // Generate a unique subnet for each pod
-    // Use pod ID hash to generate consistent subnet
+  private async getExistingSubnets(): Promise<Set<string>> {
+    try {
+      // Get all Docker networks
+      const { stdout } = await this.exec(
+        "docker network inspect $(docker network ls -q) 2>/dev/null || echo '[]'",
+        true,
+      );
+
+      const networks = JSON.parse(stdout || "[]");
+      const subnets = new Set<string>();
+
+      for (const network of networks) {
+        if (network.IPAM?.Config) {
+          for (const config of network.IPAM.Config) {
+            if (config.Subnet) {
+              subnets.add(config.Subnet);
+            }
+          }
+        }
+      }
+
+      return subnets;
+    } catch (error) {
+      console.warn(
+        "[NetworkManager] Failed to get existing subnets, will attempt allocation anyway:",
+        error,
+      );
+      return new Set<string>();
+    }
+  }
+
+  private async generateAvailableSubnet(podId: string): Promise<string> {
+    const existingSubnets = await this.getExistingSubnets();
+
+    // Start with hash-based suggestion
     const hash = this.hashString(podId);
-    const subnet = 100 + (hash % 155); // 10.100.x.0/24 to 10.254.x.0/24
-    return `10.${subnet}.1.0/24`;
+    let attempt = 100 + (hash % 155); // 10.100.x.0/24 to 10.254.x.0/24
+
+    // Try up to 155 different subnets
+    for (let i = 0; i < 155; i++) {
+      const subnet = `10.${attempt}.1.0/24`;
+      if (!existingSubnets.has(subnet)) {
+        console.log(
+          `[NetworkManager] Allocated subnet ${subnet} for pod ${podId}`,
+        );
+        return subnet;
+      }
+      // Move to next subnet
+      attempt = 100 + ((attempt - 99) % 155);
+    }
+
+    throw new Error(
+      "No available subnets in range 10.100.1.0/24 to 10.254.1.0/24",
+    );
   }
 
   private generatePodIp(subnet: string): string {
@@ -97,7 +145,7 @@ export class LimaNetworkManager implements NetworkManager {
     config: NetworkConfig,
   ): Promise<string> {
     const networkName = this.generateNetworkName(podId);
-    const subnet = config.subnet || this.generateSubnet(podId);
+    const subnet = config.subnet || (await this.generateAvailableSubnet(podId));
     const podIp = config.podIp || this.generatePodIp(subnet);
     const gatewayIp = config.gatewayIp || this.generateGatewayIp(subnet);
 

@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, CheckCircle, Loader2, XCircle } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle,
+  Loader2,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -65,6 +71,7 @@ export default function PodProvisioningPage() {
   const params = useParams();
   const router = useRouter();
   const podId = params?.id as string;
+  const utils = api.useUtils();
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const [lastLogId, setLastLogId] = useState<string | undefined>();
@@ -76,15 +83,18 @@ export default function PodProvisioningPage() {
       stdout: string | null;
       stderr: string | null;
       exitCode: number | null;
+      containerCommand: string | null;
     }>
   >([]);
 
-  // Poll status and logs every 2 seconds
+  // Poll status and logs every 500ms for faster updates
   const { data, isLoading, error } = api.pods.getStatusWithLogs.useQuery(
     { podId, lastLogId },
     {
-      refetchInterval: 2000,
+      refetchInterval: 500,
       enabled: !!podId,
+      // Keep previous data while refetching to prevent flashing/undefined
+      placeholderData: (previousData) => previousData,
     },
   );
 
@@ -94,7 +104,19 @@ export default function PodProvisioningPage() {
   useEffect(() => {
     if (data?.logs && data.logs.length > 0) {
       setAllLogs((prev) => {
-        // Merge new logs, avoiding duplicates by ID
+        // If the first new log has the same ID as our last log, replace it (it may have been updated)
+        // Otherwise, add all new logs
+        if (prev.length > 0) {
+          const lastPrevLog = prev[prev.length - 1];
+          const firstNewLog = data.logs[0];
+
+          if (lastPrevLog && firstNewLog && lastPrevLog.id === firstNewLog.id) {
+            // Replace the last log with the updated version and add any subsequent logs
+            return [...prev.slice(0, -1), ...data.logs];
+          }
+        }
+
+        // No overlap - add all new logs, avoiding duplicates by ID
         const existingIds = new Set(prev.map((log) => log.id));
         const newLogs = data.logs.filter((log) => !existingIds.has(log.id));
         return [...prev, ...newLogs];
@@ -118,13 +140,15 @@ export default function PodProvisioningPage() {
   // Auto-redirect to dashboard when status becomes "running"
   useEffect(() => {
     if (data?.pod.status === "running") {
-      // Wait 2 seconds to show success, then redirect
-      const timer = setTimeout(() => {
-        router.push("/dashboard");
+      // Wait 2 seconds to show success, then invalidate query and redirect
+      const timer = setTimeout(async () => {
+        // Invalidate the getUserPods query so dashboard gets fresh data
+        await utils.pods.getUserPods.invalidate();
+        router.push(`/dashboard?pod=${podId}`);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [data?.pod.status, router]);
+  }, [data?.pod.status, router, podId, utils.pods.getUserPods]);
 
   // Detect stale provisioning (last log >10 min old)
   const isStaleProvisioning = (): boolean => {
@@ -231,8 +255,8 @@ export default function PodProvisioningPage() {
                   Provisioning May Have Stalled
                 </h3>
                 <p className="text-yellow-400/80 font-mono text-xs">
-                  No updates for over 10 minutes. The provisioning process may have
-                  encountered an issue. You can retry provisioning below.
+                  No updates for over 10 minutes. The provisioning process may
+                  have encountered an issue. You can retry provisioning below.
                 </p>
               </div>
             </div>
@@ -284,24 +308,39 @@ export default function PodProvisioningPage() {
               {allLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="mb-4 border-b border-slate-700 pb-4 last:border-b-0"
+                  className="mb-4 border-t border-slate-700 pt-4 first:border-t-0"
                 >
                   {/* Log header */}
                   <div className="mb-1 flex items-center gap-2 text-slate-500">
                     <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
                     <span>•</span>
-                    {log.exitCode === 0 ? (
-                      <CheckCircle className="h-3 w-3 text-green-400" />
+                    {log.exitCode === null ? (
+                      <>
+                        <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
+                        <span className="text-blue-400">Running...</span>
+                      </>
+                    ) : log.exitCode === 0 ? (
+                      <>
+                        <CheckCircle className="h-3 w-3 text-green-400" />
+                        <span>Exit: {log.exitCode}</span>
+                      </>
                     ) : (
-                      <XCircle className="h-3 w-3 text-red-400" />
+                      <>
+                        <XCircle className="h-3 w-3 text-red-400" />
+                        <span>Exit: {log.exitCode}</span>
+                      </>
                     )}
-                    <span>Exit: {log.exitCode}</span>
                   </div>
 
                   {/* Label if present */}
                   {log.label && (
                     <div className="mb-1 text-blue-400">{log.label}</div>
                   )}
+
+                  {/* Command */}
+                  <div className="mb-1 text-yellow-300">
+                    $ {log.containerCommand}
+                  </div>
 
                   {/* Stdout */}
                   {log.stdout && (
@@ -344,4 +383,3 @@ export default function PodProvisioningPage() {
     </div>
   );
 }
-

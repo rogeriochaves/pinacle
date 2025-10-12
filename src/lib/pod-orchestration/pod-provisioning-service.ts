@@ -8,13 +8,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { envSets, podLogs, pods, servers } from "../db/schema";
-import { DefaultConfigResolver } from "./config-resolver";
 import type { GitHubRepoSetup } from "./github-integration";
-import {
-  getResourcesFromTier,
-  getTierFromConfig,
-  podRecordToPinacleConfig,
-} from "./pinacle-config";
+import { podRecordToPinacleConfig } from "./pinacle-config";
 import { DefaultPodManager } from "./pod-manager";
 import { SSHServerConnection } from "./server-connection";
 import type { ServerConnection } from "./types";
@@ -25,11 +20,57 @@ export type ProvisionPodInput = {
   githubRepoSetup?: GitHubRepoSetup; // SSH key pair and deploy key info for GitHub repos
 };
 
-export class PodProvisioningService {
-  private configResolver: DefaultConfigResolver;
+export type DeprovisionPodInput = {
+  podId: string;
+};
 
+type ServerConnectionDetails = {
+  server: typeof servers.$inferSelect;
+  limaConfig: {
+    vmName: string;
+    sshPort: number;
+  };
+};
+
+export class PodProvisioningService {
   constructor() {
-    this.configResolver = new DefaultConfigResolver();
+    // No longer need ConfigResolver - we use expandPinacleConfigToSpec directly
+  }
+
+  /**
+   * Helper method to get server connection details
+   * Abstracts away Lima VM detection and SSH port retrieval
+   */
+  private async getServerConnectionDetails(
+    serverId: string,
+  ): Promise<ServerConnectionDetails> {
+    const [server] = await db
+      .select()
+      .from(servers)
+      .where(eq(servers.id, serverId))
+      .limit(1);
+
+    if (!server) {
+      throw new Error(`Server ${serverId} not found`);
+    }
+
+    // Get SSH port (dynamic for Lima VMs)
+    let sshPort = server.sshPort;
+    if (server.limaVmName) {
+      const { getLimaSshPort } = await import("./lima-utils");
+      sshPort = await getLimaSshPort(server.limaVmName);
+      console.log(
+        `[PodProvisioningService] Retrieved Lima SSH port for ${server.limaVmName}: ${sshPort}`,
+      );
+    }
+
+    return {
+      server,
+      limaConfig: {
+        vmName: server.limaVmName || server.hostname,
+        sshPort,
+      },
+    };
   }
 
   /**
@@ -66,16 +107,10 @@ export class PodProvisioningService {
       serverId = availableServer.id;
     }
 
-    // Get server details
-    const [server] = await db
-      .select()
-      .from(servers)
-      .where(eq(servers.id, serverId))
-      .limit(1);
-
-    if (!server) {
-      throw new Error(`Server ${serverId} not found`);
-    }
+    // Get server connection details
+    const { server, limaConfig } = await this.getServerConnectionDetails(
+      serverId,
+    );
 
     console.log(
       `[PodProvisioningService] Provisioning pod ${podId} on server ${server.hostname}`,
@@ -92,21 +127,10 @@ export class PodProvisioningService {
         })
         .where(eq(pods.id, podId));
 
-      // 4. Get SSH port (dynamic for Lima VMs)
-      let sshPort = server.sshPort;
-      if (server.limaVmName) {
-        // For Lima VMs, dynamically retrieve the current SSH port
-        const { getLimaSshPort } = await import("./lima-utils");
-        sshPort = await getLimaSshPort(server.limaVmName);
-        console.log(
-          `[PodProvisioningService] Retrieved Lima SSH port for ${server.limaVmName}: ${sshPort}`,
-        );
-      }
-
-      // 5. Create SSH connection to server
+      // 4. Create SSH connection to server
       const serverConnection: ServerConnection = new SSHServerConnection({
         host: server.sshHost,
-        port: sshPort,
+        port: limaConfig.sshPort,
         user: server.sshUser,
         privateKey: process.env.SSH_PRIVATE_KEY!,
       });
@@ -114,17 +138,10 @@ export class PodProvisioningService {
       // Set podId for logging
       serverConnection.setPodId(podId);
 
-      // 6. Create PodManager with Lima config
-      // The PodManager will create its own components internally
-      // but they won't use the serverConnection we created above yet
-      // TODO: Pass serverConnection to PodManager constructor
-      const limaConfig = {
-        vmName: server.limaVmName || server.hostname,
-        sshPort,
-      };
+      // 5. Create PodManager with Lima config
       const podManager = new DefaultPodManager(limaConfig);
 
-      // 7. Parse PinacleConfig from database and derive resources
+      // 6. Parse PinacleConfig from database and expand to PodSpec
       console.log(
         `[PodProvisioningService] Parsing pinacle config for pod ${podId}`,
       );
@@ -134,11 +151,8 @@ export class PodProvisioningService {
         name: podRecord.name,
       });
 
-      const tierId = getTierFromConfig(pinacleConfig);
-      const resources = getResourcesFromTier(tierId);
-
       console.log(
-        `[PodProvisioningService] Building config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
+        `[PodProvisioningService] Expanding config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
       );
 
       // Load environment variables from env set if attached
@@ -158,27 +172,18 @@ export class PodProvisioningService {
         }
       }
 
-      const spec = await this.configResolver.loadConfig(
-        pinacleConfig.template || undefined,
-        {
-          id: podRecord.id,
-          name: podRecord.name,
-          slug: podRecord.slug,
-          resources: {
-            tier: tierId,
-            cpuCores: resources.cpuCores,
-            memoryMb: resources.memoryMb,
-            storageMb: resources.storageMb,
-          },
-          network: {
-            ports: podRecord.ports ? JSON.parse(podRecord.ports) : [],
-          },
-          environment,
-          githubRepo: podRecord.githubRepo || undefined,
-          githubBranch: podRecord.githubBranch || undefined,
-          githubRepoSetup: githubRepoSetup, // Pass through the SSH key pair if provided
-        },
-      );
+      // Use the single source of truth expansion function
+      const { expandPinacleConfigToSpec } = await import("./pinacle-config");
+      const spec = await expandPinacleConfigToSpec(pinacleConfig, {
+        id: podRecord.id,
+        name: podRecord.name,
+        slug: podRecord.slug,
+        description: podRecord.description || undefined,
+        environment,
+        githubRepo: podRecord.githubRepo || undefined,
+        githubBranch: podRecord.githubBranch || undefined,
+        githubRepoSetup: githubRepoSetup,
+      });
 
       console.log(
         "[PodProvisioningService] Provisioning pod with spec:",
@@ -222,6 +227,69 @@ export class PodProvisioningService {
         })
         .where(eq(pods.id, podId));
 
+      throw error;
+    }
+  }
+
+  /**
+   * Deprovisions a pod - stops and removes container, cleans up network
+   * This is the inverse of provisionPod
+   */
+  async deprovisionPod(input: DeprovisionPodInput): Promise<void> {
+    const { podId } = input;
+
+    console.log(`[PodProvisioningService] Deprovisioning pod ${podId}`);
+
+    // 1. Get pod from database
+    const [podRecord] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, podId))
+      .limit(1);
+
+    if (!podRecord) {
+      throw new Error(`Pod ${podId} not found in database`);
+    }
+
+    if (!podRecord.serverId) {
+      console.log(
+        `[PodProvisioningService] Pod ${podId} has no server assigned, nothing to clean up`,
+      );
+      return;
+    }
+
+    if (!podRecord.containerId) {
+      console.log(
+        `[PodProvisioningService] Pod ${podId} has no container, nothing to clean up`,
+      );
+      return;
+    }
+
+    try {
+      // 2. Get server connection details
+      const { limaConfig } = await this.getServerConnectionDetails(
+        podRecord.serverId,
+      );
+
+      // 3. Create PodManager and clean up container
+      const podManager = new DefaultPodManager(limaConfig);
+
+      console.log(
+        `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId}`,
+      );
+
+      await podManager.cleanupPodByContainerId(podId, podRecord.containerId);
+
+      console.log(
+        `[PodProvisioningService] Successfully deprovisioned pod ${podId}`,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.error(
+        `[PodProvisioningService] Failed to deprovision pod ${podId}:`,
+        errorMessage,
+      );
       throw error;
     }
   }

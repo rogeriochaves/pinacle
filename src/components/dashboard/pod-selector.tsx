@@ -35,6 +35,7 @@ type PodSelectorProps = {
   onStartPod: (podId: string) => void;
   onStopPod: (podId: string) => void;
   onDeletePod: (podId: string) => void;
+  deletingPodId: string | null;
   onViewDetails: (podId: string) => void;
 };
 
@@ -86,6 +87,7 @@ export const PodSelector = ({
   onStartPod,
   onStopPod,
   onDeletePod,
+  deletingPodId,
   onViewDetails,
 }: PodSelectorProps) => {
   const sortedPods = [...pods].sort((a, b) => {
@@ -124,6 +126,7 @@ export const PodSelector = ({
           {sortedPods.map((pod) => {
             const isCurrent = pod.id === currentPodId;
             const isRunning = pod.status === "running";
+            const isDeleting = deletingPodId === pod.id;
 
             return (
               <div
@@ -224,9 +227,14 @@ export const PodSelector = ({
                     size="sm"
                     variant="ghost"
                     onClick={() => onDeletePod(pod.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={isDeleting}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50"
                   >
-                    <Trash2 className="w-3 h-3" />
+                    {isDeleting ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3 h-3" />
+                    )}
                   </Button>
                 </div>
               </div>

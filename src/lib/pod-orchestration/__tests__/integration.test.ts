@@ -868,4 +868,188 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Files found: ${repoCheck.split("\n").length} items`);
     console.log(`   Logs: ${logs.length} entries`);
   }, 180000); // 3 minute timeout
+
+  it("should properly clean up container when deleting pod", async () => {
+    console.log("\n🧪 Testing pod deletion with container cleanup...");
+
+    // 1. Create and provision a test pod
+    const deleteTestId = `delete-test-${Date.now()}`;
+    console.log(`📦 Creating pod ${deleteTestId} for deletion test...`);
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["web-terminal"],
+    });
+
+    await db
+      .insert(pods)
+      .values({
+        id: deleteTestId,
+        name: "Delete Test Pod",
+        slug: "delete-test-pod",
+        description: "Test pod for testing deletion",
+        template: "nodejs-blank",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        config: pinacleConfigToJSON(pinacleConfig),
+        monthlyPrice: 500,
+        status: "creating",
+      })
+      .returning();
+
+    // Provision the pod
+    console.log("🚀 Provisioning pod...");
+    await provisioningService.provisionPod({
+      podId: deleteTestId,
+      serverId: testServerId,
+    });
+
+    // Verify it was created
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, deleteTestId))
+      .limit(1);
+
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.containerId).toBeTruthy();
+    const containerId = provisionedPod.containerId!;
+
+    console.log(`✅ Pod provisioned with container: ${containerId}`);
+
+    // Verify container exists
+    const sshPort = await getLimaSshPort("gvisor-alpine");
+    const limaConfig = { vmName: "gvisor-alpine", sshPort };
+    const runtime = new LimaGVisorRuntime(limaConfig);
+
+    const containerBefore = await runtime.getContainer(containerId);
+    expect(containerBefore).toBeTruthy();
+    expect(containerBefore?.status).toBe("running");
+
+    console.log("✅ Container verified running before deletion");
+
+    // 2. Delete the pod (should clean up container)
+    console.log("🗑️  Deleting pod...");
+    await podManager.deletePod(deleteTestId);
+
+    // 3. Verify container was removed
+    console.log("🔍 Verifying container cleanup...");
+    const containerAfter = await runtime.getContainer(containerId);
+    expect(containerAfter).toBeNull();
+
+    console.log("✅ Container successfully removed");
+
+    // 4. Verify network was cleaned up
+    // Try to inspect the network - it should fail
+    try {
+      await execAsync(
+        `limactl shell gvisor-alpine sudo docker network inspect pinacle-net-${deleteTestId}`,
+      );
+      // If we get here, network still exists - fail the test
+      throw new Error("Network should have been removed but still exists");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      // Expect error about network not found
+      expect(errorMessage).toContain("No such network");
+      console.log("✅ Network successfully removed");
+    }
+
+    console.log("✅ Pod deletion test completed successfully!");
+  }, 120000); // 2 minute timeout
+
+  it("should deprovision pod using PodProvisioningService", async () => {
+    // This tests the full deprovision flow that the tRPC delete mutation uses
+    // It abstracts away all server connection details through the service
+    console.log(
+      "\n🧪 Testing pod deprovisioning through PodProvisioningService...",
+    );
+
+    // 1. Create and provision a test pod
+    const deprovisionTestId = `deprovision-test-${Date.now()}`;
+    console.log(`📦 Creating pod ${deprovisionTestId} for deprovision test...`);
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["web-terminal"],
+    });
+
+    await db
+      .insert(pods)
+      .values({
+        id: deprovisionTestId,
+        name: "Deprovision Test Pod",
+        slug: "deprovision-test-pod",
+        description: "Test pod for testing deprovisioning service",
+        template: "nodejs-blank",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        config: pinacleConfigToJSON(pinacleConfig),
+        monthlyPrice: 500,
+        status: "creating",
+      })
+      .returning();
+
+    // Provision the pod
+    console.log("🚀 Provisioning pod...");
+    await provisioningService.provisionPod({
+      podId: deprovisionTestId,
+      serverId: testServerId,
+    });
+
+    // Verify it was created
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, deprovisionTestId))
+      .limit(1);
+
+    expect(provisionedPod.status).toBe("running");
+    expect(provisionedPod.containerId).toBeTruthy();
+    const containerId = provisionedPod.containerId!;
+
+    console.log(`✅ Pod provisioned with container: ${containerId}`);
+
+    // Verify container exists (directly check Docker)
+    const sshPort = await getLimaSshPort("gvisor-alpine");
+    const limaConfig = { vmName: "gvisor-alpine", sshPort };
+    const runtime = new LimaGVisorRuntime(limaConfig);
+
+    const containerBefore = await runtime.getContainer(containerId);
+    expect(containerBefore).toBeTruthy();
+    expect(containerBefore?.status).toBe("running");
+
+    console.log("✅ Container verified running before deprovisioning");
+
+    // 2. Deprovision using the service (same as tRPC delete mutation)
+    console.log("🗑️  Deprovisioning pod through service...");
+    await provisioningService.deprovisionPod({ podId: deprovisionTestId });
+
+    // 3. Verify container was removed
+    console.log("🔍 Verifying container cleanup...");
+    const containerAfter = await runtime.getContainer(containerId);
+    expect(containerAfter).toBeNull();
+
+    console.log("✅ Container successfully removed");
+
+    // 4. Verify network was cleaned up
+    try {
+      await execAsync(
+        `limactl shell gvisor-alpine sudo docker network inspect pinacle-net-${deprovisionTestId}`,
+      );
+      throw new Error("Network should have been removed but still exists");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      expect(errorMessage).toContain("No such network");
+      console.log("✅ Network successfully removed");
+    }
+
+    // 5. Clean up database record
+    await db.delete(pods).where(eq(pods.id, deprovisionTestId));
+
+    console.log(
+      "✅ Pod deprovisioning service test completed successfully!",
+    );
+  }, 120000); // 2 minute timeout
 });

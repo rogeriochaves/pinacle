@@ -130,16 +130,24 @@ export const generatePinacleConfigFromForm = (formData: {
   tier?: string;
   customServices?: string[];
   tabs?: Array<{ name: string; url: string }>;
+  slug?: string;
 }): PinacleConfig => {
+  // Use customServices if provided, otherwise fall back to defaults
+  const services =
+    formData.customServices && formData.customServices.length > 0
+      ? formData.customServices
+      : DEFAULT_PINACLE_CONFIG.services;
+
+  // Generate tabs if not provided
+  const tabs =
+    formData.tabs || generateDefaultTabs(services, formData.slug || "pod");
+
   return PinacleConfigSchema.parse({
     version: "1.0",
     template: formData.template,
     tier: formData.tier || "dev.small",
-    services:
-      formData.customServices && formData.customServices.length > 0
-        ? formData.customServices
-        : DEFAULT_PINACLE_CONFIG.services,
-    tabs: formData.tabs,
+    services,
+    tabs,
   });
 };
 
@@ -241,6 +249,110 @@ export const getTabsFromConfig = (
 };
 
 /**
+ * Expand PinacleConfig to full PodSpec
+ * This is the SINGLE source of truth for PinacleConfig → PodSpec conversion
+ *
+ * @param pinacleConfig - The PinacleConfig from database (user's source of truth)
+ * @param runtimeData - Runtime data (pod ID, name, environment, github info, etc.)
+ * @returns Complete PodSpec ready for provisioning
+ */
+export const expandPinacleConfigToSpec = async (
+  pinacleConfig: PinacleConfig,
+  runtimeData: {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    environment?: Record<string, string>;
+    githubRepo?: string;
+    githubBranch?: string;
+    githubRepoSetup?: import("./types").PodSpec["githubRepoSetup"];
+  },
+): Promise<import("./types").PodSpec> => {
+  const { getServiceTemplate } = await import("./service-registry");
+  const { getTemplateUnsafe } = await import("./template-registry");
+
+  // Get template defaults if template is specified
+  const template = pinacleConfig.template
+    ? getTemplateUnsafe(pinacleConfig.template)
+    : null;
+
+  // Base image: use template's or default
+  const baseImage = template?.baseImage || "alpine:3.22.1";
+
+  // Resources: derive from tier in PinacleConfig
+  const resources = getResourcesFromTier(pinacleConfig.tier);
+
+  // Services: convert service names to ServiceConfig objects
+  const services = pinacleConfig.services.map((serviceName) => {
+    const serviceTemplate = getServiceTemplate(
+      serviceName as import("./service-registry").ServiceName,
+    );
+
+    return {
+      name: serviceName,
+      enabled: true,
+      ports: [
+        {
+          name: serviceName,
+          internal: serviceTemplate.defaultPort,
+          protocol: "tcp" as const,
+        },
+      ],
+      environment: serviceTemplate.environment || {},
+      autoRestart: true,
+      dependsOn: [],
+    };
+  });
+
+  // Environment: merge template defaults + runtime data
+  const environment: Record<string, string> = {
+    ...(template?.environment || {}),
+    ...(runtimeData.environment || {}),
+  };
+
+  // Network: collect all service ports
+  const ports = services.flatMap((service) =>
+    (service.ports || []).map((port) => ({
+      name: port.name,
+      internal: port.internal,
+      protocol: port.protocol,
+    })),
+  );
+
+  // Build complete PodSpec
+  const podSpec: import("./types").PodSpec = {
+    id: runtimeData.id,
+    name: runtimeData.name,
+    slug: runtimeData.slug,
+    description: runtimeData.description,
+    templateId: pinacleConfig.template,
+    baseImage,
+    resources: {
+      tier: pinacleConfig.tier,
+      cpuCores: resources.cpuCores,
+      memoryMb: resources.memoryMb,
+      storageMb: resources.storageMb,
+    },
+    network: {
+      ports,
+      allowEgress: true,
+    },
+    services,
+    environment,
+    githubRepo: runtimeData.githubRepo,
+    githubBranch: runtimeData.githubBranch,
+    githubRepoSetup: runtimeData.githubRepoSetup,
+    workingDir: "/workspace",
+    user: "root",
+    hooks: {},
+    healthChecks: [],
+  };
+
+  return podSpec;
+};
+
+/**
  * Convert PodSpec (runtime config) to PinacleConfig (YAML config)
  * Extracts only the user-facing configuration that should be stored in pinacle.yaml
  */
@@ -263,20 +375,21 @@ export const podConfigToPinacleConfig = (
   // Extract service names from ServiceConfig array
   const services = podConfig.services.map((service) => service.name);
 
+  // Generate tabs from services
+  const tabs = generateDefaultTabs(services, podConfig.slug);
+
   // Build PinacleConfig
   const pinacleConfig: PinacleConfig = {
     version: "1.0",
     tier,
     services,
+    tabs, // Include auto-generated tabs
   };
 
   // Add optional fields if present
   if (podConfig.templateId) {
     pinacleConfig.template = podConfig.templateId;
   }
-
-  // Note: tabs would need to be derived from services or provided separately
-  // as PodSpec doesn't store the tabs configuration
 
   return pinacleConfig;
 };

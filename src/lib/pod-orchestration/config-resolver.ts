@@ -365,6 +365,16 @@ export class DefaultConfigResolver implements ConfigResolver {
       };
     }
 
+    // Determine services: user services override base, but only if non-empty
+    let mergedServices: typeof base.services;
+    if (user.services && user.services.length > 0) {
+      mergedServices = user.services;
+    } else if (base.services && base.services.length > 0) {
+      mergedServices = base.services;
+    } else {
+      mergedServices = [];
+    }
+
     return {
       ...base,
       ...user,
@@ -378,7 +388,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         ...base.environment,
         ...user.environment,
       },
-      services: user.services || base.services || [],
+      services: mergedServices,
       hooks: {
         ...base.hooks,
         ...user.hooks,
