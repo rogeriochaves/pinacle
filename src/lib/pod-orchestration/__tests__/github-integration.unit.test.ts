@@ -1,18 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { GitHubIntegration } from "../github-integration";
-import { getLimaSshPort } from "../lima-utils";
-import { DefaultPodManager } from "../pod-manager";
+import { getLimaServerConnection } from "../lima-utils";
+import { PodManager } from "../pod-manager";
 import type { PodSpec } from "../types";
 
 describe("GitHub Integration Tests", () => {
-  let podManager: DefaultPodManager;
+  let podManager: PodManager;
   let githubIntegration: GitHubIntegration;
 
   beforeAll(async () => {
     // Initialize managers
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    const limaConfig = { vmName: "gvisor-alpine", sshPort };
-    podManager = new DefaultPodManager(limaConfig);
+    podManager = new PodManager(await getLimaServerConnection());
     githubIntegration = new GitHubIntegration(podManager);
   });
 

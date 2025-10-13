@@ -715,6 +715,7 @@ export const podsRouter = createTRPCRouter({
           containerId: pods.containerId,
           publicUrl: pods.publicUrl,
           createdAt: pods.createdAt,
+          updatedAt: pods.updatedAt,
           lastStartedAt: pods.lastStartedAt,
         })
         .from(pods)
@@ -835,6 +836,14 @@ export const podsRouter = createTRPCRouter({
 
           const provisioningService = new PodProvisioningService();
 
+          // Try to cleanup the pod if it was previously provisioned
+          if (pod.serverId) {
+            await provisioningService.cleanupPod({
+              podId: input.podId,
+              serverId: pod.serverId,
+            });
+          }
+
           // Set up 30 minute timeout
           const timeoutMs = 30 * 60 * 1000; // 30 minutes
           const timeoutPromise = new Promise<never>((_, reject) => {
@@ -878,6 +887,8 @@ export const podsRouter = createTRPCRouter({
               updateError,
             );
           }
+
+          throw error;
         }
       })();
 

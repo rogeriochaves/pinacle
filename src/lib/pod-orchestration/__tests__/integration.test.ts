@@ -6,23 +6,30 @@ import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { envSets, pods, servers, teamMembers, teams, users } from "@/lib/db/schema";
+import {
+  envSets,
+  pods,
+  servers,
+  teamMembers,
+  teams,
+  users,
+} from "@/lib/db/schema";
 import { generateKSUID } from "@/lib/utils";
-import { LimaGVisorRuntime } from "../container-runtime";
-import { getLimaSshPort } from "../lima-utils";
-import { LimaNetworkManager } from "../network-manager";
+import { GVisorRuntime } from "../container-runtime";
+import { getLimaServerConnection } from "../lima-utils";
+import { NetworkManager } from "../network-manager";
 import {
   generatePinacleConfigFromForm,
   pinacleConfigToJSON,
 } from "../pinacle-config";
-import { DefaultPodManager } from "../pod-manager";
+import { PodManager } from "../pod-manager";
 import { PodProvisioningService } from "../pod-provisioning-service";
 
 const execAsync = promisify(exec);
 
 // Integration tests that run against actual Lima VM and database
 describe("Pod Orchestration Integration Tests", () => {
-  let podManager: DefaultPodManager;
+  let podManager: PodManager;
   let provisioningService: PodProvisioningService;
   let testPodId: string;
   let testUserId: string;
@@ -104,9 +111,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
-    const limaConfig = { vmName, sshPort };
-    podManager = new DefaultPodManager(limaConfig);
-    const containerRuntime = new LimaGVisorRuntime(limaConfig);
+    const limaConfig = await getLimaServerConnection();
+    podManager = new PodManager(limaConfig);
+    const containerRuntime = new GVisorRuntime(limaConfig);
 
     const containers = await containerRuntime.listContainers();
     const testContainers = containers.filter(
@@ -122,7 +129,7 @@ describe("Pod Orchestration Integration Tests", () => {
       await containerRuntime.removeContainer(container.id);
     }
 
-    const networkManager = new LimaNetworkManager(limaConfig);
+    const networkManager = new NetworkManager(limaConfig);
     const networks = await networkManager.listPodNetworks();
     const integrationTestNetworks = networks.filter(
       (n) =>
@@ -255,10 +262,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Provision the pod using the service
     console.log("🚀 Provisioning pod through PodProvisioningService...");
-    await provisioningService.provisionPod({
-      podId: testPodId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: testPodId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // 3. Verify pod was updated in database
     const [provisionedPod] = await db
@@ -339,10 +349,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Provision pod
     console.log("🚀 Provisioning lifecycle test pod...");
-    await provisioningService.provisionPod({
-      podId: lifecycleTestId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: lifecycleTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // 3. Verify pod is running
     let [podRecord] = await db
@@ -465,14 +478,20 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Provision both pods
     console.log("🚀 Provisioning test pods...");
-    await provisioningService.provisionPod({
-      podId: listTestId1,
-      serverId: testServerId,
-    });
-    await provisioningService.provisionPod({
-      podId: listTestId2,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: listTestId1,
+        serverId: testServerId,
+      },
+      false,
+    );
+    await provisioningService.provisionPod(
+      {
+        podId: listTestId2,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // 3. Verify pods in database
     const dbPods = await db
@@ -545,10 +564,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Provision pod using the service
     console.log("🚀 Provisioning template-based pod...");
-    await provisioningService.provisionPod({
-      podId: templateTestId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: templateTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // 3. Verify pod in database
     const [provisionedPod] = await db
@@ -626,10 +648,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Provision pod
     console.log("🚀 Provisioning pod with Nginx proxy...");
-    await provisioningService.provisionPod({
-      podId: proxyTestId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: proxyTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // 3. Verify pod and get port information
     const [provisionedPod] = await db
@@ -791,15 +816,18 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 3. Provision pod with GitHub repo setup
     console.log(`🚀 Provisioning pod with repository: ${testRepo}`);
-    await provisioningService.provisionPod({
-      podId: githubTestId,
-      serverId: testServerId,
-      githubRepoSetup: {
-        type: "existing",
-        repository: testRepo,
-        sshKeyPair: sshKeyPair,
+    await provisioningService.provisionPod(
+      {
+        podId: githubTestId,
+        serverId: testServerId,
+        githubRepoSetup: {
+          type: "existing",
+          repository: testRepo,
+          sshKeyPair: sshKeyPair,
+        },
       },
-    });
+      false,
+    );
 
     // 4. Verify pod in database
     const [provisionedPod] = await db
@@ -817,11 +845,8 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Verify the repository was cloned correctly
     console.log("🔍 Verifying cloned repository...");
 
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    const containerRuntime = new LimaGVisorRuntime({
-      vmName: "gvisor-alpine",
-      sshPort,
-    });
+    const serverConnection = await getLimaServerConnection();
+    const containerRuntime = new GVisorRuntime(serverConnection);
     const { stdout: repoCheck } = await containerRuntime.execCommand(
       provisionedPod.containerId!,
       ["sh", "-c", "'cd /workspace/Hello-World && git remote -v && ls -la'"],
@@ -900,10 +925,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Provision the pod
     console.log("🚀 Provisioning pod...");
-    await provisioningService.provisionPod({
-      podId: deleteTestId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: deleteTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // Verify it was created
     const [provisionedPod] = await db
@@ -919,9 +947,8 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`✅ Pod provisioned with container: ${containerId}`);
 
     // Verify container exists
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    const limaConfig = { vmName: "gvisor-alpine", sshPort };
-    const runtime = new LimaGVisorRuntime(limaConfig);
+    const serverConnection = await getLimaServerConnection();
+    const runtime = new GVisorRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
     expect(containerBefore).toBeTruthy();
@@ -949,7 +976,8 @@ describe("Pod Orchestration Integration Tests", () => {
       // If we get here, network still exists - fail the test
       throw new Error("Network should have been removed but still exists");
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       // Expect error about network not found
       expect(errorMessage).toContain("No such network");
       console.log("✅ Network successfully removed");
@@ -993,10 +1021,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Provision the pod
     console.log("🚀 Provisioning pod...");
-    await provisioningService.provisionPod({
-      podId: deprovisionTestId,
-      serverId: testServerId,
-    });
+    await provisioningService.provisionPod(
+      {
+        podId: deprovisionTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
 
     // Verify it was created
     const [provisionedPod] = await db
@@ -1012,9 +1043,8 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`✅ Pod provisioned with container: ${containerId}`);
 
     // Verify container exists (directly check Docker)
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    const limaConfig = { vmName: "gvisor-alpine", sshPort };
-    const runtime = new LimaGVisorRuntime(limaConfig);
+    const serverConnection = await getLimaServerConnection();
+    const runtime = new GVisorRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
     expect(containerBefore).toBeTruthy();
@@ -1040,7 +1070,8 @@ describe("Pod Orchestration Integration Tests", () => {
       );
       throw new Error("Network should have been removed but still exists");
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       expect(errorMessage).toContain("No such network");
       console.log("✅ Network successfully removed");
     }
@@ -1048,8 +1079,6 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Clean up database record
     await db.delete(pods).where(eq(pods.id, deprovisionTestId));
 
-    console.log(
-      "✅ Pod deprovisioning service test completed successfully!",
-    );
+    console.log("✅ Pod deprovisioning service test completed successfully!");
   }, 120000); // 2 minute timeout
 });

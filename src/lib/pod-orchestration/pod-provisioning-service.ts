@@ -10,7 +10,7 @@ import { db } from "../db";
 import { envSets, podLogs, pods, servers } from "../db/schema";
 import type { GitHubRepoSetup } from "./github-integration";
 import { podRecordToPinacleConfig } from "./pinacle-config";
-import { DefaultPodManager } from "./pod-manager";
+import { PodManager } from "./pod-manager";
 import { SSHServerConnection } from "./server-connection";
 import type { ServerConnection } from "./types";
 
@@ -24,26 +24,14 @@ export type DeprovisionPodInput = {
   podId: string;
 };
 
-type ServerConnectionDetails = {
-  server: typeof servers.$inferSelect;
-  limaConfig: {
-    vmName: string;
-    sshPort: number;
-  };
-};
-
 export class PodProvisioningService {
-  constructor() {
-    // No longer need ConfigResolver - we use expandPinacleConfigToSpec directly
-  }
-
   /**
    * Helper method to get server connection details
    * Abstracts away Lima VM detection and SSH port retrieval
    */
   private async getServerConnectionDetails(
     serverId: string,
-  ): Promise<ServerConnectionDetails> {
+  ): Promise<ServerConnection> {
     const [server] = await db
       .select()
       .from(servers)
@@ -52,6 +40,10 @@ export class PodProvisioningService {
 
     if (!server) {
       throw new Error(`Server ${serverId} not found`);
+    }
+
+    if (!process.env.SSH_PRIVATE_KEY) {
+      throw new Error("SSH_PRIVATE_KEY not found in environment");
     }
 
     // Get SSH port (dynamic for Lima VMs)
@@ -64,19 +56,21 @@ export class PodProvisioningService {
       );
     }
 
-    return {
-      server,
-      limaConfig: {
-        vmName: server.limaVmName || server.hostname,
-        sshPort,
-      },
-    };
+    return new SSHServerConnection({
+      host: server.sshHost,
+      port: sshPort,
+      user: server.sshUser,
+      privateKey: process.env.SSH_PRIVATE_KEY,
+    });
   }
 
   /**
    * Provisions a pod from the database onto a server
    */
-  async provisionPod(input: ProvisionPodInput): Promise<void> {
+  async provisionPod(
+    input: ProvisionPodInput,
+    cleanupOnError: boolean = true,
+  ): Promise<void> {
     const { podId, githubRepoSetup } = input;
 
     // 1. Get pod from database
@@ -108,38 +102,29 @@ export class PodProvisioningService {
     }
 
     // Get server connection details
-    const { server, limaConfig } = await this.getServerConnectionDetails(
-      serverId,
-    );
+    const serverConnection = await this.getServerConnectionDetails(serverId);
 
     console.log(
-      `[PodProvisioningService] Provisioning pod ${podId} on server ${server.hostname}`,
+      `[PodProvisioningService] Provisioning pod ${podId} on server ${serverId}`,
     );
 
+    let podManager: PodManager | null = null;
     try {
       // 3. Update pod status to "provisioning"
       await db
         .update(pods)
         .set({
           status: "provisioning",
-          serverId: server.id,
+          serverId: serverId,
           updatedAt: new Date(),
         })
         .where(eq(pods.id, podId));
 
-      // 4. Create SSH connection to server
-      const serverConnection: ServerConnection = new SSHServerConnection({
-        host: server.sshHost,
-        port: limaConfig.sshPort,
-        user: server.sshUser,
-        privateKey: process.env.SSH_PRIVATE_KEY!,
-      });
-
       // Set podId for logging
       serverConnection.setPodId(podId);
 
-      // 5. Create PodManager with Lima config
-      const podManager = new DefaultPodManager(limaConfig);
+      // 5. Create PodManager with server connection
+      podManager = new PodManager(serverConnection);
 
       // 6. Parse PinacleConfig from database and expand to PodSpec
       console.log(
@@ -218,6 +203,11 @@ export class PodProvisioningService {
         errorMessage,
       );
 
+      // Clean up container if it exists
+      if (cleanupOnError) {
+        await podManager?.cleanupPod(podId);
+      }
+
       // Update pod status to error
       await db
         .update(pods)
@@ -267,12 +257,12 @@ export class PodProvisioningService {
 
     try {
       // 2. Get server connection details
-      const { limaConfig } = await this.getServerConnectionDetails(
+      const serverConnection = await this.getServerConnectionDetails(
         podRecord.serverId,
       );
 
       // 3. Create PodManager and clean up container
-      const podManager = new DefaultPodManager(limaConfig);
+      const podManager = new PodManager(serverConnection);
 
       console.log(
         `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId}`,
@@ -292,6 +282,15 @@ export class PodProvisioningService {
       );
       throw error;
     }
+  }
+
+  async cleanupPod(input: { podId: string; serverId: string }): Promise<void> {
+    const { podId, serverId } = input;
+
+    const serverConnection = await this.getServerConnectionDetails(serverId);
+    const podManager = new PodManager(serverConnection);
+
+    await podManager.cleanupPod(podId);
   }
 
   /**

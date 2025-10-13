@@ -86,17 +86,19 @@ export default function PodProvisioningPage() {
       containerCommand: string | null;
     }>
   >([]);
+  const [shouldRefetchLogs, setShouldRefetchLogs] = useState(true);
 
   // Poll status and logs every 500ms for faster updates
-  const { data, isLoading, error } = api.pods.getStatusWithLogs.useQuery(
-    { podId, lastLogId },
-    {
-      refetchInterval: 500,
-      enabled: !!podId,
-      // Keep previous data while refetching to prevent flashing/undefined
-      placeholderData: (previousData) => previousData,
-    },
-  );
+  const { data, isLoading, error, refetch } =
+    api.pods.getStatusWithLogs.useQuery(
+      { podId, lastLogId },
+      {
+        refetchInterval: shouldRefetchLogs ? 500 : false,
+        enabled: !!podId,
+        // Keep previous data while refetching to prevent flashing/undefined
+        placeholderData: (previousData) => previousData,
+      },
+    );
 
   const retryProvisioningMutation = api.pods.retryProvisioning.useMutation();
 
@@ -150,7 +152,7 @@ export default function PodProvisioningPage() {
     }
   }, [data?.pod.status, router, podId, utils.pods.getUserPods]);
 
-  // Detect stale provisioning (last log >10 min old)
+  // Detect stale provisioning (last log >10 min old and updatedAt is more than 10 min old)
   const isStaleProvisioning = (): boolean => {
     if (!data?.pod || data.pod.status !== "creating") return false;
     if (allLogs.length === 0) return false;
@@ -160,7 +162,9 @@ export default function PodProvisioningPage() {
     const now = Date.now();
     const tenMinutes = 10 * 60 * 1000;
 
-    return now - lastLogTime > tenMinutes;
+    const updatedAt = new Date(data.pod.updatedAt).getTime();
+
+    return now - lastLogTime > tenMinutes || now - updatedAt > tenMinutes;
   };
 
   const handleRetry = async () => {
@@ -169,10 +173,33 @@ export default function PodProvisioningPage() {
       // Reset logs and lastLogId to start fresh
       setAllLogs([]);
       setLastLogId(undefined);
+      setShouldRefetchLogs(true);
+      refetch();
     } catch (error) {
       console.error("Failed to retry provisioning:", error);
     }
   };
+
+  const { pod } = data || {};
+  const showRetryButton = pod?.status === "error" || isStaleProvisioning();
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: force listen to shouldRefetchLogs
+  useEffect(() => {
+    let timeout: NodeJS.Timeout | undefined;
+    if (pod?.status === "running" || showRetryButton) {
+      timeout = setTimeout(() => {
+        setShouldRefetchLogs(false);
+      }, 1000);
+    } else {
+      setShouldRefetchLogs(true);
+    }
+
+    return () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [showRetryButton, pod?.status, shouldRefetchLogs]);
 
   // Loading state
   if (isLoading) {
@@ -189,7 +216,7 @@ export default function PodProvisioningPage() {
   }
 
   // Error state
-  if (error || !data) {
+  if (error || !data || !pod) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="text-center max-w-md">
@@ -213,9 +240,6 @@ export default function PodProvisioningPage() {
       </div>
     );
   }
-
-  const { pod } = data;
-  const showRetryButton = pod.status === "error" || isStaleProvisioning();
 
   return (
     <div className="min-h-screen bg-slate-900 p-4 sm:p-6 lg:p-8">
@@ -297,12 +321,21 @@ export default function PodProvisioningPage() {
           </div>
 
           {allLogs.length === 0 ? (
-            <div className="p-12 text-center">
-              <Loader2 className="w-8 h-8 text-slate-600 animate-spin mx-auto mb-3" />
-              <p className="text-slate-500 font-mono text-sm">
-                Waiting for logs...
-              </p>
-            </div>
+            pod.status === "error" ? (
+              <div className="p-12 text-center">
+                <XCircle className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+                <p className="text-slate-600 font-mono text-sm">
+                  Error provisioning pod, please retry later.
+                </p>
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <Loader2 className="w-8 h-8 text-slate-600 animate-spin mx-auto mb-3" />
+                <p className="text-slate-500 font-mono text-sm">
+                  Waiting for logs...
+                </p>
+              </div>
+            )
           ) : (
             <div className="max-h-[600px] overflow-y-auto bg-slate-900 p-4 font-mono text-xs">
               {allLogs.map((log) => (

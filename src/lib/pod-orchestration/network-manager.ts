@@ -1,40 +1,18 @@
-import { env } from "@/env";
-import { SSHServerConnection } from "./server-connection";
 import type {
-  LimaConfig,
+  INetworkManager,
   NetworkConfig,
-  NetworkManager,
   NetworkPolicy,
   PortMapping,
   ServerConnection,
 } from "./types";
 
-export class LimaNetworkManager implements NetworkManager {
+export class NetworkManager implements INetworkManager {
   private serverConnection: ServerConnection;
   private allocatedPorts: Map<string, Set<number>> = new Map(); // podId -> Set of ports
   private portRange = { min: 30000, max: 40000 };
 
-  constructor(
-    limaConfig: LimaConfig,
-    serverConnection?: ServerConnection,
-    podId?: string,
-  ) {
-    // Use provided connection or create default Lima connection for dev
-    if (serverConnection) {
-      this.serverConnection = serverConnection;
-    } else {
-      // Default: create Lima SSH connection for development
-      if (!env.SSH_PRIVATE_KEY) {
-        throw new Error("SSH_PRIVATE_KEY not found in environment");
-      }
-
-      this.serverConnection = new SSHServerConnection({
-        host: "127.0.0.1",
-        port: limaConfig.sshPort,
-        user: process.env.USER || "root",
-        privateKey: env.SSH_PRIVATE_KEY,
-      });
-    }
+  constructor(serverConnection: ServerConnection, podId?: string) {
+    this.serverConnection = serverConnection;
 
     // Set podId for logging if provided
     if (podId) {
@@ -150,6 +128,15 @@ export class LimaNetworkManager implements NetworkManager {
     const gatewayIp = config.gatewayIp || this.generateGatewayIp(subnet);
 
     try {
+      // Check if network already exists
+      const network = await this.getNetworkInfo(podId);
+      if (network) {
+        console.log(
+          `[NetworkManager] Network ${networkName} already exists, deleting it`,
+        );
+        await this.destroyPodNetwork(podId);
+      }
+
       // Create custom Docker network
       const createNetworkCommand = [
         "docker network create",
@@ -212,7 +199,10 @@ export class LimaNetworkManager implements NetworkManager {
       console.log(`[NetworkManager] Destroyed network ${networkName}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("No such network")) {
+      if (
+        !message.includes("No such network") &&
+        !message.includes("not found")
+      ) {
         console.error(
           `[NetworkManager] Failed to destroy pod network: ${message}`,
         );
@@ -410,7 +400,7 @@ export class LimaNetworkManager implements NetworkManager {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("No such network")) {
+      if (message.includes("No such network") || message.includes("not found")) {
         return null;
       }
       throw error;

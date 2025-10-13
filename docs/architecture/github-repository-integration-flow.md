@@ -160,7 +160,7 @@ const [pod] = await db.pods.insert({
 #### Step 2e: Call PodManager
 
 ```typescript
-const podManager = new DefaultPodManager();
+const podManager = new PodManager();
 
 await podManager.createPod({
   id: pod.id,
@@ -405,7 +405,7 @@ describe("GitHubIntegration", () => {
 ```typescript
 describe("Pod with GitHub Repository", () => {
   it("should create pod and clone repository", async () => {
-    const podManager = new DefaultPodManager();
+    const podManager = new PodManager();
 
     const pod = await podManager.createPod({
       name: "test-pod",

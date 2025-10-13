@@ -228,7 +228,7 @@ export interface ContainerRuntime {
   ): Promise<string>;
 }
 
-export interface NetworkManager {
+export interface INetworkManager {
   // Network setup
   createPodNetwork(podId: string, config: NetworkConfig): Promise<string>; // Returns pod IP
   destroyPodNetwork(podId: string): Promise<void>;
@@ -245,7 +245,7 @@ export interface NetworkManager {
   applyNetworkPolicies(podId: string, policies: NetworkPolicy[]): Promise<void>;
 }
 
-export interface ServiceProvisioner {
+export interface IServiceProvisioner {
   // Service lifecycle
   provisionService(
     podId: string,
@@ -295,7 +295,7 @@ export interface ConfigResolver {
   >;
 }
 
-export interface PodManager {
+export interface IPodManager {
   // Pod lifecycle
   createPod(spec: PodSpec): Promise<PodInstance>;
   startPod(podId: string): Promise<void>;

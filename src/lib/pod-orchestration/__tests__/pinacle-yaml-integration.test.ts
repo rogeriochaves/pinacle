@@ -1,15 +1,15 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
-import { LimaGVisorRuntime } from "../container-runtime";
+import { GVisorRuntime } from "../container-runtime";
 import { GitHubIntegration } from "../github-integration";
-import { getLimaSshPort } from "../lima-utils";
-import { LimaNetworkManager } from "../network-manager";
+import { getLimaServerConnection } from "../lima-utils";
+import { NetworkManager } from "../network-manager";
 import {
   generatePinacleConfigFromForm,
   parsePinacleConfig,
 } from "../pinacle-config";
-import { DefaultPodManager } from "../pod-manager";
+import { PodManager } from "../pod-manager";
 import type { PodSpec } from "../types";
 
 const execAsync = promisify(exec);
@@ -19,10 +19,10 @@ const execAsync = promisify(exec);
  * Tests the full flow: form submission -> config generation -> pod creation -> file injection
  */
 describe("Pinacle YAML Integration Tests", () => {
-  let podManager: DefaultPodManager;
+  let podManager: PodManager;
   let githubIntegration: GitHubIntegration;
-  let containerRuntime: LimaGVisorRuntime;
-  let networkManager: LimaNetworkManager;
+  let containerRuntime: GVisorRuntime;
+  let networkManager: NetworkManager;
   const testPodId = `pinacle-yaml-test-${Date.now()}`;
 
   beforeAll(async () => {
@@ -50,11 +50,10 @@ describe("Pinacle YAML Integration Tests", () => {
     }
 
     // Clean up any existing test containers
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    const limaConfig = { vmName: "gvisor-alpine", sshPort };
-    containerRuntime = new LimaGVisorRuntime(limaConfig);
-    networkManager = new LimaNetworkManager(limaConfig);
-    podManager = new DefaultPodManager(limaConfig);
+    const serverConnection = await getLimaServerConnection();
+    containerRuntime = new GVisorRuntime(serverConnection);
+    networkManager = new NetworkManager(serverConnection);
+    podManager = new PodManager(serverConnection);
     githubIntegration = new GitHubIntegration(podManager);
 
     const containers = await containerRuntime.listContainers();

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import type { PinacleConfig } from "./pinacle-config";
 import { serializePinacleConfig } from "./pinacle-config";
 import type { PodTemplate } from "./template-registry";
-import type { PodManager } from "./types";
+import type { IPodManager } from "./types";
 
 const execAsync = promisify(exec);
 
@@ -33,9 +33,9 @@ export type GitHubRepoSetup = {
  * Handles SSH key generation, repository cloning, and template initialization
  */
 export class GitHubIntegration {
-  private podManager: PodManager;
+  private podManager: IPodManager;
 
-  constructor(podManager: PodManager) {
+  constructor(podManager: IPodManager) {
     this.podManager = podManager;
   }
 

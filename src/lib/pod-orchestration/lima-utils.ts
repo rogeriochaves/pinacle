@@ -1,7 +1,26 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { env } from "../../env";
+import { SSHServerConnection } from "./server-connection";
+import type { ServerConnection } from "./types";
 
 const execAsync = promisify(exec);
+
+export const getLimaServerConnection = async (
+  vmName: string = "gvisor-alpine",
+): Promise<ServerConnection> => {
+  if (!env.SSH_PRIVATE_KEY) {
+    throw new Error("SSH_PRIVATE_KEY not found in environment");
+  }
+
+  const sshPort = await getLimaSshPort(vmName);
+  return new SSHServerConnection({
+    host: "127.0.0.1",
+    port: sshPort,
+    user: process.env.USER || "root",
+    privateKey: env.SSH_PRIVATE_KEY,
+  });
+};
 
 /**
  * Get the current SSH port for a Lima VM.
@@ -36,9 +55,7 @@ export const getLimaSshPort = async (vmName: string): Promise<number> => {
     return port;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `Failed to get Lima SSH port for VM ${vmName}: ${message}`,
-    );
+    throw new Error(`Failed to get Lima SSH port for VM ${vmName}: ${message}`);
   }
 };
 
@@ -63,4 +80,3 @@ export const isLimaVmRunning = async (vmName: string): Promise<boolean> => {
     return false;
   }
 };
-

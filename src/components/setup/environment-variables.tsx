@@ -53,10 +53,12 @@ export const EnvironmentVariables = ({
 
       <div className="space-y-2">
         {envVars.map((envVar, index) => {
-          const isRequiredAndEmpty = isRequired(envVar.key) && isEmpty(envVar.value);
+          const isRequiredAndEmpty =
+            isRequired(envVar.key) && isEmpty(envVar.value);
           return (
             <div
-              key={`env-${index}-${envVar.key}`}
+              // biome-ignore lint/suspicious/noArrayIndexKey: nah
+              key={`env-${index}`}
               className="flex items-start gap-2 p-3 bg-white rounded-lg border border-gray-200"
             >
               <div className="flex-1 space-y-2">
@@ -69,7 +71,9 @@ export const EnvironmentVariables = ({
                     disabled={isRequired(envVar.key)}
                   />
                   {isRequired(envVar.key) && (
-                    <span className="text-red-500 text-xs font-mono shrink-0">*</span>
+                    <span className="text-red-500 text-xs font-mono shrink-0">
+                      *
+                    </span>
                   )}
                 </div>
                 <div className="space-y-1">
@@ -77,7 +81,9 @@ export const EnvironmentVariables = ({
                     <Input
                       id={`env-var-${envVar.key}`}
                       type={
-                        envVar.isSecret && !showSecrets[index] ? "password" : "text"
+                        envVar.isSecret && !showSecrets[index]
+                          ? "password"
+                          : "text"
                       }
                       placeholder="value"
                       value={envVar.value}

@@ -419,7 +419,7 @@ export default function PodDetailPage() {
                   )}
                   <span>Exit: {log.exitCode}</span>
                   <span>•</span>
-                  <span>{formatDuration(log.duration)}</span>
+                  <span>{log.duration ? formatDuration(log.duration) : "-"}</span>
                 </div>
 
                 {/* Label if present */}

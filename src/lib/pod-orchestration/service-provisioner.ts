@@ -1,5 +1,3 @@
-import { env } from "@/env";
-import { SSHServerConnection } from "./server-connection";
 import {
   getAllServiceTemplates,
   getServiceTemplateUnsafe,
@@ -7,43 +5,21 @@ import {
   type ServiceTemplate,
 } from "./service-registry";
 import type {
-  LimaConfig,
+  IServiceProvisioner,
   ServerConnection,
   ServiceConfig,
-  ServiceProvisioner,
 } from "./types";
 
-export class LimaServiceProvisioner implements ServiceProvisioner {
+export class ServiceProvisioner implements IServiceProvisioner {
   private serverConnection: ServerConnection;
 
-  constructor(
-    limaConfig: LimaConfig,
-    serverConnection?: ServerConnection,
-    podId?: string,
-  ) {
-    // Use provided connection or create default Lima connection for dev
-    if (serverConnection) {
-      this.serverConnection = serverConnection;
-    } else {
-      // Default: create Lima SSH connection for development
-      if (!env.SSH_PRIVATE_KEY) {
-        throw new Error("SSH_PRIVATE_KEY not found in environment");
-      }
-
-      this.serverConnection = new SSHServerConnection({
-        host: "127.0.0.1",
-        port: limaConfig.sshPort,
-        user: process.env.USER || "root",
-        privateKey: env.SSH_PRIVATE_KEY,
-      });
-    }
+  constructor(serverConnection: ServerConnection, podId?: string) {
+    this.serverConnection = serverConnection;
 
     // Set podId for logging if provided
     if (podId) {
       this.serverConnection.setPodId(podId);
     }
-
-    // Service templates are now loaded from service-registry.ts
   }
 
   private async exec(

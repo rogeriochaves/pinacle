@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Book, Check, ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { cn } from "../../lib/utils";
@@ -198,7 +198,8 @@ export const RepositorySelector = ({
                       variant="ghost"
                       role="combobox"
                       aria-expanded={open}
-                      className="w-full justify-between font-mono border-slate-300 bg-white"
+                      className="justify-between font-mono border-input bg-white hover:bg-white active:bg-white cursor-default"
+                      disabled={isLoadingRepositories}
                     >
                       {selectedRepoData ? (
                         <div className="flex items-center gap-2 min-w-0">
@@ -212,10 +213,18 @@ export const RepositorySelector = ({
                             {selectedRepoData.full_name}
                           </span>
                         </div>
+                      ) : isLoadingRepositories ? (
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading repositories...
+                        </div>
                       ) : (
-                        "Search for a repository..."
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Book className="h-4 w-4" />
+                          Select repository
+                        </div>
                       )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-muted-foreground" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[600px] p-0" align="start">
@@ -229,61 +238,55 @@ export const RepositorySelector = ({
                       <CommandList ref={listRef}>
                         <CommandEmpty>No repository found.</CommandEmpty>
                         <CommandGroup>
-                          {isLoadingRepositories ? (
-                            <CommandItem value="Loading..." disabled>
-                              Loading repositories...
-                            </CommandItem>
-                          ) : (
-                            repositories.map((repo) => (
-                              <CommandItem
-                                key={repo.id}
-                                value={repo.full_name}
-                                keywords={[repo.full_name]}
-                                onSelect={() => {
-                                  form.setValue("selectedRepo", repo.full_name);
-                                  form.clearErrors("selectedRepo");
-                                  setOpen(false);
-                                }}
-                              >
-                                <div className="flex items-center gap-3 w-full">
-                                  {/** biome-ignore lint/performance/noImgElement: nah */}
-                                  <img
-                                    src={repo.owner.avatar_url}
-                                    alt={repo.owner.login}
-                                    className="w-6 h-6 rounded-full shrink-0"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono font-medium text-sm">
-                                        {repo.full_name}
-                                      </span>
-                                      {repo.private && (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-[10px] px-1.5 py-0"
-                                        >
-                                          Private
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    {repo.description && (
-                                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                                        {repo.description}
-                                      </p>
+                          {repositories.map((repo) => (
+                            <CommandItem
+                              key={repo.id}
+                              value={repo.full_name}
+                              keywords={[repo.full_name]}
+                              onSelect={() => {
+                                form.setValue("selectedRepo", repo.full_name);
+                                form.clearErrors("selectedRepo");
+                                setOpen(false);
+                              }}
+                            >
+                              <div className="flex items-center gap-3 w-full">
+                                {/** biome-ignore lint/performance/noImgElement: nah */}
+                                <img
+                                  src={repo.owner.avatar_url}
+                                  alt={repo.owner.login}
+                                  className="w-6 h-6 rounded-full shrink-0"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-medium text-sm">
+                                      {repo.full_name}
+                                    </span>
+                                    {repo.private && (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] px-1.5 py-0"
+                                      >
+                                        Private
+                                      </Badge>
                                     )}
                                   </div>
-                                  <Check
-                                    className={cn(
-                                      "ml-auto h-4 w-4 shrink-0",
-                                      selectedRepo === repo.full_name
-                                        ? "opacity-100"
-                                        : "opacity-0",
-                                    )}
-                                  />
+                                  {repo.description && (
+                                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                      {repo.description}
+                                    </p>
+                                  )}
                                 </div>
-                              </CommandItem>
-                            ))
-                          )}
+                                <Check
+                                  className={cn(
+                                    "ml-auto h-4 w-4 shrink-0",
+                                    selectedRepo === repo.full_name
+                                      ? "opacity-100"
+                                      : "opacity-0",
+                                  )}
+                                />
+                              </div>
+                            </CommandItem>
+                          ))}
                           <CommandItem
                             value="__connect__"
                             onSelect={() => {

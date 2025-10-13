@@ -6,18 +6,14 @@
  */
 
 import { DefaultConfigResolver } from "../src/lib/pod-orchestration/config-resolver";
-import { getLimaSshPort } from "../src/lib/pod-orchestration/lima-utils";
-import { DefaultPodManager } from "../src/lib/pod-orchestration/pod-manager";
-import type {
-  PodSpec,
-  ResourceTier,
-} from "../src/lib/pod-orchestration/types";
+import { getLimaServerConnection } from "../src/lib/pod-orchestration/lima-utils";
+import { PodManager } from "../src/lib/pod-orchestration/pod-manager";
+import type { PodSpec, ResourceTier } from "../src/lib/pod-orchestration/types";
 
 async function main() {
   console.log("🚀 Starting Pinacle Pod System Test...\n");
 
-  const sshPort = await getLimaSshPort("gvisor-alpine");
-  const podManager = new DefaultPodManager({ vmName: "gvisor-alpine", sshPort });
+  const podManager = new PodManager(await getLimaServerConnection());
   const configResolver = new DefaultConfigResolver();
 
   try {

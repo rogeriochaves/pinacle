@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { LimaGVisorRuntime } from "../container-runtime";
-import { getLimaSshPort } from "../lima-utils";
+import { GVisorRuntime } from "../container-runtime";
+import { getLimaServerConnection } from "../lima-utils";
 import type { PodSpec, ResourceTier } from "../types";
 
 // Mock exec function
@@ -15,12 +15,11 @@ vi.mock("util", () => ({
 }));
 
 describe("LimaGVisorRuntime", () => {
-  let runtime: LimaGVisorRuntime;
+  let runtime: GVisorRuntime;
   let testConfig: PodSpec;
 
   beforeAll(async () => {
-    const sshPort = await getLimaSshPort("gvisor-alpine");
-    runtime = new LimaGVisorRuntime({ vmName: "test-vm", sshPort });
+    runtime = new GVisorRuntime(await getLimaServerConnection());
 
     testConfig = {
       id: "test-pod-123",

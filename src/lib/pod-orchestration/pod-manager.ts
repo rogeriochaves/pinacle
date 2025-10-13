@@ -1,46 +1,46 @@
 import { EventEmitter } from "node:events";
 import { DefaultConfigResolver } from "./config-resolver";
 
-import { LimaGVisorRuntime } from "./container-runtime";
+import { GVisorRuntime } from "./container-runtime";
 import { GitHubIntegration, type GitHubRepoSetup } from "./github-integration";
-import { LimaNetworkManager } from "./network-manager";
+import { NetworkManager } from "./network-manager";
 import { type PinacleConfig, podConfigToPinacleConfig } from "./pinacle-config";
-import { LimaServiceProvisioner } from "./service-provisioner";
+import { ServiceProvisioner } from "./service-provisioner";
 import { getTemplateUnsafe } from "./template-registry";
 import type {
   ConfigResolver,
   ContainerRuntime,
-  LimaConfig,
-  NetworkManager,
+  INetworkManager,
+  IPodManager,
+  IServiceProvisioner,
   PodEvent,
   PodEventHandler,
   PodInstance,
-  PodManager,
   PodSpec,
   PodStatus,
+  ServerConnection,
   ServiceConfig,
-  ServiceProvisioner,
 } from "./types";
 
-export class DefaultPodManager extends EventEmitter implements PodManager {
+export class PodManager extends EventEmitter implements IPodManager {
   private pods: Map<string, PodInstance> = new Map();
   // Store per-pod components for operations after creation
   private podComponents: Map<
     string,
     {
       containerRuntime: ContainerRuntime;
-      networkManager: NetworkManager;
-      serviceProvisioner: ServiceProvisioner;
+      networkManager: INetworkManager;
+      serviceProvisioner: IServiceProvisioner;
     }
   > = new Map();
-  private limaConfig: LimaConfig;
   private configResolver: ConfigResolver;
   private githubIntegration: GitHubIntegration;
+  private serverConnection: ServerConnection;
 
-  constructor(limaConfig: LimaConfig) {
+  constructor(serverConnection: ServerConnection) {
     super();
 
-    this.limaConfig = limaConfig;
+    this.serverConnection = serverConnection;
     this.configResolver = new DefaultConfigResolver();
     this.githubIntegration = new GitHubIntegration(this);
   }
@@ -48,17 +48,9 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
   // Helper method to create pod-specific orchestration components
   private createPodComponents(podId: string) {
     const components = {
-      containerRuntime: new LimaGVisorRuntime(
-        this.limaConfig,
-        undefined,
-        podId,
-      ),
-      networkManager: new LimaNetworkManager(this.limaConfig, undefined, podId),
-      serviceProvisioner: new LimaServiceProvisioner(
-        this.limaConfig,
-        undefined,
-        podId,
-      ),
+      containerRuntime: new GVisorRuntime(this.serverConnection, podId),
+      networkManager: new NetworkManager(this.serverConnection, podId),
+      serviceProvisioner: new ServiceProvisioner(this.serverConnection, podId),
     };
     this.podComponents.set(podId, components);
     return components;
@@ -71,9 +63,9 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     }
     // For utility methods without a pod context, create generic components
     return {
-      containerRuntime: new LimaGVisorRuntime(this.limaConfig),
-      networkManager: new LimaNetworkManager(this.limaConfig),
-      serviceProvisioner: new LimaServiceProvisioner(this.limaConfig),
+      containerRuntime: new GVisorRuntime(this.serverConnection),
+      networkManager: new NetworkManager(this.serverConnection),
+      serviceProvisioner: new ServiceProvisioner(this.serverConnection),
     };
   }
 
@@ -275,6 +267,27 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
   }
 
   /**
+   * Clean up pod without a container ID, try to find it on the machine
+   */
+  async cleanupPod(podId: string): Promise<void> {
+    const containerRuntime = new GVisorRuntime(this.serverConnection);
+    const networkManager = new NetworkManager(this.serverConnection);
+    const container = await containerRuntime.getContainerForPod(podId);
+
+    if (!container) {
+      console.log(
+        `[PodManager] Container not found: ${podId}, nothing to cleanup`,
+      );
+
+      await networkManager.destroyPodNetwork(podId);
+
+      return;
+    }
+
+    await this.cleanupPodByContainerId(podId, container.id);
+  }
+
+  /**
    * Clean up pod resources using container ID from database
    * This doesn't require the pod to be loaded in memory - works with just the container ID
    */
@@ -287,8 +300,8 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
     );
 
     // Create temporary components for cleanup (no in-memory state needed)
-    const containerRuntime = new LimaGVisorRuntime(this.limaConfig);
-    const networkManager = new LimaNetworkManager(this.limaConfig);
+    const containerRuntime = new GVisorRuntime(this.serverConnection);
+    const networkManager = new NetworkManager(this.serverConnection);
 
     try {
       // Stop the container if it's running
@@ -299,9 +312,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
           await containerRuntime.stopContainer(containerId);
         }
       } catch (error) {
-        console.log(
-          `[PodManager] Container may already be stopped: ${error}`,
-        );
+        console.log(`[PodManager] Container may already be stopped: ${error}`);
         // Continue - container might already be stopped
       }
 
@@ -573,7 +584,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async allocateExternalPorts(
     spec: PodSpec,
-    networkManager: NetworkManager,
+    networkManager: INetworkManager,
   ): Promise<void> {
     // With the Nginx proxy approach, we only need to expose ONE port (80)
     // All internal services are accessed via hostname-based routing
@@ -631,7 +642,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async provisionServices(
     spec: PodSpec,
-    serviceProvisioner: ServiceProvisioner,
+    serviceProvisioner: IServiceProvisioner,
   ): Promise<void> {
     const projectFolder = this.githubIntegration.getProjectFolder(
       spec.githubRepo,
@@ -650,7 +661,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async startServices(
     spec: PodSpec,
-    serviceProvisioner: ServiceProvisioner,
+    serviceProvisioner: IServiceProvisioner,
   ): Promise<void> {
     // Start services in dependency order
     const startedServices = new Set<string>();
@@ -678,7 +689,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async stopServices(
     spec: PodSpec,
-    serviceProvisioner: ServiceProvisioner,
+    serviceProvisioner: IServiceProvisioner,
   ): Promise<void> {
     // Stop services in reverse dependency order
     const servicesToStop = spec.services.filter((s) => s.enabled).reverse();
@@ -697,7 +708,7 @@ export class DefaultPodManager extends EventEmitter implements PodManager {
 
   private async removeServices(
     spec: PodSpec,
-    serviceProvisioner: ServiceProvisioner,
+    serviceProvisioner: IServiceProvisioner,
   ): Promise<void> {
     for (const service of spec.services) {
       try {
