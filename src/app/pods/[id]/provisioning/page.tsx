@@ -164,7 +164,7 @@ export default function PodProvisioningPage() {
 
     const updatedAt = new Date(data.pod.updatedAt).getTime();
 
-    return now - lastLogTime > tenMinutes || now - updatedAt > tenMinutes;
+    return now - lastLogTime > tenMinutes;
   };
 
   const handleRetry = async () => {
@@ -254,7 +254,9 @@ export default function PodProvisioningPage() {
               <StatusBadge status={pod.status as PodStatus} />
             </div>
             <p className="text-slate-400 font-mono text-sm">
-              Setting up your development environment...
+              {pod.status === "error"
+                ? pod.lastErrorMessage || "Error Unknown"
+                : "Setting up your development environment..."}
             </p>
           </div>
           <Button
@@ -327,6 +329,11 @@ export default function PodProvisioningPage() {
                 <p className="text-slate-600 font-mono text-sm">
                   Error provisioning pod, please retry later.
                 </p>
+                {pod.lastErrorMessage && (
+                  <p className="text-slate-400 font-mono text-sm mt-4">
+                    Error: {pod.lastErrorMessage}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="p-12 text-center">

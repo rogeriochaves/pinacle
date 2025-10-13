@@ -1,3 +1,5 @@
+export const LAST_HEARTBEAT_THRESHOLD = 1000 * 60;
+
 /**
  * Determines if a server is currently online based on its status and last heartbeat.
  * A server is considered online if:
@@ -11,7 +13,7 @@ export const isServerOnline = (
   return (
     status === "online" &&
     lastHeartbeatAt !== null &&
-    lastHeartbeatAt > new Date(Date.now() - 1000 * 60)
+    lastHeartbeatAt > new Date(Date.now() - LAST_HEARTBEAT_THRESHOLD)
   );
 };
 

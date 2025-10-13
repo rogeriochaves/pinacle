@@ -8,6 +8,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { envSets, podLogs, pods, servers } from "../db/schema";
+import { getNextAvailableServer } from "../servers";
 import type { GitHubRepoSetup } from "./github-integration";
 import { podRecordToPinacleConfig } from "./pinacle-config";
 import { PodManager } from "./pod-manager";
@@ -88,11 +89,7 @@ export class PodProvisioningService {
     let serverId = podRecord.serverId || input.serverId;
     if (!serverId) {
       // Auto-select a server with capacity
-      const [availableServer] = await db
-        .select()
-        .from(servers)
-        .where(eq(servers.status, "online"))
-        .limit(1);
+      const availableServer = await getNextAvailableServer();
 
       if (!availableServer) {
         throw new Error("No available servers found");

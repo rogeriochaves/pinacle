@@ -20,6 +20,7 @@ import {
 import { PodProvisioningService } from "../../pod-orchestration/pod-provisioning-service";
 import { getResourceTierUnsafe } from "../../pod-orchestration/resource-tier-registry";
 import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
+import { getNextAvailableServer } from "../../servers";
 import { generateKSUID } from "../../utils";
 import {
   createTRPCRouter,
@@ -329,11 +330,7 @@ export const podsRouter = createTRPCRouter({
           );
 
           // Auto-select a server for provisioning
-          const [availableServer] = await ctx.db
-            .select()
-            .from(servers)
-            .where(eq(servers.status, "online"))
-            .limit(1);
+          const availableServer = await getNextAvailableServer();
 
           if (!availableServer) {
             throw new Error("No available servers found");
@@ -717,6 +714,7 @@ export const podsRouter = createTRPCRouter({
           createdAt: pods.createdAt,
           updatedAt: pods.updatedAt,
           lastStartedAt: pods.lastStartedAt,
+          lastErrorMessage: pods.lastErrorMessage,
         })
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
@@ -824,11 +822,7 @@ export const podsRouter = createTRPCRouter({
           );
 
           // Auto-select a server for provisioning
-          const [availableServer] = await ctx.db
-            .select()
-            .from(servers)
-            .where(eq(servers.status, "online"))
-            .limit(1);
+          const availableServer = await getNextAvailableServer();
 
           if (!availableServer) {
             throw new Error("No available servers found");
@@ -878,6 +872,7 @@ export const podsRouter = createTRPCRouter({
               .update(pods)
               .set({
                 status: "error",
+                lastErrorMessage: errorMessage?.split(":")?.[0],
                 updatedAt: new Date(),
               })
               .where(eq(pods.id, input.podId));

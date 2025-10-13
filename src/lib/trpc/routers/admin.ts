@@ -13,6 +13,7 @@ import {
   userGithubInstallations,
   users,
 } from "../../db/schema";
+import { getAvailableServersCondition } from "../../servers";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
 // Helper to check if user is admin
@@ -23,9 +24,9 @@ const isAdmin = (userEmail: string): boolean => {
     return false;
   }
 
-  const emailList = adminEmails.split(",").map((email) =>
-    email.trim().toLowerCase(),
-  );
+  const emailList = adminEmails
+    .split(",")
+    .map((email) => email.trim().toLowerCase());
   return emailList.includes(userEmail.toLowerCase());
 };
 
@@ -255,7 +256,10 @@ export const adminRouter = createTRPCRouter({
         })
         .from(users)
         .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
-        .leftJoin(pods, and(eq(users.id, pods.ownerId), isNull(pods.archivedAt))) // Exclude archived pods
+        .leftJoin(
+          pods,
+          and(eq(users.id, pods.ownerId), isNull(pods.archivedAt)),
+        ) // Exclude archived pods
         .groupBy(users.id)
         .$dynamic();
 
@@ -490,7 +494,7 @@ export const adminRouter = createTRPCRouter({
     const [onlineServers] = await ctx.db
       .select({ count: sql<number>`count(*)` })
       .from(servers)
-      .where(eq(servers.status, "online"));
+      .where(getAvailableServersCondition());
 
     return {
       totalUsers: Number(totalUsers?.count ?? 0),
@@ -502,4 +506,3 @@ export const adminRouter = createTRPCRouter({
     };
   }),
 });
-

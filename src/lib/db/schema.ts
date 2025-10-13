@@ -130,7 +130,7 @@ export const servers = pgTable("server", {
   sshHost: varchar("ssh_host", { length: 255 }).notNull().default(""),
   sshPort: integer("ssh_port").notNull().default(22),
   sshUser: varchar("ssh_user", { length: 100 }).notNull().default("root"),
-  limaVmName: varchar("lima_vm_name", { length: 100}), // If this is a Lima VM, store VM name for dynamic port retrieval
+  limaVmName: varchar("lima_vm_name", { length: 100 }), // If this is a Lima VM, store VM name for dynamic port retrieval
 
   // Hardware specs
   cpuCores: real("cpu_cores").notNull(),
@@ -192,6 +192,7 @@ export const pods = pgTable("pod", {
 
   // Status and metadata
   status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, running, stopped, error
+  lastErrorMessage: text("last_error_message"), // Last error message for provisioning
   containerId: varchar("container_id", { length: 255 }),
   internalIp: varchar("internal_ip", { length: 45 }),
   publicUrl: varchar("public_url", { length: 500 }),

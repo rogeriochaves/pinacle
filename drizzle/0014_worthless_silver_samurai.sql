@@ -1,0 +1,1 @@
+ALTER TABLE "pod" ADD COLUMN "last_error_message" text;
