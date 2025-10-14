@@ -12,17 +12,21 @@ This document describes the **implemented** pod orchestration system for Pinacle
 
 ### System Components
 
+The `PodManager` is instantiated per pod and orchestrates all operations for a single pod:
+
 ```
 ┌──────────────┐
-│  PodManager  │  ← Main orchestrator
+│  PodManager  │  ← Per-pod orchestrator (takes podId in constructor)
 └──────┬───────┘
        │
-       ├─────► ContainerRuntime    (Docker/gVisor operations)
+       ├─────► GVisorRuntime       (Docker/gVisor operations)
        ├─────► NetworkManager      (Networking & port allocation)
        ├─────► ServiceProvisioner  (Service lifecycle)
        ├─────► GitHubIntegration   (Repository management)
        └─────► ConfigResolver      (Configuration management)
 ```
+
+Each `PodManager` instance is created with `new PodManager(podId, serverConnection)` and operates on that specific pod. All methods operate on `this.podId` internally, so no `podId` parameters are needed. Pod state is stored in the database, not in memory.
 
 ### File Structure
 
@@ -54,7 +58,9 @@ src/lib/pod-orchestration/
 
 **Solution**: `ServerConnection` interface that abstracts SSH execution.
 
-**Implementation:** `src/lib/pod-orchestration/server-connection.ts`
+**Implementation:**
+- Interface: `src/lib/pod-orchestration/types.ts` (ServerConnection interface)
+- Concrete class: `src/lib/pod-orchestration/server-connection.ts` (SSHServerConnection)
 
 The `SSHServerConnection` class:
 - Executes commands via SSH on Lima VMs or remote servers
@@ -126,20 +132,27 @@ Nginx proxies to localhost:8726 (code-server)
 
 **Implementation:** `src/lib/pod-orchestration/container-runtime.ts`
 
+The `GVisorRuntime` class:
 - Uses `runsc` runtime via Docker
 - Runs in Lima VMs on macOS, native on Linux
 - OpenRC init system inside containers
 - Syscall filtering and namespace isolation
 
-**Lima VM Management:**
-- `LimaGVisorRuntime` class handles Lima-specific operations
-- Dynamic SSH port retrieval via `getLimaSshPort()`
-- Automatic VM health checks via `isLimaVmRunning()`
+**Key methods:**
+- `createContainer(spec: PodSpec)` - Create gVisor container
+- `startContainer(containerId)` - Start container
+- `stopContainer(containerId)` - Stop container
+- `removeContainer(containerId)` - Remove container
+- `getContainer(containerId)` - Get container info
+- `getContainerForPod(podId)` - Find container by pod ID
+- `execInContainer(podId, containerId, command[])` - Execute command
+- `getContainerLogs(containerId, options)` - Get logs
+- `validateGVisorRuntime()` - Check if gVisor is available
 
 **Files:**
-- `container-runtime.ts` - Docker operations with gVisor
-- `lima-utils.ts` - Lima VM utilities
-- `scripts/provision-server.sh` - Lima VM provisioning
+- `container-runtime.ts` - GVisorRuntime class with Docker operations
+- `server-connection.ts` - SSH abstraction used by runtime
+- `scripts/provision-server.sh` - Server provisioning with gVisor
 
 ### 5. Network Architecture
 
@@ -165,27 +178,43 @@ Port allocation:
 ### 6. Service Provisioning
 
 **Implementation:**
-- `src/lib/pod-orchestration/service-provisioner.ts` - Orchestration
-- `src/lib/pod-orchestration/service-registry.ts` - Service definitions
+- `src/lib/pod-orchestration/service-provisioner.ts` - ServiceProvisioner class
+- `src/lib/pod-orchestration/service-registry.ts` - Service template definitions
 
-Service lifecycle:
-1. Read service definition from registry
-2. Install dependencies via `installScript`
-3. Create OpenRC service with `startCommand`
-4. Configure health checks
-5. Start service and verify
+The `ServiceProvisioner` class:
+```typescript
+// Per-pod instance
+const serviceProvisioner = new ServiceProvisioner(podId, serverConnection);
+
+// Service lifecycle methods
+await serviceProvisioner.provisionService(service, projectFolder);
+await serviceProvisioner.startService(podId, serviceName);
+await serviceProvisioner.stopService(podId, serviceName);
+await serviceProvisioner.removeService(podId, serviceName);
+await serviceProvisioner.checkServiceHealth(podId, serviceName);
+```
+
+**Service lifecycle:**
+1. Read service definition from registry via `getServiceTemplateUnsafe(serviceName)`
+2. Install dependencies via `installScript` commands
+3. Create OpenRC service script with `startCommand`
+4. Start service via `rc-service <name> start`
+5. Verify health using `healthCheckCommand`
 
 **Available services:**
-- AI: claude-code, openai-codex, cursor-cli, gemini-cli
+See `src/lib/pod-orchestration/service-registry.ts` for all service templates:
+- AI: claude-code, cursor-cli, openai-codex, gemini-cli
 - Tools: code-server, vibe-kanban, web-terminal
 - Databases: postgres, redis
 - Other: jupyter
 
-Each service defines:
-- Display name, icon, port
-- Installation script
-- Start command (OpenRC service)
-- Health check (HTTP/TCP/process)
+Each service template defines:
+- Display name, icon, default port
+- Installation script (array of shell commands)
+- Start command function (returns command array based on context)
+- Health check command
+- Cleanup command
+- Environment variables
 
 ### 7. GitHub Integration
 
@@ -288,23 +317,36 @@ All SSH commands logged to `pod_logs` table:
 
 **Implementation:** `src/lib/pod-orchestration/pod-manager.ts`
 
-Lifecycle operations:
-- **Create**: Provision container, network, services, GitHub repo
-- **Start**: Start container and services
-- **Stop**: Stop container gracefully
-- **Destroy**: Remove container, network, clean up
-- **Status**: Get current pod state
-- **Logs**: Stream pod logs
+**Usage:**
+```typescript
+const podManager = new PodManager(podId, serverConnection);
 
-**Pod states:**
-- `creating` - Provisioning in progress
-- `running` - Container running
-- `stopped` - Container stopped
-- `error` - Provisioning or runtime error
+// Methods operate on the specific pod instance
+await podManager.createPod(spec);
+await podManager.startPod();
+await podManager.stopPod();
+await podManager.deletePod();
+```
+
+**Methods:**
+- `createPod(spec: PodSpec)` - Create and provision a new pod
+- `startPod()` - Start the pod's container
+- `stopPod()` - Stop the pod's container
+- `deletePod()` - Remove pod and clean up resources
+- `cleanupPod()` - Clean up pod resources (finds container by podId)
+- `cleanupPodByContainerId(containerId)` - Clean up using container ID from database
+- `getPodContainer()` - Get container info for the pod
+- `execInPod(command[])` - Execute command in pod
+- `getPodLogs(options)` - Get pod logs
+- `checkPodHealth()` - Check if pod is healthy
+- `hibernatePod()` - Hibernate pod (TODO)
+- `wakePod()` - Wake hibernated pod (TODO)
+
+The `PodManager` emits events via EventEmitter: `created`, `started`, `stopped`, `failed`, `deleted`, `health_check`. Dependencies like `GVisorRuntime`, `NetworkManager`, and `ServiceProvisioner` are instantiated in the constructor.
 
 **Files:**
-- `pod-manager.ts` - Main orchestrator
-- `pod-provisioning-service.ts` - Provisioning job
+- `pod-manager.ts` - Main per-pod orchestrator class
+- `pod-provisioning-service.ts` - Provisioning service (creates PodManager instances)
 - `src/lib/trpc/routers/pods.ts` - API endpoints
 
 ## Testing

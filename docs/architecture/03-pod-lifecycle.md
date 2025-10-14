@@ -138,11 +138,17 @@ For each service:
 
 **Implementation:** `src/lib/pod-orchestration/pod-manager.ts`
 
-Operations:
-- **Status check**: Query Docker container state
-- **Logs**: Stream container logs via `docker logs -f`
-- **Execute command**: Run command in container via `docker exec`
-- **Restart service**: Restart individual service via OpenRC
+The `PodManager` is instantiated per pod and operates on a single pod:
+
+```typescript
+const podManager = new PodManager(podId, serverConnection);
+
+// Operations on the pod
+const container = await podManager.getPodContainer();
+const logs = await podManager.getPodLogs({ tail: 100 });
+const result = await podManager.execInPod(['ls', '-la']);
+const isHealthy = await podManager.checkPodHealth();
+```
 
 ### Health Monitoring
 
@@ -171,11 +177,17 @@ Future: Health checks, metrics collection, automatic restarts
 
 **Implementation:** `pod-manager.ts` (`stopPod()` method)
 
+```typescript
+const podManager = new PodManager(podId, serverConnection);
+await podManager.stopPod();
+```
+
 Flow:
-1. Stop all services via OpenRC
-2. Stop container via `docker stop`
-3. Update `status = "stopped"`
-4. Update `lastStoppedAt = now()`
+1. Get container info via `getPodContainer()`
+2. Stop services via `serviceProvisioner.stopService()`
+3. Stop container via `containerRuntime.stopContainer()`
+4. Emit `stopped` event
+5. Update `status = "stopped"` in database
 
 **Data preserved:**
 - Container filesystem
@@ -188,12 +200,17 @@ Flow:
 
 **Implementation:** `pod-manager.ts` (`startPod()` method)
 
+```typescript
+const podManager = new PodManager(podId, serverConnection);
+await podManager.startPod();
+```
+
 Flow:
-1. Start container via `docker start`
-2. Start all services via OpenRC
-3. Verify health checks
-4. Update `status = "running"`
-5. Update `lastStartedAt = now()`
+1. Get container info via `getPodContainer()`
+2. Check if already running
+3. Start container via `containerRuntime.startContainer()`
+4. Emit `started` event
+5. Update `status = "running"` in database
 
 ## Deletion
 
@@ -201,15 +218,33 @@ Flow:
 
 **Endpoint:** `pods.delete` in `src/lib/trpc/routers/pods.ts`
 
-**Implementation:** `pod-manager.ts` (`destroyPod()` method)
+**Implementation:** `pod-manager.ts` (`deletePod()` and `cleanupPodByContainerId()` methods)
+
+```typescript
+const podManager = new PodManager(podId, serverConnection);
+
+// Option 1: Delete with known container
+await podManager.deletePod();
+
+// Option 2: Cleanup without loading pod (uses container ID from DB)
+await podManager.cleanupPodByContainerId(containerId);
+
+// Option 3: Cleanup by finding container
+await podManager.cleanupPod();
+```
 
 Flow:
-1. Stop container (if running)
-2. Remove container via `docker rm`
-3. Remove network via `docker network rm`
-4. Clean up port allocation
-5. Delete pod record from database
-6. Delete associated logs (`pod_logs` table)
+1. Get container info via `getPodContainer()`
+2. Stop container if running
+3. Remove container via `containerRuntime.removeContainer()`
+4. Destroy network via `networkManager.destroyPodNetwork()`
+5. Release allocated ports via `networkManager.releasePort()`
+6. Emit `deleted` event
+7. Delete pod record from database
+
+**Cleanup methods:**
+- `cleanupPod()` - Finds container by podId, then cleans up
+- `cleanupPodByContainerId()` - Cleans up using container ID from database (no in-memory state needed)
 
 **Data lost:**
 - Container filesystem (including `/workspace`)

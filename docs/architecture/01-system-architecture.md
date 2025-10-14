@@ -195,15 +195,20 @@ async function sendMetrics() {
 
 #### SSH Connection Abstraction
 Unified interface for Lima (dev) and remote servers (prod):
+
+**Implementation:**
+- Interface: `src/lib/pod-orchestration/types.ts` (ServerConnection interface)
+- Concrete class: `src/lib/pod-orchestration/server-connection.ts` (SSHServerConnection)
+
 ```typescript
 class SSHServerConnection implements ServerConnection {
   async exec(command: string, options?: {
     sudo?: boolean;
     label?: string;
-    containerCommand?: string; // Original command if inside container
+    containerCommand?: ContainerCommand; // Pod ID + command for logging
   }): Promise<{ stdout: string; stderr: string }> {
     // Execute via SSH
-    // Automatically logs to pod_logs table if podId is set
+    // Automatically logs to pod_logs table
   }
 }
 
@@ -216,7 +221,9 @@ const connection = new SSHServerConnection({
 });
 ```
 
-**See**: `docs/architecture/14-server-management-system.md` for full details
+The `PodManager` is instantiated per pod with concrete class dependencies: `GVisorRuntime`, `NetworkManager`, and `ServiceProvisioner`. All pod state is stored in the database.
+
+**See**: `docs/architecture/13-pod-orchestration-implementation.md` for full details
 
 ## Resource Tiers
 

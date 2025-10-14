@@ -96,7 +96,7 @@ docker run \
 
 **Solution:** Nginx inside container extracts target port from hostname
 
-**Implementation:** `ContainerRuntime.createNginxConfig()` in `container-runtime.ts`
+**Implementation:** `GVisorRuntime.createContainer()` generates Nginx config in `container-runtime.ts`
 
 **URL format:**
 ```
@@ -139,7 +139,7 @@ http://localhost-3001.pod-test.localhost:30000  → Kanban on :3001
 
 **Problem:** Lima VMs need port forwarding for external access
 
-**Implementation:** `LimaGVisorRuntime` in `container-runtime.ts`
+**Implementation:** `GVisorRuntime` handles both Lima and production in `container-runtime.ts`
 
 Lima automatically forwards ports based on container configuration:
 - Container exposes port via `-p 30000:80`
