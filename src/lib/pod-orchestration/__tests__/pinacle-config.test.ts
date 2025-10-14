@@ -249,13 +249,11 @@ describe("Round-trip: Serialize -> Parse", () => {
 
 describe("Form Data Conversion", () => {
   it("should generate config from form data", () => {
-    const formData = {
+    const config = generatePinacleConfigFromForm({
       template: "nextjs",
       tier: "dev.medium",
       customServices: ["claude-code", "vibe-kanban", "code-server"],
-    };
-
-    const config = generatePinacleConfigFromForm(formData);
+    });
 
     expect(config.version).toBe("1.0");
     expect(config.template).toBe("nextjs");
@@ -268,9 +266,7 @@ describe("Form Data Conversion", () => {
   });
 
   it("should use defaults when form data is minimal", () => {
-    const formData = {};
-
-    const config = generatePinacleConfigFromForm(formData);
+    const config = generatePinacleConfigFromForm({});
 
     expect(config.version).toBe("1.0");
     expect(config.tier).toBe("dev.small");
@@ -278,12 +274,10 @@ describe("Form Data Conversion", () => {
   });
 
   it("should handle optional fields being undefined", () => {
-    const formData = {
+    const config = generatePinacleConfigFromForm({
       tier: "dev.large",
       customServices: ["openai-codex"],
-    };
-
-    const config = generatePinacleConfigFromForm(formData);
+    });
 
     expect(config.template).toBeUndefined();
     expect(config.tier).toBe("dev.large");
@@ -291,12 +285,10 @@ describe("Form Data Conversion", () => {
   });
 
   it("should use default services when customServices is empty", () => {
-    const formData = {
+    const config = generatePinacleConfigFromForm({
       template: "python-blank",
       customServices: [],
-    };
-
-    const config = generatePinacleConfigFromForm(formData);
+    });
 
     expect(config.services).toEqual(DEFAULT_PINACLE_CONFIG.services);
   });

@@ -46,7 +46,6 @@ describe("LimaGVisorRuntime", () => {
       workingDir: "/workspace",
       user: "root",
       githubBranch: "main",
-      healthChecks: [],
     };
   });
 
@@ -230,7 +229,7 @@ describe("LimaGVisorRuntime", () => {
         callback(null, { stdout: "hello world\n", stderr: "" });
       });
 
-      const result = await runtime.execCommand(containerId, command);
+      const result = await runtime.execInContainer("test-pod", containerId, command);
 
       expect(result).toEqual({
         stdout: "hello world\n",
@@ -249,7 +248,7 @@ describe("LimaGVisorRuntime", () => {
         callback(error, { stdout: "", stderr: "Command failed" });
       });
 
-      const result = await runtime.execCommand(containerId, command);
+      const result = await runtime.execInContainer("test-pod", containerId, command);
 
       expect(result).toEqual({
         stdout: "",

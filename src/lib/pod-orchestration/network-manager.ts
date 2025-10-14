@@ -1,23 +1,17 @@
 import type {
-  INetworkManager,
   NetworkConfig,
   NetworkPolicy,
   PortMapping,
   ServerConnection,
 } from "./types";
 
-export class NetworkManager implements INetworkManager {
+export class NetworkManager {
   private serverConnection: ServerConnection;
   private allocatedPorts: Map<string, Set<number>> = new Map(); // podId -> Set of ports
   private portRange = { min: 30000, max: 40000 };
 
-  constructor(serverConnection: ServerConnection, podId?: string) {
+  constructor(serverConnection: ServerConnection) {
     this.serverConnection = serverConnection;
-
-    // Set podId for logging if provided
-    if (podId) {
-      this.serverConnection.setPodId(podId);
-    }
   }
 
   private async exec(

@@ -1,83 +1,38 @@
+import { GVisorRuntime } from "./container-runtime";
 import {
   getAllServiceTemplates,
   getServiceTemplateUnsafe,
   type ServiceContext,
   type ServiceTemplate,
 } from "./service-registry";
-import type {
-  IServiceProvisioner,
-  ServerConnection,
-  ServiceConfig,
-} from "./types";
+import type { ServerConnection, ServiceConfig } from "./types";
 
-export class ServiceProvisioner implements IServiceProvisioner {
-  private serverConnection: ServerConnection;
+export class ServiceProvisioner {
+  private podId: string;
+  private containerRuntime: GVisorRuntime;
 
-  constructor(serverConnection: ServerConnection, podId?: string) {
-    this.serverConnection = serverConnection;
-
-    // Set podId for logging if provided
-    if (podId) {
-      this.serverConnection.setPodId(podId);
-    }
-  }
-
-  private async exec(
-    command: string,
-    useSudo: boolean = false,
-    containerCommand?: string,
-  ): Promise<{ stdout: string; stderr: string }> {
-    try {
-      const result = await this.serverConnection.exec(command, {
-        sudo: useSudo,
-        containerCommand,
-      });
-      return result;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[ServiceProvisioner] Command failed: ${message}`);
-      throw error;
-    }
-  }
-
-  private async execInContainer(
-    containerId: string,
-    command: string[],
-  ): Promise<{ stdout: string; stderr: string }> {
-    // Join commands and properly escape for sh -c
-    const commandStr = command.join(" ");
-    // Escape single quotes by replacing ' with '\''
-    const escapedCommand = commandStr.replace(/'/g, "'\\''");
-    const dockerCommand = `docker exec ${containerId} sh -c '${escapedCommand}'`;
-    return this.exec(dockerCommand, true, commandStr); // Pass original command for logging
+  constructor(podId: string, serverConnection: ServerConnection) {
+    this.podId = podId;
+    this.containerRuntime = new GVisorRuntime(serverConnection);
   }
 
   async provisionService(
-    podId: string,
     service: ServiceConfig,
-    githubRepo?: string,
+    projectFolder?: string,
   ): Promise<void> {
     const template = getServiceTemplateUnsafe(service.name);
-    const containerName = `pinacle-pod-${podId}`;
+
+    if (!template) {
+      throw new Error(`Service template ${service.name} not found`);
+    }
 
     try {
       console.log(
-        `[ServiceProvisioner] Provisioning service ${service.name} for pod ${podId}`,
+        `[ServiceProvisioner] Provisioning service ${service.name} for pod ${this.podId}`,
       );
 
-      // Check if container exists and is running
-      const { stdout: containerStatus } = await this.exec(
-        `docker inspect ${containerName} --format='{{.State.Status}}' 2>/dev/null || echo "not_found"`,
-        true,
-      );
-
-      if (containerStatus.trim() === "not_found") {
-        throw new Error(`Container ${containerName} not found`);
-      }
-
-      if (containerStatus.trim() !== "running") {
-        throw new Error(`Container ${containerName} is not running`);
-      }
+      const container =
+        await this.containerRuntime.getActiveContainerForPodOrThrow(this.podId);
 
       // Install service if template exists
       if (template) {
@@ -87,22 +42,20 @@ export class ServiceProvisioner implements IServiceProvisioner {
 
         // Run installation commands
         for (const installCmd of template.installScript) {
-          await this.execInContainer(containerName, [installCmd]);
+          await this.containerRuntime.execInContainer(
+            this.podId,
+            container.id,
+            ["sh", "-c", installCmd],
+          );
         }
 
         // Create OpenRC service script with custom working directory if GitHub repo is present
         await this.createServiceScript(
-          containerName,
+          container.id,
           service.name,
           template,
-          githubRepo,
+          projectFolder,
         );
-      } else if (service.image) {
-        // Custom service with Docker image - would need to run as sidecar
-        console.log(
-          `[ServiceProvisioner] Custom service ${service.name} with image ${service.image}`,
-        );
-        // Implementation would depend on how we want to handle multi-container pods
       } else {
         // Custom service with commands
         console.log(
@@ -110,7 +63,11 @@ export class ServiceProvisioner implements IServiceProvisioner {
         );
         if (service.command && service.command.length > 0) {
           // Install any dependencies specified in the command
-          await this.execInContainer(containerName, service.command);
+          await this.containerRuntime.execInContainer(
+            this.podId,
+            container.id,
+            service.command,
+          );
         }
       }
 
@@ -127,7 +84,8 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   async startService(podId: string, serviceName: string): Promise<void> {
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(podId);
 
     try {
       console.log(
@@ -135,7 +93,7 @@ export class ServiceProvisioner implements IServiceProvisioner {
       );
 
       // Start using OpenRC
-      await this.execInContainer(containerName, [
+      await this.containerRuntime.execInContainer(podId, container.id, [
         "rc-service",
         serviceName,
         "start",
@@ -169,7 +127,8 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   async stopService(podId: string, serviceName: string): Promise<void> {
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(podId);
 
     try {
       console.log(
@@ -177,7 +136,7 @@ export class ServiceProvisioner implements IServiceProvisioner {
       );
 
       // Stop using OpenRC
-      await this.execInContainer(containerName, [
+      await this.containerRuntime.execInContainer(podId, container.id, [
         "rc-service",
         serviceName,
         "stop",
@@ -196,7 +155,8 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   async removeService(podId: string, serviceName: string): Promise<void> {
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(podId);
 
     try {
       console.log(
@@ -207,7 +167,7 @@ export class ServiceProvisioner implements IServiceProvisioner {
       await this.stopService(podId, serviceName);
 
       // Remove service files and configurations
-      await this.execInContainer(containerName, [
+      await this.containerRuntime.execInContainer(podId, container.id, [
         "sh",
         "-c",
         `rm -f /tmp/${serviceName}.pid /tmp/${serviceName}.log /etc/init.d/${serviceName}`,
@@ -226,18 +186,18 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   async getServiceStatus(
-    podId: string,
     serviceName: string,
   ): Promise<"running" | "stopped" | "failed"> {
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(this.podId);
 
     try {
       // Check using OpenRC
-      const { stdout } = await this.execInContainer(containerName, [
-        "rc-service",
-        serviceName,
-        "status",
-      ]);
+      const { stdout } = await this.containerRuntime.execInContainer(
+        this.podId,
+        container.id,
+        ["rc-service", serviceName, "status"],
+      );
 
       if (stdout.includes("started") || stdout.includes("running")) {
         return "running";
@@ -254,19 +214,23 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   async getServiceLogs(
-    podId: string,
     serviceName: string,
     options: { tail?: number } = {},
   ): Promise<string> {
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(this.podId);
 
     try {
       const tailOption = options.tail ? ` | tail -${options.tail}` : "";
-      const { stdout } = await this.execInContainer(containerName, [
-        "sh",
-        "-c",
-        `cat /tmp/${serviceName}.log 2>/dev/null${tailOption} || echo "No logs available"`,
-      ]);
+      const { stdout } = await this.containerRuntime.execInContainer(
+        this.podId,
+        container.id,
+        [
+          "sh",
+          "-c",
+          `cat /tmp/${serviceName}.log 2>/dev/null${tailOption} || echo "No logs available"`,
+        ],
+      );
 
       return stdout;
     } catch (error) {
@@ -284,11 +248,12 @@ export class ServiceProvisioner implements IServiceProvisioner {
     timeout: number = 0,
   ): Promise<boolean> {
     const template = getServiceTemplateUnsafe(serviceName);
-    const containerName = `pinacle-pod-${podId}`;
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(podId);
 
     if (!template) {
       // For custom services, just check if they're running
-      const status = await this.getServiceStatus(podId, serviceName);
+      const status = await this.getServiceStatus(serviceName);
       return status === "running";
     }
 
@@ -298,7 +263,7 @@ export class ServiceProvisioner implements IServiceProvisioner {
       try {
         // Run health check command
         const healthCmd = template.healthCheckCommand.join(" ");
-        await this.execInContainer(containerName, [
+        await this.containerRuntime.execInContainer(podId, container.id, [
           "sh",
           "-c",
           `'${healthCmd.replace(/'/g, "\\'")} >/dev/null && echo "OK"'`,
@@ -322,10 +287,10 @@ export class ServiceProvisioner implements IServiceProvisioner {
   }
 
   private async createServiceScript(
-    containerName: string,
+    containerId: string,
     serviceName: string,
     template: ServiceTemplate,
-    githubRepo?: string,
+    projectFolder?: string,
   ): Promise<void> {
     // Create OpenRC-compatible init script for Alpine
     const envVars = Object.entries(template.environment || {})
@@ -343,7 +308,7 @@ export class ServiceProvisioner implements IServiceProvisioner {
 
     // Build service context for startCommand function
     const context: ServiceContext = {
-      projectFolder: githubRepo,
+      projectFolder,
     };
 
     // Get the start command from the template function
@@ -381,7 +346,11 @@ ${serviceScript}
 PINACLE_EOF
 chmod +x /etc/init.d/${serviceName}`;
 
-    await this.execInContainer(containerName, [writeScriptCommand]);
+    await this.containerRuntime.execInContainer(this.podId, containerId, [
+      "sh",
+      "-c",
+      writeScriptCommand,
+    ]);
   }
 
   // Utility methods
@@ -393,11 +362,11 @@ chmod +x /etc/init.d/${serviceName}`;
     return getServiceTemplateUnsafe(serviceName);
   }
 
-  async listRunningServices(podId: string): Promise<string[]> {
+  async listRunningServices(): Promise<string[]> {
     const runningServices: string[] = [];
 
     for (const template of getAllServiceTemplates()) {
-      const status = await this.getServiceStatus(podId, template.name);
+      const status = await this.getServiceStatus(template.name);
       if (status === "running") {
         runningServices.push(template.name);
       }

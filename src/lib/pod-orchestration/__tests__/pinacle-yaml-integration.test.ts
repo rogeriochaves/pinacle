@@ -10,6 +10,7 @@ import {
   parsePinacleConfig,
 } from "../pinacle-config";
 import { PodManager } from "../pod-manager";
+import type { ServiceId } from "../service-registry";
 import type { PodSpec } from "../types";
 
 const execAsync = promisify(exec);
@@ -53,7 +54,7 @@ describe("Pinacle YAML Integration Tests", () => {
     const serverConnection = await getLimaServerConnection();
     containerRuntime = new GVisorRuntime(serverConnection);
     networkManager = new NetworkManager(serverConnection);
-    podManager = new PodManager(serverConnection);
+    podManager = new PodManager(testPodId, serverConnection);
     githubIntegration = new GitHubIntegration(podManager);
 
     const containers = await containerRuntime.listContainers();
@@ -75,14 +76,11 @@ describe("Pinacle YAML Integration Tests", () => {
 
   it("should generate pinacle.yaml from form submission", () => {
     // Simulate form data from user
-    const formData = {
+    const config = generatePinacleConfigFromForm({
       template: "nextjs",
       tier: "dev.medium",
       customServices: ["claude-code", "vibe-kanban", "code-server"],
-    };
-
-    // Generate config
-    const config = generatePinacleConfigFromForm(formData);
+    });
 
     // Verify the config matches expectations
     expect(config.version).toBe("1.0");
@@ -136,12 +134,15 @@ describe("Pinacle YAML Integration Tests", () => {
     console.log(`\n📝 Injecting pinacle.yaml...`);
 
     // Inject pinacle.yaml into the pod
-    await githubIntegration.injectPinacleConfig(testPodId, pinacleConfig, "my-test-app");
+    await githubIntegration.injectPinacleConfig(
+      pinacleConfig,
+      "my-test-app",
+    );
 
     console.log(`✅ pinacle.yaml injected`);
 
     // Verify the file exists in the pod
-    const { stdout: lsOutput } = await podManager.execInPod(testPodId, [
+    const { stdout: lsOutput } = await podManager.execInPod([
       "ls",
       "-la",
       "/workspace",
@@ -151,7 +152,7 @@ describe("Pinacle YAML Integration Tests", () => {
     console.log(`✅ pinacle.yaml file exists in /workspace`);
 
     // Read the file content from the pod
-    const { stdout: fileContent } = await podManager.execInPod(testPodId, [
+    const { stdout: fileContent } = await podManager.execInPod([
       "cat",
       "/workspace/pinacle.yaml",
     ]);
@@ -179,7 +180,7 @@ describe("Pinacle YAML Integration Tests", () => {
 
     // Clean up
     console.log(`\n🧹 Cleaning up test pod...`);
-    await podManager.deletePod(testPodId);
+    await podManager.deletePod();
     console.log(`✅ Test pod deleted`);
   }, 120_000);
 
@@ -218,10 +219,13 @@ describe("Pinacle YAML Integration Tests", () => {
       customServices: ["claude-code", "code-server"],
     });
 
-    await githubIntegration.injectPinacleConfig(updateTestPodId, initialConfig, "my-test-app");
+    await githubIntegration.injectPinacleConfig(
+      initialConfig,
+      "my-test-app",
+    );
 
     // Verify initial state
-    let { stdout: fileContent } = await podManager.execInPod(updateTestPodId, [
+    let { stdout: fileContent } = await podManager.execInPod([
       "cat",
       "/workspace/pinacle.yaml",
     ]);
@@ -241,10 +245,13 @@ describe("Pinacle YAML Integration Tests", () => {
 
     console.log(`\n📝 Updating pinacle.yaml with new services...`);
 
-    await githubIntegration.injectPinacleConfig(updateTestPodId, updatedConfig, "my-test-app");
+    await githubIntegration.injectPinacleConfig(
+      updatedConfig,
+      "my-test-app",
+    );
 
     // Verify updated state
-    ({ stdout: fileContent } = await podManager.execInPod(updateTestPodId, [
+    ({ stdout: fileContent } = await podManager.execInPod([
       "cat",
       "/workspace/pinacle.yaml",
     ]));
@@ -262,7 +269,7 @@ describe("Pinacle YAML Integration Tests", () => {
     console.log(`✅ Service added successfully`);
 
     // Clean up
-    await podManager.deletePod(updateTestPodId);
+    await podManager.deletePod();
   }, 120_000);
 
   it("should handle different coding assistants in config", async () => {
@@ -295,7 +302,7 @@ describe("Pinacle YAML Integration Tests", () => {
     await podManager.createPod(podConfig);
 
     // Test each coding assistant
-    const codingAssistants = [
+    const codingAssistants: ServiceId[] = [
       "claude-code",
       "openai-codex",
       "cursor-cli",
@@ -311,13 +318,11 @@ describe("Pinacle YAML Integration Tests", () => {
       });
 
       await githubIntegration.injectPinacleConfig(
-        codingAssistantTestPodId,
         config,
         "my-test-app",
       );
 
       const { stdout: fileContent } = await podManager.execInPod(
-        codingAssistantTestPodId,
         ["cat", "/workspace/pinacle.yaml"],
       );
 
@@ -326,6 +331,6 @@ describe("Pinacle YAML Integration Tests", () => {
     }
 
     // Clean up
-    await podManager.deletePod(codingAssistantTestPodId);
+    await podManager.deletePod();
   }, 180_000);
 });

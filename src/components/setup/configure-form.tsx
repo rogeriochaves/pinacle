@@ -5,7 +5,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
-import type { ServiceName } from "../../lib/pod-orchestration/service-registry";
+import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
 import { Button } from "../ui/button";
@@ -33,14 +33,14 @@ type ConfigureFormProps = {
   installationUrl: string | null;
 };
 
-const DEFAULT_SERVICES: ServiceName[] = [
+const DEFAULT_SERVICES: ServiceId[] = [
   "claude-code",
   "vibe-kanban",
   "code-server",
 ];
 
 // Map agent IDs from landing page to service names
-const AGENT_TO_SERVICE_MAP: Record<string, ServiceName> = {
+const AGENT_TO_SERVICE_MAP: Record<string, ServiceId> = {
   claude: "claude-code",
   openai: "openai-codex",
   cursor: "cursor-cli",
@@ -59,7 +59,7 @@ export const ConfigureForm = ({
   const [showSecrets, setShowSecrets] = useState<Record<number, boolean>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [customServices, setCustomServices] =
-    useState<ServiceName[]>(DEFAULT_SERVICES);
+    useState<ServiceId[]>(DEFAULT_SERVICES);
 
   const setupType = form.watch("setupType");
   const selectedRepo = form.watch("selectedRepo");

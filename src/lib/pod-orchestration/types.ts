@@ -1,3 +1,5 @@
+import type { TemplateId } from "./template-registry";
+
 export type PodStatus =
   | "pending"
   | "provisioning"
@@ -54,7 +56,6 @@ export interface NetworkConfig {
 export interface ServiceConfig {
   name: string;
   enabled: boolean;
-  image?: string; // Docker image for the service
   command?: string[];
   environment?: Record<string, string>;
   ports?: PortMapping[];
@@ -76,7 +77,7 @@ export interface PodSpec {
   description?: string;
 
   // Template and base configuration
-  templateId?: string;
+  templateId?: TemplateId;
   baseImage: string; // Base container image
 
   // Resource allocation
@@ -110,22 +111,23 @@ export interface PodSpec {
   workingDir?: string;
   user?: string; // User to run as inside container
 
-  // Lifecycle configuration
-  hooks?: {
-    preStart?: string[];
-    postStart?: string[];
-    preStop?: string[];
-    postStop?: string[];
-  };
+  // TODO: those belong to pinacle.yaml, maybe
+  // // Lifecycle configuration
+  // hooks?: {
+  //   preStart?: string[];
+  //   postStart?: string[];
+  //   preStop?: string[];
+  //   postStop?: string[];
+  // };
 
-  // Monitoring
-  healthChecks?: Array<{
-    name: string;
-    type: "http" | "tcp" | "command";
-    config: HealthCheckConfig;
-    interval: number;
-    timeout: number;
-  }>;
+  // // Monitoring
+  // healthChecks?: Array<{
+  //   name: string;
+  //   type: "http" | "tcp" | "command";
+  //   config: HealthCheckConfig;
+  //   interval: number;
+  //   timeout: number;
+  // }>;
 }
 
 export type HealthCheckConfig =
@@ -164,11 +166,6 @@ export interface PodInstance {
   spec: PodSpec;
   status: PodStatus;
   container?: ContainerInfo;
-  hostInfo?: {
-    hostId: string;
-    hostIp: string;
-    sshPort?: number;
-  };
   error?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -187,14 +184,20 @@ export interface ServerConnection {
   // Execute command on the server (not inside a container)
   exec(
     command: string,
-    options?: { sudo?: boolean; label?: string; containerCommand?: string },
+    options?: {
+      sudo?: boolean;
+      label?: string;
+      containerCommand?: ContainerCommand;
+    },
   ): Promise<{ stdout: string; stderr: string }>;
 
   // Test connection
   testConnection(): Promise<boolean>;
+}
 
-  // Set pod ID for logging context
-  setPodId(podId: string): void;
+export interface ContainerCommand {
+  podId: string;
+  command: string;
 }
 
 // Lima integration types
@@ -204,82 +207,13 @@ export interface LimaConfig {
   dockerSocket?: string;
 }
 
-export interface ContainerRuntime {
-  // Container lifecycle
-  createContainer(spec: PodSpec): Promise<ContainerInfo>;
-  startContainer(containerId: string): Promise<void>;
-  stopContainer(containerId: string): Promise<void>;
-  removeContainer(containerId: string): Promise<void>;
-
-  // Container inspection
-  getContainer(containerId: string): Promise<ContainerInfo | null>;
-  listContainers(filters?: Record<string, string>): Promise<ContainerInfo[]>;
-
-  // Container execution
-  execCommand(
-    containerId: string,
-    command: string[],
-  ): Promise<{ stdout: string; stderr: string; exitCode: number }>;
-
-  // Logs
-  getContainerLogs(
-    containerId: string,
-    options?: { tail?: number; follow?: boolean },
-  ): Promise<string>;
-}
-
-export interface INetworkManager {
-  // Network setup
-  createPodNetwork(podId: string, config: NetworkConfig): Promise<string>; // Returns pod IP
-  destroyPodNetwork(podId: string): Promise<void>;
-
-  // Port management
-  allocatePort(podId: string, service: string): Promise<number>;
-  releasePort(podId: string, port: number): Promise<void>;
-
-  // Port forwarding
-  setupPortForwarding(podId: string, mapping: PortMapping): Promise<void>;
-  removePortForwarding(podId: string, mapping: PortMapping): Promise<void>;
-
-  // Network policies
-  applyNetworkPolicies(podId: string, policies: NetworkPolicy[]): Promise<void>;
-}
-
-export interface IServiceProvisioner {
-  // Service lifecycle
-  provisionService(
-    podId: string,
-    service: ServiceConfig,
-    projectFolder?: string,
-  ): Promise<void>;
-  startService(podId: string, serviceName: string): Promise<void>;
-  stopService(podId: string, serviceName: string): Promise<void>;
-  removeService(podId: string, serviceName: string): Promise<void>;
-
-  // Service status
-  getServiceStatus(
-    podId: string,
-    serviceName: string,
-  ): Promise<"running" | "stopped" | "failed">;
-  getServiceLogs(
-    podId: string,
-    serviceName: string,
-    options?: { tail?: number },
-  ): Promise<string>;
-
-  // Health checks
-  checkServiceHealth(podId: string, serviceName: string): Promise<boolean>;
-}
-
 export interface ConfigResolver {
   // Configuration loading and merging
   loadConfig(
-    templateId?: string,
+    templateId?: TemplateId,
     userConfig?: Partial<PodSpec>,
   ): Promise<PodSpec>;
-  validateConfig(
-    spec: PodSpec,
-  ): Promise<{ valid: boolean; errors: string[] }>;
+  validateConfig(spec: PodSpec): Promise<{ valid: boolean; errors: string[] }>;
 
   // Auto-detection
   detectProjectType(repoPath: string): Promise<{
@@ -289,47 +223,10 @@ export interface ConfigResolver {
   }>;
 
   // Template management
-  getTemplate(templateId: string): Promise<Partial<PodSpec> | null>;
+  getTemplate(templateId: TemplateId): Promise<Partial<PodSpec> | null>;
   listTemplates(): Promise<
     Array<{ id: string; name: string; description: string }>
   >;
-}
-
-export interface IPodManager {
-  // Pod lifecycle
-  createPod(spec: PodSpec): Promise<PodInstance>;
-  startPod(podId: string): Promise<void>;
-  stopPod(podId: string): Promise<void>;
-  deletePod(podId: string): Promise<void>;
-
-  // Pod management
-  getPod(podId: string): Promise<PodInstance | null>;
-  listPods(
-    filters?: Record<string, string | boolean | number>,
-  ): Promise<PodInstance[]>;
-
-  // Pod operations
-  execInPod(
-    podId: string,
-    command: string[],
-  ): Promise<{ stdout: string; stderr: string; exitCode: number }>;
-  getPodLogs(
-    podId: string,
-    options?: { tail?: number; follow?: boolean },
-  ): Promise<string>;
-
-  // Health and monitoring
-  checkPodHealth(podId: string): Promise<boolean>;
-  getPodMetrics(podId: string): Promise<{
-    cpu: { usage: number; limit: number };
-    memory: { usage: number; limit: number };
-    network: { rx: number; tx: number };
-    disk: { usage: number; limit: number };
-  }>;
-
-  // Hibernation
-  hibernatePod(podId: string): Promise<void>;
-  wakePod(podId: string): Promise<void>;
 }
 
 // Event types for pod lifecycle

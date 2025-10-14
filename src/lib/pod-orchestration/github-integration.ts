@@ -2,8 +2,8 @@ import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { PinacleConfig } from "./pinacle-config";
 import { serializePinacleConfig } from "./pinacle-config";
+import type { PodManager } from "./pod-manager";
 import type { PodTemplate } from "./template-registry";
-import type { IPodManager } from "./types";
 
 const execAsync = promisify(exec);
 
@@ -33,9 +33,9 @@ export type GitHubRepoSetup = {
  * Handles SSH key generation, repository cloning, and template initialization
  */
 export class GitHubIntegration {
-  private podManager: IPodManager;
+  private podManager: PodManager;
 
-  constructor(podManager: IPodManager) {
+  constructor(podManager: PodManager) {
     this.podManager = podManager;
   }
 
@@ -94,41 +94,41 @@ export class GitHubIntegration {
 
     try {
       // 1. Copy SSH private key into container
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "mkdir",
         "-p",
         "/workspace/.ssh",
       ]);
 
       const escapedPrivateKey = sshKeyPair.privateKey.replace(/"/g, '\\"');
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'echo "${escapedPrivateKey}" > /workspace/.ssh/id_ed25519 && chmod 600 /workspace/.ssh/id_ed25519'`,
       ]);
 
       // 2. Configure SSH to accept GitHub's host key automatically
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'echo "Host github.com\n\tStrictHostKeyChecking accept-new\n\tUserKnownHostsFile /dev/null" > /workspace/.ssh/config'`,
       ]);
 
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         "mkdir -p /workspace/.ssh && ssh-keyscan github.com >> /workspace/.ssh/known_hosts",
       ]);
 
       // 3. Configure git
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "git",
         "config",
         "--global",
         "user.email",
         `pod@pinacle.dev`,
       ]);
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "git",
         "config",
         "--global",
@@ -141,7 +141,7 @@ export class GitHubIntegration {
         repository.startsWith("git@") || repository.startsWith("https://")
           ? repository
           : `git@github.com:${repository}.git`;
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `cd /workspace && git clone ${branch ? `-b ${branch}` : ""} ${gitUrl}`,
@@ -162,7 +162,6 @@ export class GitHubIntegration {
    * Initialize a new project from a template
    */
   async initializeTemplate(
-    podId: string,
     template: PodTemplate,
     repository: string,
     sshKeyPair: SSHKeyPair,
@@ -173,34 +172,34 @@ export class GitHubIntegration {
 
     try {
       // 1. Setup SSH key (same as clone)
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "mkdir",
         "-p",
         "/workspace/.ssh",
       ]);
 
       const escapedPrivateKey = sshKeyPair.privateKey.replace(/'/g, "'\\''");
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'echo '${escapedPrivateKey}' > /workspace/.ssh/id_ed25519 && chmod 600 /workspace/.ssh/id_ed25519'`,
       ]);
 
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'echo "Host github.com\n\tStrictHostKeyChecking accept-new\n\tUserKnownHostsFile /dev/null" > /workspace/.ssh/config'`,
       ]);
 
       // 2. Configure git
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "git",
         "config",
         "--global",
         "user.email",
         `pod@pinacle.dev`,
       ]);
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "git",
         "config",
         "--global",
@@ -209,9 +208,9 @@ export class GitHubIntegration {
       ]);
 
       // 3. Initialize git repository
-      await this.podManager.execInPod(podId, ["git", "init", "/workspace"]);
+      await this.podManager.execInPod(["git", "init", "/workspace"]);
 
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         "'cd /workspace && git branch -M main'",
@@ -219,7 +218,7 @@ export class GitHubIntegration {
 
       // 4. Add remote
       const gitUrl = `git@github.com:${repository}.git`;
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'cd /workspace && git remote add origin ${gitUrl}'`,
@@ -233,7 +232,7 @@ export class GitHubIntegration {
 
         for (const cmd of template.initScript) {
           console.log(`[GitHubIntegration] Executing: ${cmd}`);
-          await this.podManager.execInPod(podId, [
+          await this.podManager.execInPod([
             "sh",
             "-c",
             `'${cmd.replace(/'/g, "'\\''")}'`,
@@ -242,20 +241,20 @@ export class GitHubIntegration {
       }
 
       // 6. Create initial commit
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         "'cd /workspace && git add -A'",
       ]);
 
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `'cd /workspace && git commit -m "Initial commit from Pinacle (${template.name})" || true'`,
       ]);
 
       // 7. Push to GitHub
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         "'cd /workspace && git push -u origin main'",
@@ -296,7 +295,6 @@ export class GitHubIntegration {
         throw new Error("Template is required for new projects");
       }
       await this.initializeTemplate(
-        podId,
         template,
         setup.repository,
         setup.sshKeyPair,
@@ -309,11 +307,10 @@ export class GitHubIntegration {
    * This allows users to commit the file and version control their pod configuration
    */
   async injectPinacleConfig(
-    podId: string,
     spec: PinacleConfig,
     repository: string,
   ): Promise<void> {
-    console.log(`[GitHubIntegration] Injecting pinacle.yaml into pod ${podId}`);
+    console.log(`[GitHubIntegration] Injecting pinacle.yaml into pod ${this.podManager.podId}`);
 
     try {
       // Serialize the config to YAML format
@@ -324,7 +321,7 @@ export class GitHubIntegration {
 
       // Write the file to the workspace root
       const projectFolder = this.getProjectFolder(repository);
-      await this.podManager.execInPod(podId, [
+      await this.podManager.execInPod([
         "sh",
         "-c",
         `echo '${escapedContent}' > /workspace/${projectFolder}/pinacle.yaml`,
@@ -348,8 +345,6 @@ export class GitHubIntegration {
     // - git@github.com:owner/repo.git
     // - https://github.com/owner/repo.git
     // - owner/repo
-    return repository
-      ? /.*\/(.*?)(\.git)?$/.exec(repository)?.[1]
-      : undefined;
+    return repository ? /.*\/(.*?)(\.git)?$/.exec(repository)?.[1] : undefined;
   }
 }

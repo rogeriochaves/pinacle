@@ -15,7 +15,17 @@
 import yaml from "js-yaml";
 import { z } from "zod";
 import { RESOURCE_TIERS, type TierId } from "./resource-tier-registry";
-import { SERVICE_TEMPLATES } from "./service-registry";
+import {
+  getServiceTemplate,
+  SERVICE_TEMPLATES,
+  type ServiceId,
+} from "./service-registry";
+import {
+  getTemplateUnsafe,
+  POD_TEMPLATES,
+  type TemplateId,
+} from "./template-registry";
+import type { PodSpec } from "./types";
 
 /**
  * Derive valid tier IDs from the resource tier registry
@@ -61,7 +71,9 @@ export const PinacleConfigSchema = z.object({
 
   // Optional template ID (for reference/UI purposes)
   // If not specified, services list is used directly
-  template: z.string().optional(),
+  template: z
+    .enum(Object.keys(POD_TEMPLATES) as [TemplateId, ...TemplateId[]])
+    .optional(),
 
   // Tabs for the pod UI (auto-generated from services by default)
   tabs: z.array(TabSchema).optional(),
@@ -126,9 +138,9 @@ export const parsePinacleConfig = (yamlContent: string): PinacleConfig => {
  * Generate pinacle.yaml from form submission
  */
 export const generatePinacleConfigFromForm = (formData: {
-  template?: string;
-  tier?: string;
-  customServices?: string[];
+  template?: TemplateId;
+  tier?: TierId;
+  customServices?: ServiceId[];
   tabs?: Array<{ name: string; url: string }>;
   slug?: string;
 }): PinacleConfig => {
@@ -169,7 +181,8 @@ export const generateDefaultTabs = (
 
   // Add tabs for each service
   for (const serviceName of services) {
-    const service = SERVICE_TEMPLATES[serviceName as keyof typeof SERVICE_TEMPLATES];
+    const service =
+      SERVICE_TEMPLATES[serviceName as keyof typeof SERVICE_TEMPLATES];
     if (service?.defaultPort) {
       tabs.push({
         name: service.displayName,
@@ -268,10 +281,7 @@ export const expandPinacleConfigToSpec = async (
     githubBranch?: string;
     githubRepoSetup?: import("./types").PodSpec["githubRepoSetup"];
   },
-): Promise<import("./types").PodSpec> => {
-  const { getServiceTemplate } = await import("./service-registry");
-  const { getTemplateUnsafe } = await import("./template-registry");
-
+): Promise<PodSpec> => {
   // Get template defaults if template is specified
   const template = pinacleConfig.template
     ? getTemplateUnsafe(pinacleConfig.template)
@@ -285,9 +295,7 @@ export const expandPinacleConfigToSpec = async (
 
   // Services: convert service names to ServiceConfig objects
   const services = pinacleConfig.services.map((serviceName) => {
-    const serviceTemplate = getServiceTemplate(
-      serviceName as import("./service-registry").ServiceName,
-    );
+    const serviceTemplate = getServiceTemplate(serviceName as ServiceId);
 
     return {
       name: serviceName,
@@ -311,15 +319,6 @@ export const expandPinacleConfigToSpec = async (
     ...(runtimeData.environment || {}),
   };
 
-  // Network: collect all service ports
-  const ports = services.flatMap((service) =>
-    (service.ports || []).map((port) => ({
-      name: port.name,
-      internal: port.internal,
-      protocol: port.protocol,
-    })),
-  );
-
   // Build complete PodSpec
   const podSpec: import("./types").PodSpec = {
     id: runtimeData.id,
@@ -335,7 +334,7 @@ export const expandPinacleConfigToSpec = async (
       storageMb: resources.storageMb,
     },
     network: {
-      ports,
+      ports: [],
       allowEgress: true,
     },
     services,
@@ -345,8 +344,6 @@ export const expandPinacleConfigToSpec = async (
     githubRepoSetup: runtimeData.githubRepoSetup,
     workingDir: "/workspace",
     user: "root",
-    hooks: {},
-    healthChecks: [],
   };
 
   return podSpec;

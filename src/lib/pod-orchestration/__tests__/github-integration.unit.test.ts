@@ -5,12 +5,13 @@ import { PodManager } from "../pod-manager";
 import type { PodSpec } from "../types";
 
 describe("GitHub Integration Tests", () => {
+  const podId = "test-ssh-key-gen";
   let podManager: PodManager;
   let githubIntegration: GitHubIntegration;
 
   beforeAll(async () => {
     // Initialize managers
-    podManager = new PodManager(await getLimaServerConnection());
+    podManager = new PodManager(podId, await getLimaServerConnection());
     githubIntegration = new GitHubIntegration(podManager);
   });
 
@@ -20,7 +21,6 @@ describe("GitHub Integration Tests", () => {
 
   describe("SSH Key Generation", () => {
     it("should generate a valid SSH key pair", async () => {
-      const podId = "test-ssh-key-gen";
       const keyPair = await githubIntegration.generateSSHKeyPair(podId);
 
       // Verify public key format
@@ -135,7 +135,7 @@ describe("GitHub Integration Tests", () => {
         id: "test-no-github-pod",
         name: "No GitHub Pod",
         slug: "no-github-pod",
-        templateId: "custom",
+        templateId: "nodejs-blank",
         // No GitHub fields
       };
 

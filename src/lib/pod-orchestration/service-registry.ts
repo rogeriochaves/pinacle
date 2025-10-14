@@ -16,7 +16,6 @@ export type ServiceTemplate = {
   description: string;
   icon?: string; // Path to icon for UI display
   iconAlt?: string; // Alt text for icon
-  image?: string; // Optional Docker image for sidecar services
   installScript: string[]; // Commands to install service dependencies
   startCommand: (context: ServiceContext) => string[]; // Function that returns command and args to start the service
   cleanupCommand: string[]; // Commands to run on service stop
@@ -326,12 +325,12 @@ export const SERVICE_TEMPLATES = {
 /**
  * Type-safe service name
  */
-export type ServiceName = keyof typeof SERVICE_TEMPLATES;
+export type ServiceId = keyof typeof SERVICE_TEMPLATES;
 
 /**
  * Get service template by name (type-safe)
  */
-export const getServiceTemplate = (serviceName: ServiceName): ServiceTemplate => {
+export const getServiceTemplate = (serviceName: ServiceId): ServiceTemplate => {
   return SERVICE_TEMPLATES[serviceName];
 };
 
@@ -341,7 +340,7 @@ export const getServiceTemplate = (serviceName: ServiceName): ServiceTemplate =>
 export const getServiceTemplateUnsafe = (
   serviceName: string,
 ): ServiceTemplate | undefined => {
-  return SERVICE_TEMPLATES[serviceName as ServiceName];
+  return SERVICE_TEMPLATES[serviceName as ServiceId];
 };
 
 /**

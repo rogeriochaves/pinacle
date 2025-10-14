@@ -10,7 +10,10 @@ import { db } from "../db";
 import { envSets, podLogs, pods, servers } from "../db/schema";
 import { getNextAvailableServer } from "../servers";
 import type { GitHubRepoSetup } from "./github-integration";
-import { podRecordToPinacleConfig } from "./pinacle-config";
+import {
+  expandPinacleConfigToSpec,
+  podRecordToPinacleConfig,
+} from "./pinacle-config";
 import { PodManager } from "./pod-manager";
 import { SSHServerConnection } from "./server-connection";
 import type { ServerConnection } from "./types";
@@ -117,11 +120,8 @@ export class PodProvisioningService {
         })
         .where(eq(pods.id, podId));
 
-      // Set podId for logging
-      serverConnection.setPodId(podId);
-
       // 5. Create PodManager with server connection
-      podManager = new PodManager(serverConnection);
+      podManager = new PodManager(podId, serverConnection);
 
       // 6. Parse PinacleConfig from database and expand to PodSpec
       console.log(
@@ -155,7 +155,6 @@ export class PodProvisioningService {
       }
 
       // Use the single source of truth expansion function
-      const { expandPinacleConfigToSpec } = await import("./pinacle-config");
       const spec = await expandPinacleConfigToSpec(pinacleConfig, {
         id: podRecord.id,
         name: podRecord.name,
@@ -173,6 +172,7 @@ export class PodProvisioningService {
       );
 
       // 7. Provision the pod
+      // Attention: this will mutate the spec, adding for example the proxy port
       const podInstance = await podManager.createPod(spec);
 
       // 8. Update pod in database with provisioning results
@@ -202,7 +202,7 @@ export class PodProvisioningService {
 
       // Clean up container if it exists
       if (cleanupOnError) {
-        await podManager?.cleanupPod(podId);
+        await podManager?.cleanupPod();
       }
 
       // Update pod status to error
@@ -259,13 +259,13 @@ export class PodProvisioningService {
       );
 
       // 3. Create PodManager and clean up container
-      const podManager = new PodManager(serverConnection);
+      const podManager = new PodManager(podId, serverConnection);
 
       console.log(
         `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId}`,
       );
 
-      await podManager.cleanupPodByContainerId(podId, podRecord.containerId);
+      await podManager.cleanupPodByContainerId(podRecord.containerId);
 
       console.log(
         `[PodProvisioningService] Successfully deprovisioned pod ${podId}`,
@@ -285,9 +285,9 @@ export class PodProvisioningService {
     const { podId, serverId } = input;
 
     const serverConnection = await this.getServerConnectionDetails(serverId);
-    const podManager = new PodManager(serverConnection);
+    const podManager = new PodManager(podId, serverConnection);
 
-    await podManager.cleanupPod(podId);
+    await podManager.cleanupPod();
   }
 
   /**

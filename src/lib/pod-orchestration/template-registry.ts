@@ -1,6 +1,16 @@
 import type { TierId } from "./resource-tier-registry";
-import type { ServiceName } from "./service-registry";
+import type { ServiceId } from "./service-registry";
 import type { ServiceConfig } from "./types";
+
+export type TemplateId =
+  | "vite"
+  | "nextjs"
+  | "mastra-ai"
+  | "nodejs-blank"
+  | "python-blank"
+  | "agno"
+  | "nextjs-chatbot"
+  | "langflow";
 
 /**
  * Template definition that combines bundle info (pricing, display)
@@ -8,7 +18,7 @@ import type { ServiceConfig } from "./types";
  */
 export type PodTemplate = {
   // Display/Marketing information (frontend only)
-  id: string;
+  id: TemplateId;
   name: string;
   icon?: string; // Path to icon image (e.g., "/logos/vite.svg")
   iconAlt?: string; // Alt text for icon
@@ -25,7 +35,7 @@ export type PodTemplate = {
   storageGb: number;
 
   // Services and setup (actual backend services)
-  services: ServiceName[]; // Service names to enable (from SERVICE_TEMPLATES) - also displayed as tools in UI
+  services: ServiceId[]; // Service names to enable (from SERVICE_TEMPLATES) - also displayed as tools in UI
   serviceConfigs?: ServiceConfig[]; // Optional custom service configs
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
@@ -356,12 +366,7 @@ export const POD_TEMPLATES = {
       "pip install langflow",
     ],
   },
-} satisfies Record<string, PodTemplate>;
-
-/**
- * Type-safe template ID
- */
-export type TemplateId = keyof typeof POD_TEMPLATES;
+} satisfies Record<TemplateId, PodTemplate>;
 
 /**
  * List of templates to show publicly in UI

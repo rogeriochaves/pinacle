@@ -1,28 +1,23 @@
 import type {
+  ContainerCommand,
   ContainerInfo,
-  ContainerRuntime,
   PodSpec,
   PortMapping,
   ServerConnection,
 } from "./types";
 
-export class GVisorRuntime implements ContainerRuntime {
+export class GVisorRuntime {
   private serverConnection: ServerConnection;
 
-  constructor(serverConnection: ServerConnection, podId?: string) {
+  constructor(serverConnection: ServerConnection) {
     // Use provided connection or create default Lima connection for dev
     this.serverConnection = serverConnection;
-
-    // Set podId for logging if provided
-    if (podId) {
-      this.serverConnection.setPodId(podId);
-    }
   }
 
   private async exec(
     command: string,
     useSudo: boolean = false,
-    containerCommand?: string,
+    containerCommand?: ContainerCommand,
   ): Promise<{ stdout: string; stderr: string }> {
     try {
       const result = await this.serverConnection.exec(command, {
@@ -212,6 +207,17 @@ export class GVisorRuntime implements ContainerRuntime {
     return this.getContainer(this.generateContainerName(podId));
   }
 
+  async getActiveContainerForPodOrThrow(podId: string): Promise<ContainerInfo> {
+    const container = await this.getContainerForPod(podId);
+    if (!container) {
+      throw new Error(`Container ${podId} not found`);
+    }
+    if (container.status !== "running") {
+      throw new Error(`Container ${podId} is not running`);
+    }
+    return container;
+  }
+
   async getContainer(containerId: string): Promise<ContainerInfo | null> {
     try {
       const { stdout } = await this.exec(
@@ -304,7 +310,8 @@ export class GVisorRuntime implements ContainerRuntime {
     }
   }
 
-  async execCommand(
+  async execInContainer(
+    podId: string,
     containerId: string,
     command: string[],
   ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
@@ -337,11 +344,10 @@ export class GVisorRuntime implements ContainerRuntime {
       const commandStr = quotedArgs.join(" ");
       const dockerCommand = `docker exec ${containerId} ${commandStr}`;
 
-      const { stdout, stderr } = await this.exec(
-        dockerCommand,
-        true,
-        commandStr,
-      );
+      const { stdout, stderr } = await this.exec(dockerCommand, true, {
+        podId,
+        command: commandStr,
+      });
 
       return {
         stdout,

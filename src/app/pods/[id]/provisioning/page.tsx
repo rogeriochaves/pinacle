@@ -164,7 +164,7 @@ export default function PodProvisioningPage() {
 
     const updatedAt = new Date(data.pod.updatedAt).getTime();
 
-    return now - lastLogTime > tenMinutes;
+    return now - lastLogTime > tenMinutes && now - updatedAt > tenMinutes;
   };
 
   const handleRetry = async () => {

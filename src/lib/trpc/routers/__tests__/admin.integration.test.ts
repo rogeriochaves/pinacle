@@ -129,7 +129,7 @@ describe("Admin Router Integration Tests", () => {
 
     // Create test pod
     const pinacleConfig = generatePinacleConfigFromForm({
-      template: "custom",
+      template: "nodejs-blank",
       tier: "dev.medium",
       customServices: ["claude-code"],
     });

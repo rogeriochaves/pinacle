@@ -4,6 +4,7 @@ import {
   getAllTemplates,
   getTemplateUnsafe,
   type PodTemplate,
+  type TemplateId,
 } from "./template-registry";
 import type {
   ConfigResolver,
@@ -120,8 +121,9 @@ export class DefaultConfigResolver implements ConfigResolver {
     let baseConfig: Partial<PodSpec> = {};
 
     // Load template if specified
+    let template: PodTemplate | undefined;
     if (templateId) {
-      const template = getTemplateUnsafe(templateId);
+      template = getTemplateUnsafe(templateId);
       if (!template) {
         throw new Error(`Template not found: ${templateId}`);
       }
@@ -140,7 +142,7 @@ export class DefaultConfigResolver implements ConfigResolver {
         mergedConfig.slug ||
         this.generateSlug(mergedConfig.name || "unnamed-pod"),
       description: mergedConfig.description,
-      templateId,
+      templateId: template?.id as TemplateId,
       baseImage: mergedConfig.baseImage || "alpine:3.22.1",
       resources: {
         tier: (mergedConfig.resources?.tier || "dev.small") as ResourceTier,
@@ -167,8 +169,6 @@ export class DefaultConfigResolver implements ConfigResolver {
       sshKeyPath: mergedConfig.sshKeyPath,
       workingDir: mergedConfig.workingDir || "/workspace",
       user: mergedConfig.user || "root",
-      hooks: mergedConfig.hooks,
-      healthChecks: mergedConfig.healthChecks || [],
     };
 
     return finalSpec;
@@ -389,10 +389,6 @@ export class DefaultConfigResolver implements ConfigResolver {
         ...user.environment,
       },
       services: mergedServices,
-      hooks: {
-        ...base.hooks,
-        ...user.hooks,
-      },
     };
   }
 
@@ -448,10 +444,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     }
   }
 
-  private validateServiceDependencies(
-    spec: PodSpec,
-    errors: string[],
-  ): void {
+  private validateServiceDependencies(spec: PodSpec, errors: string[]): void {
     const serviceNames = new Set(spec.services.map((s) => s.name));
 
     for (const service of spec.services) {

@@ -24,13 +24,14 @@ import {
 } from "../pinacle-config";
 import { PodManager } from "../pod-manager";
 import { PodProvisioningService } from "../pod-provisioning-service";
+import type { ServerConnection } from "../types";
 
 const execAsync = promisify(exec);
 
 // Integration tests that run against actual Lima VM and database
 describe("Pod Orchestration Integration Tests", () => {
-  let podManager: PodManager;
   let provisioningService: PodProvisioningService;
+  let serverConnection: ServerConnection;
   let testPodId: string;
   let testUserId: string;
   let testTeamId: string;
@@ -111,9 +112,8 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
-    const limaConfig = await getLimaServerConnection();
-    podManager = new PodManager(limaConfig);
-    const containerRuntime = new GVisorRuntime(limaConfig);
+    serverConnection = await getLimaServerConnection();
+    const containerRuntime = new GVisorRuntime(serverConnection);
 
     const containers = await containerRuntime.listContainers();
     const testContainers = containers.filter(
@@ -129,7 +129,7 @@ describe("Pod Orchestration Integration Tests", () => {
       await containerRuntime.removeContainer(container.id);
     }
 
-    const networkManager = new NetworkManager(limaConfig);
+    const networkManager = new NetworkManager(serverConnection);
     const networks = await networkManager.listPodNetworks();
     const integrationTestNetworks = networks.filter(
       (n) =>
@@ -223,7 +223,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("📝 Creating pod record in database...");
 
     const pinacleConfig = generatePinacleConfigFromForm({
-      template: "custom",
+      template: "nodejs-blank",
       tier: "dev.small",
       customServices: ["claude-code"],
     });
@@ -293,8 +293,10 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Test pod operations using podManager
     console.log("🧪 Testing pod operations...");
 
+    const podManager = new PodManager(testPodId, serverConnection);
+
     // Execute command in pod
-    const execResult = await podManager.execInPod(testPodId, [
+    const execResult = await podManager.execInPod([
       "echo",
       "Hello from pod!",
     ]);
@@ -302,7 +304,7 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(execResult.stdout.trim()).toBe("Hello from pod!");
 
     // Check environment variable
-    const envResult = await podManager.execInPod(testPodId, [
+    const envResult = await podManager.execInPod([
       "printenv",
       "TEST_VAR",
     ]);
@@ -327,6 +329,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
   it.skip("should handle pod lifecycle through database", async () => {
     const lifecycleTestId = `lifecycle-test-${Date.now()}`;
+    const podManager = new PodManager(lifecycleTestId, serverConnection);
 
     // 1. Create pod in database
     console.log("📝 Creating lifecycle test pod in database...");
@@ -371,9 +374,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 4. Update pod status to stopped (simulating stop operation)
     console.log("⏸️  Stopping pod...");
-    await podManager.stopPod(lifecycleTestId);
+    await podManager.stopPod();
 
-    let pod = await podManager.getPod(lifecycleTestId);
+    let pod = await podManager.getPodContainer();
     expect(pod?.status).toBe("stopped");
 
     // Update database
@@ -388,9 +391,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 5. Restart pod
     console.log("▶️  Restarting pod...");
-    await podManager.startPod(lifecycleTestId);
+    await podManager.startPod();
 
-    pod = await podManager.getPod(lifecycleTestId);
+    pod = await podManager.getPodContainer();
     expect(pod?.status).toBe("running");
 
     // Update database
@@ -413,9 +416,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 6. Delete pod
     console.log("🗑️  Deleting pod...");
-    await podManager.deletePod(lifecycleTestId);
+    await podManager.deletePod();
 
-    pod = await podManager.getPod(lifecycleTestId);
+    pod = await podManager.getPodContainer();
     expect(pod).toBeNull();
 
     // Delete from database
@@ -446,7 +449,7 @@ describe("Pod Orchestration Integration Tests", () => {
     });
 
     const config2 = generatePinacleConfigFromForm({
-      template: "custom",
+      template: "nodejs-blank",
       tier: "dev.small",
       customServices: ["claude-code"],
     });
@@ -467,7 +470,7 @@ describe("Pod Orchestration Integration Tests", () => {
         id: listTestId2,
         name: "List Test Pod 2",
         slug: "list-test-pod-2",
-        template: "custom",
+        template: "nodejs-blank",
         teamId: testTeamId,
         ownerId: testUserId,
         config: pinacleConfigToJSON(config2),
@@ -513,13 +516,8 @@ describe("Pod Orchestration Integration Tests", () => {
     const nextjsTestPods = nextjsPods.filter((p) => p.id === listTestId1);
     expect(nextjsTestPods).toHaveLength(1);
 
-    // 6. Verify using podManager (for in-memory state)
-    const allPods = await podManager.listPods();
-    expect(allPods.length).toBeGreaterThanOrEqual(2);
-
     console.log("✅ List and filter test completed successfully!");
     console.log(`   Database pods: ${dbPods.length}`);
-    console.log(`   PodManager pods: ${allPods.length}`);
   }, 180000); // 3 minute timeout
 
   it("should provision template-based pod from database", async () => {
@@ -585,15 +583,17 @@ describe("Pod Orchestration Integration Tests", () => {
 
     console.log(`✅ Template pod provisioned: ${provisionedPod.containerId}`);
 
+    const podManager = new PodManager(templateTestId, serverConnection);
+
     // 4. Verify template-specific configuration
-    const envResult = await podManager.execInPod(templateTestId, [
+    const envResult = await podManager.execInPod([
       "printenv",
       "NODE_ENV",
     ]);
     expect(envResult.exitCode).toBe(0);
     expect(envResult.stdout.trim()).toBe("development");
 
-    const customVarResult = await podManager.execInPod(templateTestId, [
+    const customVarResult = await podManager.execInPod([
       "printenv",
       "CUSTOM_VAR",
     ]);
@@ -616,7 +616,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("📝 Creating proxy test pod in database...");
 
     const pinacleConfig = generatePinacleConfigFromForm({
-      template: "custom",
+      template: "nodejs-blank",
       tier: "dev.small",
       customServices: ["claude-code"],
     });
@@ -637,7 +637,7 @@ describe("Pod Orchestration Integration Tests", () => {
       id: proxyTestId,
       name: "Proxy Test Pod",
       slug: "proxy-test-pod",
-      template: "custom",
+      template: "nodejs-blank",
       teamId: testTeamId,
       ownerId: testUserId,
       config: pinacleConfigToJSON(pinacleConfig),
@@ -667,7 +667,7 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(provisionedPod.ports).toBeTruthy();
 
     const ports = JSON.parse(provisionedPod.ports!);
-    expect(ports).toHaveLength(1);
+    expect(ports, JSON.stringify(ports)).toHaveLength(1);
     expect(ports[0].name).toBe("nginx-proxy");
     expect(ports[0].internal).toBe(80);
     expect(ports[0].external).toBeGreaterThanOrEqual(30000);
@@ -678,24 +678,18 @@ describe("Pod Orchestration Integration Tests", () => {
     // Wait for container to be fully ready
     await new Promise((resolve) => setTimeout(resolve, 5000));
 
-    // Check that Nginx is running
-    const nginxCheck = await podManager.execInPod(proxyTestId, [
-      "rc-service",
-      "nginx",
-      "status",
-    ]);
-    console.log("Nginx status:", nginxCheck.stdout);
+    const podManager = new PodManager(proxyTestId, serverConnection);
 
     // Start a simple HTTP server on port 3000 inside the container
     console.log("Starting test HTTP server on port 3000...");
-    await podManager.execInPod(proxyTestId, [
+    await podManager.execInPod([
       "sh",
       "-c",
       "mkdir -p /tmp/test-server && echo 'Hello from port 3000!' > /tmp/test-server/index.html",
     ]);
 
     // Start Python HTTP server in the background (using nohup)
-    await podManager.execInPod(proxyTestId, [
+    await podManager.execInPod([
       "sh",
       "-c",
       "cd /tmp/test-server && nohup python3 -m http.server 3000 > /tmp/server-3000.log 2>&1 &",
@@ -703,13 +697,13 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Start another server on port 8080
     console.log("Starting test HTTP server on port 8080...");
-    await podManager.execInPod(proxyTestId, [
+    await podManager.execInPod([
       "sh",
       "-c",
       "mkdir -p /tmp/test-server-8080 && echo 'Hello from port 8080!' > /tmp/test-server-8080/index.html",
     ]);
 
-    await podManager.execInPod(proxyTestId, [
+    await podManager.execInPod([
       "sh",
       "-c",
       "cd /tmp/test-server-8080 && nohup python3 -m http.server 8080 > /tmp/server-8080.log 2>&1 &",
@@ -722,7 +716,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("Testing Nginx proxy from inside container...");
 
     // Test port 3000 via hostname routing from inside container
-    const test3000 = await podManager.execInPod(proxyTestId, [
+    const test3000 = await podManager.execInPod([
       "wget",
       "-O-",
       "-q",
@@ -733,7 +727,7 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(test3000.stdout.trim()).toBe("Hello from port 3000!");
 
     // Test port 8080 via hostname routing from inside container
-    const test8080 = await podManager.execInPod(proxyTestId, [
+    const test8080 = await podManager.execInPod([
       "wget",
       "-O-",
       "-q",
@@ -775,6 +769,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Generate SSH key pair
     const { GitHubIntegration } = await import("../github-integration");
+    const podManager = new PodManager(githubTestId, serverConnection);
     const githubIntegration = new GitHubIntegration(podManager);
     const sshKeyPair = await githubIntegration.generateSSHKeyPair(githubTestId);
 
@@ -845,9 +840,9 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Verify the repository was cloned correctly
     console.log("🔍 Verifying cloned repository...");
 
-    const serverConnection = await getLimaServerConnection();
     const containerRuntime = new GVisorRuntime(serverConnection);
-    const { stdout: repoCheck } = await containerRuntime.execCommand(
+    const { stdout: repoCheck } = await containerRuntime.execInContainer(
+      provisionedPod.id,
       provisionedPod.containerId!,
       ["sh", "-c", "'cd /workspace/Hello-World && git remote -v && ls -la'"],
     );
@@ -858,7 +853,8 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(repoCheck).toContain("README");
 
     // 6. Check that we can read a file from the repo
-    const { stdout: readmeContent } = await containerRuntime.execCommand(
+    const { stdout: readmeContent } = await containerRuntime.execInContainer(
+      provisionedPod.id,
       provisionedPod.containerId!,
       ["sh", "-c", "'cat /workspace/Hello-World/README'"],
     );
@@ -870,7 +866,8 @@ describe("Pod Orchestration Integration Tests", () => {
     expect(readmeContent.length).toBeGreaterThan(0);
 
     // 7. Verify git configuration
-    const { stdout: gitConfig } = await containerRuntime.execCommand(
+    const { stdout: gitConfig } = await containerRuntime.execInContainer(
+      provisionedPod.id,
       provisionedPod.containerId!,
       [
         "sh",
@@ -947,7 +944,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`✅ Pod provisioned with container: ${containerId}`);
 
     // Verify container exists
-    const serverConnection = await getLimaServerConnection();
+    const podManager = new PodManager(deleteTestId, serverConnection);
     const runtime = new GVisorRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
@@ -958,7 +955,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Delete the pod (should clean up container)
     console.log("🗑️  Deleting pod...");
-    await podManager.deletePod(deleteTestId);
+    await podManager.deletePod();
 
     // 3. Verify container was removed
     console.log("🔍 Verifying container cleanup...");

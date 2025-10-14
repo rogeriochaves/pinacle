@@ -19,7 +19,14 @@ import {
 } from "../../pod-orchestration/pinacle-config";
 import { PodProvisioningService } from "../../pod-orchestration/pod-provisioning-service";
 import { getResourceTierUnsafe } from "../../pod-orchestration/resource-tier-registry";
-import { POD_TEMPLATES } from "../../pod-orchestration/template-registry";
+import {
+  SERVICE_TEMPLATES,
+  type ServiceId,
+} from "../../pod-orchestration/service-registry";
+import {
+  POD_TEMPLATES,
+  type TemplateId,
+} from "../../pod-orchestration/template-registry";
 import { getNextAvailableServer } from "../../servers";
 import { generateKSUID } from "../../utils";
 import {
@@ -31,7 +38,9 @@ import {
 const createPodSchema = z.object({
   name: z.string().min(2).max(255).optional(), // Auto-generated if not provided
   description: z.string().optional(),
-  template: z.string().optional(),
+  template: z
+    .enum(Object.keys(POD_TEMPLATES) as [TemplateId, ...TemplateId[]])
+    .optional(),
   teamId: z.string(),
 
   // GitHub repository information
@@ -49,7 +58,11 @@ const createPodSchema = z.object({
     .default("dev.small"),
 
   // Service selection
-  customServices: z.array(z.string()).optional(), // Custom service selection
+  customServices: z
+    .array(
+      z.enum(Object.keys(SERVICE_TEMPLATES) as [ServiceId, ...ServiceId[]]),
+    )
+    .optional(), // Custom service selection
 
   // Configuration
   config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object

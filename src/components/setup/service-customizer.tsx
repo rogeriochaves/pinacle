@@ -3,7 +3,7 @@
 import { Check, LucidePlus, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import type { ServiceName } from "../../lib/pod-orchestration/service-registry";
+import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry";
 import { Button } from "../ui/button";
 import {
@@ -22,19 +22,19 @@ import {
   SelectValue,
 } from "../ui/select";
 
-const CODING_ASSISTANTS: ServiceName[] = [
+const CODING_ASSISTANTS: ServiceId[] = [
   "claude-code",
   "openai-codex",
   "cursor-cli",
   "gemini-cli",
 ];
 
-const AVAILABLE_TOOLS: ServiceName[] = ["vibe-kanban", "code-server"];
+const AVAILABLE_TOOLS: ServiceId[] = ["vibe-kanban", "code-server"];
 
 type ServiceCustomizerProps = {
-  defaultServices: ServiceName[];
-  selectedServices: ServiceName[];
-  onChange: (services: ServiceName[]) => void;
+  defaultServices: ServiceId[];
+  selectedServices: ServiceId[];
+  onChange: (services: ServiceId[]) => void;
 };
 
 export const ServiceCustomizer = ({
@@ -55,7 +55,7 @@ export const ServiceCustomizer = ({
     AVAILABLE_TOOLS.includes(s),
   );
 
-  const handleCodingAssistantChange = (newAssistant: ServiceName) => {
+  const handleCodingAssistantChange = (newAssistant: ServiceId) => {
     // Remove old coding assistant and add new one
     const withoutCodingAssistant = selectedServices.filter(
       (s) => !CODING_ASSISTANTS.includes(s),
@@ -63,7 +63,7 @@ export const ServiceCustomizer = ({
     onChange([...withoutCodingAssistant, newAssistant]);
   };
 
-  const handleToolToggle = (toolName: ServiceName) => {
+  const handleToolToggle = (toolName: ServiceId) => {
     if (selectedTools.includes(toolName)) {
       // Remove tool
       onChange(selectedServices.filter((s) => s !== toolName));
@@ -73,7 +73,7 @@ export const ServiceCustomizer = ({
     }
   };
 
-  const handleToolRemove = (toolName: ServiceName) => {
+  const handleToolRemove = (toolName: ServiceId) => {
     onChange(selectedServices.filter((s) => s !== toolName));
   };
 
@@ -87,7 +87,7 @@ export const ServiceCustomizer = ({
         <Select
           value={currentCodingAssistant}
           onValueChange={(value) =>
-            handleCodingAssistantChange(value as ServiceName)
+            handleCodingAssistantChange(value as ServiceId)
           }
         >
           <SelectTrigger className="font-mono bg-background">

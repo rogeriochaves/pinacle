@@ -3,7 +3,7 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import type { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
-import type { ServiceName } from "../../lib/pod-orchestration/service-registry";
+import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry";
 import type { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { Button } from "../ui/button";
@@ -14,10 +14,10 @@ type ConfigurationSummaryProps = {
   tierData: (typeof RESOURCE_TIERS)[keyof typeof RESOURCE_TIERS];
   onSubmit: () => void;
   isCreating: boolean;
-  selectedServices?: ServiceName[];
+  selectedServices?: ServiceId[];
 };
 
-const CODING_ASSISTANTS: ServiceName[] = [
+const CODING_ASSISTANTS: ServiceId[] = [
   "claude-code",
   "openai-codex",
   "cursor-cli",
@@ -33,9 +33,9 @@ export const ConfigurationSummary = ({
   selectedServices,
 }: ConfigurationSummaryProps) => {
   // Use selectedServices if provided, otherwise fall back to template's default services
-  const allServices: ServiceName[] = (selectedServices ||
+  const allServices: ServiceId[] = (selectedServices ||
     selectedTemplate?.services ||
-    []) as ServiceName[];
+    []) as ServiceId[];
 
   // Sort services to always show coding assistant first (create a copy to avoid mutation)
   const servicesToDisplay = [...allServices].sort((a, b) => {
