@@ -232,6 +232,7 @@ export const SERVICE_TEMPLATES = {
         ? `/workspace/${context.projectFolder}`
         : "/workspace";
 
+      // Pass the tab id as a URL argument, e.g. ?arg=0 for the first tab
       return [
         "ttyd",
         "-p",

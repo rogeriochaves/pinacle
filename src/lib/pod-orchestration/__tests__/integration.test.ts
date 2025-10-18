@@ -609,7 +609,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Logs: ${logs.length} entries`);
   }, 120000);
 
-  it("should provision pod with hostname-based Nginx proxy from database", async () => {
+  it.only("should provision pod with hostname-based Nginx proxy from database", async () => {
     const proxyTestId = `proxy-test-${Date.now()}`;
 
     // 1. Create pod in database
@@ -761,7 +761,7 @@ describe("Pod Orchestration Integration Tests", () => {
     );
   }, 120000); // 2 minute timeout
 
-  it.only("should provision pod with GitHub repository from database", async () => {
+  it("should provision pod with GitHub repository from database", async () => {
     const githubTestId = `github-test-${Date.now()}`;
     const testRepo = "https://github.com/octocat/Hello-World.git";
 

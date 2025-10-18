@@ -32,6 +32,7 @@ type WorkbenchProps = {
   pod: {
     id: string;
     name: string;
+    slug: string;
     status: string;
     publicUrl?: string | null;
   };
@@ -81,7 +82,6 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const { data: session } = useSession();
 
   const isRunning = pod.status === "running";
-  const baseUrl = pod.publicUrl || "";
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
@@ -91,9 +91,14 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     const tabConfig = TABS.find((t) => t.id === tab);
     if (!tabConfig) return "";
 
-    // Construct URL: baseUrl is like https://pod-abc123.pinacle.dev
-    // We need to add the port path: https://pod-abc123.pinacle.dev/port/8726
-    return `${baseUrl}/port/${tabConfig.port}/`;
+    // New flow: redirect through authentication endpoint
+    // 1. Iframe src points to /api/proxy-auth?pod=slug&port=8726
+    // 2. Backend validates session, checks access, generates JWT
+    // 3. Redirects to subdomain with token
+    // 4. Subdomain validates token, sets scoped cookie
+    // 5. Proxies to pod
+
+    return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}`;
   };
 
   const getStatusColor = () => {

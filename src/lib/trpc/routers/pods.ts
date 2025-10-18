@@ -278,7 +278,6 @@ export const podsRouter = createTRPCRouter({
 
       // Generate slug from name
       const slug = name
-        .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
 

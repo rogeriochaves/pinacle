@@ -93,11 +93,22 @@ export class ServiceProvisioner {
       );
 
       // Start using OpenRC
-      await this.containerRuntime.execInContainer(podId, container.id, [
-        "rc-service",
-        serviceName,
-        "start",
-      ]);
+      try {
+        await this.containerRuntime.execInContainer(podId, container.id, [
+          "rc-service",
+          serviceName,
+          "start",
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("has already been started")) {
+          console.log(
+            `[ServiceProvisioner] Service is ${serviceName} already running`,
+          );
+        } else {
+          throw error;
+        }
+      }
 
       // Wait a moment for service to start
       await new Promise((resolve) => setTimeout(resolve, 2000));
