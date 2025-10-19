@@ -16,10 +16,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { parse } from "node:url";
 import { eq } from "drizzle-orm";
-import {
-  createProxyMiddleware,
-  type RequestHandler,
-} from "http-proxy-middleware";
+import httpProxy from "http-proxy";
 import next from "next";
 import { db } from "./src/lib/db";
 import { pods, servers } from "./src/lib/db/schema";
@@ -37,11 +34,14 @@ const port = 3000; // Single port for both app and proxy
 // Cookie names for scoped authentication
 const PROXY_TOKEN_COOKIE = "pinacle-proxy-token";
 
+// Proxy cache configuration
+const PROXY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 // Proxy cache to avoid recreating proxies for every request
 const proxyCache = new Map<
   string,
   {
-    proxy: RequestHandler;
+    proxy: httpProxy;
     createdAt: number;
     podId: string;
   }
@@ -178,23 +178,67 @@ const handleCallback = async (
 };
 
 /**
+ * Clean up an expired proxy instance
+ */
+const cleanupProxy = (proxy: httpProxy, cacheKey: string): void => {
+  try {
+    proxyLogger.debug({ cacheKey }, "Cleaning up expired proxy");
+
+    // Remove all event listeners
+    proxy.removeAllListeners();
+
+    // Close the proxy
+    proxy.close();
+
+    proxyLogger.debug({ cacheKey }, "Proxy cleaned up successfully");
+  } catch (err) {
+    proxyLogger.error({ err, cacheKey }, "Error cleaning up proxy");
+  }
+};
+
+/**
  * Get or create a cached proxy for a specific pod
  */
 const getOrCreatePodProxy = async (
   payload: ProxyTokenPayload,
-  // biome-ignore lint: Any is needed for proxy middleware compatibility
-): Promise<any | null> => {
+): Promise<httpProxy | null> => {
   // Create cache key from pod + target port
   const cacheKey = `${payload.podId}:${payload.targetPort}`;
 
   // Check if we have a valid cached proxy
   const cached = proxyCache.get(cacheKey);
   if (cached) {
-    proxyLogger.debug(
-      { podSlug: payload.podSlug, targetPort: payload.targetPort },
-      "Using cached proxy",
-    );
-    return cached.proxy;
+    const age = Date.now() - cached.createdAt;
+
+    // Check if proxy has expired
+    if (age > PROXY_CACHE_TTL_MS) {
+      proxyLogger.info(
+        {
+          podSlug: payload.podSlug,
+          targetPort: payload.targetPort,
+          ageMs: age,
+        },
+        "Proxy expired, cleaning up and recreating",
+      );
+
+      // Clean up the old proxy
+      cleanupProxy(cached.proxy, cacheKey);
+
+      // Remove from cache
+      proxyCache.delete(cacheKey);
+
+      // Fall through to create new proxy
+    } else {
+      proxyLogger.debug(
+        {
+          podSlug: payload.podSlug,
+          targetPort: payload.targetPort,
+          ageMs: age,
+        },
+        "Using cached proxy",
+      );
+      return cached.proxy;
+    }
   }
 
   // Create new proxy
@@ -213,11 +257,11 @@ const getOrCreatePodProxy = async (
 };
 
 /**
- * Create proxy middleware for a specific pod
+ * Create raw http-proxy for a specific pod
  */
 const createPodProxy = async (
   payload: ProxyTokenPayload,
-): Promise<RequestHandler | null> => {
+): Promise<httpProxy | null> => {
   try {
     // Get pod details
     const [pod] = await db
@@ -281,21 +325,51 @@ const createPodProxy = async (
       "Creating proxy connection",
     );
 
-    // Create proxy middleware
-    const proxy = createProxyMiddleware({
+    // Create raw http-proxy server
+    const proxy = httpProxy.createProxyServer({
       target: `http://${targetHost}:${targetPort}`,
+      ws: true,
       changeOrigin: true,
-      ws: true, // Enable WebSocket proxying
-
-      // Modify headers
-      headers: {
-        Host: `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
-      },
-
-      // logger: console,
     });
 
-    // Return proxy with error handling (cast to any for type compatibility)
+    // Set Host header for hostname-based routing (HTTP)
+    proxy.on("proxyReq", (proxyReq) => {
+      proxyReq.setHeader(
+        "Host",
+        `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+      );
+    });
+
+    // Set Host header for WebSocket upgrades
+    proxy.on("proxyReqWs", (proxyReq) => {
+      proxyReq.setHeader(
+        "Host",
+        `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+      );
+    });
+
+    // Handle HTTP proxy errors
+    proxy.on("error", (err, _req, res) => {
+      proxyLogger.error(
+        { err, podSlug: payload.podSlug, port: payload.targetPort },
+        "HTTP proxy error",
+      );
+      // res can be either ServerResponse (HTTP) or Socket (WebSocket)
+      // Only try to send HTTP response if it's actually an HTTP response
+      if (
+        res &&
+        "writeHead" in res &&
+        typeof res.writeHead === "function" &&
+        !res.headersSent
+      ) {
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Bad Gateway" }));
+      } else if (res && "destroy" in res) {
+        // It's a socket (WebSocket), just destroy it
+        res.destroy();
+      }
+    });
+
     return proxy;
   } catch (error) {
     proxyLogger.error({ err: error }, "Error creating proxy");
@@ -372,16 +446,12 @@ const handleProxy = async (
       return;
     }
 
-    // Proxy the request
-    proxy(req, res, (err: Error | undefined) => {
-      if (err) {
-        proxyLogger.error({ err }, "Proxy middleware error");
-        if (!res.headersSent) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Proxy error" }));
-        }
-      }
-    });
+    // Proxy the request using raw http-proxy
+    proxyLogger.debug(
+      { podSlug: payload.podSlug, port: payload.targetPort, url: req.url },
+      "Proxying HTTP request",
+    );
+    proxy.web(req, res);
   } catch (error) {
     proxyLogger.error({ err: error }, "Handle proxy error");
     if (!res.headersSent) {
@@ -485,7 +555,7 @@ const startServer = async (): Promise<void> => {
           return;
         }
 
-        // Get or create cached proxy for this WebSocket connection
+        // Get or create cached proxy (same one used for HTTP)
         const proxy = await getOrCreatePodProxy(payload);
         if (!proxy) {
           logger.error("WebSocket upgrade failed: Could not create proxy");
@@ -494,12 +564,21 @@ const startServer = async (): Promise<void> => {
           return;
         }
 
-        // Upgrade the WebSocket connection through the proxy
-        logger.debug(
-          { podSlug: parsed.podSlug, port: parsed.port },
-          "Upgrading WebSocket through proxy",
+        // Upgrade the WebSocket connection using the same proxy
+        logger.info(
+          { podSlug: parsed.podSlug, port: parsed.port, url: req.url },
+          "Upgrading WebSocket through cached proxy",
         );
-        proxy.upgrade(req, socket, head);
+
+        // Add error handler for this specific WebSocket upgrade
+        socket.on("error", (err) => {
+          proxyLogger.error(
+            { err, podSlug: parsed.podSlug, port: parsed.port },
+            "WebSocket socket error",
+          );
+        });
+
+        proxy.ws(req, socket, head);
       } else {
         // Not a proxy request - let Next.js handle it (if it supports WS)
         socket.write("HTTP/1.1 404 Not Found\r\n\r\n");

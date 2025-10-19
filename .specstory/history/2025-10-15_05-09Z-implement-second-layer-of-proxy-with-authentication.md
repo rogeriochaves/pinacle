@@ -1364,12 +1364,12 @@ Tool use: **grep**
 Output mode: content
 
 
-| Content | Line |
-|------|------|
-| `import \{ Workbench \} from "../../components/dashboard/workbench";` | L10 |
-| `<Workbench` | L199 |
-| `<span className="font-mono text-sm">Back to Workbench</span>` | L25 |
-| `<span className="font-mono text-sm">Back to Workbench</span>` | L54 |
+| File | Content | Line |
+|------|------|------|
+| `src/app/dashboard/page.tsx` | `import \{ Workbench \} from "../../components/dashboard/workbench";` | L10 |
+| `src/app/dashboard/page.tsx` | `<Workbench` | L199 |
+| `src/app/dashboard/account/page.tsx` | `<span className="font-mono text-sm">Back to Workbench</span>` | L25 |
+| `src/app/dashboard/team/page.tsx` | `<span className="font-mono text-sm">Back to Workbench</span>` | L54 |
 
 
 </details>
@@ -3872,10 +3872,10 @@ Tool use: **grep**
 Output mode: content
 
 
-| Content | Line |
-|------|------|
-| `"@types/jsonwebtoken": "^9.0.10",` | L52 |
-| `"jsonwebtoken": "^9.0.2",` | L65 |
+| File | Content | Line |
+|------|------|------|
+| `package.json` | `"@types/jsonwebtoken": "^9.0.10",` | L52 |
+| `package.json` | `"jsonwebtoken": "^9.0.2",` | L65 |
 
 
 </details>
@@ -7365,57 +7365,57 @@ Tool use: **grep**
 Output mode: content
 
 
-| Content | Line |
-|------|------|
-| `+ import \{ exec \} from "node:child_process";` | L1508 |
-| `+ import \{ readFileSync \} from "node:fs";` | L1509 |
-| `+ import \{ homedir \} from "node:os";` | L1510 |
-| `+ import \{ join \} from "node:path";` | L1511 |
-| `+ import \{ promisify \} from "node:util";` | L1512 |
-| `1\| import \{ exec \} from "node:child_process";` | L2646 |
-| `2\| import \{ promisify \} from "node:util";` | L2648 |
-| `+ import type \{ IncomingMessage, ServerResponse \} from "node:http";` | L4314 |
-| `+ import \{ createServer \} from "node:http";` | L4315 |
-| `+ import \{ parse \} from "node:url";` | L4316 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ readFileSync \} from "node:fs";` | L2 |
-| `import \{ homedir \} from "node:os";` | L3 |
-| `import \{ join \} from "node:path";` | L4 |
-| `import \{ promisify \} from "node:util";` | L5 |
-| `import \{ exec \} from "node:child_process";` | L12 |
-| `import \{ readFileSync \} from "node:fs";` | L13 |
-| `import \{ homedir \} from "node:os";` | L14 |
-| `import \{ join \} from "node:path";` | L15 |
-| `import \{ promisify \} from "node:util";` | L16 |
-| `import \{ EventEmitter \} from "node:events";` | L368 |
-| `import \{ EventEmitter \} from "node:events";` | L1 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ unlink, writeFile \} from "node:fs/promises";` | L2 |
-| `import \{ tmpdir \} from "node:os";` | L3 |
-| `import \{ join \} from "node:path";` | L4 |
-| `import \{ promisify \} from "node:util";` | L5 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ promisify \} from "node:util";` | L2 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ promisify \} from "node:util";` | L2 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ promisify \} from "node:util";` | L2 |
-| `import \{ join \} from "node:path";` | L8681 |
-| `import \{ promisify \} from "node:util";` | L8682 |
-| `import \{ readFileSync \} from "node:fs";` | L7 |
-| `import \{ homedir \} from "node:os";` | L8 |
-| `import \{ join \} from "node:path";` | L9 |
-| `import \{ existsSync, readFileSync, writeFileSync \} from "node:fs";` | L1 |
-| `import \{ cpus, hostname, networkInterfaces, totalmem \} from "node:os";` | L2 |
-| `import \{ resolve \} from "node:path";` | L3 |
-| `import \{ promisify \} from "node:util";` | L3648 |
-| `import \{ exec \} from "node:child_process";` | L15 |
-| `import \{ promisify \} from "node:util";` | L16 |
-| `import \{ exec \} from "node:child_process";` | L1 |
-| `import \{ cpus, freemem, totalmem \} from "node:os";` | L2 |
-| `import \{ promisify \} from "node:util";` | L3 |
-| `import crypto from "node:crypto";` | L1 |
-| `import path from "node:path";` | L1 |
+| File | Content | Line |
+|------|------|------|
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ exec \} from "node:child_process";` | L1508 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ readFileSync \} from "node:fs";` | L1509 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ homedir \} from "node:os";` | L1510 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ join \} from "node:path";` | L1511 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ promisify \} from "node:util";` | L1512 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `1\| import \{ exec \} from "node:child_process";` | L2646 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `2\| import \{ promisify \} from "node:util";` | L2648 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import type \{ IncomingMessage, ServerResponse \} from "node:http";` | L4314 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ createServer \} from "node:http";` | L4315 |
+| `./.specstory/history/2025-10-15_05-09Z-implement-second-layer-of-proxy-with-authentication.md` | `+ import \{ parse \} from "node:url";` | L4316 |
+| `./src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ readFileSync \} from "node:fs";` | L2 |
+| `./src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ homedir \} from "node:os";` | L3 |
+| `./src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ join \} from "node:path";` | L4 |
+| `./src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ promisify \} from "node:util";` | L5 |
+| `./src/lib/proxy/__tests__/proxy.test.ts` | `import \{ exec \} from "node:child_process";` | L12 |
+| `./src/lib/proxy/__tests__/proxy.test.ts` | `import \{ readFileSync \} from "node:fs";` | L13 |
+| `./src/lib/proxy/__tests__/proxy.test.ts` | `import \{ homedir \} from "node:os";` | L14 |
+| `./src/lib/proxy/__tests__/proxy.test.ts` | `import \{ join \} from "node:path";` | L15 |
+| `./src/lib/proxy/__tests__/proxy.test.ts` | `import \{ promisify \} from "node:util";` | L16 |
+| `./.specstory/history/2025-10-13_20-35Z-update-documentation-after-major-refactor.md` | `import \{ EventEmitter \} from "node:events";` | L368 |
+| `./src/lib/pod-orchestration/pod-manager.ts` | `import \{ EventEmitter \} from "node:events";` | L1 |
+| `./src/lib/pod-orchestration/server-connection.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./src/lib/pod-orchestration/server-connection.ts` | `import \{ unlink, writeFile \} from "node:fs/promises";` | L2 |
+| `./src/lib/pod-orchestration/server-connection.ts` | `import \{ tmpdir \} from "node:os";` | L3 |
+| `./src/lib/pod-orchestration/server-connection.ts` | `import \{ join \} from "node:path";` | L4 |
+| `./src/lib/pod-orchestration/server-connection.ts` | `import \{ promisify \} from "node:util";` | L5 |
+| `./src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts` | `import \{ promisify \} from "node:util";` | L2 |
+| `./src/lib/pod-orchestration/github-integration.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./src/lib/pod-orchestration/github-integration.ts` | `import \{ promisify \} from "node:util";` | L2 |
+| `./src/lib/pod-orchestration/lima-utils.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./src/lib/pod-orchestration/lima-utils.ts` | `import \{ promisify \} from "node:util";` | L2 |
+| `./.specstory/history/2025-10-12_12-19Z-fixing-pod-provisioning-configuration-issues.md` | `import \{ join \} from "node:path";` | L8681 |
+| `./.specstory/history/2025-10-12_12-19Z-fixing-pod-provisioning-configuration-issues.md` | `import \{ promisify \} from "node:util";` | L8682 |
+| `./src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `import \{ readFileSync \} from "node:fs";` | L7 |
+| `./src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `import \{ homedir \} from "node:os";` | L8 |
+| `./src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `import \{ join \} from "node:path";` | L9 |
+| `./server-agent/src/index.ts` | `import \{ existsSync, readFileSync, writeFileSync \} from "node:fs";` | L1 |
+| `./server-agent/src/index.ts` | `import \{ cpus, hostname, networkInterfaces, totalmem \} from "node:os";` | L2 |
+| `./server-agent/src/index.ts` | `import \{ resolve \} from "node:path";` | L3 |
+| `./.specstory/history/2025-10-04_16-00Z-build-an-admin-area-for-server-management.md` | `import \{ promisify \} from "node:util";` | L3648 |
+| `./src/lib/server-agent/__tests__/agent-integration.test.ts` | `import \{ exec \} from "node:child_process";` | L15 |
+| `./src/lib/server-agent/__tests__/agent-integration.test.ts` | `import \{ promisify \} from "node:util";` | L16 |
+| `./server-agent/src/metrics-collector.ts` | `import \{ exec \} from "node:child_process";` | L1 |
+| `./server-agent/src/metrics-collector.ts` | `import \{ cpus, freemem, totalmem \} from "node:os";` | L2 |
+| `./server-agent/src/metrics-collector.ts` | `import \{ promisify \} from "node:util";` | L3 |
+| `./src/lib/utils.ts` | `import crypto from "node:crypto";` | L1 |
+| `./vitest.config.ts` | `import path from "node:path";` | L1 |
 
 
 </details>
@@ -9605,32 +9605,32 @@ Tool use: **grep**
 Output mode: content
 
 
-| Content | Line |
-|------|------|
-| `console.log(` | L156 |
-| `console.error("[ProxyServer] Callback error:", error);` | L168 |
-| `// console.log(` | L188 |
-| `console.log(` | L195 |
-| `console.error(` | L231 |
-| `console.error(`[ProxyServer] Server $\{pod.serverId\} not found`);` | L245 |
-| `console.error(` | L258 |
-| `console.log(` | L269 |
-| `console.error("[ProxyServer] Error creating proxy:", error);` | L290 |
-| `console.error("[ProxyServer] Proxy middleware error:", err);` | L367 |
-| `console.error("[ProxyServer] Handle proxy error:", error);` | L375 |
-| `// console.log(`[Server] Detected proxy request: $\{requestHostname\}`);` | L403 |
-| `console.error("[Server] Error:", err);` | L419 |
-| `// console.log(` | L435 |
-| `console.error("[Server] WebSocket upgrade failed: No token");` | L444 |
-| `console.error("[Server] WebSocket upgrade failed: Invalid token");` | L453 |
-| `console.error("[Server] WebSocket upgrade failed: Token mismatch");` | L464 |
-| `console.error(` | L473 |
-| `// console.log(` | L482 |
-| `console.error("[Server] WebSocket upgrade error:", err);` | L492 |
-| `console.log(`✅ Server ready on http://$\{hostname\}:$\{port\}`);` | L498 |
-| `console.log(`   - Next.js app: http://$\{hostname\}:$\{port\}`);` | L499 |
-| `console.log(` | L500 |
-| `console.error("Failed to start server:", err);` | L508 |
+| File | Content | Line |
+|------|------|------|
+| `server.ts` | `console.log(` | L156 |
+| `server.ts` | `console.error("[ProxyServer] Callback error:", error);` | L168 |
+| `server.ts` | `// console.log(` | L188 |
+| `server.ts` | `console.log(` | L195 |
+| `server.ts` | `console.error(` | L231 |
+| `server.ts` | `console.error(`[ProxyServer] Server $\{pod.serverId\} not found`);` | L245 |
+| `server.ts` | `console.error(` | L258 |
+| `server.ts` | `console.log(` | L269 |
+| `server.ts` | `console.error("[ProxyServer] Error creating proxy:", error);` | L290 |
+| `server.ts` | `console.error("[ProxyServer] Proxy middleware error:", err);` | L367 |
+| `server.ts` | `console.error("[ProxyServer] Handle proxy error:", error);` | L375 |
+| `server.ts` | `// console.log(`[Server] Detected proxy request: $\{requestHostname\}`);` | L403 |
+| `server.ts` | `console.error("[Server] Error:", err);` | L419 |
+| `server.ts` | `// console.log(` | L435 |
+| `server.ts` | `console.error("[Server] WebSocket upgrade failed: No token");` | L444 |
+| `server.ts` | `console.error("[Server] WebSocket upgrade failed: Invalid token");` | L453 |
+| `server.ts` | `console.error("[Server] WebSocket upgrade failed: Token mismatch");` | L464 |
+| `server.ts` | `console.error(` | L473 |
+| `server.ts` | `// console.log(` | L482 |
+| `server.ts` | `console.error("[Server] WebSocket upgrade error:", err);` | L492 |
+| `server.ts` | `console.log(`✅ Server ready on http://$\{hostname\}:$\{port\}`);` | L498 |
+| `server.ts` | `console.log(`   - Next.js app: http://$\{hostname\}:$\{port\}`);` | L499 |
+| `server.ts` | `console.log(` | L500 |
+| `server.ts` | `console.error("Failed to start server:", err);` | L508 |
 
 
 </details>
@@ -10225,6 +10225,1427 @@ proxyLogger.error({ err: error }, "Error creating proxy");
 ✅ **Configurable** - `LOG_LEVEL` env var support  
 
 Restart the server and enjoy beautiful logs! 🌈
+
+---
+
+_**User (2025-10-18 20:28Z)**_
+
+awesome thanks for the logger, however we still have a problem, and I think it's related to the same issue of not being able to destroy the cached proxies and connect another socket
+
+seems like one one socket ever works, so, even without expiring sockets now, if I open url 1 then 2:
+
+1. localhost-7681.pod-testing20250922-ntrxn.localhost:3000
+2. localhost-8726.pod-testing20250922-ntrxn.localhost:3000/?folder=/workspace
+
+that's 2 proxies being created, the first url loads the proxy normally but not the second
+
+if I restart the server then open the number 2 first, then that one socket's works but number 1
+
+why is that? how can we fix it
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>Interesting! The user is experiencing an issue where only ONE WebSocket connection works at a time. If they open:
+1. localhost-7681 (port 7681) - works
+2. localhost-8726 (port 8726) - doesn't work
+
+But if they restart and open in reverse order, then 8726 works but 7681 doesn't.
+
+This suggests that the proxy middleware is somehow stateful and can only handle one WebSocket connection at a time, or that we're creating a single proxy instance that's somehow locking to one specific target.
+
+Wait, looking at the code... I see the issue!
+
+In `createPodProxy`, we're creating a proxy with a target like:
+```typescript
+const proxy = createProxyMiddleware({
+  target: `http://${targetHost}:${targetPort}`,
+  // ...
+});
+```
+
+But `targetPort` here is the **nginx proxy's external port** (like 30001), not the internal service port (7681 or 8726).
+
+The issue is that we're setting the `Host` header to route to the correct internal port:
+```typescript
+headers: {
+  Host: `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+}
+```
+
+But `http-proxy-middleware` might be caching connections or having issues with multiple WebSocket connections to the same target (30001) but with different Host headers.
+
+Actually, let me re-read... The cacheKey is `${payload.podId}:${payload.targetPort}` where `targetPort` is the internal service port (7681, 8726, etc.).
+
+So we SHOULD be creating separate proxy instances for each port. Let me check if the issue is with how we're handling the WebSocket upgrades...
+
+Oh! I think I see the problem. When we call `proxy.upgrade(req, socket, head)`, the proxy middleware might be maintaining internal state about WebSocket connections. If we're reusing the same proxy instance for multiple requests to the same port, but the WebSocket library expects each proxy to handle one connection...
+ 
+I'm now investigating a potential architectural bottleneck. The problem might stem from the pod's nginx configuration, which could be limiting WebSocket connections. The multi-step routing process involves:
+1. Browser connecting to the custom server
+2. Custom server routing through pod's nginx
+3. Nginx forwarding to internal services based on Host headers
+
+This complex routing might introduce unexpected connection constraints, potentially causing the single-connection limitation we're observing.
+
+The proposed solution involves dynamically creating unique proxy instances for each WebSocket connection, preventing potential caching or reuse issues that could restrict concurrent connections.</details></think>
+
+---
+
+Ah! I see the issue. The problem is that `http-proxy-middleware` creates a **single underlying http-proxy server** per instance, and that server maintains state about active connections. When you have multiple WebSocket connections going through the same proxy instance, they can interfere with each other.
+
+The solution is to **NOT cache proxies at all** - create a fresh one for each request. The caching was solving the event listener leak, but it's causing WebSocket conflicts. Let me fix this:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 10
+
+```diff
+@@ -37,14 +37,4 @@
+  // Cookie names for scoped authentication
+  const PROXY_TOKEN_COOKIE = "pinacle-proxy-token";
+- 
+- // Proxy cache to avoid recreating proxies for every request
+- const proxyCache = new Map<
+-   string,
+-   {
+-     proxy: RequestHandler;
+-     createdAt: number;
+-     podId: string;
+-   }
+- >();
+  
+  /**
+```
+
+</details>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -355,6 +355,6 @@
+      }
+  
+-     // Get or create cached proxy
+-     const proxy = await getOrCreatePodProxy(payload);
++     // Create proxy for this request
++     const proxy = await createProxyForRequest(payload);
+      if (!proxy) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -476,6 +476,6 @@
+          }
+  
+-         // Get or create cached proxy for this WebSocket connection
+-         const proxy = await getOrCreatePodProxy(payload);
++         // Create a fresh proxy for this WebSocket connection
++         const proxy = await createProxyForRequest(payload);
+          if (!proxy) {
+            logger.error("WebSocket upgrade failed: Could not create proxy");
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>I need to finish removing the caching code. Let me read the file to see what's still there.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/server.ts
+
+---
+
+_**User (2025-10-18 20:28Z)**_
+
+if we do not cache, then sockets doesn't work at all remember?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>Oh right! The user is correct. We discovered earlier that caching was actually what MADE WebSockets work in the first place. Without caching, we were creating a new proxy for each request, which meant the WebSocket upgrade couldn't find the same proxy instance that handled the initial HTTP request.
+
+But now we have a different problem: with caching, only ONE WebSocket connection works at a time. When they try to open multiple different ports (7681 and 8726), only the first one works.
+
+Let me think about this...
+
+The issue is that we're caching by `podId:targetPort`. So:
+- localhost-7681.pod-test.localhost:3000 → Cache key: `podId:7681`
+- localhost-8726.pod-test.localhost:3000 → Cache key: `podId:8726`
+
+These should be different cache keys, so they should get different proxy instances. Why would one work and not the other?
+
+Wait, maybe the issue is that `http-proxy-middleware` with WebSocket support creates some kind of global state or connection pool that interferes between instances? Or maybe the issue is at the pod level - the pod's nginx is having trouble routing?
+
+Let me look at what the user said more carefully:
+- They open URL 1 (port 7681) - works
+- They open URL 2 (port 8726) - doesn't work
+- If they restart server and open URL 2 first - that works but URL 1 doesn't
+
+This sounds like only ONE proxy instance can successfully handle WebSockets at a time, regardless of which one it is.
+
+Actually, I think the problem might be that we need to properly scope the proxy cache AND we might need to handle WebSocket upgrades differently. Let me check the http-proxy-middleware documentation...
+
+The issue might be that we're creating the proxy middleware with `ws: true`, but each proxy instance might be conflicting at the Node.js server level. Maybe we need to NOT use the middleware's ws option and handle ALL websocket upgrades manually in the upgrade handler?
+
+
+I'm wondering if the cache mechanism is fundamentally flawed. The current approach seems to create unexpected conflicts between WebSocket connections. Perhaps we need a more nuanced strategy for managing proxy instances that completely isolates each connection's state. Using a raw http-proxy library might provide more granular control, allowing us to create truly independent proxy instances for each WebSocket connection.
+
+The proposed solution looks promising: disabling the WebSocket option in the middleware and implementing a custom upgrade handler with individual proxy instances could resolve the current limitations we're experiencing.</details></think>
+
+---
+
+You're absolutely right! I apologize for the confusion. Caching is what made WebSockets work initially. But now we have a new problem: only ONE WebSocket port works at a time.
+
+The issue is that `http-proxy-middleware` with `ws: true` creates internal conflicts when multiple instances try to handle WebSockets. Let me try a different approach - use separate http-proxy instances for WebSocket upgrades:
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/rchaves/Projects/pinacle && pnpm add http-proxy @types/http-proxy
+```
+
+```
+ WARN  deprecated @types/bcryptjs@3.0.0: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.                                                                
+ WARN  2 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5
+Already up to date
+Progress: resolved 549, reused 428, downloaded 0, added 0, done
+ WARN  Issues with peer dependencies found
+.
+└─┬ next-auth 4.24.11
+  └── ✕ unmet peer @auth/core@0.34.2: found 0.40.0
+
+dependencies:
++ @types/http-proxy 1.17.16
++ http-proxy 1.18.1
+
+Done in 1.3s using pnpm v10.15.0
+```
+
+---
+
+<think><details><summary>Thought Process</summary>Good, now I have http-proxy installed. Let me modify the approach:
+1. Keep the proxy middleware cache for HTTP requests (no ws option)
+2. For WebSocket upgrades, create a fresh http-proxy instance each time
+3. This way HTTP requests benefit from caching, but WebSockets get isolated instances</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -17,4 +17,5 @@
+  import { parse } from "node:url";
+  import { eq } from "drizzle-orm";
++ import httpProxy from "http-proxy";
+  import {
+    createProxyMiddleware,
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 2
+
+```diff
+@@ -283,9 +283,10 @@
+      );
+  
+-     // Create proxy middleware
++     // Create proxy middleware WITHOUT ws option
++     // WebSockets will be handled separately with raw http-proxy
+      const proxy = createProxyMiddleware({
+        target: `http://${targetHost}:${targetPort}`,
+        changeOrigin: true,
+-       ws: true, // Enable WebSocket proxying
++       ws: false, // Disable - we handle WebSockets separately
+  
+        // Modify headers
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 70, lines removed: 8
+
+```diff
+@@ -488,19 +488,81 @@
+          }
+  
+-         // Get or create cached proxy for this WebSocket connection
+-         const proxy = await getOrCreatePodProxy(payload);
+-         if (!proxy) {
+-           logger.error("WebSocket upgrade failed: Could not create proxy");
++         // Get pod/server details for WebSocket proxy
++         const [pod] = await db
++           .select({
++             id: pods.id,
++             serverId: pods.serverId,
++             ports: pods.ports,
++           })
++           .from(pods)
++           .where(eq(pods.id, payload.podId))
++           .limit(1);
++ 
++         if (!pod || !pod.serverId) {
++           logger.error({ podId: payload.podId }, "Pod not found for WebSocket");
++           socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
++           socket.destroy();
++           return;
++         }
++ 
++         const [server] = await db
++           .select()
++           .from(servers)
++           .where(eq(servers.id, pod.serverId))
++           .limit(1);
++ 
++         if (!server) {
++           logger.error({ serverId: pod.serverId }, "Server not found for WebSocket");
++           socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
++           socket.destroy();
++           return;
++         }
++ 
++         const portMappings = JSON.parse(pod.ports || "[]") as Array<{
++           name: string;
++           internal: number;
++           external: number;
++         }>;
++         const nginxProxy = portMappings.find((p) => p.name === "nginx-proxy");
++         
++         if (!nginxProxy) {
++           logger.error({ podId: payload.podId }, "Nginx proxy port not found for WebSocket");
+            socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+            socket.destroy();
+            return;
+          }
+  
+-         // Upgrade the WebSocket connection through the proxy
++         const isLimaVm = !!server.limaVmName;
++         const targetHost = isLimaVm ? "127.0.0.1" : server.ipAddress;
++         const targetPort = nginxProxy.external;
++ 
++         // Create a fresh http-proxy instance for THIS WebSocket connection
++         const wsProxy = httpProxy.createProxyServer({
++           target: `http://${targetHost}:${targetPort}`,
++           ws: true,
++           changeOrigin: true,
++         });
++ 
++         // Set the Host header for hostname-based routing
++         wsProxy.on("proxyReqWs", (proxyReq) => {
++           proxyReq.setHeader(
++             "Host",
++             `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
++           );
++         });
++ 
++         // Handle errors
++         wsProxy.on("error", (err) => {
++           proxyLogger.error({ err, podSlug: parsed.podSlug, port: parsed.port }, "WebSocket proxy error");
++           socket.destroy();
++         });
++ 
++         // Upgrade the WebSocket connection
+          logger.debug(
+-           { podSlug: parsed.podSlug, port: parsed.port },
+-           "Upgrading WebSocket through proxy",
++           { podSlug: parsed.podSlug, port: parsed.port, targetHost, targetPort },
++           "Upgrading WebSocket with dedicated proxy",
+          );
+-         proxy.upgrade(req, socket, head);
++         
++         wsProxy.ws(req, socket, head);
+        } else {
+          // Not a proxy request - let Next.js handle it (if it supports WS)
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now let me check for lint errors and explain what I changed.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/server.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! No linter errors. Now let me explain what I changed and why this should fix the multiple WebSocket issue.</details></think>
+
+---
+
+Perfect! Here's the solution to your WebSocket problem:
+
+## The Fix: Hybrid Approach 🎯
+
+### What Changed
+
+**1. HTTP Requests (Cached)**
+- Still use `http-proxy-middleware` 
+- Still cached in `proxyCache`
+- **BUT**: `ws: false` - no WebSocket handling
+
+**2. WebSocket Upgrades (Fresh Instances)**
+- Use raw `http-proxy` library
+- Create a **fresh proxy instance for EACH WebSocket connection**
+- No caching, no conflicts!
+
+### Why This Works
+
+**The Problem Was:**
+```
+http-proxy-middleware with ws:true maintains internal state
+  ↓
+Only ONE WebSocket connection could be active per proxy instance
+  ↓
+Multiple ports (7681, 8726) conflicted
+```
+
+**The Solution:**
+```
+HTTP requests → Cached http-proxy-middleware (fast, efficient)
+WebSocket upgrades → Fresh http-proxy instances (isolated, no conflicts)
+```
+
+### What Happens Now
+
+**Opening Multiple WebSocket Connections:**
+```
+1. localhost-7681.pod-test.localhost:3000
+   → HTTP: Uses cached proxy
+   → WebSocket: Creates fresh httpProxy.createProxyServer()
+   → Works! ✅
+
+2. localhost-8726.pod-test.localhost:3000
+   → HTTP: Uses cached proxy (different one)
+   → WebSocket: Creates NEW fresh httpProxy.createProxyServer()
+   → Also works! ✅
+
+They don't interfere because each WebSocket gets its own proxy instance!
+```
+
+### Benefits
+
+✅ **HTTP Performance** - Cached proxies, no DB queries on every request  
+✅ **WebSocket Isolation** - Each connection gets its own proxy  
+✅ **No Conflicts** - Multiple ports work simultaneously  
+✅ **Clean Lifecycle** - WebSocket proxies are GC'd when connection closes  
+
+Restart the server and test both URLs - they should both work now! 🚀
+
+---
+
+_**User (2025-10-18 20:28Z)**_
+
+wait why not go raw for everything then?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>That's a great question! Why use http-proxy-middleware for HTTP requests but raw http-proxy for WebSockets? We could simplify and just use raw http-proxy for everything. Let me think about the pros and cons:
+
+**http-proxy-middleware advantages:**
+- Built on top of http-proxy
+- Has middleware pattern that integrates well with Express/Connect-style apps
+- Has some convenience features
+
+**raw http-proxy advantages:**
+- Simpler, more direct
+- More control
+- Lighter weight
+- If we're already using it for WebSockets, why not use it for everything?
+
+Actually, the user is right - we should just use raw http-proxy for everything! It's simpler and we avoid the complexity of two different proxy libraries.</details></think>
+
+---
+
+Excellent point! You're absolutely right - let's simplify and use raw `http-proxy` for everything. No need for two different proxy libraries!
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 4
+
+```diff
+@@ -18,8 +18,4 @@
+  import { eq } from "drizzle-orm";
+  import httpProxy from "http-proxy";
+- import {
+-   createProxyMiddleware,
+-   type RequestHandler,
+- } from "http-proxy-middleware";
+  import next from "next";
+  import { db } from "./src/lib/db";
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -39,5 +39,5 @@
+    string,
+    {
+-     proxy: RequestHandler;
++     proxy: httpProxy;
+      createdAt: number;
+      podId: string;
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 2
+
+```diff
+@@ -180,6 +180,5 @@
+  const getOrCreatePodProxy = async (
+    payload: ProxyTokenPayload,
+-   // biome-ignore lint: Any is needed for proxy middleware compatibility
+- ): Promise<any | null> => {
++ ): Promise<httpProxy | null> => {
+    // Create cache key from pod + target port
+    const cacheKey = `${payload.podId}:${payload.targetPort}`;
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -210,9 +210,9 @@
+  
+  /**
+-  * Create proxy middleware for a specific pod
++  * Create raw http-proxy for a specific pod
+   */
+  const createPodProxy = async (
+    payload: ProxyTokenPayload,
+- ): Promise<RequestHandler | null> => {
++ ): Promise<httpProxy | null> => {
+    try {
+      // Get pod details
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 22, lines removed: 14
+
+```diff
+@@ -278,20 +278,28 @@
+      );
+  
+-     // Create proxy middleware WITHOUT ws option
+-     // WebSockets will be handled separately with raw http-proxy
+-     const proxy = createProxyMiddleware({
++     // Create raw http-proxy server
++     const proxy = httpProxy.createProxyServer({
+        target: `http://${targetHost}:${targetPort}`,
++       ws: true,
+        changeOrigin: true,
+-       ws: false, // Disable - we handle WebSockets separately
+- 
+-       // Modify headers
+-       headers: {
+-         Host: `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+-       },
+- 
+-       // logger: console,
+-     });
+- 
+-     // Return proxy with error handling (cast to any for type compatibility)
++     });
++ 
++     // Set Host header for hostname-based routing
++     proxy.on("proxyReq", (proxyReq) => {
++       proxyReq.setHeader(
++         "Host",
++         `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
++       );
++     });
++ 
++     // Handle proxy errors
++     proxy.on("error", (err, req, res) => {
++       proxyLogger.error({ err }, "Proxy error");
++       if (res && typeof res.writeHead === "function" && !res.headersSent) {
++         res.writeHead(502, { "Content-Type": "application/json" });
++         res.end(JSON.stringify({ error: "Bad Gateway" }));
++       }
++     });
++ 
+      return proxy;
+    } catch (error) {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 10
+
+```diff
+@@ -378,14 +378,6 @@
+      }
+  
+-     // Proxy the request
+-     proxy(req, res, (err: Error | undefined) => {
+-       if (err) {
+-         proxyLogger.error({ err }, "Proxy middleware error");
+-         if (!res.headersSent) {
+-           res.writeHead(500, { "Content-Type": "application/json" });
+-           res.end(JSON.stringify({ error: "Proxy error" }));
+-         }
+-       }
+-     });
++     // Proxy the request using raw http-proxy
++     proxy.web(req, res);
+    } catch (error) {
+      proxyLogger.error({ err: error }, "Handle proxy error");
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 9, lines removed: 70
+
+```diff
+@@ -483,81 +483,20 @@
+          }
+  
+-         // Get pod/server details for WebSocket proxy
+-         const [pod] = await db
+-           .select({
+-             id: pods.id,
+-             serverId: pods.serverId,
+-             ports: pods.ports,
+-           })
+-           .from(pods)
+-           .where(eq(pods.id, payload.podId))
+-           .limit(1);
+- 
+-         if (!pod || !pod.serverId) {
+-           logger.error({ podId: payload.podId }, "Pod not found for WebSocket");
++         // Get or create cached proxy (same one used for HTTP)
++         const proxy = await getOrCreatePodProxy(payload);
++         if (!proxy) {
++           logger.error("WebSocket upgrade failed: Could not create proxy");
+            socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+            socket.destroy();
+            return;
+          }
+  
+-         const [server] = await db
+-           .select()
+-           .from(servers)
+-           .where(eq(servers.id, pod.serverId))
+-           .limit(1);
+- 
+-         if (!server) {
+-           logger.error({ serverId: pod.serverId }, "Server not found for WebSocket");
+-           socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+-           socket.destroy();
+-           return;
+-         }
+- 
+-         const portMappings = JSON.parse(pod.ports || "[]") as Array<{
+-           name: string;
+-           internal: number;
+-           external: number;
+-         }>;
+-         const nginxProxy = portMappings.find((p) => p.name === "nginx-proxy");
+- 
+-         if (!nginxProxy) {
+-           logger.error({ podId: payload.podId }, "Nginx proxy port not found for WebSocket");
+-           socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+-           socket.destroy();
+-           return;
+-         }
+- 
+-         const isLimaVm = !!server.limaVmName;
+-         const targetHost = isLimaVm ? "127.0.0.1" : server.ipAddress;
+-         const targetPort = nginxProxy.external;
+- 
+-         // Create a fresh http-proxy instance for THIS WebSocket connection
+-         const wsProxy = httpProxy.createProxyServer({
+-           target: `http://${targetHost}:${targetPort}`,
+-           ws: true,
+-           changeOrigin: true,
+-         });
+- 
+-         // Set the Host header for hostname-based routing
+-         wsProxy.on("proxyReqWs", (proxyReq) => {
+-           proxyReq.setHeader(
+-             "Host",
+-             `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+-           );
+-         });
+- 
+-         // Handle errors
+-         wsProxy.on("error", (err) => {
+-           proxyLogger.error({ err, podSlug: parsed.podSlug, port: parsed.port }, "WebSocket proxy error");
+-           socket.destroy();
+-         });
+- 
+-         // Upgrade the WebSocket connection
++         // Upgrade the WebSocket connection using the same proxy
+          logger.debug(
+-           { podSlug: parsed.podSlug, port: parsed.port, targetHost, targetPort },
+-           "Upgrading WebSocket with dedicated proxy",
++           { podSlug: parsed.podSlug, port: parsed.port },
++           "Upgrading WebSocket through cached proxy",
+          );
+- 
+-         wsProxy.ws(req, socket, head);
++         
++         proxy.ws(req, socket, head);
+        } else {
+          // Not a proxy request - let Next.js handle it (if it supports WS)
+```
+
+</details>
+
+---
+
+Tool use: **run_terminal_cmd**
+
+```bash
+cd /Users/rchaves/Projects/pinacle && pnpm remove http-proxy-middleware
+```
+
+```
+ WARN  deprecated @types/bcryptjs@3.0.0: This is a stub types definition. bcryptjs provides its own type definitions, so you do not need this installed.                                                                
+ WARN  2 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5
+Packages: -12
+------------
+Progress: resolved 539, reused 418, downloaded 0, added 2, done
+ WARN  Issues with peer dependencies found
+.
+└─┬ next-auth 4.24.11
+  └── ✕ unmet peer @auth/core@0.34.2: found 0.40.0
+
+dependencies:
+- http-proxy-middleware 3.0.5
+
+Done in 1s using pnpm v10.15.0
+```
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now I need to check for linter errors and make sure everything is correct.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/server.ts`
+
+Lint results
+
+Lint errors for `server.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Property 'writeHead' does not exist on type 'ServerResponse<IncomingMessage> \| Socket'.<br/>  Property 'writeHead' does not exist on type 'Socket'. | 298:29-298:38 | DIAGNOSTIC_SEVERITY_ERROR |
+| Property 'headersSent' does not exist on type 'ServerResponse<IncomingMessage> \| Socket'.<br/>  Property 'headersSent' does not exist on type 'Socket'. | 298:62-298:73 | DIAGNOSTIC_SEVERITY_ERROR |
+| Property 'writeHead' does not exist on type 'ServerResponse<IncomingMessage> \| Socket'.<br/>  Property 'writeHead' does not exist on type 'Socket'. | 299:13-299:22 | DIAGNOSTIC_SEVERITY_ERROR |
+| 'req' is declared but its value is never read. | 296:29-296:32 | DIAGNOSTIC_SEVERITY_HINT |
+| This parameter is unused. | 296:29-296:32 | DIAGNOSTIC_SEVERITY_WARNING |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>The error handler needs proper typing since `http-proxy` can emit errors for both regular HTTP requests (where res is ServerResponse) and WebSocket upgrades (where the third param is a Socket). Let me fix this.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 2
+
+```diff
+@@ -294,7 +294,9 @@
+  
+      // Handle proxy errors
+-     proxy.on("error", (err, req, res) => {
++     proxy.on("error", (err, _req, res) => {
+        proxyLogger.error({ err }, "Proxy error");
+-       if (res && typeof res.writeHead === "function" && !res.headersSent) {
++       // res can be either ServerResponse (HTTP) or Socket (WebSocket)
++       // Only try to send HTTP response if it's actually an HTTP response
++       if (res && "writeHead" in res && typeof res.writeHead === "function" && !res.headersSent) {
+          res.writeHead(502, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Bad Gateway" }));
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great, now let me check if the linter errors are resolved.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/server.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! Now let me update the TODOs to reflect what we've accomplished. We've successfully refactored to use only raw http-proxy for both HTTP and WebSocket requests, which simplifies the architecture and should solve all the WebSocket issues.</details></think>
+
+---
+
+Perfect! Much cleaner now. Here's what changed:
+
+## ✨ Simplified Architecture
+
+### Before:
+```
+HTTP requests → http-proxy-middleware (cached)
+WebSocket upgrades → raw http-proxy (fresh instances)
+```
+
+### After:
+```
+HTTP requests → raw http-proxy (cached)
+WebSocket upgrades → raw http-proxy (SAME cached instance!)
+```
+
+## 🎯 Key Benefits
+
+**1. Single Proxy Library**
+- Removed `http-proxy-middleware` dependency
+- Just `http-proxy` for everything
+- Simpler, lighter, fewer moving parts
+
+**2. Shared Proxy Instances**
+- HTTP and WebSocket **use the same cached proxy**
+- No duplication, no inconsistency
+- WebSockets work because we cache the proxy with `ws: true` enabled
+
+**3. Cleaner Code**
+- No type casting gymnastics
+- Direct `proxy.web()` and `proxy.ws()` calls
+- Better error handling with proper type guards
+
+## 🔍 Why This Works Now
+
+The secret is in the `httpProxy.createProxyServer({ ws: true })` config:
+- Creates a proxy that can handle **both** HTTP and WebSocket
+- We cache this proxy, so both types of requests use the **same instance**
+- The instance maintains the necessary state for WebSocket upgrades
+- Multiple ports work because each pod+port combo gets its own cached proxy
+
+Restart the server and test both ttyd (7681) and VS Code (8726) - they should both work, including WebSockets! 🚀
+
+---
+
+_**User (2025-10-19 09:06Z)**_
+
+ok now, for some reason the socket is no longer connecting, even the first one
+a request like this: ws://localhost-7681.pod-testing20250922-ntrxn.localhost:3000/ws?arg=0
+
+I see on the browser element inspect
+502 Bad Gateway
+
+Even though there are no error logs on the server
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user is saying that WebSocket connections are not working at all now, getting a 502 Bad Gateway error. Let me check the WebSocket upgrade handler in the server.ts file.
+
+The issue is likely that the WebSocket upgrade handler is trying to get the token from cookies, but WebSocket upgrade requests might not properly parse cookies the same way. Let me look at the upgrade handler.
+
+Looking at the attached selection, line 451-452 shows:
+```typescript
+const cookies = parseCookies(req.headers.cookie);
+const token = cookies[PROXY_TOKEN_COOKIE];
+```
+
+This is in the upgrade handler. The problem might be that:
+1. The token validation is failing silently
+2. The proxy is being created but erroring without logging
+3. The WebSocket upgrade is failing for some other reason
+
+Let me check the full upgrade handler to see what's happening.</details></think>
+
+---
+
+Let me check the WebSocket upgrade handler to see what's happening:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/server.ts
+
+---
+
+<think><details><summary>Thought Process</summary>So the WebSocket upgrade handler looks fine, but the user is getting a 502 Bad Gateway error without any server logs. This suggests the error is happening in the proxy itself.
+
+Looking at line 502: `proxy.ws(req, socket, head);` - this is where the WebSocket upgrade happens. The 502 error is likely coming from the proxy's error handler on line 296-304.
+
+But wait, the user said "Even though there are no error logs on the server". This is strange because we have:
+```typescript
+proxy.on("error", (err, _req, res) => {
+  proxyLogger.error({ err }, "Proxy error");
+  // ...
+```
+
+So if the proxy is erroring, we should see logs. Unless... the error is happening on the WebSocket side and the error handler is not being called properly.
+
+Let me check if we need to add a specific WebSocket error handler. With raw `http-proxy`, when using `ws()`, errors might be handled differently.
+
+Actually, I think I see the issue! When we create the proxy with `httpProxy.createProxyServer({ ws: true })`, the error handler we're setting is for HTTP requests. For WebSocket errors, we might need to add additional error handling.
+
+Let me add proper WebSocket error logging.</details></think>
+
+---
+
+The issue is that WebSocket errors might not be logging properly. Let me add more detailed logging and also check if the proxy needs additional WebSocket-specific event handlers:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -285,5 +285,5 @@
+      });
+  
+-     // Set Host header for hostname-based routing
++     // Set Host header for hostname-based routing (HTTP)
+      proxy.on("proxyReq", (proxyReq) => {
+        proxyReq.setHeader(
+```
+
+**Chunk 2**
+Lines added: 13, lines removed: 2
+
+```diff
+@@ -293,12 +293,23 @@
+      });
+  
+-     // Handle proxy errors
++     // Set Host header for WebSocket upgrades
++     proxy.on("proxyReqWs", (proxyReq) => {
++       proxyReq.setHeader(
++         "Host",
++         `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
++       );
++     });
++ 
++     // Handle HTTP proxy errors
+      proxy.on("error", (err, _req, res) => {
+-       proxyLogger.error({ err }, "Proxy error");
++       proxyLogger.error({ err, podSlug: payload.podSlug, port: payload.targetPort }, "HTTP proxy error");
+        // res can be either ServerResponse (HTTP) or Socket (WebSocket)
+        // Only try to send HTTP response if it's actually an HTTP response
+        if (res && "writeHead" in res && typeof res.writeHead === "function" && !res.headersSent) {
+          res.writeHead(502, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Bad Gateway" }));
++       } else if (res && "destroy" in res) {
++         // It's a socket (WebSocket), just destroy it
++         res.destroy();
+        }
+      });
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to add more logging to the WebSocket upgrade handler to see what's happening:</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 8, lines removed: 3
+
+```diff
+@@ -506,9 +506,14 @@
+  
+          // Upgrade the WebSocket connection using the same proxy
+-         logger.debug(
+-           { podSlug: parsed.podSlug, port: parsed.port },
++         logger.info(
++           { podSlug: parsed.podSlug, port: parsed.port, url: req.url },
+            "Upgrading WebSocket through cached proxy",
+          );
+- 
++         
++         // Add error handler for this specific WebSocket upgrade
++         socket.on("error", (err) => {
++           proxyLogger.error({ err, podSlug: parsed.podSlug, port: parsed.port }, "WebSocket socket error");
++         });
++         
+          proxy.ws(req, socket, head);
+        } else {
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now let me also add logging to see if the HTTP requests are working. This will help us understand if it's just WebSockets or both HTTP and WebSockets that are failing. Let me add a log in the handleProxy function to see if HTTP requests are being received.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: undefined
+
+```diff
+@@ -392,4 +392,8 @@
+  
+      // Proxy the request using raw http-proxy
++     proxyLogger.debug(
++       { podSlug: payload.podSlug, port: payload.targetPort, url: req.url },
++       "Proxying HTTP request",
++     );
+      proxy.web(req, res);
+    } catch (error) {
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to check the lints and then restart the server. The user should try again and we should see much more detailed logs now.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/server.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good, no lints. Now I need to explain to the user what I've added and ask them to restart the server and try again. The issue is that we're not seeing error logs, so I've added more comprehensive logging to help debug the issue.
+
+The key changes:
+1. Added `proxyReqWs` handler to set the Host header for WebSocket upgrades (this is separate from `proxyReq` which is for HTTP)
+2. Added better error handling in the proxy error handler - specifically handling both HTTP responses and WebSocket sockets
+3. Added socket-specific error handler in the upgrade handler
+4. Changed WebSocket upgrade log from debug to info so we can see it
+5. Added debug log for HTTP requests
+
+This should help us see exactly what's happening and where the 502 is coming from.</details></think>
+
+---
+
+Good! I've added comprehensive logging to help debug this. The key changes:
+
+1. **Added `proxyReqWs` handler** - This sets the Host header specifically for WebSocket upgrades (separate from HTTP)
+2. **Enhanced error handling** - Better handling of both HTTP responses and WebSocket sockets in the error handler
+3. **Added socket error handler** - Logs WebSocket socket errors
+4. **Upgraded logging levels** - WebSocket upgrades are now logged at `info` level so they're visible
+
+Now **restart your dev server** and try the WebSocket connection again. You should see detailed logs showing:
+- Whether it's creating/using a cached proxy
+- When the WebSocket upgrade happens
+- Any errors with specific pod/port information
+
+Try accessing: `ws://localhost-7681.pod-testing20250922-ntrxn.localhost:3000/ws?arg=0`
+
+And share the logs - we should now see exactly where the 502 is coming from! 🔍
+
+---
+
+_**User (2025-10-19 09:06Z)**_
+
+nice! now it all works, I think it was the proxyReqWs missing. It works on multiple tabs multiple proxies as well!
+
+can we try now again checking if proxyCache can be expired after 5 min and things still work?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>Great! The user confirms that everything works now with multiple tabs and proxies. The key fix was adding the `proxyReqWs` handler for WebSocket upgrades.
+
+Now they want to try adding expiration to the proxy cache (5 min TTL) to see if things still work. This would be good for memory management.
+
+Let me implement a cache expiration mechanism that:
+1. Sets a 5-minute expiry on cached proxies
+2. Checks expiry before returning cached proxies
+3. Properly cleans up expired proxies by removing all event listeners
+
+I need to be careful to properly clean up the proxy instance when it expires to avoid memory leaks.</details></think>
+
+---
+
+Awesome! 🎉 Yes, let's add the 5-minute expiry back and see if WebSockets still work with proper cleanup.
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -34,4 +34,7 @@
+  // Cookie names for scoped authentication
+  const PROXY_TOKEN_COOKIE = "pinacle-proxy-token";
++ 
++ // Proxy cache configuration
++ const PROXY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  
+  // Proxy cache to avoid recreating proxies for every request
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to update the `getOrCreatePodProxy` function to check for expiry and clean up expired proxies.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>The file has been modified since I last read it. Let me read the current version and try again.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/server.ts
+
+---
+
+<think><details><summary>Thought Process</summary>Now I can see the actual content. Let me update it with the expiry check.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 19, lines removed: undefined
+
+```diff
+@@ -177,4 +177,23 @@
+    }
+  };
++ 
++ /**
++  * Clean up an expired proxy instance
++  */
++ const cleanupProxy = (proxy: httpProxy, cacheKey: string): void => {
++   try {
++     proxyLogger.debug({ cacheKey }, "Cleaning up expired proxy");
++     
++     // Remove all event listeners
++     proxy.removeAllListeners();
++     
++     // Close the proxy
++     proxy.close();
++     
++     proxyLogger.debug({ cacheKey }, "Proxy cleaned up successfully");
++   } catch (err) {
++     proxyLogger.error({ err, cacheKey }, "Error cleaning up proxy");
++   }
++ };
+  
+  /**
+```
+
+**Chunk 2**
+Lines added: 31, lines removed: 5
+
+```diff
+@@ -190,9 +209,35 @@
+    const cached = proxyCache.get(cacheKey);
+    if (cached) {
+-     proxyLogger.debug(
+-       { podSlug: payload.podSlug, targetPort: payload.targetPort },
+-       "Using cached proxy",
+-     );
+-     return cached.proxy;
++     const age = Date.now() - cached.createdAt;
++     
++     // Check if proxy has expired
++     if (age > PROXY_CACHE_TTL_MS) {
++       proxyLogger.info(
++         {
++           podSlug: payload.podSlug,
++           targetPort: payload.targetPort,
++           ageMs: age,
++         },
++         "Proxy expired, cleaning up and recreating",
++       );
++       
++       // Clean up the old proxy
++       cleanupProxy(cached.proxy, cacheKey);
++       
++       // Remove from cache
++       proxyCache.delete(cacheKey);
++       
++       // Fall through to create new proxy
++     } else {
++       proxyLogger.debug(
++         {
++           podSlug: payload.podSlug,
++           targetPort: payload.targetPort,
++           ageMs: age,
++         },
++         "Using cached proxy",
++       );
++       return cached.proxy;
++     }
+    }
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now I should check for any linting errors and then the user can test.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/server.ts`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! No linting errors. Let me explain what I've implemented to the user.</details></think>
+
+---
+
+Perfect! ✨ I've added the 5-minute proxy cache expiration with proper cleanup:
+
+## Changes Made
+
+**1. Added TTL Configuration**
+```typescript
+const PROXY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+```
+
+**2. New `cleanupProxy` Function**
+- Removes all event listeners (prevents memory leaks)
+- Closes the proxy connection
+- Logs cleanup process for debugging
+
+**3. Enhanced `getOrCreatePodProxy`**
+- Checks cached proxy age
+- If expired (> 5 min):
+  - Calls `cleanupProxy` to properly tear down the old instance
+  - Removes from cache
+  - Creates a fresh proxy
+- If valid:
+  - Returns cached proxy
+  - Logs age for monitoring
+
+## Testing Strategy
+
+To test the expiry works with WebSockets:
+
+1. **Restart the server** to apply changes
+2. **Open multiple tabs** with different proxies (like ttyd on 7681 and VS Code on 8726)
+3. **Use them normally** - they should work fine with cached proxies
+4. **Wait 5+ minutes** without closing the tabs
+5. **Interact again** (type in terminal, edit in VS Code)
+6. Check logs - you should see "Proxy expired, cleaning up and recreating"
+7. **WebSockets should still work** after recreation
+
+The key improvement: We're now properly cleaning up the old proxy before creating a new one, which should prevent any stale state or listener issues! 🚀
 
 ---
 

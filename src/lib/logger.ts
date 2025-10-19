@@ -26,7 +26,7 @@ export const logger = pino({
             colorize: true,
             translateTime: "HH:MM:ss.l",
             ignore: "pid,hostname",
-            singleLine: false,
+            singleLine: true,
           },
         }
       : undefined,
