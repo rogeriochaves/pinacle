@@ -71,11 +71,17 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
       targetPort,
     );
 
-    // 5. Build redirect URL with token
-    const redirectUrl = buildProxyUrlWithToken(pod.slug, targetPort, token);
+    // 5. Detect if this is an iframe embed request
+    // Check Sec-Fetch-Dest header (iframe) or explicit embed parameter
+    const secFetchDest = req.headers.get('sec-fetch-dest');
+    const embedParam = searchParams.get('embed');
+    const isEmbed = secFetchDest === 'iframe' || embedParam === 'true';
+
+    // 6. Build redirect URL with token (and embed flag if applicable)
+    const redirectUrl = buildProxyUrlWithToken(pod.slug, targetPort, token, undefined, isEmbed);
 
     console.log(
-      `[ProxyAuth] Redirecting user ${session.user.id} to pod ${pod.slug}:${targetPort}`,
+      `[ProxyAuth] Redirecting user ${session.user.id} to pod ${pod.slug}:${targetPort} (embed: ${isEmbed})`,
     );
 
     // Redirect to subdomain with token

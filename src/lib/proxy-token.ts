@@ -86,6 +86,7 @@ export const isTokenExpiringSoon = (token: ProxyTokenPayload): boolean => {
  * @param port - The target port
  * @param token - The JWT token
  * @param domain - Base domain (defaults to env var or localhost)
+ * @param embed - Whether this is for iframe embedding (affects cookie SameSite)
  * @returns Full proxy URL with token
  */
 export const buildProxyUrlWithToken = (
@@ -93,12 +94,14 @@ export const buildProxyUrlWithToken = (
   port: number,
   token: string,
   domain?: string,
+  embed?: boolean,
 ): string => {
   const isDevelopment = process.env.NODE_ENV === "development";
   const baseDomain = domain || process.env.NEXT_PUBLIC_APP_DOMAIN ||
     (isDevelopment ? "localhost:3000" : "pinacle.dev");
 
-  // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}/pinacle-proxy-callback?token={TOKEN}
-  return `http://localhost-${port}.pod-${podSlug}.${baseDomain}/pinacle-proxy-callback?token=${token}`;
+  // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}/pinacle-proxy-callback?token={TOKEN}&embed=true
+  const embedParam = embed ? "&embed=true" : "";
+  return `http://localhost-${port}.pod-${podSlug}.${baseDomain}/pinacle-proxy-callback?token=${token}${embedParam}`;
 };
 

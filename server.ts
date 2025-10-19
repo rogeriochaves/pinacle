@@ -79,6 +79,7 @@ const setCookie = (
     sameSite?: "strict" | "lax" | "none";
     maxAge?: number; // seconds
     path?: string;
+    partitioned?: boolean; // CHIPS support
   } = {},
 ): void => {
   const cookieParts = [`${name}=${value}`];
@@ -88,6 +89,7 @@ const setCookie = (
   if (options.sameSite) cookieParts.push(`SameSite=${options.sameSite}`);
   if (options.maxAge) cookieParts.push(`Max-Age=${options.maxAge}`);
   if (options.path) cookieParts.push(`Path=${options.path}`);
+  if (options.partitioned) cookieParts.push("Partitioned");
 
   res.setHeader("Set-Cookie", cookieParts.join("; "));
 };
@@ -113,6 +115,10 @@ const handleCallback = async (
       res.end(JSON.stringify({ error: "Missing token parameter" }));
       return true;
     }
+
+    // Check if this is an iframe embed
+    const embedParam = url.searchParams.get("embed");
+    const isEmbed = embedParam === "true";
 
     // Verify token
     const payload = verifyProxyToken(token);
@@ -144,20 +150,37 @@ const handleCallback = async (
       return true;
     }
 
-    // Set scoped cookie (valid for this subdomain only)
-    setCookie(res, PROXY_TOKEN_COOKIE, token, {
-      httpOnly: true,
-      secure: !dev,
-      sameSite: "lax",
-      maxAge: 15 * 60, // 15 minutes
-      path: "/",
-    });
+    // Set scoped cookie with conditional settings based on embed context
+    if (isEmbed) {
+      // Iframe embedding: Use CHIPS (Partitioned cookie) with SameSite=None
+      // This allows cross-site access while partitioning by top-level site
+      // Prevents malicious pods from accessing cookies from other top-level contexts
+      setCookie(res, PROXY_TOKEN_COOKIE, token, {
+        httpOnly: true,
+        secure: true, // Required for SameSite=None and Partitioned
+        sameSite: "none", // Allow cross-site for iframe embedding
+        partitioned: true, // CHIPS: Partition by top-level site
+        maxAge: 15 * 60, // 15 minutes
+        path: "/",
+      });
+    } else {
+      // Top-level navigation: Use SameSite=Lax (more secure)
+      setCookie(res, PROXY_TOKEN_COOKIE, token, {
+        httpOnly: true,
+        secure: !dev,
+        sameSite: "lax", // Prevents CSRF attacks
+        maxAge: 15 * 60, // 15 minutes
+        path: "/",
+      });
+    }
 
     proxyLogger.info(
       {
         userId: payload.userId,
         podSlug: payload.podSlug,
         targetPort: payload.targetPort,
+        isEmbed,
+        cookieType: isEmbed ? "SameSite=None;Partitioned" : "SameSite=Lax",
       },
       "Set proxy cookie for user",
     );
