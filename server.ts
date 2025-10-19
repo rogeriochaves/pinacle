@@ -185,9 +185,11 @@ const handleCallback = async (
       "Set proxy cookie for user",
     );
 
+    const returnUrl = url.searchParams.get("return_url");
+
     // Redirect to root (remove token from URL)
     res.writeHead(302, {
-      Location: "/",
+      Location: returnUrl || "/",
       "Content-Type": "text/html",
     });
     res.end("<html><body>Redirecting...</body></html>");
@@ -371,6 +373,21 @@ const createPodProxy = async (
       );
     });
 
+    // Modify response headers to allow pods to open external links (OAuth, etc.)
+    proxy.on("proxyRes", (proxyRes) => {
+      // Remove any COOP headers set by the pod service to allow maximum flexibility
+      // This prevents COOP policy conflicts when opening external URLs (like OAuth)
+      delete proxyRes.headers["cross-origin-opener-policy"];
+
+      // Remove restrictive frame options if present
+      delete proxyRes.headers["x-frame-options"];
+
+      proxyLogger.debug(
+        { podSlug: payload.podSlug, port: payload.targetPort },
+        "Removed restrictive headers from proxy response",
+      );
+    });
+
     // Handle HTTP proxy errors
     proxy.on("error", (err, _req, res) => {
       proxyLogger.error(
@@ -423,7 +440,7 @@ const handleProxy = async (
 
     if (!token) {
       // No token - redirect to auth endpoint to get one
-      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}`;
+      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,
         "Content-Type": "text/html",
@@ -436,7 +453,7 @@ const handleProxy = async (
     const payload = verifyProxyToken(token);
     if (!payload) {
       // Invalid/expired token - redirect to auth to get a new one
-      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}`;
+      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,
         "Content-Type": "text/html",

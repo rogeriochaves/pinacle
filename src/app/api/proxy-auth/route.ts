@@ -13,7 +13,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { buildProxyUrlWithToken, generateProxyToken } from "@/lib/proxy-token";
+import { buildProxyCallbackUrl, generateProxyToken } from "@/lib/proxy-token";
 import { checkSessionPodAccess } from "@/lib/proxy-utils";
 
 export const GET = async (req: NextRequest): Promise<NextResponse> => {
@@ -73,15 +73,22 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
 
     // 5. Detect if this is an iframe embed request
     // Check Sec-Fetch-Dest header (iframe) or explicit embed parameter
-    const secFetchDest = req.headers.get('sec-fetch-dest');
-    const embedParam = searchParams.get('embed');
-    const isEmbed = secFetchDest === 'iframe' || embedParam === 'true';
+    const secFetchDest = req.headers.get("sec-fetch-dest");
+    const embedParam = searchParams.get("embed");
+    const isEmbed = secFetchDest === "iframe" || embedParam === "true";
+    const returnUrl = searchParams.get("return_url") || undefined;
 
     // 6. Build redirect URL with token (and embed flag if applicable)
-    const redirectUrl = buildProxyUrlWithToken(pod.slug, targetPort, token, undefined, isEmbed);
+    const redirectUrl = buildProxyCallbackUrl({
+      podSlug: pod.slug,
+      port: targetPort,
+      token,
+      embed: isEmbed,
+      returnUrl,
+    });
 
     console.log(
-      `[ProxyAuth] Redirecting user ${session.user.id} to pod ${pod.slug}:${targetPort} (embed: ${isEmbed})`,
+      `[ProxyAuth] Redirecting user ${session.user.id} to pod ${pod.slug}:${targetPort} (embed: ${isEmbed}, returnUrl: ${returnUrl})`,
     );
 
     // Redirect to subdomain with token

@@ -9,7 +9,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { pods, teamMembers, teams, users } from "@/lib/db/schema";
 import {
-  buildProxyUrlWithToken,
+  buildProxyCallbackUrl,
   generateProxyToken,
   isTokenExpiringSoon,
   verifyProxyToken,
@@ -209,7 +209,7 @@ describe("Proxy Authentication Tests", () => {
 
     it("should build correct proxy URLs with tokens", () => {
       const token = "test-token-123";
-      const url = buildProxyUrlWithToken("test-pod", 8726, token);
+      const url = buildProxyCallbackUrl("test-pod", 8726, token);
 
       expect(url).toContain("localhost-8726.pod-test-pod");
       expect(url).toContain("/pinacle-proxy-callback?token=test-token-123");

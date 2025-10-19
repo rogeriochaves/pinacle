@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -35,6 +35,8 @@ type WorkbenchProps = {
     slug: string;
     status: string;
     publicUrl?: string | null;
+    alwaysReload?: boolean;
+    keepRendered?: boolean;
   };
   onPodSwitch: () => void;
 };
@@ -60,6 +62,7 @@ const TABS = [
     icon: Sparkles,
     port: 2528,
     shortcut: "3",
+    alwaysReload: true,
   },
   {
     id: "terminal" as const,
@@ -67,10 +70,12 @@ const TABS = [
     icon: Terminal,
     port: 7681,
     shortcut: "4",
+    returnUrl: "/?arg=0",
+    keepRendered: true,
   },
   {
     id: "browser" as const,
-    label: "Preview",
+    label: "Browser",
     icon: Globe,
     port: 5173,
     shortcut: "5",
@@ -98,7 +103,11 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     // 4. Subdomain validates token, sets scoped cookie
     // 5. Proxies to pod
 
-    return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}`;
+    const returnUrl = tabConfig.returnUrl
+      ? `&return_url=${encodeURIComponent(tabConfig.returnUrl)}`
+      : "";
+
+    return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrl}`;
   };
 
   const getStatusColor = () => {
@@ -143,9 +152,25 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
               <button
                 type="button"
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  const iframe = document.getElementById(
+                    `js-iframe-tab-${tab.id}`,
+                  );
+                  console.log("iframe", iframe);
+                  if (iframe) {
+                    setTimeout(() => {
+                      console.log("focusing");
+                      // (iframe as HTMLIFrameElement).focus();
+                      (iframe as HTMLIFrameElement).contentWindow?.focus();
+                      // (
+                      //   iframe as HTMLIFrameElement
+                      // ).contentDocument?.body.focus();
+                    }, 1000);
+                  }
+                }}
                 className={`
-                  flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all
+                  flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
                   ${
                     isActive
                       ? "bg-slate-800 text-white shadow-lg ring-1 ring-slate-700"
@@ -254,13 +279,32 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             </div>
           </div>
         ) : (
-          <iframe
-            key={activeTab}
-            src={getTabUrl(activeTab)}
-            className="w-full h-full border-0"
-            title={TABS.find((t) => t.id === activeTab)?.label}
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
-          />
+          TABS.filter((tab) => !tab.alwaysReload || activeTab === tab.id).map(
+            (tab) => (
+              <iframe
+                key={tab.id}
+                id={`js-iframe-tab-${tab.id}`}
+                src={getTabUrl(tab.id)}
+                className="w-full h-full border-0"
+                title={tab.label}
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                style={
+                  tab.keepRendered
+                    ? activeTab === tab.id
+                      ? { visibility: "visible", position: "static" }
+                      : {
+                          visibility: "hidden",
+                          position: "absolute",
+                          top: 0,
+                          zIndex: -1,
+                        }
+                    : activeTab === tab.id
+                      ? { display: "block" }
+                      : { display: "none" }
+                }
+              />
+            ),
+          )
         )}
       </div>
     </div>
