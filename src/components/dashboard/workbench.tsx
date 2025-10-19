@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -62,7 +62,8 @@ const TABS = [
     icon: Sparkles,
     port: 2528,
     shortcut: "3",
-    alwaysReload: true,
+    keepRendered: true,
+    alwaysReload: false,
   },
   {
     id: "terminal" as const,
@@ -72,6 +73,7 @@ const TABS = [
     shortcut: "4",
     returnUrl: "/?arg=0",
     keepRendered: true,
+    alwaysReload: false,
   },
   {
     id: "browser" as const,
@@ -85,30 +87,32 @@ const TABS = [
 export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [activeTab, setActiveTab] = useState<Tab>("vscode");
   const { data: session } = useSession();
-
   const isRunning = pod.status === "running";
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
   };
 
-  const getTabUrl = (tab: Tab): string => {
-    const tabConfig = TABS.find((t) => t.id === tab);
-    if (!tabConfig) return "";
+  const getTabUrl = useCallback(
+    (tab: Tab): string => {
+      const tabConfig = TABS.find((t) => t.id === tab);
+      if (!tabConfig) return "";
 
-    // New flow: redirect through authentication endpoint
-    // 1. Iframe src points to /api/proxy-auth?pod=slug&port=8726
-    // 2. Backend validates session, checks access, generates JWT
-    // 3. Redirects to subdomain with token
-    // 4. Subdomain validates token, sets scoped cookie
-    // 5. Proxies to pod
+      // New flow: redirect through authentication endpoint
+      // 1. Iframe src points to /api/proxy-auth?pod=slug&port=8726
+      // 2. Backend validates session, checks access, generates JWT
+      // 3. Redirects to subdomain with token
+      // 4. Subdomain validates token, sets scoped cookie
+      // 5. Proxies to pod
 
-    const returnUrl = tabConfig.returnUrl
-      ? `&return_url=${encodeURIComponent(tabConfig.returnUrl)}`
-      : "";
+      const returnUrl = tabConfig.returnUrl
+        ? `&return_url=${encodeURIComponent(tabConfig.returnUrl)}`
+        : "";
 
-    return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrl}`;
-  };
+      return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrl}`;
+    },
+    [pod.slug],
+  );
 
   const getStatusColor = () => {
     switch (pod.status) {
@@ -154,20 +158,25 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                 key={tab.id}
                 onClick={() => {
                   setActiveTab(tab.id);
-                  const iframe = document.getElementById(
-                    `js-iframe-tab-${tab.id}`,
-                  );
-                  console.log("iframe", iframe);
-                  if (iframe) {
-                    setTimeout(() => {
-                      console.log("focusing");
-                      // (iframe as HTMLIFrameElement).focus();
-                      (iframe as HTMLIFrameElement).contentWindow?.focus();
-                      // (
-                      //   iframe as HTMLIFrameElement
-                      // ).contentDocument?.body.focus();
-                    }, 1000);
-                  }
+
+                  // Send focus message to the iframe
+                  setTimeout(() => {
+                    const iframe = document.getElementById(
+                      `js-iframe-tab-${tab.id}`,
+                    ) as HTMLIFrameElement;
+
+                    console.log("iframe?.contentWindow", iframe?.contentWindow);
+                    if (iframe?.contentWindow) {
+                      // Send focus message to injected script
+                      iframe.contentWindow.postMessage(
+                        { type: "pinacle-focus" },
+                        "*",
+                      );
+
+                      // Also try to focus the iframe element itself
+                      iframe.focus();
+                    }
+                  }, 100);
                 }}
                 className={`
                   flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer

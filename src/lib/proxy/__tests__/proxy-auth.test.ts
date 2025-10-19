@@ -209,7 +209,11 @@ describe("Proxy Authentication Tests", () => {
 
     it("should build correct proxy URLs with tokens", () => {
       const token = "test-token-123";
-      const url = buildProxyCallbackUrl("test-pod", 8726, token);
+      const url = buildProxyCallbackUrl({
+        podSlug: "test-pod",
+        port: 8726,
+        token,
+      });
 
       expect(url).toContain("localhost-8726.pod-test-pod");
       expect(url).toContain("/pinacle-proxy-callback?token=test-token-123");

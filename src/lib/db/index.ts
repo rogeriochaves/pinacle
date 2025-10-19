@@ -4,6 +4,14 @@ import * as schema from "./schema";
 
 const client = postgres(
   process.env.DATABASE_URL || "postgresql://localhost:5432/pinacle",
+  {
+    // Connection pooling configuration
+    max: 10, // Maximum number of connections in the pool
+    idle_timeout: 20, // Close idle connections after 20 seconds
+    connect_timeout: 10, // Connection timeout in seconds
+    // In development, we might have hot reloads, so keep pool smaller
+    max_lifetime: 60 * 30, // Maximum connection lifetime (30 minutes)
+  },
 );
 
 // Format any Drizzle/PG error into a readable message

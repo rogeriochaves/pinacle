@@ -74,24 +74,6 @@ export const parseProxyHostname = (hostname: string): ParsedProxyHostname => {
 };
 
 /**
- * Build a proxy URL for a given pod slug and port
- *
- * @param podSlug - The pod slug
- * @param port - The target port
- * @param domain - The base domain (defaults to process.env.NEXT_PUBLIC_APP_DOMAIN or 'pinacle.dev')
- * @returns Full proxy URL
- */
-export const buildProxyUrl = (
-  podSlug: string,
-  port: number,
-  domain?: string,
-): string => {
-  const baseDomain =
-    domain || process.env.NEXT_PUBLIC_APP_DOMAIN || "pinacle.dev";
-  return `https://localhost-${port}.pod-${podSlug}.${baseDomain}`;
-};
-
-/**
  * Authorization utilities
  */
 

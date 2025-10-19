@@ -355,6 +355,7 @@ const createPodProxy = async (
       target: `http://${targetHost}:${targetPort}`,
       ws: true,
       changeOrigin: true,
+      selfHandleResponse: true, // We'll handle the response manually to inject scripts
     });
 
     // Set Host header for hostname-based routing (HTTP)
@@ -363,6 +364,9 @@ const createPodProxy = async (
         "Host",
         `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
       );
+
+      // Remove accept-encoding to get uncompressed responses we can modify
+      proxyReq.removeHeader("accept-encoding");
     });
 
     // Set Host header for WebSocket upgrades
@@ -373,8 +377,8 @@ const createPodProxy = async (
       );
     });
 
-    // Modify response headers to allow pods to open external links (OAuth, etc.)
-    proxy.on("proxyRes", (proxyRes) => {
+    // Handle response - inject scripts into HTML and forward everything else
+    proxy.on("proxyRes", (proxyRes, _req, res) => {
       // Remove any COOP headers set by the pod service to allow maximum flexibility
       // This prevents COOP policy conflicts when opening external URLs (like OAuth)
       delete proxyRes.headers["cross-origin-opener-policy"];
@@ -382,10 +386,118 @@ const createPodProxy = async (
       // Remove restrictive frame options if present
       delete proxyRes.headers["x-frame-options"];
 
-      proxyLogger.debug(
-        { podSlug: payload.podSlug, port: payload.targetPort },
-        "Removed restrictive headers from proxy response",
-      );
+      // Check if this is an HTML response
+      const contentType = proxyRes.headers["content-type"] || "";
+      const isHtml = contentType.includes("text/html");
+
+      if (isHtml) {
+        // Buffer HTML responses to inject our focus script
+        const chunks: Buffer[] = [];
+
+        proxyRes.on("data", (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+
+        proxyRes.on("end", () => {
+          try {
+            const body = Buffer.concat(chunks).toString("utf8");
+
+            // Script to listen for focus messages from parent
+            const focusScript = `
+<script>
+(function() {
+  // Listen for focus messages from parent window
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'pinacle-focus') {
+      // Try multiple methods to ensure focus works
+      window.focus();
+      document.body.focus();
+
+      // Find first focusable element and focus it
+      const focusable = document.querySelector('input, textarea, [contenteditable], [tabindex]:not([tabindex="-1"])');
+      if (focusable) {
+        focusable.focus();
+      }
+
+      // Dispatch a custom event that apps can listen to
+      window.dispatchEvent(new CustomEvent('pinacle-focused'));
+    }
+  });
+})();
+</script>`;
+
+            // Inject script right after <head> or at the start of <body> or beginning of document
+            let modifiedBody = body;
+            if (body.includes("<head>")) {
+              modifiedBody = body.replace("<head>", `<head>${focusScript}`);
+            } else if (body.includes("<body>")) {
+              modifiedBody = body.replace("<body>", `<body>${focusScript}`);
+            } else if (body.includes("<html>")) {
+              modifiedBody = body.replace("<html>", `<html>${focusScript}`);
+            } else {
+              // Prepend to the beginning
+              modifiedBody = focusScript + body;
+            }
+
+            // Copy all headers except content-length (which we'll update)
+            Object.keys(proxyRes.headers).forEach((key) => {
+              if (key.toLowerCase() !== "content-length") {
+                const value = proxyRes.headers[key];
+                if (value !== undefined) {
+                  res.setHeader(key, value);
+                }
+              }
+            });
+
+            // Set status code
+            res.statusCode = proxyRes.statusCode || 200;
+
+            // Update content-length and send modified response
+            res.setHeader("content-length", Buffer.byteLength(modifiedBody));
+            res.end(modifiedBody);
+
+            proxyLogger.debug(
+              { podSlug: payload.podSlug, port: payload.targetPort },
+              "Injected focus script into HTML response",
+            );
+          } catch (err) {
+            proxyLogger.error(
+              { err, podSlug: payload.podSlug, port: payload.targetPort },
+              "Error injecting focus script",
+            );
+            if (!res.headersSent) {
+              res.statusCode = 500;
+              res.end("Internal Server Error");
+            }
+          }
+        });
+
+        proxyRes.on("error", (err) => {
+          proxyLogger.error(
+            { err, podSlug: payload.podSlug, port: payload.targetPort },
+            "ProxyRes stream error",
+          );
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.end("Internal Server Error");
+          }
+        });
+      } else {
+        // For non-HTML responses, forward everything as-is
+        // Copy all headers
+        Object.keys(proxyRes.headers).forEach((key) => {
+          const value = proxyRes.headers[key];
+          if (value !== undefined) {
+            res.setHeader(key, value);
+          }
+        });
+
+        // Set status code
+        res.statusCode = proxyRes.statusCode || 200;
+
+        // Pipe the response through
+        proxyRes.pipe(res);
+      }
     });
 
     // Handle HTTP proxy errors

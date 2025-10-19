@@ -117,33 +117,3 @@ export const buildProxyCallbackUrl = ({
     : "";
   return `http://localhost-${port}.pod-${podSlug}.${baseDomain}/pinacle-proxy-callback?token=${token}${embedParam}${returnUrlParam}`;
 };
-
-/**
- * Build proxy URL
- *
- * @param podSlug - The pod slug
- * @param port - The target port
- * @param domain - Base domain (defaults to env var or localhost)
- * @param returnUrl - The URL to return to after authentication
- * @returns Full proxy URL
- */
-export const buildProxyUrl = ({
-  podSlug,
-  port,
-  returnUrl,
-  domain,
-}: {
-  podSlug: string;
-  port: number;
-  returnUrl?: string;
-  domain?: string;
-}): string => {
-  const isDevelopment = process.env.NODE_ENV === "development";
-  const baseDomain =
-    domain ||
-    process.env.NEXT_PUBLIC_APP_DOMAIN ||
-    (isDevelopment ? "localhost:3000" : "pinacle.dev");
-
-  // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}
-  return `http://localhost-${port}.pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
-};
