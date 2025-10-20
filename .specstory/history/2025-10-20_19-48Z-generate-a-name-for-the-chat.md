@@ -3449,3 +3449,1122 @@ Now when you create future emails (password reset, pod created, etc.), you just 
 
 ---
 
+_**User (2025-10-20 19:31Z)**_
+
+ok now, can you implement forgot my password email for the next auth flow?
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user wants me to implement a forgot password email flow for NextAuth. I need to:
+
+1. First, check if there's already a password reset flow in the auth system
+2. Create a password reset email template using the shared styles
+3. Add a sending function in the email.ts file
+4. Implement the backend logic for generating reset tokens and handling password resets
+5. Create the necessary API routes and UI pages
+
+Let me start by checking the current auth setup.</details></think>
+
+---
+
+I'll implement a complete forgot password flow for NextAuth. Let me start by checking the current auth setup and then create the email template and backend logic.
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts
+
+---
+
+Tool use: **codebase_search**
+
+<details>
+                <summary>Searched codebase "Where is password reset or forgot password handled?" • **12** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/app/auth/signin/page.tsx` | L16-275 |
+| `src/lib/auth.ts` | L13-188 |
+| `src/lib/trpc/routers/auth.ts` | L109 |
+| `src/app/api/auth/[...nextauth]/route.ts` | L5 |
+| `src/app/auth/signin/page.tsx` | L275 |
+| `src/app/auth/signup/page.tsx` | L17-296 |
+| `src/emails/README.md` | L73 |
+| `src/lib/auth.ts` | L67 |
+| `src/lib/auth.ts` | L69-192 |
+| `src/lib/auth.ts` | L64-188 |
+| `src/app/setup/page.tsx` | L13-165 |
+| `src/app/auth/signup/page.tsx` | L296 |
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>I can see there's already a link to "/auth/forgot-password" in the signin page, but the page doesn't exist yet. I need to:
+
+1. Check the database schema to see if there's a table for password reset tokens
+2. Create the password reset token table if it doesn't exist
+3. Create the reset password email template
+4. Add the email sending function
+5. Create the forgot password page
+6. Create the reset password page
+7. Add tRPC routes for requesting and verifying password resets
+
+Let me start by checking the database schema.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/lib/db/schema.ts
+
+---
+
+<think><details><summary>Thought Process</summary>I can see the schema has a verificationTokens table which could be used for password resets. Let me create a comprehensive password reset flow:
+
+1. Create the reset password email template
+2. Add the email sending function
+3. Add tRPC routes for requesting and resetting password
+4. Create the forgot password page
+5. Create the reset password page
+
+Let me start with the email template.</details></think>
+
+---
+
+Now I'll implement the complete forgot password flow. Let me create the email template, backend logic, and pages:
+
+---
+
+Tool use: **write**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/emails/reset-password.tsx</summary>
+
+**Chunk 1**
+Lines added: 76, lines removed: 1
+
+```diff
+@@ -1,1 +1,76 @@
+- 
++ import {
++   Body,
++   Button,
++   Container,
++   Head,
++   Heading,
++   Html,
++   Img,
++   Preview,
++   Section,
++   Text,
++ } from "@react-email/components";
++ import { emailStyles } from "./styles";
++ 
++ type ResetPasswordEmailProps = {
++   name: string;
++   resetUrl: string;
++ };
++ 
++ export const ResetPasswordEmail = ({
++   name,
++   resetUrl,
++ }: ResetPasswordEmailProps) => {
++   const baseUrl = resetUrl.split("/auth")[0];
++ 
++   return (
++     <Html>
++       <Head />
++       <Preview>Reset your Pinacle password</Preview>
++       <Body style={emailStyles.main}>
++         <Container style={emailStyles.container}>
++           <Section style={emailStyles.header}>
++             <Img
++               src={`${baseUrl}/logo.png`}
++               alt="Pinacle"
++               width={32}
++               height={32}
++               style={emailStyles.logoImage}
++             />
++             <Text style={emailStyles.logoText}>pinacle</Text>
++           </Section>
++ 
++           <Heading style={emailStyles.h1}>password reset requested</Heading>
++ 
++           <Text style={emailStyles.text}>Hey {name},</Text>
++ 
++           <Text style={emailStyles.text}>
++             Someone requested a password reset for your account. If this was
++             you, click the button below.
++           </Text>
++ 
++           <Text style={emailStyles.text}>
++             If you didn't request this, ignore this email. The link expires in
++             1 hour.
++           </Text>
++ 
++           <Section style={emailStyles.buttonContainer}>
++             <Button style={emailStyles.button} href={resetUrl}>
++               Reset Password
++             </Button>
++           </Section>
++ 
++           <Text style={emailStyles.footer}>– Pinacle</Text>
++         </Container>
++       </Body>
++     </Html>
++   );
++ };
++ 
++ ResetPasswordEmail.PreviewProps = {
++   name: "Alex",
++   resetUrl: "http://localhost:3000/auth/reset-password?token=abc123",
++ } as ResetPasswordEmailProps;
++ 
++ export default ResetPasswordEmail;
++ 
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/email.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -1,4 +1,5 @@
+  import { render } from "@react-email/render";
+  import { Resend } from "resend";
++ import ResetPasswordEmail from "../emails/reset-password";
+  import WelcomeEmail from "../emails/welcome";
+  
+```
+
+**Chunk 2**
+Lines added: 6, lines removed: undefined
+
+```diff
+@@ -11,4 +12,10 @@
+    dashboardUrl: string;
+  };
++ 
++ type SendResetPasswordEmailParams = {
++   to: string;
++   name: string;
++   resetUrl: string;
++ };
+  
+  export const sendWelcomeEmail = async ({
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/email.ts</summary>
+
+**Chunk 1**
+Lines added: 49, lines removed: undefined
+
+```diff
+@@ -64,3 +64,52 @@
+    }
+  };
++ 
++ export const sendResetPasswordEmail = async ({
++   to,
++   name,
++   resetUrl,
++ }: SendResetPasswordEmailParams): Promise<{
++   success: boolean;
++   error?: string;
++ }> => {
++   try {
++     if (!process.env.RESEND_API_KEY) {
++       console.warn(
++         "RESEND_API_KEY is not set. Skipping reset password email sending.",
++       );
++       return {
++         success: false,
++         error: "Email service not configured",
++       };
++     }
++ 
++     // Render the email template
++     const emailHtml = await render(ResetPasswordEmail({ name, resetUrl }));
++ 
++     // Send the email
++     const { data, error } = await resend.emails.send({
++       from: "Pinacle <hello@pinacle.dev>",
++       to: [to],
++       subject: "Reset your Pinacle password",
++       html: emailHtml,
++     });
++ 
++     if (error) {
++       console.error("Failed to send reset password email:", error);
++       return {
++         success: false,
++         error: error.message,
++       };
++     }
++ 
++     console.log(`Reset password email sent successfully to ${to}:`, data?.id);
++     return { success: true };
++   } catch (error) {
++     console.error("Error sending reset password email:", error);
++     return {
++       success: false,
++       error: error instanceof Error ? error.message : "Unknown error",
++     };
++   }
++ };
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to add the tRPC routes for password reset. Let me add them to the auth router.</details></think>
+
+---
+
+Now let me add the backend logic for password reset:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/auth.ts</summary>
+
+**Chunk 1**
+Lines added: 8, lines removed: 3
+
+```diff
+@@ -1,7 +1,12 @@
+- import { eq } from "drizzle-orm";
++ import { and, eq, gt } from "drizzle-orm";
+  import { z } from "zod";
+  import { hashPassword } from "../../auth";
+- import { teamMembers, teams, users } from "../../db/schema";
+- import { sendWelcomeEmail } from "../../email";
++ import {
++   teamMembers,
++   teams,
++   users,
++   verificationTokens,
++ } from "../../db/schema";
++ import { sendResetPasswordEmail, sendWelcomeEmail } from "../../email";
+  import { createTRPCRouter, publicProcedure } from "../server";
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/auth.ts</summary>
+
+**Chunk 1**
+Lines added: 119, lines removed: undefined
+
+```diff
+@@ -113,4 +113,123 @@
+        return user;
+      }),
++ 
++   requestPasswordReset: publicProcedure
++     .input(
++       z.object({
++         email: z.string().email(),
++       }),
++     )
++     .mutation(async ({ ctx, input }) => {
++       const { email } = input;
++ 
++       // Find user
++       const existingUser = await ctx.db
++         .select()
++         .from(users)
++         .where(eq(users.email, email))
++         .limit(1);
++ 
++       // Always return success even if user doesn't exist (security best practice)
++       if (existingUser.length === 0 || !existingUser[0].password) {
++         console.log(
++           `Password reset requested for non-existent or OAuth user: ${email}`,
++         );
++         return { success: true };
++       }
++ 
++       const user = existingUser[0];
++ 
++       // Generate reset token
++       const token = crypto.randomUUID();
++       const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
++ 
++       // Store token in database
++       await ctx.db
++         .insert(verificationTokens)
++         .values({
++           identifier: email,
++           token,
++           expires,
++         })
++         .onConflictDoUpdate({
++           target: [verificationTokens.identifier, verificationTokens.token],
++           set: {
++             expires,
++           },
++         });
++ 
++       // Send email
++       const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
++       const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
++ 
++       await sendResetPasswordEmail({
++         to: email,
++         name: user.name || "there",
++         resetUrl,
++       });
++ 
++       console.log(`Password reset email sent to ${email}`);
++       return { success: true };
++     }),
++ 
++   resetPassword: publicProcedure
++     .input(
++       z.object({
++         token: z.string(),
++         password: z.string().min(6),
++       }),
++     )
++     .mutation(async ({ ctx, input }) => {
++       const { token, password } = input;
++ 
++       // Find valid token
++       const tokenRecord = await ctx.db
++         .select()
++         .from(verificationTokens)
++         .where(
++           and(
++             eq(verificationTokens.token, token),
++             gt(verificationTokens.expires, new Date()),
++           ),
++         )
++         .limit(1);
++ 
++       if (tokenRecord.length === 0) {
++         throw new Error("Invalid or expired reset token");
++       }
++ 
++       const { identifier: email } = tokenRecord[0];
++ 
++       // Find user
++       const existingUser = await ctx.db
++         .select()
++         .from(users)
++         .where(eq(users.email, email))
++         .limit(1);
++ 
++       if (existingUser.length === 0) {
++         throw new Error("User not found");
++       }
++ 
++       // Hash new password
++       const hashedPassword = await hashPassword(password);
++ 
++       // Update user password
++       await ctx.db
++         .update(users)
++         .set({
++           password: hashedPassword,
++           updatedAt: new Date(),
++         })
++         .where(eq(users.email, email));
++ 
++       // Delete used token
++       await ctx.db
++         .delete(verificationTokens)
++         .where(eq(verificationTokens.token, token));
++ 
++       console.log(`Password reset successful for ${email}`);
++       return { success: true };
++     }),
+  });
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to create the frontend pages for forgot password and reset password.</details></think>
+
+---
+
+Now let me create the frontend pages:
+
+---
+
+Tool use: **write**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/app/auth/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 150, lines removed: 1
+
+```diff
+@@ -1,1 +1,150 @@
+- 
++ "use client";
++ 
++ import { Code } from "lucide-react";
++ import Link from "next/link";
++ import { useState } from "react";
++ import { Button } from "../../../components/ui/button";
++ import {
++   Card,
++   CardContent,
++   CardDescription,
++   CardHeader,
++   CardTitle,
++ } from "../../../components/ui/card";
++ import { Input } from "../../../components/ui/input";
++ import { Label } from "../../../components/ui/label";
++ import { api } from "../../../lib/trpc/client";
++ 
++ export default function ForgotPassword() {
++   const [email, setEmail] = useState("");
++   const [submitted, setSubmitted] = useState(false);
++   const [error, setError] = useState("");
++ 
++   const requestResetMutation = api.auth.requestPasswordReset.useMutation();
++ 
++   const handleSubmit = async (e: React.FormEvent) => {
++     e.preventDefault();
++     setError("");
++ 
++     try {
++       await requestResetMutation.mutateAsync({ email });
++       setSubmitted(true);
++     } catch (error) {
++       setError((error as Error).message || "An error occurred");
++     }
++   };
++ 
++   if (submitted) {
++     return (
++       <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
++         <div className="w-full max-w-md space-y-8">
++           <div className="text-center">
++             <Link
++               href="/"
++               className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
++             >
++               <Code size={32} />
++               PINACLE
++             </Link>
++           </div>
++ 
++           <Card>
++             <CardHeader>
++               <CardTitle className="font-mono font-bold">
++                 CHECK YOUR EMAIL
++               </CardTitle>
++               <CardDescription>
++                 If an account exists with that email, we sent password reset
++                 instructions.
++               </CardDescription>
++             </CardHeader>
++             <CardContent>
++               <p className="text-sm text-muted-foreground mb-4">
++                 The link expires in 1 hour. Check your spam folder if you don't
++                 see it.
++               </p>
++               <Link href="/auth/signin">
++                 <Button variant="outline" className="w-full font-mono font-bold">
++                   BACK TO SIGN IN
++                 </Button>
++               </Link>
++             </CardContent>
++           </Card>
++         </div>
++       </div>
++     );
++   }
++ 
++   return (
++     <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
++       <div className="w-full max-w-md space-y-8">
++         <div className="text-center">
++           <Link
++             href="/"
++             className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
++           >
++             <Code size={32} />
++             PINACLE
++           </Link>
++         </div>
++ 
++         <Card>
++           <CardHeader>
++             <CardTitle className="font-mono font-bold">
++               FORGOT PASSWORD
++             </CardTitle>
++             <CardDescription>
++               Enter your email and we'll send you a reset link
++             </CardDescription>
++           </CardHeader>
++           <CardContent>
++             {error && (
++               <div className="mb-4 p-3 rounded-sm bg-red-50 border border-red-200 text-red-800 text-sm font-mono">
++                 {error}
++               </div>
++             )}
++ 
++             <form onSubmit={handleSubmit} className="space-y-6">
++               <div className="space-y-2">
++                 <Label htmlFor="email" className="font-mono font-bold">
++                   EMAIL
++                 </Label>
++                 <Input
++                   id="email"
++                   name="email"
++                   type="email"
++                   autoComplete="email"
++                   required
++                   value={email}
++                   onChange={(e) => setEmail(e.target.value)}
++                   placeholder="YOUR@EMAIL.COM"
++                 />
++               </div>
++ 
++               <Button
++                 type="submit"
++                 variant="accent"
++                 className="w-full font-mono font-bold"
++                 disabled={requestResetMutation.isPending}
++               >
++                 {requestResetMutation.isPending
++                   ? "SENDING..."
++                   : "SEND RESET LINK"}
++               </Button>
++ 
++               <div className="text-center">
++                 <Link
++                   href="/auth/signin"
++                   className="font-mono text-sm text-orange-600 hover:text-orange-700 underline"
++                 >
++                   BACK TO SIGN IN
++                 </Link>
++               </div>
++             </form>
++           </CardContent>
++         </Card>
++       </div>
++     </div>
++   );
++ }
++ 
+```
+
+</details>
+
+---
+
+Tool use: **write**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/app/auth/reset-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 288, lines removed: 1
+
+```diff
+@@ -1,1 +1,288 @@
+- 
++ "use client";
++ 
++ import { Check, Code, Eye, EyeOff } from "lucide-react";
++ import Link from "next/link";
++ import { useRouter, useSearchParams } from "next/navigation";
++ import { Suspense, useState } from "react";
++ import { Button } from "../../../components/ui/button";
++ import {
++   Card,
++   CardContent,
++   CardDescription,
++   CardHeader,
++   CardTitle,
++ } from "../../../components/ui/card";
++ import { Input } from "../../../components/ui/input";
++ import { Label } from "../../../components/ui/label";
++ import { api } from "../../../lib/trpc/client";
++ 
++ const validatePassword = (password: string) => {
++   const requirements = [
++     { test: password.length >= 8, text: "At least 8 characters" },
++     { test: /[A-Z]/.test(password), text: "One uppercase letter" },
++     { test: /[a-z]/.test(password), text: "One lowercase letter" },
++     { test: /\d/.test(password), text: "One number" },
++   ];
++   return requirements;
++ };
++ 
++ function ResetPasswordForm() {
++   const [password, setPassword] = useState("");
++   const [confirmPassword, setConfirmPassword] = useState("");
++   const [showPassword, setShowPassword] = useState(false);
++   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
++   const [error, setError] = useState("");
++   const [success, setSuccess] = useState(false);
++   const router = useRouter();
++   const searchParams = useSearchParams();
++ 
++   const token = searchParams.get("token");
++ 
++   const resetMutation = api.auth.resetPassword.useMutation();
++ 
++   const passwordRequirements = validatePassword(password);
++   const isPasswordValid = passwordRequirements.every((req) => req.test);
++ 
++   const handleSubmit = async (e: React.FormEvent) => {
++     e.preventDefault();
++     setError("");
++ 
++     if (!token) {
++       setError("Invalid reset link");
++       return;
++     }
++ 
++     if (!isPasswordValid) {
++       setError("Please meet all password requirements");
++       return;
++     }
++ 
++     if (password !== confirmPassword) {
++       setError("Passwords do not match");
++       return;
++     }
++ 
++     try {
++       await resetMutation.mutateAsync({ token, password });
++       setSuccess(true);
++       setTimeout(() => {
++         router.push("/auth/signin");
++       }, 3000);
++     } catch (error) {
++       setError((error as Error).message || "An error occurred");
++     }
++   };
++ 
++   if (!token) {
++     return (
++       <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
++         <div className="w-full max-w-md space-y-8">
++           <div className="text-center">
++             <Link
++               href="/"
++               className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
++             >
++               <Code size={32} />
++               PINACLE
++             </Link>
++           </div>
++ 
++           <Card>
++             <CardHeader>
++               <CardTitle className="font-mono font-bold">
++                 INVALID LINK
++               </CardTitle>
++               <CardDescription>
++                 This password reset link is invalid or has expired.
++               </CardDescription>
++             </CardHeader>
++             <CardContent>
++               <Link href="/auth/forgot-password">
++                 <Button variant="accent" className="w-full font-mono font-bold">
++                   REQUEST NEW LINK
++                 </Button>
++               </Link>
++             </CardContent>
++           </Card>
++         </div>
++       </div>
++     );
++   }
++ 
++   if (success) {
++     return (
++       <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
++         <div className="w-full max-w-md space-y-8">
++           <div className="text-center">
++             <Link
++               href="/"
++               className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
++             >
++               <Code size={32} />
++               PINACLE
++             </Link>
++           </div>
++ 
++           <Card>
++             <CardHeader>
++               <CardTitle className="font-mono font-bold">
++                 PASSWORD RESET
++               </CardTitle>
++               <CardDescription>
++                 Your password has been reset successfully
++               </CardDescription>
++             </CardHeader>
++             <CardContent>
++               <p className="text-sm text-muted-foreground mb-4">
++                 Redirecting to sign in...
++               </p>
++               <Link href="/auth/signin">
++                 <Button variant="accent" className="w-full font-mono font-bold">
++                   GO TO SIGN IN
++                 </Button>
++               </Link>
++             </CardContent>
++           </Card>
++         </div>
++       </div>
++     );
++   }
++ 
++   return (
++     <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
++       <div className="w-full max-w-md space-y-8">
++         <div className="text-center">
++           <Link
++             href="/"
++             className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
++           >
++             <Code size={32} />
++             PINACLE
++           </Link>
++         </div>
++ 
++         <Card>
++           <CardHeader>
++             <CardTitle className="font-mono font-bold">
++               RESET PASSWORD
++             </CardTitle>
++             <CardDescription>Enter your new password below</CardDescription>
++           </CardHeader>
++           <CardContent>
++             {error && (
++               <div className="mb-4 p-3 rounded-sm bg-red-50 border border-red-200 text-red-800 text-sm font-mono">
++                 {error}
++               </div>
++             )}
++ 
++             <form onSubmit={handleSubmit} className="space-y-6">
++               <div className="space-y-2">
++                 <Label htmlFor="password" className="font-mono font-bold">
++                   NEW PASSWORD
++                 </Label>
++                 <div className="relative">
++                   <Input
++                     id="password"
++                     name="password"
++                     type={showPassword ? "text" : "password"}
++                     autoComplete="new-password"
++                     required
++                     value={password}
++                     onChange={(e) => setPassword(e.target.value)}
++                     placeholder="ENTER YOUR NEW PASSWORD"
++                   />
++                   <Button
++                     type="button"
++                     variant="ghost"
++                     size="icon"
++                     className="absolute inset-y-0 right-0 h-full w-10"
++                     onClick={() => setShowPassword(!showPassword)}
++                   >
++                     {showPassword ? (
++                       <EyeOff className="h-4 w-4" />
++                     ) : (
++                       <Eye className="h-4 w-4" />
++                     )}
++                   </Button>
++                 </div>
++                 {password && (
++                   <div className="mt-2 space-y-1 text-xs">
++                     {passwordRequirements.map((req, index) => (
++                       <div
++                         key={index}
++                         className={`flex items-center gap-2 ${
++                           req.test ? "text-green-600" : "text-muted-foreground"
++                         }`}
++                       >
++                         <Check
++                           className={`h-3 w-3 ${req.test ? "opacity-100" : "opacity-30"}`}
++                         />
++                         {req.text}
++                       </div>
++                     ))}
++                   </div>
++                 )}
++               </div>
++ 
++               <div className="space-y-2">
++                 <Label
++                   htmlFor="confirmPassword"
++                   className="font-mono font-bold"
++                 >
++                   CONFIRM PASSWORD
++                 </Label>
++                 <div className="relative">
++                   <Input
++                     id="confirmPassword"
++                     name="confirmPassword"
++                     type={showConfirmPassword ? "text" : "password"}
++                     autoComplete="new-password"
++                     required
++                     value={confirmPassword}
++                     onChange={(e) => setConfirmPassword(e.target.value)}
++                     placeholder="CONFIRM YOUR NEW PASSWORD"
++                   />
++                   <Button
++                     type="button"
++                     variant="ghost"
++                     size="icon"
++                     className="absolute inset-y-0 right-0 h-full w-10"
++                     onClick={() =>
++                       setShowConfirmPassword(!showConfirmPassword)
++                     }
++                   >
++                     {showConfirmPassword ? (
++                       <EyeOff className="h-4 w-4" />
++                     ) : (
++                       <Eye className="h-4 w-4" />
++                     )}
++                   </Button>
++                 </div>
++               </div>
++ 
++               <Button
++                 type="submit"
++                 variant="accent"
++                 className="w-full font-mono font-bold"
++                 disabled={resetMutation.isPending || !isPasswordValid}
++               >
++                 {resetMutation.isPending
++                   ? "RESETTING..."
++                   : "RESET PASSWORD"}
++               </Button>
++             </form>
++           </CardContent>
++         </Card>
++       </div>
++     </div>
++   );
++ }
++ 
++ export default function ResetPassword() {
++   return (
++     <Suspense fallback={<div>Loading...</div>}>
++       <ResetPasswordForm />
++     </Suspense>
++   );
++ }
++ 
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/lib/trpc/routers/auth.ts`
+- `/Users/rchaves/Projects/pinacle/src/emails/reset-password.tsx`
+- `/Users/rchaves/Projects/pinacle/src/lib/email.ts`
+
+Lint results
+
+Lint errors for `src/lib/trpc/routers/auth.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| '(params?: string \| \{ abort?: boolean \| undefined; pattern?: RegExp \| undefined; error?: string \| $ZodErrorMap<$ZodIssueInvalidStringFormat> \| undefined; message?: string \| undefined; \} \| undefined): ZodString' is deprecated. | 15:21-15:26 | DIAGNOSTIC_SEVERITY_HINT |
+| '(params?: string \| \{ abort?: boolean \| undefined; pattern?: RegExp \| undefined; error?: string \| $ZodErrorMap<$ZodIssueInvalidStringFormat> \| undefined; message?: string \| undefined; \} \| undefined): ZodString' is deprecated. | 119:27-119:32 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now let me check the lints for the new pages I created and then provide a summary of what I've implemented.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/app/auth/forgot-password/page.tsx`
+- `/Users/rchaves/Projects/pinacle/src/app/auth/reset-password/page.tsx`
+
+Lint results
+
+Lint errors for `src/app/auth/reset-password/page.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Avoid using the index of an array as key property in an element. | 212:30-212:35 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Let me fix that linter error by using a unique key for the password requirements.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/app/auth/reset-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -208,7 +208,7 @@
+                  {password && (
+                    <div className="mt-2 space-y-1 text-xs">
+-                     {passwordRequirements.map((req, index) => (
++                     {passwordRequirements.map((req) => (
+                        <div
+-                         key={index}
++                         key={req.text}
+                          className={`flex items-center gap-2 ${
+                            req.test ? "text-green-600" : "text-muted-foreground"
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/app/auth/reset-password/page.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! Now let me provide a comprehensive summary of what I've implemented.</details></think>
+
+---
+
+Perfect! I've implemented a complete forgot password flow for NextAuth. Here's what I built:
+
+## ✅ What's Implemented
+
+### 1. **Reset Password Email Template** (`/src/emails/reset-password.tsx`)
+- Uses the shared email styles we created
+- Simple, dev-focused copy matching your brand
+- Shows the Pinacle logo and explains the 1-hour expiry
+
+### 2. **Email Sending Function** (`/src/lib/email.ts`)
+- `sendResetPasswordEmail()` function
+- Handles errors gracefully
+- Subject: "Reset your Pinacle password"
+
+### 3. **Backend API (tRPC)** (`/src/lib/trpc/routers/auth.ts`)
+
+**`requestPasswordReset`:**
+- Takes email input
+- Always returns success (security best practice - doesn't reveal if email exists)
+- Generates secure random token (UUID)
+- Token expires in 1 hour
+- Stores token in existing `verificationTokens` table
+- Sends email with reset link
+
+**`resetPassword`:**
+- Takes token + new password
+- Validates token hasn't expired
+- Updates user password (hashed with bcrypt)
+- Deletes used token
+- Returns success
+
+### 4. **Frontend Pages**
+
+**`/auth/forgot-password`:**
+- Email input form
+- Shows success message after submission
+- Matches your design style (monospace, uppercase, orange buttons)
+- Uses tRPC mutation
+
+**`/auth/reset-password`:**
+- Reads token from URL query params
+- New password + confirm password fields
+- Password strength validator with visual feedback
+- Shows invalid/expired token message
+- Success redirect to signin
+- All styling matches your brand
+
+## 🔒 Security Features
+
+- Tokens expire in 1 hour
+- Tokens are deleted after use
+- Doesn't reveal if email exists (always shows success)
+- Passwords hashed with bcrypt
+- Only works for users with passwords (not OAuth-only users)
+
+## 🎨 Design
+
+All pages match your existing auth pages with:
+- Monospace fonts
+- Uppercase labels
+- Orange accent buttons
+- Slate background
+- Bordered cards
+
+The whole flow is ready to use! Users can click "FORGOT YOUR PASSWORD?" on the signin page → enter email → receive reset link → set new password → signin.
+
+---
+

@@ -1,8 +1,13 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { z } from "zod";
 import { hashPassword } from "../../auth";
-import { teamMembers, teams, users } from "../../db/schema";
-import { sendWelcomeEmail } from "../../email";
+import {
+  teamMembers,
+  teams,
+  users,
+  verificationTokens,
+} from "../../db/schema";
+import { sendResetPasswordEmail, sendWelcomeEmail } from "../../email";
 import { createTRPCRouter, publicProcedure } from "../server";
 
 const signUpSchema = z.object({
@@ -106,5 +111,124 @@ export const authRouter = createTRPCRouter({
       }
 
       return user;
+    }),
+
+  requestPasswordReset: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { email } = input;
+
+      // Find user
+      const existingUser = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      // Always return success even if user doesn't exist (security best practice)
+      if (existingUser.length === 0 || !existingUser[0].password) {
+        console.log(
+          `Password reset requested for non-existent or OAuth user: ${email}`,
+        );
+        return { success: true };
+      }
+
+      const user = existingUser[0];
+
+      // Generate reset token
+      const token = crypto.randomUUID();
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Store token in database
+      await ctx.db
+        .insert(verificationTokens)
+        .values({
+          identifier: email,
+          token,
+          expires,
+        })
+        .onConflictDoUpdate({
+          target: [verificationTokens.identifier, verificationTokens.token],
+          set: {
+            expires,
+          },
+        });
+
+      // Send email
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+      const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
+
+      await sendResetPasswordEmail({
+        to: email,
+        name: user.name || "there",
+        resetUrl,
+      });
+
+      console.log(`Password reset email sent to ${email}`);
+      return { success: true };
+    }),
+
+  resetPassword: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        password: z.string().min(6),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { token, password } = input;
+
+      // Find valid token
+      const tokenRecord = await ctx.db
+        .select()
+        .from(verificationTokens)
+        .where(
+          and(
+            eq(verificationTokens.token, token),
+            gt(verificationTokens.expires, new Date()),
+          ),
+        )
+        .limit(1);
+
+      if (tokenRecord.length === 0) {
+        throw new Error("Invalid or expired reset token");
+      }
+
+      const { identifier: email } = tokenRecord[0];
+
+      // Find user
+      const existingUser = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existingUser.length === 0) {
+        throw new Error("User not found");
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(password);
+
+      // Update user password
+      await ctx.db
+        .update(users)
+        .set({
+          password: hashedPassword,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.email, email));
+
+      // Delete used token
+      await ctx.db
+        .delete(verificationTokens)
+        .where(eq(verificationTokens.token, token));
+
+      console.log(`Password reset successful for ${email}`);
+      return { success: true };
     }),
 });
