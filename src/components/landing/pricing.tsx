@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Zap, Crown, Rocket } from "lucide-react";
+import { Check, Crown, Rocket, Zap } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
   Card,
@@ -11,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
-import { Badge } from "../ui/badge";
 
 const tiers = [
   {

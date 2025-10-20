@@ -15,7 +15,6 @@ import {
   verifyProxyToken,
 } from "@/lib/proxy-token";
 import { checkPodAccess, parseProxyHostname } from "@/lib/proxy-utils";
-import { generateKSUID } from "@/lib/utils";
 
 describe("Proxy Authentication Tests", () => {
   let testUserId: string;

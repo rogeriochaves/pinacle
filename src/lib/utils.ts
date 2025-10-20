@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
+// biome-ignore lint/style/useNodejsImportProtocol: we use crypto in the browser too
 import crypto from "crypto";
 import ksuid from "ksuid";
 import { twMerge } from "tailwind-merge";

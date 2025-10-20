@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { hashPassword } from "../../auth";
 import { teamMembers, teams, users } from "../../db/schema";
+import { sendWelcomeEmail } from "../../email";
 import { createTRPCRouter, publicProcedure } from "../server";
 
 const signUpSchema = z.object({
@@ -81,6 +82,27 @@ export const authRouter = createTRPCRouter({
           error,
         );
         // Don't throw error here - user creation should succeed even if team creation fails
+      }
+
+      // Send welcome email
+      try {
+        const baseUrl =
+          process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const dashboardUrl = `${baseUrl}/dashboard`;
+
+        await sendWelcomeEmail({
+          to: email,
+          name,
+          dashboardUrl,
+        });
+
+        console.log(`Welcome email sent to ${email}`);
+      } catch (error) {
+        console.error(
+          `Failed to send welcome email to ${email}:`,
+          error,
+        );
+        // Don't throw error here - user creation should succeed even if email fails
       }
 
       return user;
