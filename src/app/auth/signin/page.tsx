@@ -1,6 +1,7 @@
 "use client";
 
-import { Code, Eye, EyeOff, Github } from "lucide-react";
+import { Eye, EyeOff, Github } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
@@ -103,39 +104,34 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <Link
             href="/"
-            className="flex items-center justify-center space-x-2 mb-6"
+            className="flex items-center justify-center space-x-2 mb-12"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
-              <Code className="h-4 w-4 text-orange-900" />
-            </div>
-            <span className="font-bold font-mono text-2xl text-foreground">
-              PINACLE
+            <Image
+              src="/logo.png"
+              alt="Pinacle Logo"
+              className="h-10 w-10"
+              width={40}
+              height={40}
+            />
+            <span className="font-bold font-mono text-2xl text-white">
+              pinacle
             </span>
           </Link>
-          <h2 className="text-3xl font-bold font-mono text-foreground">
-            SIGN IN TO YOUR ACCOUNT
+          <h2 className="text-3xl font-bold font-mono text-white mb-3">
+            Sign in to your account
           </h2>
-          <p className="mt-2 text-sm font-mono text-muted-foreground">
-            OR{" "}
-            <Link
-              href="/auth/signup"
-              className="font-bold text-orange-600 hover:text-orange-700 underline"
-            >
-              CREATE A NEW ACCOUNT
-            </Link>
-          </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="font-mono font-bold">WELCOME BACK</CardTitle>
-            <CardDescription className="font-mono">
+            <CardTitle className="font-mono font-bold">Welcome back</CardTitle>
+            <CardDescription className="font-mono mb-4">
               Sign in to access your development environments
             </CardDescription>
           </CardHeader>
@@ -144,20 +140,20 @@ export default function SignIn() {
             <Button
               onClick={handleGithubSignIn}
               variant="outline"
-              className="w-full font-mono font-bold"
+              className="w-full font-mono"
               disabled={isLoading}
             >
               <Github className="mr-2 h-4 w-4" />
-              SIGN IN WITH GITHUB
+              Sign in with GitHub
             </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t-2 border-border-contrast" />
+                <span className="w-full border-t border-gray-200" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground font-mono font-bold">
-                  OR CONTINUE WITH
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-gray-500 font-mono">
+                  or continue with
                 </span>
               </div>
             </div>
@@ -165,33 +161,14 @@ export default function SignIn() {
             {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <svg
-                        className="h-5 w-5 text-red-400"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-red-800">
-                        {error}
-                      </p>
-                    </div>
-                  </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="font-mono font-bold">
-                  EMAIL ADDRESS
+                <Label htmlFor="email" className="font-mono">
+                  Email address
                 </Label>
                 <Input
                   id="email"
@@ -201,13 +178,13 @@ export default function SignIn() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ENTER YOUR EMAIL"
+                  placeholder="Enter your email"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="font-mono font-bold">
-                  PASSWORD
+                <Label htmlFor="password" className="font-mono">
+                  Password
                 </Label>
                 <div className="relative">
                   <Input
@@ -218,7 +195,7 @@ export default function SignIn() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="ENTER YOUR PASSWORD"
+                    placeholder="Enter your password"
                   />
                   <Button
                     type="button"
@@ -240,9 +217,9 @@ export default function SignIn() {
                 <div className="text-sm">
                   <Link
                     href="/auth/forgot-password"
-                    className="font-mono font-bold text-orange-600 hover:text-orange-700 underline"
+                    className="font-mono text-orange-600 hover:text-orange-700 underline"
                   >
-                    FORGOT YOUR PASSWORD?
+                    Forgot your password?
                   </Link>
                 </div>
               </div>
@@ -250,23 +227,23 @@ export default function SignIn() {
               <Button
                 type="submit"
                 variant="accent"
-                className="w-full font-mono font-bold"
+                className="w-full font-mono"
                 disabled={isLoading}
               >
-                {isLoading ? "SIGNING IN..." : "SIGN IN"}
+                {isLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </CardContent>
         </Card>
 
         <div className="text-center">
-          <p className="text-sm font-mono text-muted-foreground">
-            DON'T HAVE AN ACCOUNT?{" "}
+          <p className="text-sm text-gray-400">
+            Don't have an account yet?{" "}
             <Link
               href="/auth/signup"
-              className="font-bold text-orange-600 hover:text-orange-700 underline"
+              className="font-medium text-orange-500 hover:text-orange-400 underline"
             >
-              SIGN UP FOR FREE
+              Create your account
             </Link>
           </p>
         </div>

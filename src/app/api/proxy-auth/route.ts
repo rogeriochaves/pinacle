@@ -41,26 +41,34 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
     // 2. Validate NextAuth session
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      // Not authenticated - redirect to sign-in page with context
+      const returnUrl = searchParams.get("return_url");
+      const signInUrl = new URL("/auth/signin-required", req.url);
+      signInUrl.searchParams.set("pod", podSlug);
+      if (returnUrl) {
+        signInUrl.searchParams.set("return_url", returnUrl);
+      }
+      return NextResponse.redirect(signInUrl);
     }
 
     // 3. Check user has access to pod
     const accessCheck = await checkSessionPodAccess(session, podSlug);
     if (!accessCheck.hasAccess) {
-      return NextResponse.json(
-        { error: accessCheck.reason || "Access denied" },
-        { status: 403 },
-      );
+      // No access - redirect to no-access page
+      const noAccessUrl = new URL("/auth/no-access", req.url);
+      noAccessUrl.searchParams.set("pod", podSlug);
+      return NextResponse.redirect(noAccessUrl);
     }
 
     const pod = accessCheck.pod!;
 
     // Verify pod is running
     if (pod.status !== "running") {
-      return NextResponse.json(
-        { error: `Pod is not running (status: ${pod.status})` },
-        { status: 503 },
-      );
+      // Pod not running - redirect to unavailable page
+      const unavailableUrl = new URL("/auth/pod-unavailable", req.url);
+      unavailableUrl.searchParams.set("pod", podSlug);
+      unavailableUrl.searchParams.set("status", pod.status);
+      return NextResponse.redirect(unavailableUrl);
     }
 
     // 4. Generate scoped JWT token

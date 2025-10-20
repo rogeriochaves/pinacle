@@ -1,6 +1,6 @@
 "use client";
 
-import { Code } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
@@ -36,36 +36,50 @@ export default function ForgotPassword() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
+              className="flex items-center justify-center space-x-2 mb-12"
             >
-              <Code size={32} />
-              PINACLE
+              <Image
+                src="/logo.png"
+                alt="Pinacle Logo"
+                className="h-10 w-10"
+                width={40}
+                height={40}
+              />
+              <span className="font-bold font-mono text-2xl text-white">
+                pinacle
+              </span>
             </Link>
+            <h2 className="text-3xl font-bold font-mono text-white mb-3">
+              Check your email
+            </h2>
+            <p className="text-gray-400">
+              We sent you password reset instructions
+            </p>
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle className="font-mono font-bold">
-                CHECK YOUR EMAIL
+                Email sent
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="font-mono mb-4">
                 If an account exists with that email, we sent password reset
                 instructions.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
                 The link expires in 1 hour. Check your spam folder if you don't
                 see it.
               </p>
-              <Link href="/auth/signin">
-                <Button variant="outline" className="w-full font-mono font-bold">
-                  BACK TO SIGN IN
+              <Link href="/auth/signin" className="block">
+                <Button variant="accent" className="w-full font-mono">
+                  Back to sign in
                 </Button>
               </Link>
             </CardContent>
@@ -76,38 +90,52 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 font-mono font-bold text-2xl"
+            className="flex items-center justify-center space-x-2 mb-12"
           >
-            <Code size={32} />
-            PINACLE
+            <Image
+              src="/logo.png"
+              alt="Pinacle Logo"
+              className="h-10 w-10"
+              width={40}
+              height={40}
+            />
+            <span className="font-bold font-mono text-2xl text-white">
+              pinacle
+            </span>
           </Link>
+          <h2 className="text-3xl font-bold font-mono text-white mb-3">
+            Forgot password
+          </h2>
+          <p className="text-gray-400">
+            Enter your email and we'll send you a reset link
+          </p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle className="font-mono font-bold">
-              FORGOT PASSWORD
+              Reset password
             </CardTitle>
-            <CardDescription>
-              Enter your email and we'll send you a reset link
+            <CardDescription className="font-mono mb-4">
+              We'll email you instructions to reset your password
             </CardDescription>
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="mb-4 p-3 rounded-sm bg-red-50 border border-red-200 text-red-800 text-sm font-mono">
+              <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email" className="font-mono font-bold">
-                  EMAIL
+                <Label htmlFor="email" className="font-mono">
+                  Email
                 </Label>
                 <Input
                   id="email"
@@ -117,27 +145,27 @@ export default function ForgotPassword() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="YOUR@EMAIL.COM"
+                  placeholder="Enter your email"
                 />
               </div>
 
               <Button
                 type="submit"
                 variant="accent"
-                className="w-full font-mono font-bold"
+                className="w-full font-mono"
                 disabled={requestResetMutation.isPending}
               >
                 {requestResetMutation.isPending
-                  ? "SENDING..."
-                  : "SEND RESET LINK"}
+                  ? "Sending..."
+                  : "Send reset link"}
               </Button>
 
               <div className="text-center">
                 <Link
                   href="/auth/signin"
-                  className="font-mono text-sm text-orange-600 hover:text-orange-700 underline"
+                  className="font-mono text-sm text-orange-500 hover:text-orange-400 underline"
                 >
-                  BACK TO SIGN IN
+                  Back to sign in
                 </Link>
               </div>
             </form>

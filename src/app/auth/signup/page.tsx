@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { Check, Eye, EyeOff, Github } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { Github, Code, Eye, EyeOff, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
-import { Label } from "../../../components/ui/label";
 import {
   Card,
   CardContent,
@@ -15,6 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../components/ui/card";
+import { Input } from "../../../components/ui/input";
+import { Label } from "../../../components/ui/label";
 import { api } from "../../../lib/trpc/client";
 
 export default function SignUp() {
@@ -89,31 +90,35 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           <Link
             href="/"
-            className="flex items-center justify-center space-x-2 mb-6"
+            className="flex items-center justify-center space-x-2 mb-12"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-orange-200 border-2 border-border-contrast">
-              <Code className="h-4 w-4 text-orange-900" />
-            </div>
-            <span className="font-bold font-mono text-2xl text-foreground">
-              PINACLE
+            <Image
+              src="/logo.png"
+              alt="Pinacle Logo"
+              className="h-10 w-10"
+              width={40}
+              height={40}
+            />
+            <span className="font-bold font-mono text-2xl text-white">
+              pinacle
             </span>
           </Link>
-          <h2 className="text-3xl font-bold font-mono text-foreground">
-            CREATE YOUR ACCOUNT
+          <h2 className="text-3xl font-bold font-mono text-white mb-3">
+            Create your account
           </h2>
-          <p className="mt-2 text-sm font-mono text-muted-foreground">
-            ALREADY HAVE AN ACCOUNT?{" "}
+          <p className="text-gray-400">
+            Already have an account?{" "}
             <Link
               href="/auth/signin"
-              className="font-bold text-orange-600 hover:text-orange-700 underline"
+              className="font-medium text-orange-500 hover:text-orange-400 underline"
             >
-              SIGN IN
+              Sign in
             </Link>
           </p>
         </div>
@@ -121,9 +126,9 @@ export default function SignUp() {
         <Card>
           <CardHeader>
             <CardTitle className="font-mono font-bold">
-              GET STARTED FOR FREE
+              Get started for free
             </CardTitle>
-            <CardDescription className="font-mono">
+            <CardDescription className="font-mono mb-4">
               Create your account to access AI development environments
             </CardDescription>
           </CardHeader>
@@ -132,7 +137,7 @@ export default function SignUp() {
             <Button
               onClick={handleGithubSignIn}
               variant="outline"
-              className="w-full"
+              className="w-full font-mono"
             >
               <Github className="mr-2 h-4 w-4" />
               Sign up with GitHub
@@ -140,11 +145,11 @@ export default function SignUp() {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-gray-300" />
+                <span className="w-full border-t border-gray-200" />
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">
-                  Or continue with
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-gray-500 font-mono">
+                  or continue with
                 </span>
               </div>
             </div>
@@ -152,13 +157,15 @@ export default function SignUp() {
             {/* Email/Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="name">Full name</Label>
+                <Label htmlFor="name" className="font-mono">
+                  Full name
+                </Label>
                 <Input
                   id="name"
                   name="name"
@@ -172,7 +179,9 @@ export default function SignUp() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="font-mono">
+                  Email address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -186,7 +195,9 @@ export default function SignUp() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="font-mono">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -234,7 +245,9 @@ export default function SignUp() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <Label htmlFor="confirmPassword" className="font-mono">
+                  Confirm password
+                </Label>
                 <div className="relative">
                   <Input
                     id="confirmPassword"
@@ -265,7 +278,8 @@ export default function SignUp() {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                variant="accent"
+                className="w-full font-mono"
                 disabled={
                   signUpMutation.isPending ||
                   !isPasswordValid ||
@@ -278,7 +292,7 @@ export default function SignUp() {
               </Button>
             </form>
 
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-600 text-center">
               By signing up, you agree to our{" "}
               <Link href="/terms" className="underline hover:text-gray-700">
                 Terms of Service
