@@ -47,8 +47,8 @@ After=network.target docker.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/pinacle/server-agent
-ExecStart=/usr/bin/node /opt/pinacle/server-agent/dist/index.js
+WorkingDirectory=/usr/local/pinacle/server-agent
+ExecStart=/usr/bin/node /usr/local/pinacle/server-agent/dist/index.js
 Restart=always
 RestartSec=10
 

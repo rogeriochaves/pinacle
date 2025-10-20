@@ -15,7 +15,7 @@ set -e
 API_URL=""
 API_KEY=$SERVER_API_KEY
 HOST=""
-AGENT_PATH="/opt/pinacle/server-agent"
+AGENT_PATH="/usr/local/pinacle/server-agent"
 HEARTBEAT_INTERVAL="30000"
 
 # Parse arguments
@@ -274,9 +274,9 @@ if [[ $HOST == lima:* ]]; then
 name="Pinacle Server Agent"
 description="Pinacle Server Agent for pod orchestration"
 command="/usr/bin/node"
-command_args="/opt/pinacle/server-agent/dist/index.js"
+command_args="/usr/local/pinacle/server-agent/dist/index.js"
 command_background=true
-directory="/opt/pinacle/server-agent"
+directory="/usr/local/pinacle/server-agent"
 pidfile="/run/pinacle-agent.pid"
 output_log="/var/log/pinacle-agent.log"
 error_log="/var/log/pinacle-agent.err"

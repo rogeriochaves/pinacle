@@ -224,7 +224,7 @@ async function cleanupTestServers(): Promise<void> {
       );
       // Delete the server-config.json file from the Lima VM
       await execAsync(
-        `limactl shell ${LIMA_VM} -- rm -f /opt/pinacle/server-agent/.server-config.json`,
+        `limactl shell ${LIMA_VM} -- rm -f /usr/local/pinacle/server-agent/.server-config.json`,
       );
       await db.delete(servers).where(eq(servers.id, server.id));
     }
