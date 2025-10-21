@@ -3,15 +3,26 @@ import { GVisorRuntime } from "../container-runtime";
 import { getLimaServerConnection } from "../lima-utils";
 import type { PodSpec, ResourceTier } from "../types";
 
-// Mock exec function
-const mockExec = vi.fn();
+// Use vi.hoisted to ensure mockExec is available in the mock factory
+const { mockExec } = vi.hoisted(() => ({
+  mockExec: vi.fn(),
+}));
 
 vi.mock("child_process", () => ({
   exec: mockExec,
 }));
 
 vi.mock("util", () => ({
-  promisify: (fn: any) => fn,
+  promisify: (fn: any) => {
+    return (...args: any[]) => {
+      return new Promise((resolve, reject) => {
+        fn(...args, (error: Error | null, result: any) => {
+          if (error) reject(error);
+          else resolve(result);
+        });
+      });
+    };
+  },
 }));
 
 describe("LimaGVisorRuntime", () => {
@@ -19,6 +30,20 @@ describe("LimaGVisorRuntime", () => {
   let testConfig: PodSpec;
 
   beforeAll(async () => {
+    // Mock Lima SSH port lookup - must match "Port=NUMBER" pattern
+    mockExec.mockImplementation(
+      (cmd: string, callback: (error: Error | null, result?: any) => void) => {
+        if (cmd.includes("limactl show-ssh")) {
+          callback(null, {
+            stdout: "ssh -o Port=49464 root@localhost\n",
+            stderr: "",
+          });
+        } else {
+          callback(null, { stdout: "", stderr: "" });
+        }
+      },
+    );
+
     runtime = new GVisorRuntime(await getLimaServerConnection());
 
     testConfig = {

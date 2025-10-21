@@ -34,24 +34,28 @@ describe("Admin Router Integration Tests", () => {
       await db.delete(pods).where(eq(pods.name, "Test Pod"));
     }
 
-    // Find and delete server metrics
+    // Find and delete server metrics and servers
     const existingServers = await db
       .select({ id: servers.id })
       .from(servers)
       .where(eq(servers.hostname, "test-server"));
     if (existingServers.length > 0) {
+      // Delete pods first (they reference servers)
+      await db.delete(pods).where(eq(pods.serverId, existingServers[0].id));
       await db
         .delete(serverMetrics)
         .where(eq(serverMetrics.serverId, existingServers[0].id));
       await db.delete(servers).where(eq(servers.id, existingServers[0].id));
     }
 
-    // Find and delete team members and teams
+    // Find and delete team members, pods, and teams
     const existingTeams = await db
       .select({ id: teams.id })
       .from(teams)
       .where(eq(teams.name, "Test Team"));
     if (existingTeams.length > 0) {
+      // Delete pods first (they reference teams)
+      await db.delete(pods).where(eq(pods.teamId, existingTeams[0].id));
       await db
         .delete(teamMembers)
         .where(eq(teamMembers.teamId, existingTeams[0].id));

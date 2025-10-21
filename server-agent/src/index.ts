@@ -149,8 +149,8 @@ export class ServerAgent {
         diskUsageGb: metrics.diskUsageGb,
         activePodsCount: metrics.activePodsCount,
         podMetrics: metrics.podMetrics,
-      }
-      console.log('json', json);
+      };
+      console.log("json", json);
 
       // Send metrics
       const metricsResponse = await fetch(
@@ -175,6 +175,12 @@ export class ServerAgent {
       );
 
       if (!metricsResponse.ok) {
+        if (metricsResponse.status === 404) {
+          console.warn("❌ Server not found, re-registering...");
+          await this.registerServer();
+          return;
+        }
+
         const errorText = await metricsResponse.text();
         throw new Error(
           `Metrics report failed: ${metricsResponse.status}\n${errorText.replace("\\n", "\n")}`,

@@ -3,7 +3,7 @@
 import { Loader2, Server } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { PodDetailsPanel } from "../../components/dashboard/pod-details-panel";
 import { PodSelector } from "../../components/dashboard/pod-selector";
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [showPodDetails, setShowPodDetails] = useState(false);
   const [selectedPodId, setSelectedPodId] = useState<string | null>(null);
   const [deletingPodId, setDeletingPodId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: pods, isLoading, refetch } = api.pods.getUserPods.useQuery();
   const startPodMutation = api.pods.start.useMutation();
@@ -36,6 +37,38 @@ export default function Dashboard() {
     }
   }, [searchParams, selectedPodId]);
 
+  // Poll for status updates when any pod is in transitional state
+  useEffect(() => {
+    const hasTransitionalPod = pods?.some(
+      (pod) =>
+        pod.status === "starting" ||
+        pod.status === "stopping" ||
+        pod.status === "creating" ||
+        pod.status === "provisioning",
+    );
+
+    if (hasTransitionalPod) {
+      // Start polling every 2 seconds
+      pollingIntervalRef.current = setInterval(() => {
+        refetch();
+      }, 2000);
+    } else {
+      // Clear polling when no pods in transitional state
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [pods, refetch]);
+
   // Get the first running pod, or the first pod if none are running
   // Note: pods are now ordered by createdAt DESC, so pods[0] is the newest
   const runningPod = pods?.find((pod) => pod.status === "running");
@@ -44,20 +77,39 @@ export default function Dashboard() {
     : runningPod || pods?.[0];
 
   const handleStartPod = async (podId: string) => {
+    const podName = pods?.find((p) => p.id === podId)?.name || "Pod";
     try {
       await startPodMutation.mutateAsync({ id: podId });
+      toast.success(`${podName} is starting`, {
+        description:
+          "The pod is starting up. It may take a few moments to be ready.",
+      });
       refetch();
     } catch (error) {
       console.error("Failed to start pod:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error(`Failed to start ${podName}`, {
+        description: errorMessage,
+      });
     }
   };
 
   const handleStopPod = async (podId: string) => {
+    const podName = pods?.find((p) => p.id === podId)?.name || "Pod";
     try {
       await stopPodMutation.mutateAsync({ id: podId });
+      toast.success(`${podName} is stopping`, {
+        description: "The pod is being stopped.",
+      });
       refetch();
     } catch (error) {
       console.error("Failed to stop pod:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error(`Failed to stop ${podName}`, {
+        description: errorMessage,
+      });
     }
   };
 

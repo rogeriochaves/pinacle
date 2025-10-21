@@ -17,7 +17,7 @@ import { promisify } from "node:util";
 import { desc, eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "../../db";
-import { serverMetrics, servers } from "../../db/schema";
+import { pods, serverMetrics, servers } from "../../db/schema";
 
 const execAsync = promisify(exec);
 
@@ -226,6 +226,10 @@ async function cleanupTestServers(): Promise<void> {
       await execAsync(
         `limactl shell ${LIMA_VM} -- rm -f /usr/local/pinacle/server-agent/.server-config.json`,
       );
+
+      // Delete any pods associated with this server first (to avoid FK constraint)
+      await db.delete(pods).where(eq(pods.serverId, server.id));
+
       await db.delete(servers).where(eq(servers.id, server.id));
     }
   }

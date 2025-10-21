@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -88,10 +90,62 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [activeTab, setActiveTab] = useState<Tab>("vscode");
   const { data: session } = useSession();
   const isRunning = pod.status === "running";
+  const startPodMutation = api.pods.start.useMutation();
+  const utils = api.useUtils();
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
   };
+
+  const handleStartPod = async () => {
+    try {
+      await startPodMutation.mutateAsync({ id: pod.id });
+      toast.success(`${pod.name} is starting`, {
+        description:
+          "The pod is starting up. It may take a few moments to be ready.",
+      });
+      // Refetch pod data
+      utils.pods.getUserPods.invalidate();
+    } catch (error) {
+      console.error("Failed to start pod:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error(`Failed to start ${pod.name}`, {
+        description: errorMessage,
+      });
+    }
+  };
+
+  // Poll for status updates when pod is in transitional state
+  useEffect(() => {
+    const isTransitional =
+      pod.status === "starting" ||
+      pod.status === "stopping" ||
+      pod.status === "creating" ||
+      pod.status === "provisioning";
+
+    if (isTransitional) {
+      // Start polling every 2 seconds
+      pollingIntervalRef.current = setInterval(() => {
+        utils.pods.getUserPods.invalidate();
+      }, 2000);
+    } else {
+      // Clear polling when not in transitional state
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [pod.status, utils.pods.getUserPods]);
 
   const getTabUrl = useCallback(
     (tab: Tab): string => {
@@ -247,14 +301,20 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         {!isRunning ? (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
             <div className="text-center">
-              {pod.status === "starting" || pod.status === "creating" ? (
+              {pod.status === "starting" ||
+              pod.status === "creating" ||
+              pod.status === "stopping" ? (
                 <>
                   <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
                   <p className="text-white font-mono text-lg font-bold mb-2">
-                    Starting your workspace...
+                    {pod.status === "stopping"
+                      ? "Stopping your workspace..."
+                      : "Starting your workspace..."}
                   </p>
                   <p className="text-slate-400 font-mono text-sm">
-                    This usually takes 10-30 seconds
+                    {pod.status === "stopping"
+                      ? "This usually takes a few seconds"
+                      : "This usually takes 10-30 seconds"}
                   </p>
                 </>
               ) : pod.status === "stopped" ? (
@@ -268,10 +328,21 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   </p>
                   <Button
                     size="lg"
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold"
+                    onClick={handleStartPod}
+                    disabled={startPodMutation.isPending}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold disabled:opacity-50"
                   >
-                    <Play className="w-4 h-4 mr-2" />
-                    Start Pod
+                    {startPodMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Start Pod
+                      </>
+                    )}
                   </Button>
                 </>
               ) : (

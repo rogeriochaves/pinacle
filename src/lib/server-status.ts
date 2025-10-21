@@ -1,4 +1,4 @@
-export const LAST_HEARTBEAT_THRESHOLD = 1000 * 60;
+export const LAST_HEARTBEAT_THRESHOLD = 1000 * 60; // 60 seconds
 
 /**
  * Determines if a server is currently online based on its status and last heartbeat.

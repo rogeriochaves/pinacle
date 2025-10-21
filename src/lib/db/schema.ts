@@ -204,6 +204,7 @@ export const pods = pgTable("pod", {
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   lastStartedAt: timestamp("last_started_at", { mode: "date" }),
   lastStoppedAt: timestamp("last_stopped_at", { mode: "date" }),
+  lastHeartbeatAt: timestamp("last_heartbeat_at", { mode: "date" }), // Last time we received metrics for this pod
   archivedAt: timestamp("archived_at", { mode: "date" }), // Soft delete timestamp
 });
 

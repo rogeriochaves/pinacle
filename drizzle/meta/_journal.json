@@ -106,6 +106,13 @@
       "when": 1760393738075,
       "tag": "0014_worthless_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1761031459135,
+      "tag": "0015_slimy_talon",
+      "breakpoints": true
     }
   ]
 }

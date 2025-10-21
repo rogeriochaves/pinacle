@@ -106,12 +106,19 @@ describe("Pod E2E Integration Tests", () => {
         .from(pods)
         .where(eq(pods.teamId, existingTestTeam.id));
 
+      // Collect env set IDs before deleting pods
+      const envSetIds = teamPods
+        .map((pod) => pod.envSetId)
+        .filter((id): id is string => id !== null);
+
+      // Delete pods first (they reference env_sets)
       for (const pod of teamPods) {
-        // Delete associated env set
-        if (pod.envSetId) {
-          await db.delete(envSets).where(eq(envSets.id, pod.envSetId));
-        }
         await db.delete(pods).where(eq(pods.id, pod.id));
+      }
+
+      // Then delete env sets
+      for (const envSetId of envSetIds) {
+        await db.delete(envSets).where(eq(envSets.id, envSetId));
       }
 
       // Delete team
@@ -188,6 +195,7 @@ describe("Pod E2E Integration Tests", () => {
           sshUser: process.env.USER || "root",
           limaVmName: vmName,
           status: "online",
+          lastHeartbeatAt: new Date(),
         })
         .returning();
       testServerId = testServer.id;
@@ -287,11 +295,5 @@ describe("Pod E2E Integration Tests", () => {
 
     console.log("✅ E2E test completed successfully!");
   }, 12 * 60 * 1000); // 12 minute timeout (10 min provision + 2 min buffer)
-
-  it.skip("should retry failed provisioning via tRPC", async () => {
-    // This test would require intentionally failing provisioning
-    // and then retrying it - skipping for now as it requires
-    // more complex setup
-  });
 });
 

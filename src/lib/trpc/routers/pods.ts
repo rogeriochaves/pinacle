@@ -422,6 +422,7 @@ export const podsRouter = createTRPCRouter({
           publicUrl: pods.publicUrl,
           createdAt: pods.createdAt,
           lastStartedAt: pods.lastStartedAt,
+          lastHeartbeatAt: pods.lastHeartbeatAt,
           archivedAt: pods.archivedAt,
           teamId: pods.teamId,
         })
@@ -436,7 +437,24 @@ export const podsRouter = createTRPCRouter({
         )
         .orderBy(desc(pods.createdAt)); // Newest pods first
 
-      return userPods;
+      // Mark pods as stopped if they haven't sent a heartbeat in 60 seconds
+      // This is done in-memory rather than updating the DB to avoid race conditions
+      const now = Date.now();
+      const HEARTBEAT_TIMEOUT_MS = 60 * 1000; // 60 seconds
+
+      const podsWithComputedStatus = userPods.map((pod) => {
+        // If pod status is running but hasn't sent heartbeat in 60 seconds, mark as stopped
+        if (
+          pod.status === "running" &&
+          pod.lastHeartbeatAt &&
+          now - pod.lastHeartbeatAt.getTime() > HEARTBEAT_TIMEOUT_MS
+        ) {
+          return { ...pod, status: "stopped" as const };
+        }
+        return pod;
+      });
+
+      return podsWithComputedStatus;
     }),
 
   getById: protectedProcedure
@@ -464,41 +482,86 @@ export const podsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Check access
-      const [pod] = await ctx.db
-        .select()
+      // Check access and get pod with server
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          server: servers,
+        })
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(servers, eq(pods.serverId, servers.id))
         .where(and(eq(pods.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
-      if (!pod) {
+      if (!result) {
         throw new Error("Pod not found or access denied");
       }
+
+      const { pod, server } = result;
+
+      if (!pod.serverId || !server) {
+        throw new Error("Pod is not assigned to a server");
+      }
+
+      if (!pod.containerId) {
+        throw new Error("Pod has no container - may need to be recreated");
+      }
+
+      const serverId = pod.serverId; // Store for async closure
 
       // Update status to starting
       await ctx.db
         .update(pods)
         .set({
           status: "starting",
+          updatedAt: new Date(),
         })
         .where(eq(pods.id, input.id));
 
-      // TODO: Actually start the container
-      // Simulate starting
-      setTimeout(async () => {
+      // Start the container asynchronously
+      (async () => {
         try {
+          console.log(`[pods.start] Starting pod ${input.id}`);
+
+          const { PodProvisioningService } = await import(
+            "../../pod-orchestration/pod-provisioning-service"
+          );
+          const provisioningService = new PodProvisioningService();
+          const serverConnection =
+            await provisioningService["getServerConnectionDetails"](serverId);
+
+          const { PodManager } = await import(
+            "../../pod-orchestration/pod-manager"
+          );
+          const podManager = new PodManager(input.id, serverConnection);
+          await podManager.startPod();
+
           await ctx.db
             .update(pods)
             .set({
               status: "running",
               lastStartedAt: new Date(),
+              updatedAt: new Date(),
             })
             .where(eq(pods.id, input.id));
+
+          console.log(`[pods.start] Successfully started pod ${input.id}`);
         } catch (error) {
-          console.error("Failed to start pod:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(`[pods.start] Failed to start pod ${input.id}:`, error);
+
+          await ctx.db
+            .update(pods)
+            .set({
+              status: "error",
+              lastErrorMessage: errorMessage,
+              updatedAt: new Date(),
+            })
+            .where(eq(pods.id, input.id));
         }
-      }, 3000);
+      })();
 
       return { success: true };
     }),
@@ -508,41 +571,86 @@ export const podsRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Check access
-      const [pod] = await ctx.db
-        .select()
+      // Check access and get pod with server
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          server: servers,
+        })
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(servers, eq(pods.serverId, servers.id))
         .where(and(eq(pods.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
-      if (!pod) {
+      if (!result) {
         throw new Error("Pod not found or access denied");
       }
+
+      const { pod, server } = result;
+
+      if (!pod.serverId || !server) {
+        throw new Error("Pod is not assigned to a server");
+      }
+
+      if (!pod.containerId) {
+        throw new Error("Pod has no container - may need to be recreated");
+      }
+
+      const serverId = pod.serverId; // Store for async closure
 
       // Update status to stopping
       await ctx.db
         .update(pods)
         .set({
           status: "stopping",
+          updatedAt: new Date(),
         })
         .where(eq(pods.id, input.id));
 
-      // TODO: Actually stop the container
-      // Simulate stopping
-      setTimeout(async () => {
+      // Stop the container asynchronously
+      (async () => {
         try {
+          console.log(`[pods.stop] Stopping pod ${input.id}`);
+
+          const { PodProvisioningService } = await import(
+            "../../pod-orchestration/pod-provisioning-service"
+          );
+          const provisioningService = new PodProvisioningService();
+          const serverConnection =
+            await provisioningService["getServerConnectionDetails"](serverId);
+
+          const { PodManager } = await import(
+            "../../pod-orchestration/pod-manager"
+          );
+          const podManager = new PodManager(input.id, serverConnection);
+          await podManager.stopPod();
+
           await ctx.db
             .update(pods)
             .set({
               status: "stopped",
               lastStoppedAt: new Date(),
+              updatedAt: new Date(),
             })
             .where(eq(pods.id, input.id));
+
+          console.log(`[pods.stop] Successfully stopped pod ${input.id}`);
         } catch (error) {
-          console.error("Failed to stop pod:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(`[pods.stop] Failed to stop pod ${input.id}:`, error);
+
+          await ctx.db
+            .update(pods)
+            .set({
+              status: "error",
+              lastErrorMessage: errorMessage,
+              updatedAt: new Date(),
+            })
+            .where(eq(pods.id, input.id));
         }
-      }, 2000);
+      })();
 
       return { success: true };
     }),

@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "../../../env";
-import { podMetrics, serverMetrics, servers } from "../../db/schema";
+import { podMetrics, pods, serverMetrics, servers } from "../../db/schema";
 import { createTRPCRouter, publicProcedure } from "../server";
 
 // Middleware to check API key for server agents
@@ -95,6 +95,13 @@ export const serversRouter = createTRPCRouter({
         .where(eq(servers.id, input.serverId))
         .returning();
 
+      if (!server) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Server not found",
+        });
+      }
+
       // Save server metrics
       const [serverMetric] = await ctx.db
         .insert(serverMetrics)
@@ -107,7 +114,7 @@ export const serversRouter = createTRPCRouter({
         })
         .returning();
 
-      // Save per-pod metrics
+      // Save per-pod metrics and update pod heartbeat timestamps
       if (input.podMetrics.length > 0) {
         await ctx.db.insert(podMetrics).values(
           input.podMetrics.map((pm) => ({
@@ -118,6 +125,17 @@ export const serversRouter = createTRPCRouter({
             networkRxBytes: pm.networkRxBytes,
             networkTxBytes: pm.networkTxBytes,
           })),
+        );
+
+        // Update lastHeartbeatAt for all pods that sent metrics
+        const now = new Date();
+        await Promise.all(
+          input.podMetrics.map((pm) =>
+            ctx.db
+              .update(pods)
+              .set({ lastHeartbeatAt: now })
+              .where(eq(pods.id, pm.podId)),
+          ),
         );
       }
 
