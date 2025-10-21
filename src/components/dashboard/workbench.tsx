@@ -123,7 +123,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       pod.status === "starting" ||
       pod.status === "stopping" ||
       pod.status === "creating" ||
-      pod.status === "provisioning";
+      pod.status === "provisioning" ||
+      pod.status === "deleting";
 
     if (isTransitional) {
       // Start polling every 2 seconds
@@ -175,6 +176,9 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       case "starting":
       case "creating":
         return "bg-yellow-500";
+      case "stopping":
+      case "deleting":
+        return "bg-orange-500";
       case "stopped":
         return "bg-gray-400";
       case "error":
@@ -303,18 +307,30 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             <div className="text-center">
               {pod.status === "starting" ||
               pod.status === "creating" ||
-              pod.status === "stopping" ? (
+              pod.status === "stopping" ||
+              pod.status === "deleting" ? (
                 <>
                   <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
                   <p className="text-white font-mono text-lg font-bold mb-2">
                     {pod.status === "stopping"
-                      ? "Stopping your workspace..."
-                      : "Starting your workspace..."}
+                      ? "Stopping your pod..."
+                      : pod.status === "deleting"
+                        ? "Deleting your pod..."
+                        : "Starting your pod..."}
                   </p>
                   <p className="text-slate-400 font-mono text-sm">
                     {pod.status === "stopping"
-                      ? "This usually takes a few seconds"
-                      : "This usually takes 10-30 seconds"}
+                      ? "Creating snapshot and stopping container..."
+                      : pod.status === "deleting"
+                        ? "Removing container and cleaning up resources..."
+                        : "Checking for snapshots and starting container..."}
+                  </p>
+                  <p className="text-slate-500 font-mono text-xs mt-2">
+                    {pod.status === "stopping"
+                      ? "Your pod state is being saved"
+                      : pod.status === "deleting"
+                        ? ""
+                        : "This usually takes 10-30 seconds"}
                   </p>
                 </>
               ) : pod.status === "stopped" ? (
@@ -387,6 +403,15 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           )
         )}
       </div>
+
+      {/* Snapshot Manager Dialog */}
+      <SnapshotManager
+        podId={pod.id}
+        podName={pod.name}
+        podStatus={pod.status}
+        open={showSnapshots}
+        onOpenChange={setShowSnapshots}
+      />
     </div>
   );
 };

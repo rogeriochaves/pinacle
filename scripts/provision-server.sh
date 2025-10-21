@@ -150,11 +150,16 @@ echo "📁 Step 3: Creating agent directory..."
 if [[ $HOST == lima:* ]]; then
   limactl shell "$LIMA_VM" -- sudo mkdir -p "$AGENT_PATH"
   limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '$AGENT_PATH'"
+  limactl shell "$LIMA_VM" -- sudo mkdir -p "/var/lib/pinacle/snapshots"
+  limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
 elif [[ $HOST == ssh:* ]]; then
   ssh "$SSH_HOST" "sudo mkdir -p '$AGENT_PATH' && sudo chown -R \$USER '$AGENT_PATH'"
+  ssh "$SSH_HOST" "sudo mkdir -p '/var/lib/pinacle/snapshots' && sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
 else
   sudo mkdir -p "$AGENT_PATH"
   sudo chown -R "$USER" "$AGENT_PATH"
+  sudo mkdir -p "/var/lib/pinacle/snapshots"
+  sudo chown -R "$USER" "/var/lib/pinacle/snapshots"
 fi
 echo "✅ Directory created: $AGENT_PATH"
 

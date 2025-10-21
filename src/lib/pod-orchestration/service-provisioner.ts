@@ -5,7 +5,7 @@ import {
   type ServiceContext,
   type ServiceTemplate,
 } from "./service-registry";
-import type { ServerConnection, ServiceConfig } from "./types";
+import type { PodSpec, ServerConnection, ServiceConfig } from "./types";
 
 export class ServiceProvisioner {
   private podId: string;
@@ -17,6 +17,7 @@ export class ServiceProvisioner {
   }
 
   async provisionService(
+    spec: PodSpec,
     service: ServiceConfig,
     projectFolder?: string,
   ): Promise<void> {
@@ -40,8 +41,16 @@ export class ServiceProvisioner {
           `[ServiceProvisioner] Installing ${service.name} using template`,
         );
 
+        const context: ServiceContext = {
+          spec,
+          projectFolder,
+        };
+
         // Run installation commands
-        for (const installCmd of template.installScript) {
+        const installCommands = Array.isArray(template.installScript)
+          ? template.installScript
+          : template.installScript(context);
+        for (const installCmd of installCommands) {
           await this.containerRuntime.execInContainer(
             this.podId,
             container.id,
@@ -51,10 +60,10 @@ export class ServiceProvisioner {
 
         // Create OpenRC service script with custom working directory if GitHub repo is present
         await this.createServiceScript(
+          context,
           container.id,
           service.name,
           template,
-          projectFolder,
         );
       } else {
         // Custom service with commands
@@ -298,10 +307,10 @@ export class ServiceProvisioner {
   }
 
   private async createServiceScript(
+    context: ServiceContext,
     containerId: string,
     serviceName: string,
     template: ServiceTemplate,
-    projectFolder?: string,
   ): Promise<void> {
     // Create OpenRC-compatible init script for Alpine
     const envVars = Object.entries(template.environment || {})
@@ -316,11 +325,6 @@ export class ServiceProvisioner {
         `Service name ${serviceName} is not valid for OpenRC, should not have spaces or special characters`,
       );
     }
-
-    // Build service context for startCommand function
-    const context: ServiceContext = {
-      projectFolder,
-    };
 
     // Get the start command from the template function
     const startCommandArray = template.startCommand(context);

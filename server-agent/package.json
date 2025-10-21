@@ -4,16 +4,28 @@
   "description": "Pinacle Server Agent - monitors and reports server metrics",
   "main": "dist/index.js",
   "type": "module",
+  "bin": {
+    "pinacle-agent": "./dist/index.js",
+    "pinacle-snapshot-create": "./dist/snapshot-create.js",
+    "pinacle-snapshot-restore": "./dist/snapshot-restore.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "clean": "rm -rf dist"
   },
-  "keywords": ["pinacle", "server", "agent", "monitoring"],
+  "keywords": [
+    "pinacle",
+    "server",
+    "agent",
+    "monitoring"
+  ],
   "author": "Pinacle",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.913.0",
+    "@aws-sdk/lib-storage": "^3.913.0",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {
@@ -22,4 +34,3 @@
     "typescript": "^5.7.2"
   }
 }
-

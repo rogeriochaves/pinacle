@@ -1,6 +1,7 @@
 import type { AdapterAccount } from "@auth/core/adapters";
 import { relations } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   integer,
   pgTable,
@@ -270,6 +271,25 @@ export const podLogs = pgTable("pod_logs", {
   duration: integer("duration"), // Duration in milliseconds - nullable for in-progress commands
   label: text("label"), // Optional human-readable label (e.g., "📦 Cloning repository")
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Pod snapshots for state preservation
+export const podSnapshots = pgTable("pod_snapshot", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("snapshot")),
+  podId: text("pod_id").notNull(), // No FK - pod may be deleted but snapshots retained
+  name: varchar("name", { length: 255 }).notNull(), // User-friendly name (e.g. "auto-2024-01-15" or "before-deployment")
+  description: text("description"), // Optional user description
+  storagePath: varchar("storage_path", { length: 500 }).notNull(), // Path/key in storage backend
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(), // Snapshot size in bytes
+  status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, ready, failed, restoring
+  isAuto: boolean("is_auto").notNull().default(false), // Auto-created on stop vs manual
+  errorMessage: text("error_message"), // Error details if status is failed
+  metadata: text("metadata"), // JSON string for additional metadata (container image, etc)
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { mode: "date" }), // When snapshot creation completed
 });
 
 // GitHub App installations

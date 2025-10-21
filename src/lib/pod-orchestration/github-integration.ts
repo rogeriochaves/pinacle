@@ -94,11 +94,7 @@ export class GitHubIntegration {
 
     try {
       // 1. Copy SSH private key into container
-      await this.podManager.execInPod([
-        "mkdir",
-        "-p",
-        "/workspace/.ssh",
-      ]);
+      await this.podManager.execInPod(["mkdir", "-p", "/workspace/.ssh"]);
 
       const escapedPrivateKey = sshKeyPair.privateKey.replace(/"/g, '\\"');
       await this.podManager.execInPod([
@@ -144,7 +140,7 @@ export class GitHubIntegration {
       await this.podManager.execInPod([
         "sh",
         "-c",
-        `cd /workspace && git clone ${branch ? `-b ${branch}` : ""} ${gitUrl}`,
+        `cd /workspace && git clone ${branch ? `-b ${branch} ` : ""}${gitUrl}`,
       ]);
 
       console.log(`[GitHubIntegration] Successfully cloned ${repository}`);
@@ -172,11 +168,7 @@ export class GitHubIntegration {
 
     try {
       // 1. Setup SSH key (same as clone)
-      await this.podManager.execInPod([
-        "mkdir",
-        "-p",
-        "/workspace/.ssh",
-      ]);
+      await this.podManager.execInPod(["mkdir", "-p", "/workspace/.ssh"]);
 
       const escapedPrivateKey = sshKeyPair.privateKey.replace(/'/g, "'\\''");
       await this.podManager.execInPod([
@@ -310,7 +302,9 @@ export class GitHubIntegration {
     spec: PinacleConfig,
     repository: string,
   ): Promise<void> {
-    console.log(`[GitHubIntegration] Injecting pinacle.yaml into pod ${this.podManager.podId}`);
+    console.log(
+      `[GitHubIntegration] Injecting pinacle.yaml into pod ${this.podManager.podId}`,
+    );
 
     try {
       // Serialize the config to YAML format

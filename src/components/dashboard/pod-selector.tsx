@@ -204,7 +204,7 @@ export const PodSelector = ({
                         </Button>
                       )}
                     </>
-                  ) : (
+                  ) : !isDeleting ? (
                     <Button
                       size="sm"
                       onClick={() => onStartPod(pod.id)}
@@ -213,7 +213,7 @@ export const PodSelector = ({
                       <Play className="w-3 h-3 mr-1" />
                       Start
                     </Button>
-                  )}
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"

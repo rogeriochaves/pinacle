@@ -474,7 +474,7 @@ export class PodManager extends EventEmitter {
 
     for (const service of spec.services) {
       if (service.enabled) {
-        await serviceProvisioner.provisionService(service, projectFolder);
+        await serviceProvisioner.provisionService(spec, service, projectFolder);
       }
     }
   }

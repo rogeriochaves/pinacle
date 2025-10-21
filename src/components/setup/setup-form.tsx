@@ -151,7 +151,7 @@ const SetupForm = () => {
       teamId: personalTeam.id,
       githubRepo:
         data.setupType === "repository" ? data.selectedRepo : undefined,
-      githubBranch: "main",
+      githubBranch: undefined,
       isNewProject: data.setupType === "new",
       newRepoName: data.newRepoName,
       selectedOrg: data.selectedOrg,

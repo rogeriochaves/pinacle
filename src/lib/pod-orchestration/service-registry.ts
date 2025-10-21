@@ -1,7 +1,10 @@
+import type { PodSpec } from "./types";
+
 /**
  * Context passed to startCommand function
  */
 export type ServiceContext = {
+  spec: PodSpec;
   projectFolder?: string; // Project folder for the cloned repo
   workingDir?: string; // Working directory override
 };
@@ -16,7 +19,7 @@ export type ServiceTemplate = {
   description: string;
   icon?: string; // Path to icon for UI display
   iconAlt?: string; // Alt text for icon
-  installScript: string[]; // Commands to install service dependencies
+  installScript: string[] | ((context: ServiceContext) => string[]); // Commands to install service dependencies
   startCommand: (context: ServiceContext) => string[]; // Function that returns command and args to start the service
   cleanupCommand: string[]; // Commands to run on service stop
   healthCheckCommand: string[]; // Command to check if service is healthy
@@ -67,7 +70,59 @@ export const SERVICE_TEMPLATES = {
     description: "Kanban board for project management",
     icon: "/logos/vibe-kanban.svg",
     iconAlt: "Vibe",
-    installScript: [], // Pre-installed in base image
+    installScript: (context: ServiceContext): string[] => {
+      const codingAssistant = context.spec.services.find(
+        (s) => s.name === "openai-codex",
+      )?.enabled
+        ? "CODEX"
+        : context.spec.services.find((s) => s.name === "cursor-cli")?.enabled
+          ? "CURSOR"
+          : context.spec.services.find((s) => s.name === "gemini-cli")?.enabled
+            ? "GEMINI_CLI"
+            : "CLAUDE_CODE";
+
+      return [
+        `mkdir -p ~/.local/share/vibe-kanban`,
+        `
+      cat <<'EOF' > ~/.local/share/vibe-kanban/config.json
+      {
+        "config_version": "v7",
+        "theme": "SYSTEM",
+        "executor_profile": {
+          "executor": "${codingAssistant}"
+        },
+        "disclaimer_acknowledged": true,
+        "onboarding_acknowledged": true,
+        "github_login_acknowledged": true,
+        "telemetry_acknowledged": true,
+        "notifications": {
+          "sound_enabled": true,
+          "push_enabled": true,
+          "sound_file": "COW_MOOING"
+        },
+        "editor": {
+          "editor_type": "CUSTOM",
+          "custom_command": null
+        },
+        "github": {
+          "pat": null,
+          "oauth_token": null,
+          "username": null,
+          "primary_email": null,
+          "default_pr_base": "main"
+        },
+        "analytics_enabled": false,
+        "workspace_dir": null,
+        "last_app_version": "0.0.98",
+        "show_release_notes": false,
+        "language": "BROWSER"
+      }
+      EOF
+      `,
+        `mkdir -p /root/.local/share/vibe-kanban`,
+        `ln -s ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
+      ];
+    },
     startCommand: () => ["vibe-kanban"],
     cleanupCommand: [],
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],

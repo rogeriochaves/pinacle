@@ -44,7 +44,8 @@ export default function Dashboard() {
         pod.status === "starting" ||
         pod.status === "stopping" ||
         pod.status === "creating" ||
-        pod.status === "provisioning",
+        pod.status === "provisioning" ||
+        pod.status === "deleting",
     );
 
     if (hasTransitionalPod) {

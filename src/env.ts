@@ -13,6 +13,16 @@ const server = z.object({
   SSH_PRIVATE_KEY: z.string().min(1).optional(),
   SSH_PUBLIC_KEY: z.string().min(1).optional(),
   ADMIN_EMAILS: z.string().min(1).optional(),
+
+  // Snapshot storage configuration
+  SNAPSHOT_STORAGE_TYPE: z.enum(["filesystem", "s3"]).default("filesystem"),
+  SNAPSHOT_STORAGE_PATH: z.string().default("/var/lib/pinacle/snapshots"), // For filesystem storage
+  SNAPSHOT_S3_ENDPOINT: z.string().optional(), // For MinIO/S3 (e.g. http://localhost:9000)
+  SNAPSHOT_S3_ACCESS_KEY: z.string().optional(),
+  SNAPSHOT_S3_SECRET_KEY: z.string().optional(),
+  SNAPSHOT_S3_BUCKET: z.string().default("pinacle-snapshots"),
+  SNAPSHOT_S3_REGION: z.string().default("us-east-1"),
+  SNAPSHOT_MAX_SIZE_GB: z.coerce.number().default(10), // Max snapshot size in GB
 });
 
 const client = z.object({
@@ -32,6 +42,14 @@ const processEnv = {
   SSH_PRIVATE_KEY: process.env.SSH_PRIVATE_KEY,
   SSH_PUBLIC_KEY: process.env.SSH_PUBLIC_KEY,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS,
+  SNAPSHOT_STORAGE_TYPE: process.env.SNAPSHOT_STORAGE_TYPE,
+  SNAPSHOT_STORAGE_PATH: process.env.SNAPSHOT_STORAGE_PATH,
+  SNAPSHOT_S3_ENDPOINT: process.env.SNAPSHOT_S3_ENDPOINT,
+  SNAPSHOT_S3_ACCESS_KEY: process.env.SNAPSHOT_S3_ACCESS_KEY,
+  SNAPSHOT_S3_SECRET_KEY: process.env.SNAPSHOT_S3_SECRET_KEY,
+  SNAPSHOT_S3_BUCKET: process.env.SNAPSHOT_S3_BUCKET,
+  SNAPSHOT_S3_REGION: process.env.SNAPSHOT_S3_REGION,
+  SNAPSHOT_MAX_SIZE_GB: process.env.SNAPSHOT_MAX_SIZE_GB,
 };
 
 const merged = server.merge(client);

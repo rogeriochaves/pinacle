@@ -7741,3 +7741,619 @@ The GitHub integration is now production-ready with proper lifecycle management!
 
 ---
 
+_**User (2025-10-21 17:51Z)**_
+
+now, when I click to stop the pod, it's very nice cuz it shows stopping behind, until done, however when I click to delete, it still shows my loaded iframe behind, until it then it's completley deleted. Would be nice to see a stoping (and removing?) there as well
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user is pointing out a UX inconsistency:
+- When stopping a pod, the UI shows a "stopping" state
+- When deleting a pod, the UI still shows the loaded iframe until it's completely deleted
+
+They want to see a "stopping (and removing?)" state when deleting a pod as well, similar to the stopping behavior.
+
+Let me think about this:
+1. The pod delete operation is synchronous in the backend - it waits for deprovisioning to complete before returning
+2. We could add intermediate states to show the deletion progress
+3. We might need to make the delete operation asynchronous (like start/stop) so the UI can update immediately
+
+Looking at the current implementation:
+- `start` and `stop` mutations set a transitional state (`starting`, `stopping`) and then do the work asynchronously
+- `delete` mutation does everything synchronously and then soft-deletes
+
+Options:
+1. Make delete asynchronous - set status to "deleting" immediately, then do work in background
+2. Add optimistic UI updates on the frontend
+3. Show a loading overlay while delete is in progress
+
+I think the best approach is similar to start/stop:
+1. Add a "deleting" status
+2. Update the pod status to "deleting" immediately
+3. Do the cleanup asynchronously
+4. The UI can show the "deleting" state
+
+Let me check what happens in the workbench when a pod is in different states to understand the UI better.</details></think>
+
+---
+
+Great observation! Let's make the delete operation show a transitional state like "deleting" so users get immediate feedback. I'll:
+
+1. Make the delete operation asynchronous (like start/stop)
+2. Add a "deleting" state to the UI
+3. Show a nice "Deleting pod..." message in the workbench
+
+Let me implement this:
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>Let me find where the pod status is rendered in the workbench to see where we need to add the "deleting" state UI.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "pod.status === "stopped"" in "/Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/dashboard/workbench.tsx` | `) : pod.status === "stopped" ? (` | L320 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good, I can see the UI structure. Now let me also check if there's a "deleting" status check. I need to:
+1. Add "deleting" to the status checks
+2. Update the pods.ts router to make delete asynchronous
+3. Update the polling logic to include "deleting" state
+4. Update the status color function
+
+Let me first update the backend to make delete asynchronous.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+
+**Chunk 1**
+Lines added: 73, lines removed: 42
+
+```diff
+@@ -723,50 +723,81 @@
+  
+        const { pod } = result;
++ 
++       // Update status to deleting immediately for UX
++       await ctx.db
++         .update(pods)
++         .set({
++           status: "deleting",
++           updatedAt: new Date(),
++         })
++         .where(eq(pods.id, input.id));
++ 
++       // Perform deletion asynchronously
++       (async () => {
++         try {
++           console.log(`[pods.delete] Deleting pod ${input.id}`);
+  
+-       // Deprovision the pod - stops and removes container, cleans up network
+-       // This must succeed - if cleanup fails, we throw an error
+-       const { PodProvisioningService } = await import(
+-         "../../pod-orchestration/pod-provisioning-service"
+-       );
+-       const provisioningService = new PodProvisioningService();
+-       await provisioningService.deprovisionPod({ podId: pod.id });
++           // Deprovision the pod - stops and removes container, cleans up network
++           const { PodProvisioningService } = await import(
++             "../../pod-orchestration/pod-provisioning-service"
++           );
++           const provisioningService = new PodProvisioningService();
++           await provisioningService.deprovisionPod({ podId: pod.id });
+  
+-       // Remove GitHub deploy key if one exists
+-       if (pod.githubRepo && pod.githubDeployKeyId) {
+-         try {
+-           const { getOctokitForRepo, removeDeployKeyFromRepo } = await import(
+-             "../../github-helpers"
+-           );
+-           const octokit = await getOctokitForRepo(
+-             userId,
+-             pod.githubRepo,
+-             ctx.session.user.githubAccessToken,
+-           );
+-           await removeDeployKeyFromRepo(
+-             octokit,
+-             pod.githubRepo,
+-             pod.githubDeployKeyId,
+-           );
+-           console.log(
+-             `[pods.delete] Removed deploy key ${pod.githubDeployKeyId} from ${pod.githubRepo}`,
+-           );
+-         } catch (error) {
+-           // Log but don't fail the deletion - the key might already be gone
+-           console.warn(
+-             `[pods.delete] Could not remove deploy key: ${error}`,
+-           );
+-         }
+-       }
++           // Remove GitHub deploy key if one exists
++           if (pod.githubRepo && pod.githubDeployKeyId) {
++             try {
++               const { getOctokitForRepo, removeDeployKeyFromRepo } =
++                 await import("../../github-helpers");
++               const octokit = await getOctokitForRepo(
++                 userId,
++                 pod.githubRepo,
++                 ctx.session.user.githubAccessToken,
++               );
++               await removeDeployKeyFromRepo(
++                 octokit,
++                 pod.githubRepo,
++                 pod.githubDeployKeyId,
++               );
++               console.log(
++                 `[pods.delete] Removed deploy key ${pod.githubDeployKeyId} from ${pod.githubRepo}`,
++               );
++             } catch (error) {
++               // Log but don't fail the deletion - the key might already be gone
++               console.warn(
++                 `[pods.delete] Could not remove deploy key: ${error}`,
++               );
++             }
++           }
+  
+-       // Soft delete by setting archivedAt timestamp
+-       await ctx.db
+-         .update(pods)
+-         .set({
+-           archivedAt: new Date(),
+-           updatedAt: new Date(),
+-         })
+-         .where(eq(pods.id, input.id));
++           // Soft delete by setting archivedAt timestamp
++           await ctx.db
++             .update(pods)
++             .set({
++               archivedAt: new Date(),
++               updatedAt: new Date(),
++             })
++             .where(eq(pods.id, input.id));
+  
+-       console.log(`[pods.delete] Archived pod: ${pod.id}`);
++           console.log(`[pods.delete] Successfully archived pod ${input.id}`);
++         } catch (error) {
++           const errorMessage =
++             error instanceof Error ? error.message : String(error);
++           console.error(
++             `[pods.delete] Failed to delete pod ${input.id}:`,
++             error,
++           );
++ 
++           // Set error state if deletion fails
++           await ctx.db
++             .update(pods)
++             .set({
++               status: "error",
++               lastErrorMessage: `Deletion failed: ${errorMessage}`,
++               updatedAt: new Date(),
++             })
++             .where(eq(pods.id, input.id));
++         }
++       })();
+  
+        return { success: true };
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now I need to update the workbench component to:
+1. Handle the "deleting" state
+2. Show a nice "Deleting pod..." message
+3. Update the polling logic to include "deleting"
+4. Update the status color function</details></think>
+
+---
+
+Now let me update the workbench to handle the "deleting" state:
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>The comments were slightly different. Let me adjust.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -124,5 +124,6 @@
+        pod.status === "stopping" ||
+        pod.status === "creating" ||
+-       pod.status === "provisioning";
++       pod.status === "provisioning" ||
++       pod.status === "deleting";
+  
+      if (isTransitional) {
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now I need to update the status color function and the UI rendering to handle the "deleting" state.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -177,4 +177,7 @@
+        case "creating":
+          return "bg-yellow-500";
++       case "stopping":
++       case "deleting":
++         return "bg-orange-500";
+        case "stopped":
+          return "bg-gray-400";
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to update the UI rendering to show a message when the pod is being deleted. Let me find that section and add it.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>Let me read the file again to find the exact section.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>I see - line 310 needs to include "deleting" status. Let me update that section.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 8, lines removed: 3
+
+```diff
+@@ -308,16 +308,21 @@
+                {pod.status === "starting" ||
+                pod.status === "creating" ||
+-               pod.status === "stopping" ? (
++               pod.status === "stopping" ||
++               pod.status === "deleting" ? (
+                  <>
+                    <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                    <p className="text-white font-mono text-lg font-bold mb-2">
+                      {pod.status === "stopping"
+                        ? "Stopping your workspace..."
+-                       : "Starting your workspace..."}
++                       : pod.status === "deleting"
++                         ? "Deleting your workspace..."
++                         : "Starting your workspace..."}
+                    </p>
+                    <p className="text-slate-400 font-mono text-sm">
+                      {pod.status === "stopping"
+                        ? "This usually takes a few seconds"
+-                       : "This usually takes 10-30 seconds"}
++                       : pod.status === "deleting"
++                         ? "Removing container and cleaning up resources..."
++                         : "This usually takes 10-30 seconds"}
+                    </p>
+                  </>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now I should also update the dashboard page to include "deleting" in the polling logic. Let me do that.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/rchaves/Projects/pinacle/src/app/dashboard/page.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>Let me find the polling logic in the dashboard page.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "hasTransitionalPod" in "/Users/rchaves/Projects/pinacle/src/app/dashboard/page.tsx" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/app/dashboard/page.tsx` | `const hasTransitionalPod = pods?.some(` | L42 |
+| `src/app/dashboard/page.tsx` | `if (hasTransitionalPod) \{` | L50 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! Let me update the dashboard page to include "deleting" in the transitional states.</details></think>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/rchaves/Projects/pinacle/src/app/dashboard/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -45,5 +45,6 @@
+          pod.status === "stopping" ||
+          pod.status === "creating" ||
+-         pod.status === "provisioning",
++         pod.status === "provisioning" ||
++         pod.status === "deleting",
+      );
+  
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now let me also check if there's a status badge or indicator on the dashboard page that might need updating for the "deleting" state.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "getStatusColor|status-badge|status.*color" in "/Users/rchaves/Projects/pinacle/src/app/dashboard/page.tsx" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Let me check the PodSelector component if it has any status color indicators.</details></think>
+
+---
+
+Tool use: **glob_file_search**
+
+<details>
+<summary>Searched codebase "**/pod-selector.tsx" • **1** result in **1** directory</summary>
+
+Directory: **/Users/rchaves/Projects/pinacle** (1 file)
+
+| File |
+|------|
+| `src/components/dashboard/pod-selector.tsx` |
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Let me check if the pod-selector also has status indicators that need updating.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "status.*color|getStatusColor" in "/Users/rchaves/Projects/pinacle/src/components/dashboard/pod-selector.tsx" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! Now let me also check if we need to handle the archived pods in the getUserPods query - we don't want to show deleting pods that have been archived. Let me check the current implementation.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "getUserPods.*query" in "/Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Let me search for the getUserPods implementation differently.</details></think>
+
+---
+
+Tool use: **grep**
+
+<details>
+<summary>Grep for "getUserPods:" in "/Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/trpc/routers/pods.ts` | `getUserPods: protectedProcedure` | L439 |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Good! The query already filters out archived pods by default, so when a pod is deleted and archived, it will automatically be removed from the list. Perfect!
+
+Now let me check for linting errors.</details></think>
+
+---
+
+Perfect! Now let me check for linting errors:
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `src/lib/trpc/routers/pods.ts`
+- `src/components/dashboard/workbench.tsx`
+- `src/app/dashboard/page.tsx`
+
+Lint results
+
+Lint errors for `src/lib/trpc/routers/pods.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| The computed expression can be simplified without the use of a string literal. | 571:39-571:67 | DIAGNOSTIC_SEVERITY_INFORMATION |
+| The computed expression can be simplified without the use of a string literal. | 660:39-660:67 | DIAGNOSTIC_SEVERITY_INFORMATION |
+
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>
+
+
+
+Excellent! Everything looks good. Let me create a summary of the changes.</details></think>
+
+---
+
+Perfect! ✅ All done. Here's what I implemented:
+
+## 🎉 Summary - Deleting State with Live Feedback
+
+### ✅ **1. Backend - Async Delete Operation**
+**`src/lib/trpc/routers/pods.ts`** - Made delete asynchronous:
+- Sets pod status to `"deleting"` immediately
+- Performs deprovisioning asynchronously (like start/stop)
+- Updates to `archivedAt` when complete
+- Sets `"error"` status if deletion fails
+- User gets instant feedback instead of waiting
+
+### ✅ **2. Workbench UI Updates**
+**`src/components/dashboard/workbench.tsx`**:
+- Added `"deleting"` to transitional states in polling logic
+- Updated `getStatusColor()` to show orange for deleting state
+- Added UI message: **"Deleting your workspace..."**
+- Added subtitle: **"Removing container and cleaning up resources..."**
+- Shows spinner animation during deletion
+
+### ✅ **3. Dashboard Polling**
+**`src/app/dashboard/page.tsx`**:
+- Added `"deleting"` to polling triggers
+- Dashboard auto-refreshes every 2s during deletion
+- Pod disappears from list once archived
+
+### 🎨 **UX Improvements:**
+
+**Before:**
+- ❌ Click delete → iframe still shows → sudden disappearance
+- ❌ No feedback during deletion
+- ❌ Confusing wait time
+
+**After:**
+- ✅ Click delete → immediate "Deleting..." message
+- ✅ Orange spinner with clear feedback
+- ✅ Auto-refresh shows progress
+- ✅ Smooth removal once complete
+- ✅ Consistent with start/stop behavior
+
+### 🎯 **Status Flow:**
+```
+Running → [Delete] → Deleting → [Archived]
+                       ↓
+                    (visible to user)
+```
+
+The deletion experience is now smooth and informative, just like stopping a pod! 🚀
+
+---
+
