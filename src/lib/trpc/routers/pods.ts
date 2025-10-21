@@ -570,69 +570,120 @@ export const podsRouter = createTRPCRouter({
           const serverConnection =
             await provisioningService["getServerConnectionDetails"](serverId);
 
-          // Check for latest snapshot and restore if available
-          const { SnapshotService } = await import(
-            "../../snapshots/snapshot-service"
-          );
-          const snapshotService = new SnapshotService();
-          const latestSnapshotId = await snapshotService.getLatestSnapshot(input.id);
-
-          if (latestSnapshotId) {
-            try {
-              console.log(
-                `[pods.start] Found latest snapshot ${latestSnapshotId}, restoring...`,
-              );
-
-              // Restore the snapshot (creates new image from snapshot)
-              const restoredImageName = await snapshotService.restoreSnapshot({
-                snapshotId: latestSnapshotId,
-                podId: input.id,
-                serverConnection,
-              });
-
-              console.log(
-                `[pods.start] Snapshot restored to image: ${restoredImageName}`,
-              );
-
-              // Now we need to recreate the container from the restored image
-              // First, remove the old container
-              const { PodManager: PodManagerForCleanup } = await import(
-                "../../pod-orchestration/pod-manager"
-              );
-              const cleanupManager = new PodManagerForCleanup(input.id, serverConnection);
-              try {
-                await cleanupManager.cleanupPod();
-                console.log(`[pods.start] Cleaned up old pod for ${input.id}`);
-              } catch (cleanupError) {
-                // Container might not exist, that's okay
-                console.warn(
-                  `[pods.start] Could not cleanup old pod: ${cleanupError}`,
-                );
-              }
-
-              // Create new container from restored image
-              // Note: This requires us to have the original container config
-              // For now, we'll use PodManager to create from the restored image
-              // TODO: Store container config in DB or recreate from pod config
-              console.log(
-                `[pods.start] Creating new container from restored image ${restoredImageName}`,
-              );
-
-              // Actually, let's just try to start - if container doesn't exist, we'll handle that
-            } catch (restoreError) {
-              // If snapshot restore fails, fall back to normal start
-              console.warn(
-                `[pods.start] Failed to restore from snapshot, falling back to normal start:`,
-                restoreError,
-              );
-            }
-          }
-
           const { PodManager } = await import(
             "../../pod-orchestration/pod-manager"
           );
           const podManager = new PodManager(input.id, serverConnection);
-          await podManager.startPod();
+
+          // Check if container exists
+          let container = await podManager.getPodContainer();
+
+          if (!container || !pod.containerId) {
+            console.log(
+              `[pods.start] No container found for ${input.id}, checking for snapshots...`,
+            );
+
+            // Container doesn't exist - check for latest snapshot to restore
+            const { SnapshotService } = await import(
+              "../../snapshots/snapshot-service"
+            );
+            const snapshotService = new SnapshotService();
+            const latestSnapshotId = await snapshotService.getLatestSnapshot(input.id);
+
+            if (!latestSnapshotId) {
+              throw new Error(
+                `Pod ${input.id} has no container and no snapshots to restore from. Please recreate the pod.`,
+              );
+            }
+
+            console.log(
+              `[pods.start] Found latest snapshot ${latestSnapshotId}, restoring...`,
+            );
+
+            const { GVisorRuntime } = await import(
+              "../../pod-orchestration/container-runtime"
+            );
+            const runtime = new GVisorRuntime(serverConnection);
+
+            // Remove any stale container first
+            if (container) {
+              console.log(`[pods.start] Removing stale container ${container.id}`);
+              await runtime.removeContainer(container.id);
+            }
+
+            // Restore the snapshot (creates new Docker image from snapshot)
+            const restoredImageName = await snapshotService.restoreSnapshot({
+              snapshotId: latestSnapshotId,
+              podId: input.id,
+              serverConnection,
+            });
+
+            console.log(
+              `[pods.start] Snapshot restored to image: ${restoredImageName}`,
+            );
+
+            // Create new container from restored image
+            console.log(
+              `[pods.start] Creating container from restored image ${restoredImageName}`,
+            );
+
+            // Parse the pod's existing config to get the full spec
+            const {
+              podRecordToPinacleConfig,
+              expandPinacleConfigToSpec,
+            } = await import("../../pod-orchestration/pinacle-config");
+
+            const pinacleConfig = podRecordToPinacleConfig({
+              config: pod.config,
+              name: pod.name,
+            });
+
+            // Load environment variables from env set if attached
+            let environment: Record<string, string> = {};
+            if (pod.envSetId) {
+              const [envSet] = await ctx.db
+                .select()
+                .from(envSets)
+                .where(eq(envSets.id, pod.envSetId))
+                .limit(1);
+
+              if (envSet) {
+                environment = JSON.parse(envSet.variables);
+              }
+            }
+
+            const podSpec = await expandPinacleConfigToSpec(pinacleConfig, {
+              id: pod.id,
+              name: pod.name,
+              slug: pod.slug,
+              description: pod.description || undefined,
+              environment,
+            });
+
+            // Override the image with our restored image
+            podSpec.baseImage = restoredImageName;
+
+            const newContainer = await runtime.createContainer(podSpec);
+
+            // Update DB with new container ID
+            await ctx.db
+              .update(pods)
+              .set({
+                containerId: newContainer.id,
+                updatedAt: new Date(),
+              })
+              .where(eq(pods.id, input.id));
+
+            console.log(
+              `[pods.start] Created new container ${newContainer.id} from snapshot`,
+            );
+
+            // Start the new container
+            await runtime.startContainer(newContainer.id);
+          } else {
+            // Container exists, just start it
+            await podManager.startPod();
+          }
 
           await ctx.db
             .update(pods)
@@ -749,18 +800,33 @@ export const podsRouter = createTRPCRouter({
             "../../pod-orchestration/pod-manager"
           );
           const podManager = new PodManager(input.id, serverConnection);
+
+          // Stop the container
           await podManager.stopPod();
 
+          // Remove the stopped container so we can restore from snapshot on next start
+          const container = await podManager.getPodContainer();
+          if (container) {
+            console.log(`[pods.stop] Removing stopped container ${container.id}`);
+            const { GVisorRuntime } = await import(
+              "../../pod-orchestration/container-runtime"
+            );
+            const runtime = new GVisorRuntime(serverConnection);
+            await runtime.removeContainer(container.id);
+          }
+
+          // Clear container ID from DB
           await ctx.db
             .update(pods)
             .set({
               status: "stopped",
+              containerId: null,
               lastStoppedAt: new Date(),
               updatedAt: new Date(),
             })
             .where(eq(pods.id, input.id));
 
-          console.log(`[pods.stop] Successfully stopped pod ${input.id}`);
+          console.log(`[pods.stop] Successfully stopped and removed container for pod ${input.id}`);
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
