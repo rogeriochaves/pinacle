@@ -468,13 +468,9 @@ export class PodManager extends EventEmitter {
     spec: PodSpec,
     serviceProvisioner: ServiceProvisioner,
   ): Promise<void> {
-    const projectFolder = this.githubIntegration.getProjectFolder(
-      spec.githubRepo,
-    );
-
     for (const service of spec.services) {
       if (service.enabled) {
-        await serviceProvisioner.provisionService(spec, service, projectFolder);
+        await serviceProvisioner.provisionService(spec, service);
       }
     }
   }
@@ -498,7 +494,11 @@ export class PodManager extends EventEmitter {
         }
       }
 
-      await serviceProvisioner.startService(spec.id, service.name);
+      await serviceProvisioner.startService({
+        spec,
+        podId: spec.id,
+        serviceName: service.name,
+      });
       startedServices.add(service.name);
     };
 

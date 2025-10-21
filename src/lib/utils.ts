@@ -42,3 +42,19 @@ export const buildProxyUrl = ({
   // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}
   return `http://localhost-${port}.pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
 };
+
+/**
+ * Get the project folder from a repository URL
+ *
+ * @param repository - The repository URL
+ * @returns The project folder
+ */
+export const getProjectFolderFromRepository = (
+  repository: string | undefined,
+): string | undefined => {
+  // Works for urls like:
+  // - git@github.com:owner/repo.git
+  // - https://github.com/owner/repo.git
+  // - owner/repo
+  return repository ? /.*\/(.*?)(\.git)?$/.exec(repository)?.[1] : undefined;
+};

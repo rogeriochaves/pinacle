@@ -2,7 +2,6 @@ import { GVisorRuntime } from "./container-runtime";
 import {
   getAllServiceTemplates,
   getServiceTemplateUnsafe,
-  type ServiceContext,
   type ServiceTemplate,
 } from "./service-registry";
 import type { PodSpec, ServerConnection, ServiceConfig } from "./types";
@@ -16,11 +15,7 @@ export class ServiceProvisioner {
     this.containerRuntime = new GVisorRuntime(serverConnection);
   }
 
-  async provisionService(
-    spec: PodSpec,
-    service: ServiceConfig,
-    projectFolder?: string,
-  ): Promise<void> {
+  async provisionService(spec: PodSpec, service: ServiceConfig): Promise<void> {
     const template = getServiceTemplateUnsafe(service.name);
 
     if (!template) {
@@ -40,16 +35,10 @@ export class ServiceProvisioner {
         console.log(
           `[ServiceProvisioner] Installing ${service.name} using template`,
         );
-
-        const context: ServiceContext = {
-          spec,
-          projectFolder,
-        };
-
         // Run installation commands
         const installCommands = Array.isArray(template.installScript)
           ? template.installScript
-          : template.installScript(context);
+          : template.installScript(spec);
         for (const installCmd of installCommands) {
           await this.containerRuntime.execInContainer(
             this.podId,
@@ -60,7 +49,7 @@ export class ServiceProvisioner {
 
         // Create OpenRC service script with custom working directory if GitHub repo is present
         await this.createServiceScript(
-          context,
+          spec,
           container.id,
           service.name,
           template,
@@ -92,7 +81,15 @@ export class ServiceProvisioner {
     }
   }
 
-  async startService(podId: string, serviceName: string): Promise<void> {
+  async startService({
+    spec,
+    podId,
+    serviceName,
+  }: {
+    spec: PodSpec;
+    podId: string;
+    serviceName: string;
+  }): Promise<void> {
     const container =
       await this.containerRuntime.getActiveContainerForPodOrThrow(podId);
 
@@ -137,6 +134,23 @@ export class ServiceProvisioner {
       console.log(
         `[ServiceProvisioner] Successfully started service ${serviceName}`,
       );
+
+      const template = getServiceTemplateUnsafe(serviceName);
+      if (template?.postStartScript) {
+        console.log(
+          `[ServiceProvisioner] Running post-start script for ${serviceName}`,
+        );
+        const postStartCommands = Array.isArray(template.postStartScript)
+          ? template.postStartScript
+          : template.postStartScript(spec);
+        for (const postStartCmd of postStartCommands) {
+          await this.containerRuntime.execInContainer(
+            this.podId,
+            container.id,
+            ["sh", "-c", postStartCmd],
+          );
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(
@@ -307,7 +321,7 @@ export class ServiceProvisioner {
   }
 
   private async createServiceScript(
-    context: ServiceContext,
+    spec: PodSpec,
     containerId: string,
     serviceName: string,
     template: ServiceTemplate,
@@ -327,7 +341,7 @@ export class ServiceProvisioner {
     }
 
     // Get the start command from the template function
-    const startCommandArray = template.startCommand(context);
+    const startCommandArray = template.startCommand(spec);
     const command = startCommandArray[0];
     const commandArgs = startCommandArray.slice(1).join(" ");
 

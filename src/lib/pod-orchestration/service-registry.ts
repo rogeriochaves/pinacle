@@ -1,13 +1,5 @@
+import { getProjectFolderFromRepository } from "../utils";
 import type { PodSpec } from "./types";
-
-/**
- * Context passed to startCommand function
- */
-export type ServiceContext = {
-  spec: PodSpec;
-  projectFolder?: string; // Project folder for the cloned repo
-  workingDir?: string; // Working directory override
-};
 
 /**
  * Service template definition
@@ -19,8 +11,9 @@ export type ServiceTemplate = {
   description: string;
   icon?: string; // Path to icon for UI display
   iconAlt?: string; // Alt text for icon
-  installScript: string[] | ((context: ServiceContext) => string[]); // Commands to install service dependencies
-  startCommand: (context: ServiceContext) => string[]; // Function that returns command and args to start the service
+  installScript: string[] | ((spec: PodSpec) => string[]); // Commands to install service dependencies
+  postStartScript?: string[] | ((spec: PodSpec) => string[]); // Commands to install service dependencies
+  startCommand: (spec: PodSpec) => string[]; // Function that returns command and args to start the service
   cleanupCommand: string[]; // Commands to run on service stop
   healthCheckCommand: string[]; // Command to check if service is healthy
   defaultPort: number; // Default port the service listens on
@@ -39,12 +32,21 @@ export const SERVICE_TEMPLATES = {
     description: "VS Code in the browser",
     icon: "/logos/vscode.svg",
     iconAlt: "VS Code",
-    installScript: [], // Pre-installed in base image
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    installScript: [
+      "mkdir -p ~/.local/share/code-server/User",
+      `cat <<'EOF' > ~/.local/share/code-server/User/settings.json
+{
+  "files.autoSave": "off",
+  "workbench.colorTheme": "Default Dark Modern",
+  "security.workspace.trust.enabled": false
+}
+EOF`,
+      "apk add --no-cache libarchive-tools",
+      "mkdir -p ~/.local/share/code-server/extensions",
+      "curl -JL https://marketplace.visualstudio.com/_apis/public/gallery/publishers/Supermaven/vsextensions/supermaven/1.1.5/vspackage | bsdtar -xvf - extension",
+      "mv extension ~/.local/share/code-server/extensions/supermaven.supermaven-1.1.5-universal",
+    ],
+    startCommand: (spec: PodSpec) => {
       return [
         "code-server",
         "--bind-addr",
@@ -53,7 +55,7 @@ export const SERVICE_TEMPLATES = {
         "*",
         "--auth",
         "none",
-        workingDir,
+        getProjectFolder(spec),
       ];
     },
     cleanupCommand: [],
@@ -70,57 +72,55 @@ export const SERVICE_TEMPLATES = {
     description: "Kanban board for project management",
     icon: "/logos/vibe-kanban.svg",
     iconAlt: "Vibe",
-    installScript: (context: ServiceContext): string[] => {
-      const codingAssistant = context.spec.services.find(
+    installScript: (spec: PodSpec): string[] => {
+      const codingAssistant = spec.services.find(
         (s) => s.name === "openai-codex",
       )?.enabled
         ? "CODEX"
-        : context.spec.services.find((s) => s.name === "cursor-cli")?.enabled
+        : spec.services.find((s) => s.name === "cursor-cli")?.enabled
           ? "CURSOR"
-          : context.spec.services.find((s) => s.name === "gemini-cli")?.enabled
+          : spec.services.find((s) => s.name === "gemini-cli")?.enabled
             ? "GEMINI_CLI"
             : "CLAUDE_CODE";
 
       return [
-        `mkdir -p ~/.local/share/vibe-kanban`,
-        `
-      cat <<'EOF' > ~/.local/share/vibe-kanban/config.json
-      {
-        "config_version": "v7",
-        "theme": "SYSTEM",
-        "executor_profile": {
-          "executor": "${codingAssistant}"
-        },
-        "disclaimer_acknowledged": true,
-        "onboarding_acknowledged": true,
-        "github_login_acknowledged": true,
-        "telemetry_acknowledged": true,
-        "notifications": {
-          "sound_enabled": true,
-          "push_enabled": true,
-          "sound_file": "COW_MOOING"
-        },
-        "editor": {
-          "editor_type": "CUSTOM",
-          "custom_command": null
-        },
-        "github": {
-          "pat": null,
-          "oauth_token": null,
-          "username": null,
-          "primary_email": null,
-          "default_pr_base": "main"
-        },
-        "analytics_enabled": false,
-        "workspace_dir": null,
-        "last_app_version": "0.0.98",
-        "show_release_notes": false,
-        "language": "BROWSER"
-      }
-      EOF
-      `,
         `mkdir -p /root/.local/share/vibe-kanban`,
-        `ln -s ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
+        `cat <<'EOF' > /root/.local/share/vibe-kanban/config.json
+{
+  "config_version": "v7",
+  "theme": "SYSTEM",
+  "executor_profile": {
+    "executor": "${codingAssistant}"
+  },
+  "disclaimer_acknowledged": true,
+  "onboarding_acknowledged": true,
+  "github_login_acknowledged": true,
+  "telemetry_acknowledged": true,
+  "notifications": {
+    "sound_enabled": true,
+    "push_enabled": true,
+    "sound_file": "COW_MOOING"
+  },
+  "editor": {
+    "editor_type": "CUSTOM",
+    "custom_command": null
+  },
+  "github": {
+    "pat": null,
+    "oauth_token": null,
+    "username": null,
+    "primary_email": null,
+    "default_pr_base": "main"
+  },
+  "analytics_enabled": false,
+  "workspace_dir": null,
+  "last_app_version": "0.0.98",
+  "show_release_notes": false,
+  "language": "BROWSER"
+}
+EOF`,
+        `mkdir -p ~/.local/share/vibe-kanban`,
+        `ln -s /root/.local/share/vibe-kanban/config.json ~/.local/share/vibe-kanban/config.json`,
       ];
     },
     startCommand: () => ["vibe-kanban"],
@@ -142,11 +142,7 @@ export const SERVICE_TEMPLATES = {
     icon: "/logos/claude.svg",
     iconAlt: "Claude",
     installScript: ["pnpm install -g @anthropic-ai/claude-code"],
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
         "-p",
@@ -154,7 +150,7 @@ export const SERVICE_TEMPLATES = {
         "-i",
         "0.0.0.0",
         "-w",
-        workingDir,
+        getProjectFolder(spec),
         "--writable",
         "--",
         "tmux",
@@ -180,11 +176,7 @@ export const SERVICE_TEMPLATES = {
     icon: "/logos/openai.svg",
     iconAlt: "OpenAI",
     installScript: ["pip install openai"],
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
         "-p",
@@ -192,7 +184,7 @@ export const SERVICE_TEMPLATES = {
         "-i",
         "0.0.0.0",
         "-w",
-        workingDir,
+        getProjectFolder(spec),
         "--writable",
         "--",
         "bash",
@@ -214,11 +206,7 @@ export const SERVICE_TEMPLATES = {
     icon: "/logos/cursor.svg",
     iconAlt: "Cursor",
     installScript: ["npm install -g cursor-cli"],
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
         "-p",
@@ -226,7 +214,7 @@ export const SERVICE_TEMPLATES = {
         "-i",
         "0.0.0.0",
         "-w",
-        workingDir,
+        getProjectFolder(spec),
         "--writable",
         "--",
         "bash",
@@ -248,11 +236,7 @@ export const SERVICE_TEMPLATES = {
     icon: "/logos/gemini.svg",
     iconAlt: "Gemini",
     installScript: ["pip install google-generativeai"],
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
         "-p",
@@ -260,7 +244,7 @@ export const SERVICE_TEMPLATES = {
         "-i",
         "0.0.0.0",
         "-w",
-        workingDir,
+        getProjectFolder(spec),
         "--writable",
         "--",
         "bash",
@@ -282,11 +266,7 @@ export const SERVICE_TEMPLATES = {
     icon: "/window.svg",
     iconAlt: "Terminal",
     installScript: [], // Pre-installed in base image (ttyd)
-    startCommand: (context: ServiceContext) => {
-      const workingDir = context.projectFolder
-        ? `/workspace/${context.projectFolder}`
-        : "/workspace";
-
+    startCommand: (spec: PodSpec) => {
       // Pass the tab id as a URL argument, e.g. ?arg=0 for the first tab
       return [
         "ttyd",
@@ -295,7 +275,7 @@ export const SERVICE_TEMPLATES = {
         "-i",
         "0.0.0.0",
         "-w",
-        workingDir,
+        getProjectFolder(spec),
         "--writable",
         "--url-arg",
         "--",
@@ -418,4 +398,12 @@ export const getAllServiceNames = (): string[] => {
  */
 export const isServiceAvailable = (serviceName: string): boolean => {
   return serviceName in SERVICE_TEMPLATES;
+};
+
+/**
+ * Get the project folder or working directory
+ */
+const getProjectFolder = (spec: PodSpec): string => {
+  const projectFolder = getProjectFolderFromRepository(spec.githubRepo);
+  return projectFolder ? `/workspace/${projectFolder}` : "/workspace";
 };

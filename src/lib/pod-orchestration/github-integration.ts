@@ -1,5 +1,6 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { getProjectFolderFromRepository } from "../utils";
 import type { PinacleConfig } from "./pinacle-config";
 import { serializePinacleConfig } from "./pinacle-config";
 import type { PodManager } from "./pod-manager";
@@ -314,7 +315,7 @@ export class GitHubIntegration {
       const escapedContent = yamlContent.replace(/'/g, "'\\''");
 
       // Write the file to the workspace root
-      const projectFolder = this.getProjectFolder(repository);
+      const projectFolder = getProjectFolderFromRepository(repository);
       await this.podManager.execInPod([
         "sh",
         "-c",
@@ -332,13 +333,5 @@ export class GitHubIntegration {
       );
       throw new Error(`Failed to write pinacle.yaml: ${errorMessage}`);
     }
-  }
-
-  getProjectFolder(repository: string | undefined): string | undefined {
-    // Works for urls like:
-    // - git@github.com:owner/repo.git
-    // - https://github.com/owner/repo.git
-    // - owner/repo
-    return repository ? /.*\/(.*?)(\.git)?$/.exec(repository)?.[1] : undefined;
   }
 }

@@ -157,11 +157,6 @@ export const PodSelector = ({
                         </Badge>
                       )}
                     </h3>
-                    {pod.description && (
-                      <p className="text-sm text-slate-600 mt-1">
-                        {pod.description}
-                      </p>
-                    )}
                   </button>
                   {getStatusBadge(pod.status)}
                 </div>
@@ -180,13 +175,14 @@ export const PodSelector = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {isRunning ? (
+                  {isRunning || pod.status === "deleting" ? (
                     <>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => onStopPod(pod.id)}
                         className="flex-1 font-mono text-xs"
+                        disabled={pod.status === "deleting"}
                       >
                         <Square className="w-3 h-3 mr-1" />
                         Stop
@@ -204,16 +200,17 @@ export const PodSelector = ({
                         </Button>
                       )}
                     </>
-                  ) : !isDeleting ? (
+                  ) : (
                     <Button
                       size="sm"
                       onClick={() => onStartPod(pod.id)}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white font-mono text-xs"
+                      disabled={pod.status === "deleting"}
                     >
                       <Play className="w-3 h-3 mr-1" />
                       Start
                     </Button>
-                  ) : null}
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"

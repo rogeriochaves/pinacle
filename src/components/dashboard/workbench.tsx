@@ -191,7 +191,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   return (
     <div className="h-screen flex flex-col bg-slate-900">
       {/* Top Bar - Minimal */}
-      <div className="bg-slate-900 border-b border-slate-800 flex items-center px-4 h-12 shrink-0">
+      <div className="bg-black border-b border-slate-800 flex items-center px-4 h-12 shrink-0">
         {/* Pod Selector */}
         <button
           type="button"
@@ -403,15 +403,6 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           )
         )}
       </div>
-
-      {/* Snapshot Manager Dialog */}
-      <SnapshotManager
-        podId={pod.id}
-        podName={pod.name}
-        podStatus={pod.status}
-        open={showSnapshots}
-        onOpenChange={setShowSnapshots}
-      />
     </div>
   );
 };

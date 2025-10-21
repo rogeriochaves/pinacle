@@ -66,7 +66,7 @@ if (typeof window === "undefined") {
   ) {
     env = merged.parse(processEnv);
   } else {
-    env = processEnv as Env;
+    env = processEnv as unknown as Env;
   }
 } else {
   env = merged.parse({});
