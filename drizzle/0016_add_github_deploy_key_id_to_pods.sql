@@ -1,0 +1,1 @@
+ALTER TABLE "pod" ADD COLUMN "github_deploy_key_id" integer;

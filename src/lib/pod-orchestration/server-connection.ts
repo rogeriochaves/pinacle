@@ -140,8 +140,10 @@ export class SSHServerConnection implements ServerConnection {
         .insert(podLogs)
         .values({
           podId: params.podId,
-          command,
-          containerCommand: containerCommand || null,
+          command: this.maskSensitive(command),
+          containerCommand: containerCommand
+            ? this.maskSensitive(containerCommand)
+            : null,
           stdout: "", // Will be updated after execution
           stderr: "", // Will be updated after execution
           exitCode: null, // Will be updated after execution
@@ -158,6 +160,13 @@ export class SSHServerConnection implements ServerConnection {
       );
       return null;
     }
+  }
+
+  private maskSensitive(command: string): string {
+    return command.replaceAll(
+      /(-----BEGIN OPENSSH PRIVATE KEY-----)[\s\S]*(-----END OPENSSH PRIVATE KEY-----)/g,
+      "$1 [redacted] $2",
+    );
   }
 
   /**

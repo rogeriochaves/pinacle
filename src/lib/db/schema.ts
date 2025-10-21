@@ -179,6 +179,7 @@ export const pods = pgTable("pod", {
   githubRepo: varchar("github_repo", { length: 500 }), // owner/repo format
   githubBranch: varchar("github_branch", { length: 255 }).default(""),
   isNewProject: boolean("is_new_project").default(false),
+  githubDeployKeyId: integer("github_deploy_key_id"), // GitHub deploy key ID for cleanup
 
   // Configuration - stores the validated PinacleConfig as JSON
   // All pod configuration (tier, services, tabs) is stored here

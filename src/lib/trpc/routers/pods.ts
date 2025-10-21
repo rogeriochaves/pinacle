@@ -13,6 +13,7 @@ import {
   userGithubInstallations,
 } from "../../db/schema";
 import { getInstallationOctokit } from "../../github-app";
+import type { GitHubRepoSetup } from "../../pod-orchestration/github-integration";
 import {
   generatePinacleConfigFromForm,
   pinacleConfigToJSON,
@@ -277,9 +278,7 @@ export const podsRouter = createTRPCRouter({
       const monthlyPrice = resourceTier.price * 100; // in cents
 
       // Generate slug from name
-      const slug = name
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
+      const slug = name.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
       // Update: Generate PinacleConfig with slug so tabs can be generated
       const pinacleConfig = generatePinacleConfigFromForm({
@@ -348,6 +347,45 @@ export const podsRouter = createTRPCRouter({
             throw new Error("No available servers found");
           }
 
+          // Set up GitHub repository if configured
+          let githubRepoSetup: GitHubRepoSetup | undefined;
+          if (finalGithubRepo) {
+            try {
+              const { setupGitHubRepoForPod } = await import(
+                "../../github-helpers"
+              );
+
+              githubRepoSetup = await setupGitHubRepoForPod({
+                podId: pod.id,
+                podName: pod.name,
+                userId,
+                repository: finalGithubRepo,
+                branch: githubBranch,
+                isNewProject,
+                userGithubToken: ctx.session.user.githubAccessToken,
+              });
+
+              // Store the deploy key ID in the database for cleanup later
+              await ctx.db
+                .update(pods)
+                .set({ githubDeployKeyId: githubRepoSetup.deployKeyId })
+                .where(eq(pods.id, pod.id));
+
+              console.log(
+                `[pods.create] GitHub setup complete for ${finalGithubRepo}`,
+              );
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              console.error(
+                `[pods.create] Failed to set up GitHub repository: ${errorMessage}`,
+              );
+              throw new Error(
+                `Failed to set up GitHub repository: ${errorMessage}`,
+              );
+            }
+          }
+
           const provisioningService = new PodProvisioningService();
 
           // Set up 30 minute timeout
@@ -363,6 +401,7 @@ export const podsRouter = createTRPCRouter({
             provisioningService.provisionPod({
               podId: pod.id,
               serverId: availableServer.id,
+              githubRepoSetup,
             }),
             timeoutPromise,
           ]);
@@ -692,6 +731,33 @@ export const podsRouter = createTRPCRouter({
       const provisioningService = new PodProvisioningService();
       await provisioningService.deprovisionPod({ podId: pod.id });
 
+      // Remove GitHub deploy key if one exists
+      if (pod.githubRepo && pod.githubDeployKeyId) {
+        try {
+          const { getOctokitForRepo, removeDeployKeyFromRepo } = await import(
+            "../../github-helpers"
+          );
+          const octokit = await getOctokitForRepo(
+            userId,
+            pod.githubRepo,
+            ctx.session.user.githubAccessToken,
+          );
+          await removeDeployKeyFromRepo(
+            octokit,
+            pod.githubRepo,
+            pod.githubDeployKeyId,
+          );
+          console.log(
+            `[pods.delete] Removed deploy key ${pod.githubDeployKeyId} from ${pod.githubRepo}`,
+          );
+        } catch (error) {
+          // Log but don't fail the deletion - the key might already be gone
+          console.warn(
+            `[pods.delete] Could not remove deploy key: ${error}`,
+          );
+        }
+      }
+
       // Soft delete by setting archivedAt timestamp
       await ctx.db
         .update(pods)
@@ -948,6 +1014,70 @@ export const podsRouter = createTRPCRouter({
             throw new Error("No available servers found");
           }
 
+          // Set up GitHub repository if configured
+          let githubRepoSetup: GitHubRepoSetup | undefined;
+          if (pod.githubRepo) {
+            try {
+              const { setupGitHubRepoForPod, getOctokitForRepo, removeDeployKeyFromRepo } = await import(
+                "../../github-helpers"
+              );
+
+              // Remove old deploy key if it exists
+              if (pod.githubDeployKeyId) {
+                try {
+                  const octokit = await getOctokitForRepo(
+                    userId,
+                    pod.githubRepo,
+                    ctx.session.user.githubAccessToken,
+                  );
+                  await removeDeployKeyFromRepo(
+                    octokit,
+                    pod.githubRepo,
+                    pod.githubDeployKeyId,
+                  );
+                  console.log(
+                    `[retryProvisioning] Removed old deploy key ${pod.githubDeployKeyId}`,
+                  );
+                } catch (error) {
+                  // Log but don't fail - the key might already be deleted
+                  console.warn(
+                    `[retryProvisioning] Could not remove old deploy key: ${error}`,
+                  );
+                }
+              }
+
+              // Create new deploy key
+              githubRepoSetup = await setupGitHubRepoForPod({
+                podId: input.podId,
+                podName: pod.name,
+                userId,
+                repository: pod.githubRepo,
+                branch: pod.githubBranch || undefined,
+                isNewProject: pod.isNewProject || false,
+                userGithubToken: ctx.session.user.githubAccessToken,
+              });
+
+              // Store the new deploy key ID
+              await ctx.db
+                .update(pods)
+                .set({ githubDeployKeyId: githubRepoSetup.deployKeyId })
+                .where(eq(pods.id, input.podId));
+
+              console.log(
+                `[retryProvisioning] GitHub setup complete for ${pod.githubRepo}`,
+              );
+            } catch (error) {
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              console.error(
+                `[retryProvisioning] Failed to set up GitHub repository: ${errorMessage}`,
+              );
+              throw new Error(
+                `Failed to set up GitHub repository: ${errorMessage}`,
+              );
+            }
+          }
+
           const provisioningService = new PodProvisioningService();
 
           // Try to cleanup the pod if it was previously provisioned
@@ -971,6 +1101,7 @@ export const podsRouter = createTRPCRouter({
             provisioningService.provisionPod({
               podId: input.podId,
               serverId: availableServer.id,
+              githubRepoSetup,
             }),
             timeoutPromise,
           ]);

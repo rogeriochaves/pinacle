@@ -242,7 +242,6 @@ export const ConfigureForm = ({
       await onSubmit(data);
     } catch (error) {
       console.error("Failed to create pod:", error);
-    } finally {
       setIsCreating(false);
     }
   };

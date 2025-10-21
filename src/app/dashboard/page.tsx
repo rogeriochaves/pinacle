@@ -128,7 +128,7 @@ export default function Dashboard() {
     try {
       await deletePodMutation.mutateAsync({ id: podId });
       toast.success(`${podName} archived successfully`, {
-        description: "The pod has been stopped and archived.",
+        description: "The pod has been stopped and removed.",
       });
       refetch();
       if (selectedPodId === podId) {

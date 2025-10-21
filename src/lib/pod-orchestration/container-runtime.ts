@@ -118,11 +118,6 @@ export class GVisorRuntime {
       // Network configuration
       "--network",
       "bridge", // Will create custom network later
-      // Volume mounts
-      "--volume",
-      "/tmp:/tmp",
-      "--volume",
-      `pinacle-${spec.id}-workspace:/workspace`,
       spec.baseImage,
       // Default command
       "/sbin/init",

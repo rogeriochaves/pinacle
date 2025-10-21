@@ -378,9 +378,9 @@ export default function PodProvisioningPage() {
                   )}
 
                   {/* Command */}
-                  <div className="mb-1 text-yellow-300">
+                  <pre className="mb-1 text-yellow-300">
                     $ {log.containerCommand}
-                  </div>
+                  </pre>
 
                   {/* Stdout */}
                   {log.stdout && (
