@@ -46,6 +46,17 @@ const TabSchema = z.object({
 });
 
 /**
+ * Process configuration for user applications
+ */
+const ProcessSchema = z.object({
+  name: z.string(),
+  displayName: z.string().optional(),
+  startCommand: z.union([z.string(), z.array(z.string())]),
+  url: z.string().optional(),
+  healthCheck: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
+/**
  * pinacle.yaml schema
  *
  * Minimal configuration that users commit to their repositories.
@@ -65,15 +76,19 @@ export const PinacleConfigSchema = z.object({
 
   // Services to run in the pod
   // Valid service names are derived from SERVICE_TEMPLATES registry
-  services: z
-    .array(z.enum(SERVICE_NAMES as [string, ...string[]]))
-    .default(["claude-code", "vibe-kanban", "code-server"]),
+  services: z.array(z.enum(SERVICE_NAMES as [string, ...string[]])),
 
   // Optional template ID (for reference/UI purposes)
   // If not specified, services list is used directly
   template: z
     .enum(Object.keys(POD_TEMPLATES) as [TemplateId, ...TemplateId[]])
     .optional(),
+
+  // Install command (runs once during provisioning)
+  install: z.union([z.string(), z.array(z.string())]).optional(),
+
+  // User processes (frontend, backend, workers, etc.)
+  processes: z.array(ProcessSchema).optional().default([]),
 
   // Tabs for the pod UI (auto-generated from services by default)
   tabs: z.array(TabSchema).optional(),
@@ -88,6 +103,7 @@ export const DEFAULT_PINACLE_CONFIG: PinacleConfig = {
   version: "1.0",
   tier: "dev.small",
   services: ["claude-code", "vibe-kanban", "code-server"],
+  processes: [],
 };
 
 /**
@@ -319,6 +335,25 @@ export const expandPinacleConfigToSpec = async (
     ...(runtimeData.environment || {}),
   };
 
+  // Helper to capitalize first letter
+  const capitalizeFirst = (str: string): string =>
+    str.charAt(0).toUpperCase() + str.slice(1);
+
+  // Install command: from pinacleConfig or template
+  const installCommand = pinacleConfig.install || template?.installCommand;
+
+  // Processes: from pinacleConfig or template defaults
+  const configProcesses =
+    pinacleConfig.processes && pinacleConfig.processes.length > 0
+      ? pinacleConfig.processes
+      : template?.defaultProcesses || [];
+
+  const processes = configProcesses.map((p) => ({
+    ...p,
+    displayName: p.displayName || capitalizeFirst(p.name),
+    tmuxSession: `process-${runtimeData.id}-${p.name}`,
+  }));
+
   // Build complete PodSpec
   const podSpec: import("./types").PodSpec = {
     id: runtimeData.id,
@@ -339,6 +374,8 @@ export const expandPinacleConfigToSpec = async (
     },
     services,
     environment,
+    installCommand,
+    processes,
     githubRepo: runtimeData.githubRepo,
     githubBranch: runtimeData.githubBranch,
     githubRepoSetup: runtimeData.githubRepoSetup,
@@ -372,6 +409,16 @@ export const podConfigToPinacleConfig = (
   // Extract service names from ServiceConfig array
   const services = podConfig.services.map((service) => service.name);
 
+  // Extract processes (remove tmuxSession as it's runtime-only)
+  const processes =
+    podConfig.processes?.map((p) => ({
+      name: p.name,
+      displayName: p.displayName,
+      startCommand: p.startCommand,
+      url: p.url,
+      healthCheck: p.healthCheck,
+    })) || [];
+
   // Generate tabs from services
   const tabs = generateDefaultTabs(services, podConfig.slug);
 
@@ -380,12 +427,17 @@ export const podConfigToPinacleConfig = (
     version: "1.0",
     tier,
     services,
+    processes,
     tabs, // Include auto-generated tabs
   };
 
   // Add optional fields if present
   if (podConfig.templateId) {
     pinacleConfig.template = podConfig.templateId;
+  }
+
+  if (podConfig.installCommand) {
+    pinacleConfig.install = podConfig.installCommand;
   }
 
   return pinacleConfig;

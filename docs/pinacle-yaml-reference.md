@@ -67,6 +67,17 @@ services:
   - vibe-kanban       # Kanban board for project management
   - code-server       # VS Code in the browser
   - web-terminal      # Web-based terminal access
+
+# Install command (runs once during provisioning)
+install: pnpm install
+
+# Your application processes
+processes:
+  - name: app
+    displayName: App
+    startCommand: pnpm dev
+    url: http://localhost:3000
+    healthCheck: curl -f http://localhost:3000
 ```
 
 ## Configuration Fields
@@ -126,6 +137,84 @@ services:
   - claude-code
   - vibe-kanban
   - code-server
+```
+
+### `install` (optional)
+
+- **Type**: `string` or `array of strings`
+- **Description**: Command(s) to run during pod provisioning to install dependencies. Runs once before starting processes.
+
+**Simple string:**
+```yaml
+install: pnpm install
+```
+
+**Multiline for complex installs:**
+```yaml
+install: |
+  apt-get update
+  apt-get install -y libpq-dev
+  pnpm install
+```
+
+**Array of commands:**
+```yaml
+install:
+  - pnpm install
+  - pnpm build:deps
+```
+
+### `processes` (optional)
+
+- **Type**: `array of objects`
+- **Default**: `[]` (template defaults are used if not specified)
+- **Description**: Your application processes (frontend, backend, workers, etc.). Each process runs in a tmux session and creates dashboard tabs.
+
+**Fields:**
+- `name` (required): Unique identifier for the process
+- `displayName` (optional): Display name in UI tabs (auto-generated from name if not provided)
+- `startCommand` (required): Command(s) to start the process
+- `url` (optional): If provided, creates a browser preview tab in dashboard
+- `healthCheck` (optional): Command to verify the process is healthy (for new repositories only)
+
+**Single process example:**
+```yaml
+processes:
+  - name: app
+    displayName: App
+    startCommand: pnpm dev
+    url: http://localhost:3000
+    healthCheck: curl -f http://localhost:3000
+```
+
+**Multiple processes example (monorepo/microservices):**
+```yaml
+processes:
+  - name: frontend
+    displayName: Frontend
+    startCommand: pnpm dev:frontend
+    url: http://localhost:3000
+
+  - name: backend
+    displayName: API
+    startCommand: pnpm dev:backend
+    url: http://localhost:8000
+    healthCheck: curl -f http://localhost:8000/health
+
+  - name: workers
+    displayName: Workers
+    startCommand: pnpm dev:workers
+    # No URL - just logs in terminal
+```
+
+**Multiline commands:**
+```yaml
+processes:
+  - name: app
+    startCommand: |
+      cd frontend
+      pnpm dev
+    url: http://localhost:3000
 ```
 
 ## Available Services

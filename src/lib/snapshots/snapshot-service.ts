@@ -135,20 +135,17 @@ export class SnapshotService {
   }
 
   /**
-   * Restore a snapshot by extracting it into a running container
-   * This uses runsc tar rootfs-upper snapshots and streams them into the container
+   * Restore a snapshot by loading the Docker image
+   * Returns the image name to use for container creation
    */
   async restoreSnapshot(params: {
     snapshotId: string;
     podId: string;
-    containerId: string;
     serverConnection: ServerConnection;
-  }): Promise<void> {
-    const { snapshotId, podId, containerId, serverConnection } = params;
+  }): Promise<string> {
+    const { snapshotId, podId, serverConnection } = params;
 
-    console.log(
-      `[SnapshotService] Restoring snapshot ${snapshotId} into container ${containerId}`,
-    );
+    console.log(`[SnapshotService] Restoring snapshot ${snapshotId}`);
 
     // Get snapshot metadata
     const [snapshot] = await db
@@ -181,8 +178,6 @@ export class SnapshotService {
       // Build command to run snapshot-restore script on remote server
       const command = this.buildSnapshotRestoreCommand(
         snapshotId,
-        containerId,
-        snapshot.storagePath,
         storageType,
       );
 
@@ -195,12 +190,12 @@ export class SnapshotService {
       // Parse JSON output from script
       const output = this.parseScriptOutput(result.stdout);
 
-      if (!output.success) {
+      if (!output.success || !output.imageName) {
         throw new Error(output.error || "Snapshot restoration failed");
       }
 
       console.log(
-        `[SnapshotService] Successfully restored snapshot ${snapshotId} into container ${containerId}`,
+        `[SnapshotService] Successfully restored snapshot ${snapshotId} as image ${output.imageName}`,
       );
 
       // Update status back to ready
@@ -208,6 +203,9 @@ export class SnapshotService {
         .update(podSnapshots)
         .set({ status: "ready" })
         .where(eq(podSnapshots.id, snapshotId));
+
+      // Return the image name to use for container creation
+      return output.imageName;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -339,8 +337,6 @@ export class SnapshotService {
    */
   private buildSnapshotRestoreCommand(
     snapshotId: string,
-    containerId: string,
-    storagePath: string,
     storageType: "s3" | "filesystem",
   ): string {
     const scriptPath =
@@ -348,9 +344,7 @@ export class SnapshotService {
     const parts = [
       `node ${scriptPath}`,
       `--snapshot-id ${snapshotId}`,
-      `--container-id ${containerId}`,
       `--storage-type ${storageType}`,
-      `--storage-path "${storagePath}"`,
     ];
 
     if (storageType === "s3") {
@@ -362,6 +356,9 @@ export class SnapshotService {
       parts.push(`--s3-secret-key "${env.SNAPSHOT_S3_SECRET_KEY ?? ""}"`);
       parts.push(`--s3-bucket "${env.SNAPSHOT_S3_BUCKET}"`);
       parts.push(`--s3-region "${env.SNAPSHOT_S3_REGION}"`);
+    } else {
+      // Filesystem storage
+      parts.push(`--storage-path "${env.SNAPSHOT_STORAGE_PATH}"`);
     }
 
     return parts.join(" ");

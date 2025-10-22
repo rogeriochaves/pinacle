@@ -103,11 +103,42 @@ export const recreatePodWithSnapshot = async ({
   );
   await podManager["allocateExternalPorts"](podSpec);
 
-  // Create new container from base image with new ports
+  // Determine which snapshot to restore and load the image
+  const { SnapshotService } = await import("../../snapshots/snapshot-service");
+  const snapshotService = new SnapshotService();
+
+  const snapshotIdToRestore =
+    snapshotId || (await snapshotService.getLatestSnapshot(pod.id));
+
+  let imageName = podSpec.baseImage; // Default to base image
+
+  if (snapshotIdToRestore) {
+    console.log(
+      `[recreatePodWithSnapshot] Found snapshot ${snapshotIdToRestore}, loading snapshot image...`,
+    );
+
+    // Restore the snapshot (loads image into Docker, returns image name)
+    imageName = await snapshotService.restoreSnapshot({
+      snapshotId: snapshotIdToRestore,
+      podId: pod.id,
+      serverConnection,
+    });
+
+    console.log(
+      `[recreatePodWithSnapshot] Snapshot loaded as image ${imageName}`,
+    );
+  } else {
+    console.log(
+      `[recreatePodWithSnapshot] No snapshots found for pod ${pod.id}, using base image`,
+    );
+  }
+
+  // Create new container from snapshot image (or base image if no snapshot)
   console.log(
-    `[recreatePodWithSnapshot] Creating new container from base image ${podSpec.baseImage}`,
+    `[recreatePodWithSnapshot] Creating new container from image ${imageName}`,
   );
-  const newContainer = await runtime.createContainer(podSpec);
+  const containerSpec = { ...podSpec, baseImage: imageName };
+  const newContainer = await runtime.createContainer(containerSpec);
 
   console.log(
     `[recreatePodWithSnapshot] Created new container ${newContainer.id}`,
@@ -135,39 +166,16 @@ export const recreatePodWithSnapshot = async ({
     `[recreatePodWithSnapshot] Port forwarding configured for pod ${pod.id}`,
   );
 
-  // Determine which snapshot to restore
-  const { SnapshotService } = await import("../../snapshots/snapshot-service");
-  const snapshotService = new SnapshotService();
-
-  const snapshotIdToRestore =
-    snapshotId || (await snapshotService.getLatestSnapshot(pod.id));
-
+  // Start/restart all enabled services
+  // Services should auto-start, but we ensure they're running
   if (snapshotIdToRestore) {
     console.log(
-      `[recreatePodWithSnapshot] Found snapshot ${snapshotIdToRestore}, restoring into running container...`,
-    );
-
-    // Restore the snapshot into the running container
-    await snapshotService.restoreSnapshot({
-      snapshotId: snapshotIdToRestore,
-      podId: pod.id,
-      containerId: newContainer.id,
-      serverConnection,
-    });
-
-    console.log(
-      `[recreatePodWithSnapshot] Snapshot ${snapshotIdToRestore} restored into container ${newContainer.id}`,
-    );
-
-    // Restart all services after snapshot restore
-    // Services were started before restore, so they need to reload their configs/files
-    console.log(
-      `[recreatePodWithSnapshot] Restarting services after snapshot restore...`,
+      `[recreatePodWithSnapshot] Ensuring services are running after snapshot restore...`,
     );
     for (const service of podSpec.services) {
       if (service.enabled) {
         try {
-          // Restart the service using rc-service
+          // Restart the service to ensure it's running with correct configs
           await runtime.execInContainer(pod.id, newContainer.id, [
             "rc-service",
             service.name,
@@ -185,11 +193,7 @@ export const recreatePodWithSnapshot = async ({
       }
     }
     console.log(
-      `[recreatePodWithSnapshot] All services restarted after snapshot restore`,
-    );
-  } else {
-    console.log(
-      `[recreatePodWithSnapshot] No snapshots found for pod ${pod.id}, starting with fresh container`,
+      `[recreatePodWithSnapshot] All services restarted`,
     );
   }
 

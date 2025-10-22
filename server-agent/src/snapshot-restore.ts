@@ -2,30 +2,38 @@
 /**
  * Snapshot Restore Script
  *
- * Runs on the remote server to restore a snapshot into a running container.
- * Downloads from S3 or reads from local filesystem, then extracts into container.
+ * Restores a gVisor container snapshot by loading the Docker image.
+ * The image was created during snapshot with all changes baked into layers.
  *
  * Usage:
- *   snapshot-restore --snapshot-id <id> --container-id <id> --storage-type <s3|filesystem> --storage-path <path> [options]
+ *   snapshot-restore --snapshot-id <id> --storage-type <s3|filesystem> [options]
+ *
+ * Returns: JSON with the image name to use for container creation
  */
 
 import { spawn } from "node:child_process";
-import { createReadStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Config = {
   snapshotId: string;
-  containerId: string;
   storageType: "s3" | "filesystem";
-  storagePath: string; // S3 key or local file path
 
-  // S3 config (when storageType === "s3")
+  // S3 config
   s3Endpoint?: string;
   s3AccessKey?: string;
   s3SecretKey?: string;
   s3Bucket?: string;
   s3Region?: string;
+
+  // Filesystem config
+  storagePath?: string;
 };
 
 const parseArgs = (): Config => {
@@ -41,14 +49,8 @@ const parseArgs = (): Config => {
         case "snapshot-id":
           config.snapshotId = value;
           break;
-        case "container-id":
-          config.containerId = value;
-          break;
         case "storage-type":
           config.storageType = value as "s3" | "filesystem";
-          break;
-        case "storage-path":
-          config.storagePath = value;
           break;
         case "s3-endpoint":
           config.s3Endpoint = value;
@@ -65,16 +67,14 @@ const parseArgs = (): Config => {
         case "s3-region":
           config.s3Region = value;
           break;
+        case "storage-path":
+          config.storagePath = value;
+          break;
       }
     }
   }
 
-  if (
-    !config.snapshotId ||
-    !config.containerId ||
-    !config.storageType ||
-    !config.storagePath
-  ) {
+  if (!config.snapshotId || !config.storageType) {
     console.error("Missing required arguments");
     process.exit(1);
   }
@@ -83,180 +83,182 @@ const parseArgs = (): Config => {
 };
 
 /**
- * Stream snapshot into container and extract
+ * Run a command and return stdout
  */
-const restoreSnapshotIntoContainer = async (
-  containerId: string,
-  snapshotStream: Readable,
-): Promise<void> => {
-  return new Promise<void>((resolve, reject) => {
-    console.log(
-      `[SnapshotRestore] Streaming snapshot into container ${containerId}`,
-    );
+const runCommand = (
+  command: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> => {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args);
 
-    // Start docker exec to extract tar into container
-    // Exclude system directories and transient files that shouldn't be overwritten
-    const dockerExec = spawn("docker", [
-      "exec",
-      "-i",
-      containerId,
-      "tar",
-      "-xf",
-      "-",
-      "-C",
-      "/",
-      "--exclude=dev/*",
-      "--exclude=proc/*",
-      "--exclude=sys/*",
-      "--exclude=*.new",
-      "--exclude=run/openrc/*",
-      // Exclude transient lock and temp files that cause hardlink errors
-      "--exclude=*.lock",
-      "--exclude=*.tmp",
-      "--exclude=*tmp_*",
-      "--exclude=*.journal",
-      "--exclude=.apk.*",
-    ]);
-
-    if (!dockerExec.stdin) {
-      reject(new Error("Failed to get docker exec stdin"));
-      return;
-    }
-
+    let stdout = "";
     let stderr = "";
 
-    dockerExec.stderr?.on("data", (data) => {
-      const message = data.toString();
-      stderr += message;
-      // Log warnings but they're not necessarily errors
-      console.warn(`[SnapshotRestore] ${message.trim()}`);
+    proc.stdout?.on("data", (data) => {
+      stdout += data.toString();
     });
 
-    dockerExec.stdout?.on("data", (data) => {
-      console.log(`[SnapshotRestore] ${data.toString().trim()}`);
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString();
     });
 
-    // Pipe snapshot stream into docker exec stdin
-    snapshotStream.pipe(dockerExec.stdin);
-
-    dockerExec.stdin.on("error", (err: NodeJS.ErrnoException) => {
-      // EPIPE is expected when docker exec finishes early
-      if (err.code !== "EPIPE") {
-        reject(err);
-      }
+    proc.on("close", (code) => {
+      resolve({ stdout, stderr, code: code ?? 0 });
     });
 
-    dockerExec.on("error", (error) => {
-      reject(new Error(`Failed to spawn docker exec: ${error.message}`));
-    });
-
-    dockerExec.on("exit", (code) => {
-      // tar exit codes:
-      // 0 = success
-      // 1 = some files differed (warnings, non-fatal)
-      // 2 = fatal error, but we tolerate it if it's just hardlink/mknod errors
-      // We accept codes 0-2 as success because:
-      // - Code 1: warnings about files that changed
-      // - Code 2: errors about hardlinks/special files that can't be created (non-critical)
-      if (code === 0 || code === 1 || code === 2) {
-        if (code !== 0) {
-          console.warn(
-            `[SnapshotRestore] tar completed with warnings (code ${code}), but snapshot restored successfully`,
-          );
-        }
-        resolve();
-      } else {
-        reject(
-          new Error(
-            `docker exec tar exited with code ${code}. stderr: ${stderr}`,
-          ),
-        );
-      }
-    });
+    proc.on("error", reject);
   });
 };
 
-const restoreSnapshotS3 = async (config: Config): Promise<void> => {
-  console.log(
-    `[SnapshotRestore] Restoring snapshot ${config.snapshotId} from S3`,
-  );
+/**
+ * Restore snapshot by loading the Docker image
+ */
+const restoreSnapshot = async (config: Config): Promise<string> => {
+  console.log(`[SnapshotRestore] Restoring snapshot ${config.snapshotId}`);
+
+  // Create temp directory
+  const tempDir = join(tmpdir(), `pinacle-restore-${config.snapshotId}`);
+  await mkdir(tempDir, { recursive: true });
+
+  try {
+    // Step 1: Download/decompress snapshot image
+    const imageTarPath = join(tempDir, "snapshot-image.tar");
+
+    if (config.storageType === "s3") {
+      await downloadFromS3(config, imageTarPath);
+    } else {
+      await loadFromFilesystem(config, imageTarPath);
+    }
+
+    console.log(`[SnapshotRestore] Snapshot downloaded to ${imageTarPath}`);
+
+    // Step 2: Load image using docker load
+    const imageName = `pinacle-snapshot:${config.snapshotId}`;
+    console.log(`[SnapshotRestore] Loading image as ${imageName}...`);
+
+    const loadResult = await runCommand("docker", ["load", "-i", imageTarPath]);
+
+    if (loadResult.code !== 0) {
+      throw new Error(`docker load failed: ${loadResult.stderr}`);
+    }
+
+    console.log(`[SnapshotRestore] Image loaded successfully`);
+
+    // Step 3: Tag the loaded image with our expected name
+    // docker load outputs the image name, but we want a consistent name
+    const loadedImageMatch = loadResult.stdout.match(/Loaded image: (.+)/);
+    if (loadedImageMatch?.[1]) {
+      const loadedImageName = loadedImageMatch[1].trim();
+      console.log(`[SnapshotRestore] Loaded image: ${loadedImageName}`);
+
+      // Tag it with our expected name
+      const tagResult = await runCommand("docker", [
+        "tag",
+        loadedImageName,
+        imageName,
+      ]);
+
+      if (tagResult.code !== 0) {
+        console.warn(
+          `[SnapshotRestore] Failed to tag image: ${tagResult.stderr}`,
+        );
+        // Continue anyway, use the loaded name
+        return JSON.stringify({ success: true, imageName: loadedImageName });
+      }
+    }
+
+    // Return the image name for container creation
+    return JSON.stringify({ success: true, imageName });
+  } catch (error) {
+    console.error(`[SnapshotRestore] Error:`, error);
+    return JSON.stringify({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    // Clean up temp directory
+    console.log(`[SnapshotRestore] Cleaning up temp directory...`);
+    await rm(tempDir, { recursive: true, force: true });
+  }
+};
+
+/**
+ * Download snapshot from S3
+ */
+const downloadFromS3 = async (
+  config: Config,
+  destPath: string,
+): Promise<void> => {
+  console.log(`[SnapshotRestore] Downloading from S3...`);
 
   const s3Client = new S3Client({
     endpoint: config.s3Endpoint,
-    region: config.s3Region || "us-east-1",
+    region: config.s3Region || "auto",
     credentials: {
-      accessKeyId: config.s3AccessKey || "",
-      secretAccessKey: config.s3SecretKey || "",
+      accessKeyId: config.s3AccessKey!,
+      secretAccessKey: config.s3SecretKey!,
     },
-    forcePathStyle: !!config.s3Endpoint,
   });
 
-  const bucket = config.s3Bucket || "pinacle-snapshots";
-  const key = config.storagePath; // storagePath is the S3 key
-
-  console.log(`[SnapshotRestore] Downloading from s3://${bucket}/${key}`);
-
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-  });
-
-  const response = await s3Client.send(command);
+  const key = `${config.snapshotId}.tar.gz`;
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: config.s3Bucket!,
+      Key: key,
+    }),
+  );
 
   if (!response.Body) {
-    throw new Error("No data received from S3");
+    throw new Error("S3 response body is empty");
   }
 
-  const s3Stream = response.Body as Readable;
-
-  await restoreSnapshotIntoContainer(config.containerId, s3Stream);
+  // Decompress and save
+  await pipeline(
+    response.Body as Readable,
+    createGunzip(),
+    createWriteStream(destPath),
+  );
 
   console.log(
-    `[SnapshotRestore] Successfully restored snapshot ${config.snapshotId} into container ${config.containerId}`,
+    `[SnapshotRestore] Downloaded from s3://${config.s3Bucket}/${key}`,
   );
 };
 
-const restoreSnapshotFilesystem = async (config: Config): Promise<void> => {
-  console.log(
-    `[SnapshotRestore] Restoring snapshot ${config.snapshotId} from filesystem`,
+/**
+ * Load snapshot from filesystem
+ */
+const loadFromFilesystem = async (
+  config: Config,
+  destPath: string,
+): Promise<void> => {
+  console.log(`[SnapshotRestore] Loading from filesystem...`);
+
+  const sourcePath = join(config.storagePath!, `${config.snapshotId}.tar.gz`);
+
+  // Decompress
+  await pipeline(
+    createReadStream(sourcePath),
+    createGunzip(),
+    createWriteStream(destPath),
   );
 
-  const filePath = config.storagePath;
-
-  console.log(`[SnapshotRestore] Reading from ${filePath}`);
-
-  const fileStream = createReadStream(filePath);
-
-  await restoreSnapshotIntoContainer(config.containerId, fileStream);
-
-  console.log(
-    `[SnapshotRestore] Successfully restored snapshot ${config.snapshotId} into container ${config.containerId}`,
-  );
+  console.log(`[SnapshotRestore] Loaded from ${sourcePath}`);
 };
 
+// Main
 const main = async () => {
-  const config = parseArgs();
-
   try {
-    if (config.storageType === "s3") {
-      await restoreSnapshotS3(config);
-    } else {
-      await restoreSnapshotFilesystem(config);
-    }
-
-    // Output success JSON
-    console.log(
-      JSON.stringify({
-        success: true,
-      }),
-    );
+    const config = parseArgs();
+    const result = await restoreSnapshot(config);
+    console.log(result); // Output JSON result for parent process
+    process.exit(0);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[SnapshotRestore] Error: ${message}`);
+    console.error("[SnapshotRestore] Error:", error);
     console.log(
       JSON.stringify({
         success: false,
-        error: message,
+        error: error instanceof Error ? error.message : String(error),
       }),
     );
     process.exit(1);

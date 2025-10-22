@@ -7,6 +7,7 @@ import { GVisorRuntime } from "./container-runtime";
 import { GitHubIntegration, type GitHubRepoSetup } from "./github-integration";
 import { NetworkManager } from "./network-manager";
 import { type PinacleConfig, podConfigToPinacleConfig } from "./pinacle-config";
+import { ProcessProvisioner } from "./process-provisioner";
 import { ServiceProvisioner } from "./service-provisioner";
 import { getTemplateUnsafe } from "./template-registry";
 import type {
@@ -28,6 +29,7 @@ export class PodManager extends EventEmitter {
   private containerRuntime: GVisorRuntime;
   private networkManager: NetworkManager;
   private serviceProvisioner: ServiceProvisioner;
+  private processProvisioner: ProcessProvisioner;
 
   constructor(podId: string, serverConnection: ServerConnection) {
     super();
@@ -39,6 +41,10 @@ export class PodManager extends EventEmitter {
     this.containerRuntime = new GVisorRuntime(this.serverConnection);
     this.networkManager = new NetworkManager(this.serverConnection);
     this.serviceProvisioner = new ServiceProvisioner(
+      this.podId,
+      this.serverConnection,
+    );
+    this.processProvisioner = new ProcessProvisioner(
       this.podId,
       this.serverConnection,
     );
@@ -110,6 +116,44 @@ export class PodManager extends EventEmitter {
         await this.setupGitHubRepository(spec);
         const pinacleConfig = podConfigToPinacleConfig(spec);
         await this.injectPinacleConfig(pinacleConfig, spec.githubRepo);
+      }
+
+      // Determine if this is an existing repo (affects error handling)
+      const isExistingRepo =
+        spec.githubRepo && spec.githubRepoSetup?.type === "existing";
+
+      // Run install command if present
+      if (spec.installCommand) {
+        console.log(`[PodManager] Running install command for pod ${spec.id}`);
+        await this.processProvisioner.runInstall(spec, isExistingRepo);
+      }
+
+      // Provision and start user processes
+      if (spec.processes && spec.processes.length > 0) {
+        console.log(`[PodManager] Provisioning user processes for pod ${spec.id}`);
+        for (const process of spec.processes) {
+          await this.processProvisioner.provisionProcess(
+            spec,
+            process,
+            isExistingRepo,
+          );
+          await this.processProvisioner.startProcess(spec, process);
+
+          // Run health check for new repos only
+          if (!isExistingRepo && process.healthCheck) {
+            const isHealthy = await this.processProvisioner.checkProcessHealth(
+              spec,
+              process,
+              isExistingRepo,
+              30000,
+            );
+            if (!isHealthy) {
+              console.warn(
+                `[PodManager] Health check failed for process ${process.name} but continuing`,
+              );
+            }
+          }
+        }
       }
 
       // Provision services

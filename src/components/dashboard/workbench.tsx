@@ -7,6 +7,7 @@ import {
   Kanban,
   Loader2,
   LogOut,
+  type LucideIcon,
   Play,
   Sparkles,
   Square,
@@ -16,9 +17,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
+import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
+import {
+  getServiceTemplateUnsafe,
+  type ServiceId,
+} from "../../lib/pod-orchestration/service-registry";
 import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
 import {
@@ -29,7 +35,16 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-type Tab = "vscode" | "kanban" | "terminal" | "browser" | "claude";
+type TabConfig = {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  port: number;
+  shortcut?: string;
+  returnUrl?: string;
+  keepRendered?: boolean;
+  alwaysReload?: boolean;
+};
 
 type WorkbenchProps = {
   pod: {
@@ -37,6 +52,7 @@ type WorkbenchProps = {
     name: string;
     slug: string;
     status: string;
+    config: string; // JSON string of PinacleConfig
     publicUrl?: string | null;
     lastErrorMessage?: string | null;
     alwaysReload?: boolean;
@@ -45,51 +61,118 @@ type WorkbenchProps = {
   onPodSwitch: () => void;
 };
 
-const TABS = [
-  {
-    id: "vscode" as const,
-    label: "VS Code",
-    icon: Code2,
-    port: 8726,
-    shortcut: "1",
-  },
-  {
-    id: "kanban" as const,
-    label: "Kanban",
-    icon: Kanban,
-    port: 5262,
-    shortcut: "2",
-  },
-  {
-    id: "claude" as const,
-    label: "Claude",
-    icon: Sparkles,
-    port: 2528,
-    shortcut: "3",
-    keepRendered: true,
-    alwaysReload: false,
-  },
-  {
-    id: "terminal" as const,
-    label: "Terminal",
-    icon: Terminal,
-    port: 7681,
-    shortcut: "4",
-    returnUrl: "/?arg=0",
-    keepRendered: true,
-    alwaysReload: false,
-  },
-  {
-    id: "browser" as const,
-    label: "Browser",
-    icon: Globe,
-    port: 5173,
-    shortcut: "5",
-  },
-];
+/**
+ * Map service names to icons
+ */
+const getServiceIcon = (serviceName: string): LucideIcon => {
+  switch (serviceName) {
+    case "code-server":
+      return Code2;
+    case "vibe-kanban":
+      return Kanban;
+    case "claude-code":
+    case "openai-codex":
+    case "cursor-cli":
+    case "gemini-cli":
+      return Sparkles;
+    case "web-terminal":
+      return Terminal;
+    default:
+      return Globe;
+  }
+};
+
+/**
+ * Extract port number from URL string
+ */
+const extractPortFromUrl = (url: string): number => {
+  try {
+    const urlObj = new URL(url);
+    return Number.parseInt(urlObj.port, 10) || 80;
+  } catch {
+    // If URL parsing fails, try to extract port with regex
+    const match = url.match(/:(\d+)/);
+    return match ? Number.parseInt(match[1], 10) : 3000;
+  }
+};
 
 export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
-  const [activeTab, setActiveTab] = useState<Tab>("vscode");
+  // Generate tabs dynamically from pod config
+  const tabs = useMemo((): TabConfig[] => {
+    try {
+      const config = podRecordToPinacleConfig({
+        config: pod.config,
+        name: pod.name,
+      });
+
+      const generatedTabs: TabConfig[] = [];
+      let shortcutIndex = 1;
+
+      // Add service tabs (VS Code, Kanban, Claude, Terminal)
+      for (const serviceName of config.services) {
+        const template = getServiceTemplateUnsafe(serviceName);
+        if (template) {
+          const isTerminal = serviceName === "web-terminal";
+          generatedTabs.push({
+            id: serviceName,
+            label: template.displayName,
+            icon: getServiceIcon(serviceName),
+            port: template.defaultPort,
+            shortcut: String(shortcutIndex++),
+            returnUrl: isTerminal ? "/?arg=0" : undefined,
+            keepRendered:
+              isTerminal ||
+              serviceName.includes("claude") ||
+              serviceName.includes("codex") ||
+              serviceName.includes("cursor") ||
+              serviceName.includes("gemini"),
+            alwaysReload: false,
+          });
+        }
+      }
+
+      // Add browser tabs for processes with URLs
+      for (const process of config.processes || []) {
+        if (process.url) {
+          const port = extractPortFromUrl(process.url);
+          generatedTabs.push({
+            id: `process-${process.name}`,
+            label: process.displayName || process.name,
+            icon: Globe,
+            port: port,
+            shortcut: String(shortcutIndex++),
+          });
+        }
+      }
+
+      return generatedTabs;
+    } catch (error) {
+      console.error("Failed to parse pod config:", error);
+      // Fallback to minimal tabs
+      return [
+        {
+          id: "code-server",
+          label: "VS Code",
+          icon: Code2,
+          port: 8726,
+          shortcut: "1",
+        },
+        {
+          id: "web-terminal",
+          label: "Terminal",
+          icon: Terminal,
+          port: 7681,
+          shortcut: "2",
+          returnUrl: "/?arg=0",
+          keepRendered: true,
+        },
+      ];
+    }
+  }, [pod.config, pod.name]);
+
+  const [activeTab, setActiveTab] = useState<string>(
+    tabs[0]?.id || "code-server",
+  );
   const { data: session } = useSession();
   const isRunning = pod.status === "running";
   const startPodMutation = api.pods.start.useMutation();
@@ -151,8 +234,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   }, [pod.status, utils.pods.getUserPods]);
 
   const getTabUrl = useCallback(
-    (tab: Tab): string => {
-      const tabConfig = TABS.find((t) => t.id === tab);
+    (tabId: string): string => {
+      const tabConfig = tabs.find((t) => t.id === tabId);
       if (!tabConfig) return "";
 
       // New flow: redirect through authentication endpoint
@@ -168,7 +251,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
       return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrl}`;
     },
-    [pod.slug],
+    [pod.slug, tabs],
   );
 
   const getStatusColor = () => {
@@ -209,7 +292,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
         {/* Tabs */}
         <div className="flex-1 flex items-center justify-center gap-1">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -246,13 +329,17 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                       : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                   }
                 `}
-                title={`${tab.label} (⌘${tab.shortcut})`}
+                title={
+                  tab.shortcut ? `${tab.label} (⌘${tab.shortcut})` : tab.label
+                }
               >
                 <Icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
-                <kbd className="hidden lg:inline text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">
-                  ⌘{tab.shortcut}
-                </kbd>
+                {tab.shortcut && (
+                  <kbd className="hidden lg:inline text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">
+                    ⌘{tab.shortcut}
+                  </kbd>
+                )}
               </button>
             );
           })}
@@ -372,13 +459,14 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   {isGitHubAuthError(pod.lastErrorMessage) ? (
                     <div className="max-w-lg mx-auto">
                       <p className="text-slate-300 font-mono text-sm mb-4">
-                        Your GitHub credentials have expired. Please sign out and sign in
-                        again to reconnect your GitHub account.
+                        Your GitHub credentials have expired. Please sign out
+                        and sign in again to reconnect your GitHub account.
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          window.location.href = "/api/auth/signout?callbackUrl=/auth/signin";
+                          window.location.href =
+                            "/api/auth/signout?callbackUrl=/auth/signin";
                         }}
                         className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
                       >
@@ -395,8 +483,9 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             </div>
           </div>
         ) : (
-          TABS.filter((tab) => !tab.alwaysReload || activeTab === tab.id).map(
-            (tab) => (
+          tabs
+            .filter((tab) => !tab.alwaysReload || activeTab === tab.id)
+            .map((tab) => (
               <iframe
                 key={tab.id}
                 id={`js-iframe-tab-${tab.id}`}
@@ -419,8 +508,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                       : { display: "none" }
                 }
               />
-            ),
-          )
+            ))
         )}
       </div>
     </div>

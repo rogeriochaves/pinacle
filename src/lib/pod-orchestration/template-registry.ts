@@ -42,6 +42,16 @@ export type PodTemplate = {
   requiredEnvVars: string[];
   envVarDefaults?: Record<string, string | (() => string)>; // Default values or generator functions for env vars
 
+  // Installation and user processes
+  installCommand?: string | string[];
+  defaultProcesses?: Array<{
+    name: string;
+    displayName?: string;
+    startCommand: string | string[];
+    url?: string;
+    healthCheck?: string | string[];
+  }>;
+
   // Template initialization
   templateType: "blank" | "vite" | "nextjs" | "nodejs" | "python" | "custom";
   initScript?: string[]; // Commands to run after cloning/creating repo
@@ -81,7 +91,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 5173 }, // Vite default port
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -92,6 +101,17 @@ export const POD_TEMPLATES = {
       PORT: "5173",
     },
     requiredEnvVars: [],
+
+    installCommand: "pnpm install",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "pnpm dev",
+        url: "http://localhost:5173",
+        healthCheck: "curl -f http://localhost:5173",
+      },
+    ],
 
     templateType: "vite",
     initScript: [
@@ -118,7 +138,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -134,6 +153,17 @@ export const POD_TEMPLATES = {
       NEXTAUTH_SECRET: () => generateRandomSecret(32),
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/app",
     },
+
+    installCommand: "pnpm install",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "pnpm dev",
+        url: "http://localhost:3000",
+        healthCheck: "curl -f http://localhost:3000",
+      },
+    ],
 
     templateType: "nextjs",
     initScript: [
@@ -160,7 +190,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -171,6 +200,17 @@ export const POD_TEMPLATES = {
       PYTHONPATH: "/workspace",
     },
     requiredEnvVars: [],
+
+    installCommand: "uv sync",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "uv run mastra dev",
+        url: "http://localhost:8000",
+        healthCheck: "curl -f http://localhost:8000",
+      },
+    ],
 
     templateType: "python",
     initScript: ["cd /workspace", "pip install mastra", "mastra init"],
@@ -194,7 +234,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -204,6 +243,16 @@ export const POD_TEMPLATES = {
       NODE_ENV: "development",
     },
     requiredEnvVars: [],
+
+    installCommand: "pnpm install",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "pnpm dev",
+        url: "http://localhost:3000",
+      },
+    ],
 
     templateType: "nodejs",
     initScript: [
@@ -231,7 +280,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -242,6 +290,16 @@ export const POD_TEMPLATES = {
       PYTHONPATH: "/workspace",
     },
     requiredEnvVars: [],
+
+    installCommand: "uv sync",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "uv run python main.py",
+        url: "http://localhost:8000",
+      },
+    ],
 
     templateType: "python",
     initScript: [
@@ -269,7 +327,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 8000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -280,6 +337,18 @@ export const POD_TEMPLATES = {
       PYTHONPATH: "/workspace",
     },
     requiredEnvVars: [],
+
+    installCommand: "uv sync",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand:
+          "uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+        url: "http://localhost:8000",
+        healthCheck: "curl -f http://localhost:8000",
+      },
+    ],
 
     templateType: "python",
     initScript: [
@@ -308,7 +377,6 @@ export const POD_TEMPLATES = {
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
-      { name: "app", internal: 3000 },
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
@@ -320,6 +388,17 @@ export const POD_TEMPLATES = {
       NEXT_TELEMETRY_DISABLED: "1",
     },
     requiredEnvVars: [],
+
+    installCommand: "pnpm install",
+    defaultProcesses: [
+      {
+        name: "app",
+        displayName: "App",
+        startCommand: "pnpm dev",
+        url: "http://localhost:3000",
+        healthCheck: "curl -f http://localhost:3000",
+      },
+    ],
 
     templateType: "nextjs",
     initScript: [
@@ -347,7 +426,6 @@ export const POD_TEMPLATES = {
 
     services: ["code-server", "web-terminal"],
     defaultPorts: [
-      { name: "langflow", internal: 7860 },
       { name: "code", internal: 8726 },
       { name: "terminal", internal: 7681 },
     ],
@@ -357,6 +435,17 @@ export const POD_TEMPLATES = {
       LANGFLOW_DATABASE_URL: "sqlite:///./langflow.db",
     },
     requiredEnvVars: [],
+
+    installCommand: "uv sync",
+    defaultProcesses: [
+      {
+        name: "langflow",
+        displayName: "Langflow",
+        startCommand: "uv run langflow run --host 0.0.0.0 --port 7860",
+        url: "http://localhost:7860",
+        healthCheck: "curl -f http://localhost:7860",
+      },
+    ],
 
     templateType: "python",
     initScript: [

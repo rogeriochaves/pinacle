@@ -70,6 +70,15 @@ export interface ServiceConfig {
   dependsOn?: string[]; // Service dependencies
 }
 
+export interface ProcessConfig {
+  name: string;
+  displayName?: string;
+  startCommand: string | string[];
+  url?: string;
+  healthCheck?: string | string[];
+  tmuxSession?: string; // Generated session name
+}
+
 export interface PodSpec {
   id: string;
   name: string;
@@ -106,6 +115,10 @@ export interface PodSpec {
     };
     deployKeyId?: number;
   };
+
+  // User processes
+  installCommand?: string | string[];
+  processes?: ProcessConfig[];
 
   // Runtime configuration
   workingDir?: string;
