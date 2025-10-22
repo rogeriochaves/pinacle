@@ -36,6 +36,15 @@ const SetupForm = () => {
     },
   });
 
+  // Check GitHub token validity
+  const { data: tokenValidation } = api.github.checkTokenValidity.useQuery(
+    undefined,
+    {
+      enabled: status === "authenticated" && !!session?.user?.githubAccessToken,
+      retry: false,
+    },
+  );
+
   // GitHub App queries
   const { data: installationData, isLoading: installationsLoading } =
     api.githubApp.getInstallations.useQuery();
@@ -181,6 +190,47 @@ const SetupForm = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
+      {/* Token Expiration Warning Banner */}
+      {tokenValidation && !tokenValidation.valid && (
+        <div className="bg-orange-500/10 border-b border-orange-500/30">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-500/20 p-2 rounded">
+                  <svg
+                    className="w-5 h-5 text-orange-500"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white font-mono text-sm font-semibold">
+                    GitHub Authentication Expired
+                  </p>
+                  <p className="text-orange-100 font-mono text-xs">
+                    Your GitHub credentials have expired. Please sign out and sign in again.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = "/api/auth/signout?callbackUrl=/auth/signin";
+                }}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
+              >
+                Sign Out & Re-authenticate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfigureForm
         form={form}
         onSubmit={handleFinalSubmit}

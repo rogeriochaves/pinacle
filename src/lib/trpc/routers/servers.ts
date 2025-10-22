@@ -75,11 +75,11 @@ export const serversRouter = createTRPCRouter({
           z.object({
             podId: z.string(),
             containerId: z.string(),
-            cpuUsagePercent: z.number().min(0),
-            memoryUsageMb: z.number().min(0),
-            diskUsageMb: z.number().min(0),
-            networkRxBytes: z.number().min(0),
-            networkTxBytes: z.number().min(0),
+            cpuUsagePercent: z.number().min(0).optional().nullable(),
+            memoryUsageMb: z.number().min(0).optional().nullable(),
+            diskUsageMb: z.number().min(0).optional().nullable(),
+            networkRxBytes: z.number().min(0).optional().nullable(),
+            networkTxBytes: z.number().min(0).optional().nullable(),
           }),
         ),
       }),
@@ -117,14 +117,29 @@ export const serversRouter = createTRPCRouter({
       // Save per-pod metrics and update pod heartbeat timestamps
       if (input.podMetrics.length > 0) {
         await ctx.db.insert(podMetrics).values(
-          input.podMetrics.map((pm) => ({
-            podId: pm.podId,
-            cpuUsagePercent: pm.cpuUsagePercent,
-            memoryUsageMb: pm.memoryUsageMb,
-            diskUsageMb: pm.diskUsageMb,
-            networkRxBytes: pm.networkRxBytes,
-            networkTxBytes: pm.networkTxBytes,
-          })),
+          input.podMetrics
+            .filter(
+              (pm) =>
+                pm.cpuUsagePercent !== null &&
+                pm.cpuUsagePercent !== undefined &&
+                pm.memoryUsageMb !== null &&
+                pm.memoryUsageMb !== undefined &&
+                pm.diskUsageMb !== null &&
+                pm.diskUsageMb !== undefined &&
+                pm.networkRxBytes !== null &&
+                pm.networkRxBytes !== undefined &&
+                pm.networkTxBytes !== null &&
+                pm.networkTxBytes !== undefined &&
+                pm.networkTxBytes !== null,
+            )
+            .map((pm) => ({
+              podId: pm.podId,
+              cpuUsagePercent: pm.cpuUsagePercent!,
+              memoryUsageMb: pm.memoryUsageMb!,
+              diskUsageMb: pm.diskUsageMb!,
+              networkRxBytes: pm.networkRxBytes!,
+              networkTxBytes: pm.networkTxBytes!,
+            })),
         );
 
         // Update lastHeartbeatAt for all pods that sent metrics

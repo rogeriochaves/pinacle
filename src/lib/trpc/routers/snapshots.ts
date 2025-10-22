@@ -11,12 +11,15 @@
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
+import type { db as dbType } from "../../db";
 import { podSnapshots, pods, teamMembers } from "../../db/schema";
 import { SnapshotService } from "../../snapshots/snapshot-service";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
+type DrizzleDb = typeof dbType;
+
 type Context = {
-  db: any;
+  db: DrizzleDb;
   session: { user: { id: string } };
 };
 
@@ -91,6 +94,13 @@ export const snapshotsRouter = createTRPCRouter({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Pod does not have a container ID",
+        });
+      }
+
+      if (!pod.serverId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Pod is not assigned to a server",
         });
       }
 
@@ -193,6 +203,117 @@ export const snapshotsRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: `Failed to delete snapshot: ${errorMessage}`,
+        });
+      }
+    }),
+
+  /**
+   * Restore a pod from a specific snapshot
+   * This will stop the pod, remove the container, and recreate it from the snapshot
+   */
+  restore: protectedProcedure
+    .input(
+      z.object({
+        snapshotId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Get snapshot with pod ownership check via team membership
+      const [snapshot] = await ctx.db
+        .select({
+          snapshot: podSnapshots,
+          pod: pods,
+        })
+        .from(podSnapshots)
+        .innerJoin(pods, eq(podSnapshots.podId, pods.id))
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(
+          and(
+            eq(podSnapshots.id, input.snapshotId),
+            eq(teamMembers.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!snapshot) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Snapshot not found",
+        });
+      }
+
+      const pod = snapshot.pod;
+
+      if (!pod.serverId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Pod is not assigned to a server",
+        });
+      }
+
+      try {
+        // Get server connection
+        const { PodProvisioningService } = await import(
+          "../../pod-orchestration/pod-provisioning-service"
+        );
+        const provisioningService = new PodProvisioningService();
+        const serverConnection = await provisioningService[
+          "getServerConnectionDetails"
+        ](pod.serverId);
+
+        // Stop the pod if it's running
+        if (pod.status === "running") {
+          const { PodManager } = await import(
+            "../../pod-orchestration/pod-manager"
+          );
+          const podManager = new PodManager(pod.id, serverConnection);
+          await podManager.stopPod();
+        }
+
+        // Use shared helper to recreate pod with specific snapshot
+        const { recreatePodWithSnapshot } = await import(
+          "../helpers/pod-recreate-helper"
+        );
+
+        const result = await recreatePodWithSnapshot({
+          pod,
+          serverConnection,
+          snapshotId: input.snapshotId, // Restore from specific snapshot
+          db: ctx.db,
+        });
+
+        // Update pod status to running with new container and ports
+        await ctx.db
+          .update(pods)
+          .set({
+            status: "running",
+            containerId: result.containerId,
+            ports: result.ports, // Update ports for proxy routing
+            lastStartedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(pods.id, pod.id));
+
+        return { success: true };
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        // Update pod to error state
+        await ctx.db
+          .update(pods)
+          .set({
+            status: "error",
+            lastErrorMessage: `Restore failed: ${errorMessage}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(pods.id, pod.id));
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to restore snapshot: ${errorMessage}`,
         });
       }
     }),

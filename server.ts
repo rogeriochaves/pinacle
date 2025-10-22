@@ -35,7 +35,7 @@ const port = 3000; // Single port for both app and proxy
 const PROXY_TOKEN_COOKIE = "pinacle-proxy-token";
 
 // Proxy cache configuration
-const PROXY_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const PROXY_CACHE_TTL_MS = 30 * 1000; // 30 seconds (short TTL to detect port changes after pod recreation)
 
 // Proxy cache to avoid recreating proxies for every request
 const proxyCache = new Map<

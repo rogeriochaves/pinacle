@@ -135,14 +135,19 @@ export class SnapshotService {
   }
 
   /**
-   * Restore a snapshot to create a new Docker image
-   * Calls the snapshot-restore script on the remote server
+   * Restore a snapshot by extracting it into a running container
+   * This uses runsc tar rootfs-upper snapshots and streams them into the container
    */
-  async restoreSnapshot(params: RestoreSnapshotParams): Promise<string> {
-    const { snapshotId, podId, serverConnection } = params;
+  async restoreSnapshot(params: {
+    snapshotId: string;
+    podId: string;
+    containerId: string;
+    serverConnection: ServerConnection;
+  }): Promise<void> {
+    const { snapshotId, podId, containerId, serverConnection } = params;
 
     console.log(
-      `[SnapshotService] Restoring snapshot ${snapshotId} for pod ${podId}`,
+      `[SnapshotService] Restoring snapshot ${snapshotId} into container ${containerId}`,
     );
 
     // Get snapshot metadata
@@ -172,33 +177,30 @@ export class SnapshotService {
 
     try {
       const storageType = env.SNAPSHOT_STORAGE_TYPE;
-      const imageName = `pinacle-restore-${snapshotId}`;
 
-      // Build command to run on remote server
+      // Build command to run snapshot-restore script on remote server
       const command = this.buildSnapshotRestoreCommand(
         snapshotId,
-        imageName,
+        containerId,
         snapshot.storagePath,
         storageType,
       );
 
-      console.log(`[SnapshotService] Executing on remote server: ${command}`);
+      console.log(
+        `[SnapshotService] Executing restore script on remote server`,
+      );
 
-      // Execute on remote server
       const result = await serverConnection.exec(command);
 
       // Parse JSON output from script
       const output = this.parseScriptOutput(result.stdout);
 
-      if (!output.success || !output.imageName) {
+      if (!output.success) {
         throw new Error(output.error || "Snapshot restoration failed");
       }
 
-      // Use the actual image name returned by the script (which is lowercase)
-      const actualImageName = output.imageName;
-
       console.log(
-        `[SnapshotService] Successfully restored snapshot ${snapshotId} to image ${actualImageName}`,
+        `[SnapshotService] Successfully restored snapshot ${snapshotId} into container ${containerId}`,
       );
 
       // Update status back to ready
@@ -206,8 +208,6 @@ export class SnapshotService {
         .update(podSnapshots)
         .set({ status: "ready" })
         .where(eq(podSnapshots.id, snapshotId));
-
-      return actualImageName;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -339,7 +339,7 @@ export class SnapshotService {
    */
   private buildSnapshotRestoreCommand(
     snapshotId: string,
-    imageName: string,
+    containerId: string,
     storagePath: string,
     storageType: "s3" | "filesystem",
   ): string {
@@ -348,7 +348,7 @@ export class SnapshotService {
     const parts = [
       `node ${scriptPath}`,
       `--snapshot-id ${snapshotId}`,
-      `--image-name ${imageName}`,
+      `--container-id ${containerId}`,
       `--storage-type ${storageType}`,
       `--storage-path "${storagePath}"`,
     ];

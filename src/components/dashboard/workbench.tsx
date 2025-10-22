@@ -18,6 +18,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
 import {
@@ -37,6 +38,7 @@ type WorkbenchProps = {
     slug: string;
     status: string;
     publicUrl?: string | null;
+    lastErrorMessage?: string | null;
     alwaysReload?: boolean;
     keepRendered?: boolean;
   };
@@ -367,9 +369,27 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   <p className="text-white font-mono text-lg font-bold mb-2">
                     Pod error
                   </p>
-                  <p className="text-slate-400 font-mono text-sm">
-                    Something went wrong. Check pod details for more info.
-                  </p>
+                  {isGitHubAuthError(pod.lastErrorMessage) ? (
+                    <div className="max-w-lg mx-auto">
+                      <p className="text-slate-300 font-mono text-sm mb-4">
+                        Your GitHub credentials have expired. Please sign out and sign in
+                        again to reconnect your GitHub account.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          window.location.href = "/api/auth/signout?callbackUrl=/auth/signin";
+                        }}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
+                      >
+                        Sign Out & Re-authenticate
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-slate-400 font-mono text-sm">
+                      Something went wrong. Check pod details for more info.
+                    </p>
+                  )}
                 </>
               )}
             </div>

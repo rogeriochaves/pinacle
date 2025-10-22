@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { isGitHubAuthError } from "@/lib/github-error-detection";
 import { api } from "@/lib/trpc/client";
 
 type PodStatus = "creating" | "provisioning" | "running" | "stopped" | "error";
@@ -324,15 +325,58 @@ export default function PodProvisioningPage() {
 
           {allLogs.length === 0 ? (
             pod.status === "error" ? (
-              <div className="p-12 text-center">
-                <XCircle className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-600 font-mono text-sm">
-                  Error provisioning pod, please retry later.
+              <div className="p-12 text-center max-w-2xl mx-auto">
+                <XCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
+                <p className="text-slate-300 font-mono text-sm font-semibold mb-4">
+                  Error provisioning pod
                 </p>
                 {pod.lastErrorMessage && (
-                  <p className="text-slate-400 font-mono text-sm mt-4">
-                    Error: {pod.lastErrorMessage}
-                  </p>
+                  <>
+                    {isGitHubAuthError(pod.lastErrorMessage) ? (
+                      <div className="bg-slate-800/50 border border-orange-500/30 rounded-lg p-6 text-left">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="bg-orange-500/20 p-2 rounded">
+                            <XCircle className="w-5 h-5 text-orange-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-white font-mono text-sm font-semibold mb-2">
+                              GitHub Authentication Expired
+                            </h3>
+                            <p className="text-slate-400 font-mono text-xs mb-4">
+                              Your GitHub credentials have expired. Please sign out and sign in
+                              again to reconnect your GitHub account and try creating the pod again.
+                            </p>
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.location.href = "/api/auth/signout?callbackUrl=/auth/signin";
+                                }}
+                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
+                              >
+                                Sign Out & Re-authenticate
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  window.location.href = "/dashboard";
+                                }}
+                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-mono text-xs font-semibold rounded transition-colors"
+                              >
+                                Go to Dashboard
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-800/50 rounded-lg p-4">
+                        <p className="text-slate-400 font-mono text-xs break-words">
+                          {pod.lastErrorMessage}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (

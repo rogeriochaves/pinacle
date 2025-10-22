@@ -9,6 +9,7 @@ import {
   HardDrive,
   Loader2,
   Network,
+  RotateCcw,
   Save,
   Settings as SettingsIcon,
   Trash2,
@@ -130,6 +131,18 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
     },
   });
 
+  const restoreMutation = api.snapshots.restore.useMutation({
+    onSuccess: () => {
+      toast.success("Snapshot restored successfully! Pod is now running.");
+      utils.snapshots.list.invalidate({ podId: pod.id });
+      utils.pods.getUserPods.invalidate();
+      onClose(); // Close the panel after restore
+    },
+    onError: (error) => {
+      toast.error(`Failed to restore snapshot: ${error.message}`);
+    },
+  });
+
   const handleCreateSnapshot = () => {
     if (!snapshotName.trim()) {
       toast.error("Please enter a snapshot name");
@@ -145,6 +158,10 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
 
   const handleDeleteSnapshot = (snapshotId: string) => {
     deleteMutation.mutate({ snapshotId });
+  };
+
+  const handleRestoreSnapshot = (snapshotId: string) => {
+    restoreMutation.mutate({ snapshotId });
   };
 
   const formatSnapshotBytes = (bytes: number) => {
@@ -492,15 +509,33 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                             </span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmId(snapshot.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50"
-                          title="Delete snapshot"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreSnapshot(snapshot.id)}
+                            disabled={
+                              restoreMutation.isPending ||
+                              snapshot.status !== "ready"
+                            }
+                            className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Restore from this snapshot"
+                          >
+                            {restoreMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmId(snapshot.id)}
+                            disabled={deleteMutation.isPending}
+                            className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50"
+                            title="Delete snapshot"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       {snapshot.errorMessage && (
                         <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">

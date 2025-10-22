@@ -2,20 +2,20 @@
 /**
  * Snapshot Create Script
  *
- * Runs on the remote server to create a container snapshot.
- * Exports container, compresses, and uploads to S3 or saves locally.
+ * Runs on the remote server to create a gVisor container snapshot using runsc tar rootfs-upper.
+ * This captures all filesystem changes made to the container.
  *
  * Usage:
  *   snapshot-create --container-id <id> --snapshot-id <id> --storage-type <s3|filesystem> [options]
  */
 
 import { spawn } from "node:child_process";
-import { createWriteStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdir, stat, unlink } from "node:fs/promises";
+import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
-import { S3Client } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Config = {
   containerId: string;
@@ -82,131 +82,276 @@ const parseArgs = (): Config => {
   return config as Config;
 };
 
-const createSnapshotS3 = async (config: Config): Promise<void> => {
-  console.log(`[SnapshotCreate] Creating S3 snapshot for container ${config.containerId}`);
+/**
+ * Get full container ID from Docker (runsc requires the full 64-char ID)
+ */
+const getFullContainerId = async (
+  shortOrFullId: string,
+): Promise<string> => {
+  return new Promise<string>((resolve, reject) => {
+    const dockerInspect = spawn("docker", [
+      "inspect",
+      shortOrFullId,
+      "--format={{.Id}}",
+    ]);
 
-  const s3Client = new S3Client({
-    endpoint: config.s3Endpoint,
-    region: config.s3Region || "us-east-1",
-    credentials: {
-      accessKeyId: config.s3AccessKey || "",
-      secretAccessKey: config.s3SecretKey || "",
-    },
-    forcePathStyle: !!config.s3Endpoint,
+    let stdout = "";
+    let stderr = "";
+
+    dockerInspect.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    dockerInspect.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    dockerInspect.on("error", (error) => {
+      reject(new Error(`Failed to spawn docker inspect: ${error.message}`));
+    });
+
+    dockerInspect.on("exit", (code) => {
+      if (code === 0) {
+        const fullId = stdout.trim();
+        if (fullId && fullId.length === 64) {
+          resolve(fullId);
+        } else {
+          reject(
+            new Error(
+              `Invalid container ID returned: ${fullId} (length: ${fullId.length})`,
+            ),
+          );
+        }
+      } else {
+        reject(
+          new Error(
+            `docker inspect exited with code ${code}: ${stderr}`,
+          ),
+        );
+      }
+    });
   });
+};
 
-  const bucket = config.s3Bucket || "pinacle-snapshots";
-  const key = `snapshots/${config.snapshotId}.tar.gz`;
+/**
+ * Execute runsc tar rootfs-upper to create a snapshot
+ */
+const createRunscSnapshot = async (
+  containerId: string,
+  outputPath: string,
+): Promise<void> => {
+  // Get full container ID (runsc requires the full 64-character ID)
+  console.log(
+    `[SnapshotCreate] Getting full container ID for: ${containerId}`,
+  );
+  const fullContainerId = await getFullContainerId(containerId);
+  console.log(
+    `[SnapshotCreate] Full container ID: ${fullContainerId}`,
+  );
 
-  // Spawn docker export
-  const dockerExport = spawn("docker", ["export", config.containerId]);
+  // Check if container is running
+  const checkRunning = spawn("docker", ["inspect", fullContainerId, "--format={{.State.Running}}"]);
+  let isRunning = "";
+  checkRunning.stdout?.on("data", (data) => {
+    isRunning += data.toString().trim();
+  });
+  await new Promise<void>((resolve) => checkRunning.on("exit", () => resolve()));
+  console.log(`[SnapshotCreate] Container running: ${isRunning}`);
 
-  if (!dockerExport.stdout) {
-    throw new Error("Failed to get docker export stdout");
+  // List runsc containers
+  console.log(`[SnapshotCreate] Checking runsc container list...`);
+  const listContainers = spawn("runsc", ["--root=/run/docker/runtime-runc/moby", "list"]);
+  let containerList = "";
+  listContainers.stdout?.on("data", (data) => {
+    containerList += data.toString();
+  });
+  await new Promise<void>((resolve) => listContainers.on("exit", () => resolve()));
+  console.log(`[SnapshotCreate] Runsc containers:\n${containerList}`);
+
+  // Check if our container is in the list
+  if (!containerList.includes(fullContainerId.substring(0, 12))) {
+    console.error(`[SnapshotCreate] Container ${fullContainerId} NOT found in runsc list!`);
+  } else {
+    console.log(`[SnapshotCreate] Container ${fullContainerId} found in runsc list`);
   }
 
-  // Pipe through gzip
-  const gzip = createGzip({ level: 6 });
-  dockerExport.stdout.pipe(gzip);
+  return new Promise<void>((resolve, reject) => {
+    console.log(
+      `[SnapshotCreate] Running: sudo runsc --root=/run/docker/runtime-runc/moby tar rootfs-upper --file ${outputPath} ${fullContainerId}`,
+    );
 
-  // Upload to S3 using multipart upload
-  const upload = new Upload({
-    client: s3Client,
-    params: {
+    const runsc = spawn("sudo", [
+      "/usr/local/bin/runsc",
+      "--root=/run/docker/runtime-runc/moby",
+      "tar",
+      "rootfs-upper",
+      "--file",
+      outputPath,
+      fullContainerId,
+    ]);
+
+    let stderr = "";
+
+    runsc.stderr?.on("data", (data) => {
+      stderr += data.toString();
+      console.log(`[SnapshotCreate] ${data.toString().trim()}`);
+    });
+
+    runsc.stdout?.on("data", (data) => {
+      console.log(`[SnapshotCreate] ${data.toString().trim()}`);
+    });
+
+    runsc.on("error", (error) => {
+      reject(new Error(`Failed to spawn runsc: ${error.message}`));
+    });
+
+    runsc.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        reject(
+          new Error(
+            `runsc tar rootfs-upper exited with code ${code}: ${stderr}`,
+          ),
+        );
+      }
+    });
+  });
+};
+
+const createSnapshotS3 = async (config: Config): Promise<void> => {
+  console.log(
+    `[SnapshotCreate] Creating S3 snapshot for container ${config.containerId}`,
+  );
+
+  // Create temporary file for uncompressed tar
+  const tempTarPath = `/tmp/snapshot-${config.snapshotId}.tar`;
+  const tempGzPath = `/tmp/snapshot-${config.snapshotId}.tar.gz`;
+
+  try {
+    // Step 1: Create snapshot using runsc
+    await createRunscSnapshot(config.containerId, tempTarPath);
+
+    // Step 2: Compress the tar file
+    console.log(`[SnapshotCreate] Compressing snapshot...`);
+    await pipeline(
+      createReadStream(tempTarPath),
+      createGzip({ level: 6 }),
+      createWriteStream(tempGzPath),
+    );
+
+    // Get file size
+    const stats = await stat(tempGzPath);
+    const sizeBytes = stats.size;
+
+    console.log(
+      `[SnapshotCreate] Compressed snapshot: ${(sizeBytes / 1024 / 1024).toFixed(2)} MB`,
+    );
+
+    // Step 3: Upload to S3
+    const s3Client = new S3Client({
+      endpoint: config.s3Endpoint,
+      region: config.s3Region || "us-east-1",
+      credentials: {
+        accessKeyId: config.s3AccessKey || "",
+        secretAccessKey: config.s3SecretKey || "",
+      },
+      forcePathStyle: !!config.s3Endpoint,
+    });
+
+    const bucket = config.s3Bucket || "pinacle-snapshots";
+    const key = `${config.snapshotId}.tar.gz`;
+
+    const command = new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: gzip,
+      Body: createReadStream(tempGzPath),
       ContentType: "application/gzip",
       Metadata: {
         snapshotId: config.snapshotId,
         containerId: config.containerId,
         createdAt: new Date().toISOString(),
       },
-    },
-  });
+    });
 
-  let uploadedBytes = 0;
-  upload.on("httpUploadProgress", (progress: { loaded?: number }) => {
-    if (progress.loaded) {
-      uploadedBytes = progress.loaded;
-      console.log(`[SnapshotCreate] Uploaded ${(uploadedBytes / 1024 / 1024).toFixed(2)} MB`);
-    }
-  });
+    await s3Client.send(command);
 
-  await upload.done();
+    console.log(
+      `[SnapshotCreate] Successfully uploaded snapshot to s3://${bucket}/${key}`,
+    );
 
-  console.log(`[SnapshotCreate] Successfully uploaded snapshot to s3://${bucket}/${key}`);
-  console.log(JSON.stringify({
-    success: true,
-    storagePath: key,
-    sizeBytes: uploadedBytes,
-  }));
+    // Output JSON result
+    console.log(
+      JSON.stringify({
+        success: true,
+        storagePath: key,
+        sizeBytes,
+      }),
+    );
+  } finally {
+    // Clean up temp files
+    try {
+      await unlink(tempTarPath);
+    } catch {}
+    try {
+      await unlink(tempGzPath);
+    } catch {}
+  }
 };
 
 const createSnapshotFilesystem = async (config: Config): Promise<void> => {
-  console.log(`[SnapshotCreate] Creating filesystem snapshot for container ${config.containerId}`);
+  console.log(
+    `[SnapshotCreate] Creating filesystem snapshot for container ${config.containerId}`,
+  );
 
   const storagePath = config.storagePath || "/var/lib/pinacle/snapshots";
-  const filePath = `${storagePath}/${config.snapshotId}.tar.gz`;
+  const snapshotFileName = `${config.snapshotId}.tar`;
+  const finalPath = join(storagePath, snapshotFileName);
 
-  // Ensure directory exists
-  await mkdir(dirname(filePath), { recursive: true });
+  // Ensure storage directory exists
+  await mkdir(storagePath, { recursive: true });
 
-  // Spawn docker export
-  const dockerExport = spawn("docker", ["export", config.containerId]);
+  // Create snapshot directly to final location
+  await createRunscSnapshot(config.containerId, finalPath);
 
-  if (!dockerExport.stdout) {
-    throw new Error("Failed to get docker export stdout");
-  }
+  // Get file size
+  const stats = await stat(finalPath);
+  const sizeBytes = stats.size;
 
-  // Pipe through gzip to file
-  const gzip = createGzip({ level: 6 });
-  const fileStream = createWriteStream(filePath);
+  console.log(
+    `[SnapshotCreate] Snapshot saved: ${(sizeBytes / 1024 / 1024).toFixed(2)} MB at ${finalPath}`,
+  );
 
-  dockerExport.stdout.pipe(gzip).pipe(fileStream);
-
-  // Track size
-  let sizeBytes = 0;
-  gzip.on("data", (chunk) => {
-    sizeBytes += chunk.length;
-  });
-
-  // Wait for completion
-  await new Promise<void>((resolve, reject) => {
-    fileStream.on("finish", resolve);
-    fileStream.on("error", reject);
-    dockerExport.on("error", reject);
-  });
-
-  console.log(`[SnapshotCreate] Successfully saved snapshot to ${filePath}`);
-  console.log(JSON.stringify({
-    success: true,
-    storagePath: filePath,
-    sizeBytes,
-  }));
+  // Output JSON result
+  console.log(
+    JSON.stringify({
+      success: true,
+      storagePath: finalPath,
+      sizeBytes,
+    }),
+  );
 };
 
 const main = async () => {
-  try {
-    const config = parseArgs();
+  const config = parseArgs();
 
+  try {
     if (config.storageType === "s3") {
       await createSnapshotS3(config);
     } else {
       await createSnapshotFilesystem(config);
     }
-
-    process.exit(0);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[SnapshotCreate] Error: ${message}`);
-    console.log(JSON.stringify({
-      success: false,
-      error: message,
-    }));
+    console.log(
+      JSON.stringify({
+        success: false,
+        error: message,
+      }),
+    );
     process.exit(1);
   }
 };
 
 main();
-

@@ -3,6 +3,50 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
 export const githubRouter = createTRPCRouter({
+  checkTokenValidity: protectedProcedure.query(async ({ ctx }) => {
+    const user = ctx.session.user as any;
+    const accessToken = user.githubAccessToken;
+
+    if (!accessToken) {
+      return {
+        valid: false,
+        error: "GitHub access token not found. Please sign in with GitHub.",
+      };
+    }
+
+    try {
+      const octokit = new Octokit({
+        auth: accessToken,
+      });
+
+      // Make a simple API call to check if the token is valid
+      await octokit.request("GET /user");
+
+      return { valid: true };
+    } catch (error) {
+      console.error("GitHub token validation error:", error);
+
+      const status =
+        typeof error === "object" && error !== null && "status" in error
+          ? (error as Record<string, unknown>).status
+          : undefined;
+
+      if (status === 401) {
+        return {
+          valid: false,
+          error:
+            "GITHUB_AUTH_EXPIRED: Your GitHub authentication has expired. Please sign out and sign in again to reconnect your GitHub account.",
+        };
+      }
+
+      // For other errors, we can't determine validity
+      return {
+        valid: false,
+        error: "Failed to validate GitHub token. Please try again later.",
+      };
+    }
+  }),
+
   getRepositories: protectedProcedure.query(async ({ ctx }) => {
     const user = ctx.session.user as any;
     const accessToken = user.githubAccessToken;
@@ -26,6 +70,18 @@ export const githubRouter = createTRPCRouter({
       return repositories;
     } catch (error) {
       console.error("GitHub API error:", error);
+
+      const status =
+        typeof error === "object" && error !== null && "status" in error
+          ? (error as Record<string, unknown>).status
+          : undefined;
+
+      if (status === 401) {
+        throw new Error(
+          "GITHUB_AUTH_EXPIRED: Your GitHub authentication has expired. Please sign out and sign in again to reconnect your GitHub account.",
+        );
+      }
+
       throw new Error("Failed to fetch repositories from GitHub");
     }
   }),

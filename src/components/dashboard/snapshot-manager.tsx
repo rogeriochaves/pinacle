@@ -54,12 +54,13 @@ export const SnapshotManager = ({
       { podId },
       {
         enabled: open,
+        refetchOnMount: true,
         refetchInterval: (query) => {
           // Refetch if any snapshot is in creating/restoring state
           const hasActiveSnapshot = query.state.data?.some(
             (s) => s.status === "creating" || s.status === "restoring",
           );
-          return hasActiveSnapshot ? 2000 : false;
+          return hasActiveSnapshot ? 2000 : 5000;
         },
       },
     );

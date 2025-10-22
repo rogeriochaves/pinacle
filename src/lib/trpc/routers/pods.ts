@@ -247,6 +247,12 @@ export const podsRouter = createTRPCRouter({
           const message =
             error instanceof Error ? error.message : String(error);
 
+          if (status === 401) {
+            throw new Error(
+              "GITHUB_AUTH_EXPIRED: Your GitHub authentication has expired. Please sign out and sign in again to reconnect your GitHub account.",
+            );
+          }
+
           if (status === 403) {
             throw new Error(
               `Cannot create repository. The GitHub App needs 'Contents' and 'Administration' permissions. ` +
@@ -380,6 +386,17 @@ export const podsRouter = createTRPCRouter({
               console.error(
                 `[pods.create] Failed to set up GitHub repository: ${errorMessage}`,
               );
+
+              // Store the error message in the database so UI can display it
+              await ctx.db
+                .update(pods)
+                .set({
+                  lastErrorMessage: errorMessage,
+                  status: "error",
+                  updatedAt: new Date(),
+                })
+                .where(eq(pods.id, pod.id));
+
               throw new Error(
                 `Failed to set up GitHub repository: ${errorMessage}`,
               );
@@ -415,15 +432,35 @@ export const podsRouter = createTRPCRouter({
             errorMessage,
           );
 
-          // Update pod status to error
+          // Update pod status to error (only if not already set by GitHub error handler)
           try {
-            await ctx.db
-              .update(pods)
-              .set({
-                status: "error",
-                updatedAt: new Date(),
-              })
-              .where(eq(pods.id, pod.id));
+            // Check current pod state first
+            const currentPod = await ctx.db
+              .select()
+              .from(pods)
+              .where(eq(pods.id, pod.id))
+              .limit(1);
+
+            // Only update if there's no error message already (to preserve more specific errors)
+            if (currentPod[0] && !currentPod[0].lastErrorMessage) {
+              await ctx.db
+                .update(pods)
+                .set({
+                  status: "error",
+                  lastErrorMessage: errorMessage,
+                  updatedAt: new Date(),
+                })
+                .where(eq(pods.id, pod.id));
+            } else if (currentPod[0] && currentPod[0].status !== "error") {
+              // If there's already an error message, just update status
+              await ctx.db
+                .update(pods)
+                .set({
+                  status: "error",
+                  updatedAt: new Date(),
+                })
+                .where(eq(pods.id, pod.id));
+            }
           } catch (updateError) {
             console.error(
               `[pods.create] Failed to update pod status to error:`,
@@ -459,6 +496,7 @@ export const podsRouter = createTRPCRouter({
           config: pods.config,
           monthlyPrice: pods.monthlyPrice,
           publicUrl: pods.publicUrl,
+          lastErrorMessage: pods.lastErrorMessage,
           createdAt: pods.createdAt,
           lastStartedAt: pods.lastStartedAt,
           lastHeartbeatAt: pods.lastHeartbeatAt,
@@ -480,15 +518,26 @@ export const podsRouter = createTRPCRouter({
       // This is done in-memory rather than updating the DB to avoid race conditions
       const now = Date.now();
       const HEARTBEAT_TIMEOUT_MS = 60 * 1000; // 60 seconds
+      const STARTUP_GRACE_PERIOD_MS = 120 * 1000; // 2 minutes grace period for newly started pods
 
       const podsWithComputedStatus = userPods.map((pod) => {
         // If pod status is running but hasn't sent heartbeat in 60 seconds, mark as stopped
-        if (
-          pod.status === "running" &&
-          pod.lastHeartbeatAt &&
-          now - pod.lastHeartbeatAt.getTime() > HEARTBEAT_TIMEOUT_MS
-        ) {
-          return { ...pod, status: "stopped" as const };
+        // UNLESS it was recently started (give it time to send first heartbeat)
+        if (pod.status === "running" && pod.lastHeartbeatAt) {
+          const timeSinceHeartbeat = now - pod.lastHeartbeatAt.getTime();
+          const timeSinceStart = pod.lastStartedAt
+            ? now - pod.lastStartedAt.getTime()
+            : Number.POSITIVE_INFINITY;
+
+          // Only mark as stopped if:
+          // 1. No heartbeat for 60s AND
+          // 2. Not recently started (outside grace period)
+          if (
+            timeSinceHeartbeat > HEARTBEAT_TIMEOUT_MS &&
+            timeSinceStart > STARTUP_GRACE_PERIOD_MS
+          ) {
+            return { ...pod, status: "stopped" as const };
+          }
         }
         return pod;
       });
@@ -543,10 +592,6 @@ export const podsRouter = createTRPCRouter({
         throw new Error("Pod is not assigned to a server");
       }
 
-      if (!pod.containerId) {
-        throw new Error("Pod has no container - may need to be recreated");
-      }
-
       const serverId = pod.serverId; // Store for async closure
 
       // Update status to starting
@@ -570,118 +615,48 @@ export const podsRouter = createTRPCRouter({
           const serverConnection =
             await provisioningService["getServerConnectionDetails"](serverId);
 
-          const { PodManager } = await import(
-            "../../pod-orchestration/pod-manager"
-          );
-          const podManager = new PodManager(input.id, serverConnection);
-
-          // Check if container exists
-          let container = await podManager.getPodContainer();
-
-          if (!container || !pod.containerId) {
+          // Recreate if pod has no containerId in DB
+          // This means either:
+          // 1. Pod was never started, OR
+          // 2. Previous start failed before completing snapshot restore
+          // If containerId exists in DB, the pod was fully set up and we just start it
+          if (!pod.containerId) {
             console.log(
-              `[pods.start] No container found for ${input.id}, checking for snapshots...`,
+              `[pods.start] No containerId in DB for ${input.id}, need to recreate and restore snapshot...`,
             );
 
-            // Container doesn't exist - check for latest snapshot to restore
-            const { SnapshotService } = await import(
-              "../../snapshots/snapshot-service"
-            );
-            const snapshotService = new SnapshotService();
-            const latestSnapshotId = await snapshotService.getLatestSnapshot(input.id);
-
-            if (!latestSnapshotId) {
-              throw new Error(
-                `Pod ${input.id} has no container and no snapshots to restore from. Please recreate the pod.`,
-              );
-            }
-
-            console.log(
-              `[pods.start] Found latest snapshot ${latestSnapshotId}, restoring...`,
+            // Use shared helper to recreate pod with snapshot
+            const { recreatePodWithSnapshot } = await import(
+              "../helpers/pod-recreate-helper"
             );
 
-            const { GVisorRuntime } = await import(
-              "../../pod-orchestration/container-runtime"
-            );
-            const runtime = new GVisorRuntime(serverConnection);
-
-            // Remove any stale container first
-            if (container) {
-              console.log(`[pods.start] Removing stale container ${container.id}`);
-              await runtime.removeContainer(container.id);
-            }
-
-            // Restore the snapshot (creates new Docker image from snapshot)
-            const restoredImageName = await snapshotService.restoreSnapshot({
-              snapshotId: latestSnapshotId,
-              podId: input.id,
+            const result = await recreatePodWithSnapshot({
+              pod,
               serverConnection,
+              snapshotId: null, // null = use latest snapshot
+              db: ctx.db,
             });
 
-            console.log(
-              `[pods.start] Snapshot restored to image: ${restoredImageName}`,
-            );
-
-            // Create new container from restored image
-            console.log(
-              `[pods.start] Creating container from restored image ${restoredImageName}`,
-            );
-
-            // Parse the pod's existing config to get the full spec
-            const {
-              podRecordToPinacleConfig,
-              expandPinacleConfigToSpec,
-            } = await import("../../pod-orchestration/pinacle-config");
-
-            const pinacleConfig = podRecordToPinacleConfig({
-              config: pod.config,
-              name: pod.name,
-            });
-
-            // Load environment variables from env set if attached
-            let environment: Record<string, string> = {};
-            if (pod.envSetId) {
-              const [envSet] = await ctx.db
-                .select()
-                .from(envSets)
-                .where(eq(envSets.id, pod.envSetId))
-                .limit(1);
-
-              if (envSet) {
-                environment = JSON.parse(envSet.variables);
-              }
-            }
-
-            const podSpec = await expandPinacleConfigToSpec(pinacleConfig, {
-              id: pod.id,
-              name: pod.name,
-              slug: pod.slug,
-              description: pod.description || undefined,
-              environment,
-            });
-
-            // Override the image with our restored image
-            podSpec.baseImage = restoredImageName;
-
-            const newContainer = await runtime.createContainer(podSpec);
-
-            // Update DB with new container ID
+            // Only save containerId and ports to DB after successful restore
+            // This way, if restore fails, we'll recreate on next start attempt
             await ctx.db
               .update(pods)
               .set({
-                containerId: newContainer.id,
+                containerId: result.containerId,
+                ports: result.ports, // Update ports for proxy routing
                 updatedAt: new Date(),
               })
               .where(eq(pods.id, input.id));
 
             console.log(
-              `[pods.start] Created new container ${newContainer.id} from snapshot`,
+              `[pods.start] Successfully set up container ${result.containerId} for pod ${input.id}`,
             );
-
-            // Start the new container
-            await runtime.startContainer(newContainer.id);
           } else {
             // Container exists, just start it
+            const { PodManager } = await import(
+              "../../pod-orchestration/pod-manager"
+            );
+            const podManager = new PodManager(input.id, serverConnection);
             await podManager.startPod();
           }
 
@@ -741,8 +716,16 @@ export const podsRouter = createTRPCRouter({
         throw new Error("Pod is not assigned to a server");
       }
 
+      // If pod has no container, it's already stopped - just update status
       if (!pod.containerId) {
-        throw new Error("Pod has no container - may need to be recreated");
+        await ctx.db
+          .update(pods)
+          .set({
+            status: "stopped",
+            updatedAt: new Date(),
+          })
+          .where(eq(pods.id, input.id));
+        return { success: true };
       }
 
       const serverId = pod.serverId; // Store for async closure
@@ -769,9 +752,12 @@ export const podsRouter = createTRPCRouter({
             await provisioningService["getServerConnectionDetails"](serverId);
 
           // Create auto-snapshot before stopping (capture running state)
+          // This is critical - without a snapshot, the user will lose all their data
           if (pod.containerId && pod.status === "running") {
             try {
-              console.log(`[pods.stop] Creating auto-snapshot for pod ${input.id}`);
+              console.log(
+                `[pods.stop] Creating auto-snapshot for pod ${input.id}`,
+              );
               const { SnapshotService } = await import(
                 "../../snapshots/snapshot-service"
               );
@@ -786,13 +772,31 @@ export const podsRouter = createTRPCRouter({
                 description: "Auto-created on pod stop",
                 isAuto: true,
               });
-              console.log(`[pods.stop] Auto-snapshot created for pod ${input.id}`);
+              console.log(
+                `[pods.stop] Auto-snapshot created for pod ${input.id}`,
+              );
             } catch (snapshotError) {
-              // Log but don't fail the stop operation if snapshot fails
-              console.warn(
-                `[pods.stop] Failed to create auto-snapshot for pod ${input.id}:`,
+              const errorMessage =
+                snapshotError instanceof Error
+                  ? snapshotError.message
+                  : String(snapshotError);
+              console.error(
+                `[pods.stop] Failed to create snapshot for pod ${input.id}:`,
                 snapshotError,
               );
+
+              // Revert pod status back to running since we didn't actually stop the container
+              await ctx.db
+                .update(pods)
+                .set({
+                  status: "running",
+                  lastErrorMessage: `Snapshot creation failed: ${errorMessage}`,
+                  updatedAt: new Date(),
+                })
+                .where(eq(pods.id, input.id));
+
+              // Don't continue with stopping - the container is still running
+              throw snapshotError;
             }
           }
 
@@ -807,7 +811,9 @@ export const podsRouter = createTRPCRouter({
           // Remove the stopped container so we can restore from snapshot on next start
           const container = await podManager.getPodContainer();
           if (container) {
-            console.log(`[pods.stop] Removing stopped container ${container.id}`);
+            console.log(
+              `[pods.stop] Removing stopped container ${container.id}`,
+            );
             const { GVisorRuntime } = await import(
               "../../pod-orchestration/container-runtime"
             );
@@ -826,20 +832,35 @@ export const podsRouter = createTRPCRouter({
             })
             .where(eq(pods.id, input.id));
 
-          console.log(`[pods.stop] Successfully stopped and removed container for pod ${input.id}`);
+          console.log(
+            `[pods.stop] Successfully stopped and removed container for pod ${input.id}`,
+          );
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           console.error(`[pods.stop] Failed to stop pod ${input.id}:`, error);
 
-          await ctx.db
-            .update(pods)
-            .set({
-              status: "error",
-              lastErrorMessage: errorMessage,
-              updatedAt: new Date(),
-            })
-            .where(eq(pods.id, input.id));
+          // Only set to error if it's not a snapshot error (those are handled above)
+          // Check if the error came from the snapshot creation by checking the current pod status
+          const [currentPod] = await ctx.db
+            .select()
+            .from(pods)
+            .where(eq(pods.id, input.id))
+            .limit(1);
+
+          if (currentPod && currentPod.status !== "running") {
+            // If status is not "running", it means we got past the snapshot step
+            // and failed during the actual stop/remove, so set to error
+            await ctx.db
+              .update(pods)
+              .set({
+                status: "error",
+                lastErrorMessage: errorMessage,
+                updatedAt: new Date(),
+              })
+              .where(eq(pods.id, input.id));
+          }
+          // If status is "running", we already handled the snapshot error above
         }
       })();
 
@@ -924,7 +945,9 @@ export const podsRouter = createTRPCRouter({
 
           // Clean up all snapshots for this pod
           try {
-            console.log(`[pods.delete] Cleaning up snapshots for pod ${input.id}`);
+            console.log(
+              `[pods.delete] Cleaning up snapshots for pod ${input.id}`,
+            );
             const { SnapshotService } = await import(
               "../../snapshots/snapshot-service"
             );
@@ -937,12 +960,16 @@ export const podsRouter = createTRPCRouter({
 
             if (allSnapshots.length > 0 && pod.serverId) {
               const provisioningService = new PodProvisioningService();
-              const serverConnection =
-                await provisioningService["getServerConnectionDetails"](pod.serverId);
+              const serverConnection = await provisioningService[
+                "getServerConnectionDetails"
+              ](pod.serverId);
 
               for (const snapshot of allSnapshots) {
                 try {
-                  await snapshotService.deleteSnapshot(snapshot.id, serverConnection);
+                  await snapshotService.deleteSnapshot(
+                    snapshot.id,
+                    serverConnection,
+                  );
                   console.log(
                     `[pods.delete] Deleted snapshot ${snapshot.id} (${snapshot.name})`,
                   );
@@ -1244,9 +1271,11 @@ export const podsRouter = createTRPCRouter({
           let githubRepoSetup: GitHubRepoSetup | undefined;
           if (pod.githubRepo) {
             try {
-              const { setupGitHubRepoForPod, getOctokitForRepo, removeDeployKeyFromRepo } = await import(
-                "../../github-helpers"
-              );
+              const {
+                setupGitHubRepoForPod,
+                getOctokitForRepo,
+                removeDeployKeyFromRepo,
+              } = await import("../../github-helpers");
 
               // Remove old deploy key if it exists
               if (pod.githubDeployKeyId) {

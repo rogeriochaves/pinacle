@@ -18,6 +18,37 @@ import type { SSHKeyPair } from "./pod-orchestration/github-integration";
 const execAsync = promisify(exec);
 
 /**
+ * Check if a GitHub access token is valid by making a simple API call
+ * Returns true if valid, false if expired/invalid
+ */
+export const checkGitHubTokenValidity = async (
+  token: string,
+): Promise<{ valid: boolean; error?: string }> => {
+  try {
+    const octokit = new Octokit({ auth: token });
+    await octokit.request("GET /user");
+    return { valid: true };
+  } catch (error: unknown) {
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? (error as Record<string, unknown>).status
+        : undefined;
+
+    if (status === 401) {
+      return {
+        valid: false,
+        error:
+          "GITHUB_AUTH_EXPIRED: Your GitHub authentication has expired. Please sign out and sign in again to reconnect your GitHub account.",
+      };
+    }
+
+    // For other errors, assume the token might still be valid
+    // (could be network issues, rate limiting, etc.)
+    return { valid: true };
+  }
+};
+
+/**
  * Generate an SSH key pair for a pod
  * Uses ED25519 algorithm which is more secure and shorter than RSA
  */
@@ -122,19 +153,36 @@ export const addDeployKeyToRepo = async (
 
   console.log(`[GitHubHelpers] Adding deploy key to ${repository}`);
 
-  const response = await octokit.request("POST /repos/{owner}/{repo}/keys", {
-    owner,
-    repo,
-    title,
-    key: publicKey,
-    read_only: readOnly,
-  });
+  try {
+    const response = await octokit.request("POST /repos/{owner}/{repo}/keys", {
+      owner,
+      repo,
+      title,
+      key: publicKey,
+      read_only: readOnly,
+    });
 
-  console.log(
-    `[GitHubHelpers] Added deploy key ${response.data.id} to ${repository}`,
-  );
+    console.log(
+      `[GitHubHelpers] Added deploy key ${response.data.id} to ${repository}`,
+    );
 
-  return response.data.id;
+    return response.data.id;
+  } catch (error: unknown) {
+    // Check if this is a GitHub API error with status
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? (error as Record<string, unknown>).status
+        : undefined;
+
+    // Handle 401 errors specifically - this indicates expired or invalid credentials
+    if (status === 401) {
+      throw new Error(
+        "GITHUB_AUTH_EXPIRED: Your GitHub authentication has expired. Please sign out and sign in again to reconnect your GitHub account.",
+      );
+    }
+
+    throw error;
+  }
 };
 
 /**
