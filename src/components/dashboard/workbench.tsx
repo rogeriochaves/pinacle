@@ -17,14 +17,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
-import {
-  getServiceTemplateUnsafe,
-  type ServiceId,
-} from "../../lib/pod-orchestration/service-registry";
+import { getServiceTemplateUnsafe } from "../../lib/pod-orchestration/service-registry";
 import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
 import {
@@ -34,6 +37,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { TerminalTabs } from "./terminal-tabs";
 
 type TabConfig = {
   id: string;
@@ -53,6 +57,7 @@ type WorkbenchProps = {
     slug: string;
     status: string;
     config: string; // JSON string of PinacleConfig
+    uiState?: string | null; // JSON string of UI state
     publicUrl?: string | null;
     lastErrorMessage?: string | null;
     alwaysReload?: boolean;
@@ -234,7 +239,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   }, [pod.status, utils.pods.getUserPods]);
 
   const getTabUrl = useCallback(
-    (tabId: string): string => {
+    (tabId: string, terminalSession?: string): string => {
       const tabConfig = tabs.find((t) => t.id === tabId);
       if (!tabConfig) return "";
 
@@ -245,11 +250,17 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       // 4. Subdomain validates token, sets scoped cookie
       // 5. Proxies to pod
 
-      const returnUrl = tabConfig.returnUrl
-        ? `&return_url=${encodeURIComponent(tabConfig.returnUrl)}`
+      // For terminal, use the active session (passed from TerminalTabs component)
+      let returnUrl = tabConfig.returnUrl || "";
+      if (tabId === "web-terminal" && terminalSession) {
+        returnUrl = `/?arg=${terminalSession}`;
+      }
+
+      const returnUrlParam = returnUrl
+        ? `&return_url=${encodeURIComponent(returnUrl)}`
         : "";
 
-      return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrl}`;
+      return `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${tabConfig.port}${returnUrlParam}`;
     },
     [pod.slug, tabs],
   );
@@ -274,20 +285,20 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col bg-neutral-900">
       {/* Top Bar - Minimal */}
-      <div className="bg-black border-b border-slate-800 flex items-center px-4 h-12 shrink-0">
+      <div className="bg-neutral-900 border-b border-neutral-700 flex items-center px-4 h-12 shrink-0">
         {/* Pod Selector */}
         <button
           type="button"
           onClick={onPodSwitch}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors group"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors group"
         >
           <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
           <span className="font-mono text-sm text-white font-medium">
             {pod.name}
           </span>
-          <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+          <ChevronDown className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
         </button>
 
         {/* Tabs */}
@@ -325,8 +336,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
                   ${
                     isActive
-                      ? "bg-slate-800 text-white shadow-lg ring-1 ring-slate-700"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                      ? "bg-neutral-800 text-white shadow-lg ring-1 ring-neutral-700"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
                   }
                 `}
                 title={
@@ -336,7 +347,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                 <Icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
                 {tab.shortcut && (
-                  <kbd className="hidden lg:inline text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">
+                  <kbd className="hidden lg:inline text-[10px] bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-300">
                     ⌘{tab.shortcut}
                   </kbd>
                 )}
@@ -350,9 +361,9 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
             >
-              <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center">
                 <span className="text-white font-mono text-xs font-bold">
                   {session?.user?.name?.charAt(0).toUpperCase() || "U"}
                 </span>
@@ -362,10 +373,10 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-2 py-1.5">
-              <p className="text-sm font-mono font-bold text-slate-900">
+              <p className="text-sm font-mono font-bold text-neutral-900">
                 {session?.user?.name}
               </p>
-              <p className="text-xs text-slate-600">{session?.user?.email}</p>
+              <p className="text-xs text-neutral-600">{session?.user?.email}</p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
@@ -483,32 +494,57 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             </div>
           </div>
         ) : (
-          tabs
-            .filter((tab) => !tab.alwaysReload || activeTab === tab.id)
-            .map((tab) => (
-              <iframe
-                key={tab.id}
-                id={`js-iframe-tab-${tab.id}`}
-                src={getTabUrl(tab.id)}
-                className="w-full h-full border-0"
-                title={tab.label}
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
-                style={
-                  tab.keepRendered
-                    ? activeTab === tab.id
-                      ? { visibility: "visible", position: "static" }
-                      : {
-                          visibility: "hidden",
-                          position: "absolute",
-                          top: 0,
-                          zIndex: -1,
-                        }
-                    : activeTab === tab.id
-                      ? { display: "block" }
-                      : { display: "none" }
-                }
-              />
-            ))
+          tabs.map((tab) => {
+            const isTerminal = tab.id === "web-terminal";
+            const isActive = activeTab === tab.id;
+
+            return (
+              <React.Fragment key={tab.id}>
+                {/* Terminal with sub-tabs */}
+                {isTerminal ? (
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={
+                      isActive
+                        ? { visibility: "visible", position: "static" }
+                        : {
+                            visibility: "hidden",
+                            position: "absolute",
+                            top: 0,
+                            zIndex: -1,
+                          }
+                    }
+                  >
+                    <TerminalTabs pod={pod} getTabUrl={getTabUrl} />
+                  </div>
+                ) : (
+                  /* Regular iframe for non-terminal tabs */
+                  <iframe
+                    key={tab.id}
+                    id={`js-iframe-tab-${tab.id}`}
+                    src={getTabUrl(tab.id)}
+                    className="w-full h-full border-0"
+                    title={tab.label}
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                    style={
+                      tab.keepRendered
+                        ? isActive
+                          ? { visibility: "visible", position: "static" }
+                          : {
+                              visibility: "hidden",
+                              position: "absolute",
+                              top: 0,
+                              zIndex: -1,
+                            }
+                        : activeTab === tab.id
+                          ? { display: "block" }
+                          : { display: "none" }
+                    }
+                  />
+                )}
+              </React.Fragment>
+            );
+          })
         )}
       </div>
     </div>

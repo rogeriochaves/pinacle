@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateKSUID } from "../../utils";
+import { getLimaServerConnection } from "../lima-utils";
 import { NetworkManager } from "../network-manager";
 import { PodManager } from "../pod-manager";
 import { ProcessProvisioner } from "../process-provisioner";
 import type { PodSpec, ProcessConfig } from "../types";
-import { getServerConnection } from "./test-helpers";
 
 describe("ProcessProvisioner Integration Tests", () => {
   let testPodId: string;
@@ -13,8 +13,8 @@ describe("ProcessProvisioner Integration Tests", () => {
   let processProvisioner: ProcessProvisioner;
 
   beforeAll(async () => {
-    testPodId = generateKSUID();
-    const serverConnection = await getServerConnection();
+    testPodId = generateKSUID("pod");
+    const serverConnection = await getLimaServerConnection();
     podManager = new PodManager(testPodId, serverConnection);
     networkManager = new NetworkManager(serverConnection);
     processProvisioner = new ProcessProvisioner(testPodId, serverConnection);

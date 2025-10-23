@@ -94,7 +94,7 @@ export const ConfigureForm = ({
       const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
       setCustomServices((prev) => {
         const withoutCodingAssistant = prev.filter(
-          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service)
+          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service),
         );
         return [selectedCodingAssistant, ...withoutCodingAssistant];
       });
@@ -156,7 +156,7 @@ export const ConfigureForm = ({
         const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
         // Remove any coding assistants from template services
         newServices = newServices.filter(
-          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service)
+          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service),
         );
         // Add the selected coding assistant at the beginning
         newServices = [selectedCodingAssistant, ...newServices];
@@ -307,11 +307,114 @@ export const ConfigureForm = ({
                 onTemplateChange={(templateId) => {
                   form.setValue("bundle", templateId);
                   form.clearErrors("bundle");
+
+                  // Pre-fill process config based on template
+                  const template = getTemplateUnsafe(templateId);
+                  if (template && setupType === "repository") {
+                    // Convert installCommand to string
+                    const installCmd = template.installCommand
+                      ? typeof template.installCommand === "string"
+                        ? template.installCommand
+                        : template.installCommand.join(" && ")
+                      : "";
+                    form.setValue("processInstallCommand", installCmd);
+
+                    if (template.defaultProcesses?.[0]) {
+                      const process = template.defaultProcesses[0];
+                      form.setValue(
+                        "processStartCommand",
+                        typeof process.startCommand === "string"
+                          ? process.startCommand
+                          : process.startCommand.join(" && "),
+                      );
+                      if (process.url) {
+                        form.setValue("processAppUrl", process.url);
+                      }
+                    }
+                  }
                 }}
                 compact={true}
                 showOnlyBlank={setupType === "repository"}
               />
             </div>
+
+            {/* Process Configuration (for existing repos) */}
+            {setupType === "repository" && selectedTemplate && (
+              <div className="bg-white p-6 rounded-lg border border-slate-200">
+                <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+                  APPLICATION CONFIGURATION
+                </Label>
+                <p className="text-xs font-mono text-slate-500 mb-4">
+                  Configure how to install and run your application
+                </p>
+
+                <div className="space-y-4">
+                  {/* Install Command */}
+                  <div>
+                    <Label
+                      htmlFor="processInstallCommand"
+                      className="text-xs font-mono text-slate-700 mb-2 block"
+                    >
+                      Install Command (optional)
+                    </Label>
+                    <input
+                      id="processInstallCommand"
+                      type="text"
+                      placeholder="e.g., pnpm install or uv sync"
+                      value={form.watch("processInstallCommand") || ""}
+                      onChange={(e) =>
+                        form.setValue("processInstallCommand", e.target.value)
+                      }
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Start Command */}
+                  <div>
+                    <Label
+                      htmlFor="processStartCommand"
+                      className="text-xs font-mono text-slate-700 mb-2 block"
+                    >
+                      Start Command (optional)
+                    </Label>
+                    <input
+                      id="processStartCommand"
+                      type="text"
+                      placeholder="e.g., pnpm dev or uv run fastapi dev"
+                      value={form.watch("processStartCommand") || ""}
+                      onChange={(e) =>
+                        form.setValue("processStartCommand", e.target.value)
+                      }
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* App URL */}
+                  <div>
+                    <Label
+                      htmlFor="processAppUrl"
+                      className="text-xs font-mono text-slate-700 mb-2 block"
+                    >
+                      Application URL (optional)
+                    </Label>
+                    <input
+                      id="processAppUrl"
+                      type="text"
+                      placeholder="e.g., http://localhost:3000"
+                      value={form.watch("processAppUrl") || ""}
+                      onChange={(e) =>
+                        form.setValue("processAppUrl", e.target.value)
+                      }
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <p className="text-xs font-mono text-slate-500 mt-1">
+                      If provided, a browser tab will be created to preview your
+                      app
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Resource Tier Selection */}
             <div>

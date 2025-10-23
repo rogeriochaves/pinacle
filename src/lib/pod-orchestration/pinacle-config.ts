@@ -159,6 +159,11 @@ export const generatePinacleConfigFromForm = (formData: {
   customServices?: ServiceId[];
   tabs?: Array<{ name: string; url: string }>;
   slug?: string;
+  processConfig?: {
+    installCommand?: string;
+    startCommand?: string;
+    appUrl?: string;
+  };
 }): PinacleConfig => {
   // Use customServices if provided, otherwise fall back to defaults
   const services =
@@ -170,12 +175,41 @@ export const generatePinacleConfigFromForm = (formData: {
   const tabs =
     formData.tabs || generateDefaultTabs(services, formData.slug || "pod");
 
+  // Build processes array from processConfig (for existing repos)
+  const processes: Array<{
+    name: string;
+    displayName?: string;
+    startCommand: string | string[];
+    url?: string;
+    healthCheck?: string | string[];
+  }> = [];
+
+  if (formData.processConfig?.startCommand) {
+    processes.push({
+      name: "app",
+      displayName: "Application",
+      startCommand: formData.processConfig.startCommand,
+      url: formData.processConfig.appUrl,
+    });
+  }
+
+  // If processes were added, add tabs for them
+  const processTab = processes.find((p) => p.url);
+  if (processTab?.url) {
+    tabs.push({
+      name: processTab.displayName || processTab.name,
+      url: processTab.url,
+    });
+  }
+
   return PinacleConfigSchema.parse({
     version: "1.0",
     template: formData.template,
     tier: formData.tier || "dev.small",
     services,
     tabs,
+    install: formData.processConfig?.installCommand,
+    processes,
   });
 };
 

@@ -63,6 +63,7 @@ describe("PinacleConfig Schema Validation", () => {
       template: "nextjs",
       tier: "dev.medium",
       services: ["openai-codex", "vibe-kanban", "code-server"],
+      processes: [],
     };
 
     const result = PinacleConfigSchema.safeParse(config);
@@ -79,6 +80,7 @@ describe("YAML Serialization", () => {
       version: "1.0",
       tier: "dev.small",
       services: ["claude-code"],
+      processes: [],
     };
 
     const yaml = serializePinacleConfig(config);
@@ -95,6 +97,7 @@ describe("YAML Serialization", () => {
       template: "nextjs",
       tier: "dev.medium",
       services: ["openai-codex", "vibe-kanban", "code-server"],
+      processes: [],
     };
 
     const yaml = serializePinacleConfig(config);
@@ -225,6 +228,7 @@ describe("Round-trip: Serialize -> Parse", () => {
       template: "vite",
       tier: "dev.xlarge",
       services: ["gemini-cli", "code-server"],
+      processes: [],
     };
 
     const yaml = serializePinacleConfig(original);
@@ -238,6 +242,7 @@ describe("Round-trip: Serialize -> Parse", () => {
       version: "1.0",
       tier: "dev.small",
       services: ["claude-code"],
+      processes: [],
     };
 
     const yaml = serializePinacleConfig(original);

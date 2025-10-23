@@ -33,7 +33,7 @@ export class PodProvisioningService {
    * Helper method to get server connection details
    * Abstracts away Lima VM detection and SSH port retrieval
    */
-  private async getServerConnectionDetails(
+  async getServerConnectionDetails(
     serverId: string,
   ): Promise<ServerConnection> {
     const [server] = await db

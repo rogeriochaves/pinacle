@@ -33,6 +33,9 @@ const SetupForm = () => {
       tier: undefined,
       agent: undefined,
       envVars: {},
+      processInstallCommand: "",
+      processStartCommand: "",
+      processAppUrl: "",
     },
   });
 
@@ -168,6 +171,18 @@ const SetupForm = () => {
       tier: tier, // Backend derives CPU/memory/storage from tier
       customServices: selectedTemplate.services, // Send services at root level
       envVars: data.envVars,
+      // Process configuration for existing repos
+      processConfig:
+        data.setupType === "repository" &&
+        (data.processInstallCommand ||
+          data.processStartCommand ||
+          data.processAppUrl)
+          ? {
+              installCommand: data.processInstallCommand,
+              startCommand: data.processStartCommand,
+              appUrl: data.processAppUrl,
+            }
+          : undefined,
     });
 
     // Redirect to provisioning page to watch progress
@@ -210,18 +225,20 @@ const SetupForm = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-white font-mono text-sm font-semibold">
+                  <p className="text-foreground font-mono text-sm font-semibold">
                     GitHub Authentication Expired
                   </p>
-                  <p className="text-orange-100 font-mono text-xs">
-                    Your GitHub credentials have expired. Please sign out and sign in again.
+                  <p className="text-muted-foreground font-mono text-xs">
+                    Your GitHub credentials have expired. Please sign out and
+                    sign in again.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = "/api/auth/signout?callbackUrl=/auth/signin";
+                  window.location.href =
+                    "/api/auth/signout?callbackUrl=/auth/signin";
                 }}
                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
               >

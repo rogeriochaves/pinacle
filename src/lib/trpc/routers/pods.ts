@@ -68,6 +68,15 @@ const createPodSchema = z.object({
   // Configuration
   config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object
   envVars: z.record(z.string(), z.string()).optional(), // environment variables
+
+  // Process configuration (for existing repos)
+  processConfig: z
+    .object({
+      installCommand: z.string().optional(),
+      startCommand: z.string().optional(),
+      appUrl: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const podsRouter = createTRPCRouter({
@@ -93,6 +102,7 @@ export const podsRouter = createTRPCRouter({
         tier,
         customServices,
         envVars,
+        processConfig,
       } = input;
       const userId = ctx.session.user.id;
 
@@ -292,6 +302,7 @@ export const podsRouter = createTRPCRouter({
         tier,
         customServices,
         slug,
+        processConfig,
       });
       const configJSON = pinacleConfigToJSON(pinacleConfig);
 
@@ -494,6 +505,7 @@ export const podsRouter = createTRPCRouter({
           description: pods.description,
           status: pods.status,
           config: pods.config,
+          uiState: pods.uiState,
           monthlyPrice: pods.monthlyPrice,
           publicUrl: pods.publicUrl,
           lastErrorMessage: pods.lastErrorMessage,
@@ -613,7 +625,7 @@ export const podsRouter = createTRPCRouter({
           );
           const provisioningService = new PodProvisioningService();
           const serverConnection =
-            await provisioningService["getServerConnectionDetails"](serverId);
+            await provisioningService.getServerConnectionDetails(serverId);
 
           // Recreate if pod has no containerId in DB
           // This means either:
@@ -749,7 +761,7 @@ export const podsRouter = createTRPCRouter({
           );
           const provisioningService = new PodProvisioningService();
           const serverConnection =
-            await provisioningService["getServerConnectionDetails"](serverId);
+            await provisioningService.getServerConnectionDetails(serverId);
 
           // Create auto-snapshot before stopping (capture running state)
           // This is critical - without a snapshot, the user will lose all their data
@@ -960,9 +972,10 @@ export const podsRouter = createTRPCRouter({
 
             if (allSnapshots.length > 0 && pod.serverId) {
               const provisioningService = new PodProvisioningService();
-              const serverConnection = await provisioningService[
-                "getServerConnectionDetails"
-              ](pod.serverId);
+              const serverConnection =
+                await provisioningService.getServerConnectionDetails(
+                  pod.serverId,
+                );
 
               for (const snapshot of allSnapshots) {
                 try {
@@ -1394,5 +1407,190 @@ export const podsRouter = createTRPCRouter({
       })();
 
       return { success: true, message: "Provisioning retry started" };
+    }),
+
+  // Update UI state for a pod (terminal sessions, preferences, etc)
+  updateUiState: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        uiState: z.record(z.string(), z.unknown()), // Generic JSON object for any UI state
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .where(eq(pods.id, input.podId))
+        .limit(1);
+
+      if (!pod) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found",
+        });
+      }
+
+      // Check team membership
+      const membership = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, pod.teamId),
+            eq(teamMembers.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Access denied",
+        });
+      }
+
+      // Update UI state
+      await ctx.db
+        .update(pods)
+        .set({
+          uiState: JSON.stringify(input.uiState),
+          updatedAt: new Date(),
+        })
+        .where(eq(pods.id, input.podId));
+
+      return { success: true };
+    }),
+
+  // Kill a tmux session in a pod
+  killTerminalSession: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        sessionId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .where(eq(pods.id, input.podId))
+        .limit(1);
+
+      if (!pod) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found",
+        });
+      }
+
+      // Check team membership
+      const membership = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, pod.teamId),
+            eq(teamMembers.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Access denied",
+        });
+      }
+
+      // Kill the tmux session in the container
+      try {
+        const { PodProvisioningService } = await import(
+          "../../pod-orchestration/pod-provisioning-service"
+        );
+
+        if (!pod.serverId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Pod has no server assigned",
+          });
+        }
+
+        const provisioningService = new PodProvisioningService();
+        const serverConnection =
+          await provisioningService.getServerConnectionDetails(pod.serverId);
+
+        const { GVisorRuntime } = await import(
+          "../../pod-orchestration/container-runtime"
+        );
+        const runtime = new GVisorRuntime(serverConnection);
+
+        // Get the active container
+        const container = await runtime.getActiveContainerForPodOrThrow(
+          input.podId,
+        );
+
+        // Kill all processes in the tmux session aggressively
+        // Strategy: Get all PIDs from tmux panes, then kill the entire process tree
+        try {
+          // Get all pane PIDs (the shell processes)
+          const { stdout: pidList } = await runtime.execInContainer(
+            input.podId,
+            container.id,
+            [
+              "sh",
+              "-c",
+              `tmux list-panes -t "${input.sessionId}" -F '#{pane_pid}' 2>/dev/null || true`,
+            ],
+          );
+
+          // For each PID, kill the entire process tree (children and descendants)
+          if (pidList.trim()) {
+            const pids = pidList.trim().split("\n");
+            for (const pid of pids) {
+              if (pid) {
+                // Kill all descendants first (SIGKILL for immediate termination)
+                await runtime.execInContainer(input.podId, container.id, [
+                  "sh",
+                  "-c",
+                  `pkill -9 -P ${pid} 2>/dev/null || true`,
+                ]);
+                // Then kill the parent process
+                await runtime.execInContainer(input.podId, container.id, [
+                  "sh",
+                  "-c",
+                  `kill -9 ${pid} 2>/dev/null || true`,
+                ]);
+              }
+            }
+          }
+        } catch (error) {
+          // Ignore errors - session might not exist
+          console.log(`[killTerminalSession] Error killing processes:`, error);
+        }
+
+        // Finally, kill the tmux session itself
+        await runtime.execInContainer(input.podId, container.id, [
+          "sh",
+          "-c",
+          `tmux kill-session -t "${input.sessionId}" 2>/dev/null || true`,
+        ]);
+
+        console.log(
+          `[killTerminalSession] Killed tmux session ${input.sessionId} in pod ${input.podId}`,
+        );
+
+        return { success: true };
+      } catch (error) {
+        console.error(`[killTerminalSession] Failed to kill session:`, error);
+        // Don't throw - session might already be dead, which is fine
+        return { success: true };
+      }
     }),
 });

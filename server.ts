@@ -731,11 +731,9 @@ const startServer = async (): Promise<void> => {
         });
 
         proxy.ws(req, socket, head);
-      } else {
-        // Not a proxy request - let Next.js handle it (if it supports WS)
-        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-        socket.destroy();
       }
+      // else: Not a proxy request - don't handle it, let it be handled elsewhere
+      // This allows Next.js HMR WebSocket to work
     } catch (err) {
       logger.error({ err }, "WebSocket upgrade error");
       socket.destroy();

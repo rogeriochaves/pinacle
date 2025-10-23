@@ -119,8 +119,9 @@ export class PodManager extends EventEmitter {
       }
 
       // Determine if this is an existing repo (affects error handling)
-      const isExistingRepo =
-        spec.githubRepo && spec.githubRepoSetup?.type === "existing";
+      const isExistingRepo: boolean = !!(
+        spec.githubRepo && spec.githubRepoSetup?.type === "existing"
+      );
 
       // Run install command if present
       if (spec.installCommand) {
@@ -130,7 +131,9 @@ export class PodManager extends EventEmitter {
 
       // Provision and start user processes
       if (spec.processes && spec.processes.length > 0) {
-        console.log(`[PodManager] Provisioning user processes for pod ${spec.id}`);
+        console.log(
+          `[PodManager] Provisioning user processes for pod ${spec.id}`,
+        );
         for (const process of spec.processes) {
           await this.processProvisioner.provisionProcess(
             spec,

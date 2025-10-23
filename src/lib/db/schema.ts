@@ -191,6 +191,7 @@ export const pods = pgTable("pod", {
 
   // Runtime state
   ports: text("ports"), // JSON string of actual port mappings (runtime info)
+  uiState: text("ui_state"), // JSON string of UI state (terminal sessions, preferences, etc)
 
   // Status and metadata
   status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, running, stopped, error

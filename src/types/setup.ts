@@ -16,6 +16,10 @@ export const setupFormSchema = z
     agent: z.string().optional(),
     envVars: z.record(z.string(), z.string()),
     customServices: z.array(z.string()).optional(), // Custom service selection
+    // Process configuration (for existing repos)
+    processInstallCommand: z.string().optional(),
+    processStartCommand: z.string().optional(),
+    processAppUrl: z.string().optional(),
   })
   .refine(
     (data) => {
