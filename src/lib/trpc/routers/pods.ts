@@ -1593,4 +1593,120 @@ export const podsRouter = createTRPCRouter({
         return { success: true };
       }
     }),
+
+  /**
+   * Update tabs for a pod
+   * - Updates the config in the database
+   * - Writes the updated pinacle.yaml to the container (if repo exists)
+   */
+  updateTabs: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        tabs: z.array(
+          z.object({
+            name: z.string(),
+            service: z.string().optional(),
+            url: z.string().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Get pod and check access
+        const pod = await ctx.db.query.pods.findFirst({
+          where: (pods, { eq, and }) =>
+            and(
+              eq(pods.id, input.podId),
+              eq(pods.ownerId, ctx.session.user.id),
+            ),
+        });
+
+        if (!pod) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Pod not found",
+          });
+        }
+
+        // Parse current config
+        const { podRecordToPinacleConfig, pinacleConfigToJSON } = await import(
+          "../../pod-orchestration/pinacle-config"
+        );
+
+        const currentConfig = podRecordToPinacleConfig({
+          config: pod.config,
+          name: pod.name,
+        });
+
+        // Update tabs in config
+        const updatedConfig = {
+          ...currentConfig,
+          tabs: input.tabs.length > 0 ? input.tabs : undefined,
+        };
+
+        // Convert to JSON for DB storage (database stores PinacleConfig, not PodSpec)
+        const configJSON = pinacleConfigToJSON(updatedConfig);
+
+        // Update database
+        await ctx.db
+          .update(pods)
+          .set({ config: configJSON })
+          .where(eq(pods.id, input.podId));
+
+        // Write to container if pod is running and has a repo
+        if (pod.status === "running" && pod.githubRepo) {
+          const provisioningService = new PodProvisioningService();
+          const serverConnection =
+            await provisioningService.getServerConnectionDetails(pod.serverId!);
+
+          const { GVisorRuntime } = await import(
+            "../../pod-orchestration/container-runtime"
+          );
+          const runtime = new GVisorRuntime(serverConnection);
+
+          const container = await runtime.getActiveContainerForPodOrThrow(
+            input.podId,
+          );
+
+          // Generate pinacle.yaml content
+          const { serializePinacleConfig } = await import(
+            "../../pod-orchestration/pinacle-config"
+          );
+          const yamlContent = serializePinacleConfig(updatedConfig);
+
+          // Determine the workspace path
+          const { getProjectFolderFromRepository } = await import(
+            "../../utils"
+          );
+          const projectFolder = getProjectFolderFromRepository(pod.githubRepo);
+          const workspacePath = projectFolder
+            ? `/workspace/${projectFolder}`
+            : "/workspace";
+
+          // Write pinacle.yaml to container
+          await runtime.execInContainer(input.podId, container.id, [
+            "sh",
+            "-c",
+            `cat > ${workspacePath}/pinacle.yaml << 'EOF'\n${yamlContent}\nEOF`,
+          ]);
+
+          console.log(
+            `[updateTabs] Updated pinacle.yaml in container for pod ${input.podId}`,
+          );
+        }
+
+        console.log(`[updateTabs] Updated tabs for pod ${input.podId}`);
+
+        return { success: true };
+      } catch (error) {
+        console.error(`[updateTabs] Failed to update tabs:`, error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Failed to update tabs",
+        });
+      }
+    }),
 });

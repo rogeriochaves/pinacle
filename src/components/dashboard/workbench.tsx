@@ -1,6 +1,23 @@
 "use client";
 
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   ChevronDown,
   Code2,
   Globe,
@@ -9,21 +26,17 @@ import {
   LogOut,
   type LucideIcon,
   Play,
+  Plus,
   Sparkles,
   Square,
   Terminal,
   User,
   Users,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
@@ -37,6 +50,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { AddTabPopover } from "./add-tab-popover";
 import { TerminalTabs } from "./terminal-tabs";
 
 type TabConfig = {
@@ -48,6 +62,8 @@ type TabConfig = {
   returnUrl?: string;
   keepRendered?: boolean;
   alwaysReload?: boolean;
+  customUrl?: string; // Full URL for custom tabs
+  serviceRef?: string; // Service reference for tabs that use a service
 };
 
 type WorkbenchProps = {
@@ -101,60 +117,168 @@ const extractPortFromUrl = (url: string): number => {
   }
 };
 
+// Sortable tab component for drag and drop
+interface SortableTabProps {
+  tab: TabConfig;
+  isActive: boolean;
+  onTabClick: () => void;
+  onDelete: (tabId: string) => void;
+}
+
+function SortableTab({
+  tab,
+  isActive,
+  onTabClick,
+  onDelete,
+}: SortableTabProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tab.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const Icon = tab.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="relative group"
+    >
+      <button
+        type="button"
+        onClick={onTabClick}
+        className={`
+          flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
+          ${
+            isActive
+              ? "bg-neutral-800 text-white shadow-lg ring-1 ring-neutral-700"
+              : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
+          }
+        `}
+        title={tab.shortcut ? `${tab.label} (⌘${tab.shortcut})` : tab.label}
+      >
+        <Icon className="w-4 h-4" />
+        <span className="hidden sm:inline">{tab.label}</span>
+        {tab.shortcut && (
+          <kbd className="hidden lg:inline text-[10px] bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-300">
+            ⌘{tab.shortcut}
+          </kbd>
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(tab.id);
+        }}
+        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Delete tab"
+      >
+        <X className="w-3 h-3 text-white" />
+      </button>
+    </div>
+  );
+}
+
 export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
+  const [tabs, setTabs] = useState<TabConfig[]>([]);
+  const [availableServices, setAvailableServices] = useState<string[]>([]);
+  const [existingServiceTabs, setExistingServiceTabs] = useState<string[]>([]);
+  const [showCreateTabDialog, setShowCreateTabDialog] = useState(false);
+  // Setup drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const updateTabsMutation = api.pods.updateTabs.useMutation();
+
   // Generate tabs dynamically from pod config
-  const tabs = useMemo((): TabConfig[] => {
+  useEffect(() => {
     try {
       const config = podRecordToPinacleConfig({
         config: pod.config,
         name: pod.name,
       });
 
+      // Store available services for the Add Tab popover
+      setAvailableServices(config.services);
+
+      // Track which services already have tabs
+      const servicesWithTabs: string[] = [];
+
       const generatedTabs: TabConfig[] = [];
       let shortcutIndex = 1;
 
-      // Add service tabs (VS Code, Kanban, Claude, Terminal)
-      for (const serviceName of config.services) {
-        const template = getServiceTemplateUnsafe(serviceName);
-        if (template) {
-          const isTerminal = serviceName === "web-terminal";
-          generatedTabs.push({
-            id: serviceName,
-            label: template.displayName,
-            icon: getServiceIcon(serviceName),
-            port: template.defaultPort,
-            shortcut: String(shortcutIndex++),
-            returnUrl: isTerminal ? "/?arg=0" : undefined,
-            keepRendered:
-              isTerminal ||
-              serviceName.includes("claude") ||
-              serviceName.includes("codex") ||
-              serviceName.includes("cursor") ||
-              serviceName.includes("gemini"),
-            alwaysReload: false,
-          });
+      // Render tabs from config.tabs only - no automatic generation
+      for (const tab of config.tabs || []) {
+        // Track service tabs
+        if (tab.service) {
+          servicesWithTabs.push(tab.service);
         }
+        // If tab references a service, use service's icon and defaults
+        if (tab.service) {
+          const template = getServiceTemplateUnsafe(tab.service);
+          if (template) {
+            const isTerminal = tab.service === "web-terminal";
+            const customUrl = tab.url || "";
+            const returnUrl = isTerminal && customUrl ? customUrl : undefined;
+
+            generatedTabs.push({
+              id: tab.service,
+              label: tab.name,
+              icon: getServiceIcon(tab.service),
+              port: template.defaultPort,
+              shortcut: String(shortcutIndex++),
+              returnUrl: isTerminal ? "/?arg=0" : returnUrl,
+              keepRendered:
+                isTerminal ||
+                tab.service.includes("claude") ||
+                tab.service.includes("codex") ||
+                tab.service.includes("cursor") ||
+                tab.service.includes("gemini"),
+              customUrl: customUrl || undefined,
+              serviceRef: tab.service,
+            });
+            continue;
+          }
+        }
+
+        // Pure custom URL tab (no service reference)
+        const port = extractPortFromUrl(tab.url || "");
+        generatedTabs.push({
+          id: `tab-${tab.name}`,
+          label: tab.name,
+          icon: Globe,
+          port: port,
+          customUrl: tab.url || "",
+          shortcut: String(shortcutIndex++),
+        });
       }
 
-      // Add browser tabs for processes with URLs
-      for (const process of config.processes || []) {
-        if (process.url) {
-          const port = extractPortFromUrl(process.url);
-          generatedTabs.push({
-            id: `process-${process.name}`,
-            label: process.displayName || process.name,
-            icon: Globe,
-            port: port,
-            shortcut: String(shortcutIndex++),
-          });
-        }
-      }
-
-      return generatedTabs;
+      setTabs(generatedTabs);
+      setExistingServiceTabs(servicesWithTabs);
     } catch (error) {
       console.error("Failed to parse pod config:", error);
       // Fallback to minimal tabs
-      return [
+      setTabs([
         {
           id: "code-server",
           label: "VS Code",
@@ -171,7 +295,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           returnUrl: "/?arg=0",
           keepRendered: true,
         },
-      ];
+      ]);
     }
   }, [pod.config, pod.name]);
 
@@ -204,6 +328,100 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       toast.error(`Failed to start ${pod.name}`, {
         description: errorMessage,
       });
+    }
+  };
+
+  // Save tabs to backend
+  const saveTabs = async (updatedTabs: TabConfig[]) => {
+    const tabsToSave = updatedTabs.map((tab) => ({
+      name: tab.label,
+      service: tab.serviceRef || undefined,
+      url: tab.customUrl || undefined,
+    }));
+
+    try {
+      await updateTabsMutation.mutateAsync({
+        podId: pod.id,
+        tabs: tabsToSave,
+      });
+      // Refetch pod data to get updated config
+      utils.pods.getUserPods.invalidate();
+    } catch (error) {
+      console.error("Failed to save tabs:", error);
+      toast.error("Failed to save tabs", {
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    }
+  };
+
+  // Handle creating a new tab
+  const handleCreateTab = (name: string, url: string, service?: string) => {
+    let newTab: TabConfig;
+
+    if (service) {
+      // Service tab - reference the service
+      const template = getServiceTemplateUnsafe(service);
+      if (!template) return;
+
+      const isTerminal = service === "web-terminal";
+
+      newTab = {
+        id: service,
+        label: name,
+        icon: getServiceIcon(service),
+        port: template.defaultPort,
+        serviceRef: service,
+        keepRendered:
+          isTerminal ||
+          service.includes("claude") ||
+          service.includes("codex") ||
+          service.includes("cursor") ||
+          service.includes("gemini"),
+      };
+    } else {
+      // Custom URL tab
+      const port = extractPortFromUrl(url);
+      newTab = {
+        id: `custom-${Date.now()}`,
+        label: name,
+        icon: Globe,
+        port: port,
+        customUrl: url,
+      };
+    }
+
+    const updatedTabs = [...tabs, newTab];
+    setTabs(updatedTabs);
+    setActiveTab(newTab.id);
+    saveTabs(updatedTabs);
+    toast.success("Tab created", {
+      description: `Added ${name} tab`,
+    });
+  };
+
+  // Handle deleting a tab
+  const handleDeleteTab = (tabId: string) => {
+    const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
+    setTabs(updatedTabs);
+    if (activeTab === tabId) {
+      setActiveTab(updatedTabs[0]?.id || "code-server");
+    }
+    saveTabs(updatedTabs);
+    toast.success("Tab deleted");
+  };
+
+  // Handle drag end
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = tabs.findIndex((tab) => tab.id === active.id);
+      const newIndex = tabs.findIndex((tab) => tab.id === over.id);
+
+      const updatedTabs = arrayMove(tabs, oldIndex, newIndex);
+      setTabs(updatedTabs);
+      saveTabs(updatedTabs);
     }
   };
 
@@ -302,59 +520,72 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         </button>
 
         {/* Tabs */}
-        <div className="flex-1 flex items-center justify-center gap-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex-1 flex items-center justify-center gap-1">
+            <SortableContext
+              items={tabs.map((tab) => tab.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <SortableTab
+                    key={tab.id}
+                    tab={tab}
+                    isActive={isActive}
+                    onTabClick={() => {
+                      setActiveTab(tab.id);
+
+                      // Send focus message to the iframe
+                      setTimeout(() => {
+                        const iframe = document.getElementById(
+                          `js-iframe-tab-${tab.id}`,
+                        ) as HTMLIFrameElement;
+
+                        console.log(
+                          "iframe?.contentWindow",
+                          iframe?.contentWindow,
+                        );
+                        if (iframe?.contentWindow) {
+                          // Send focus message to injected script
+                          iframe.contentWindow.postMessage(
+                            { type: "pinacle-focus" },
+                            "*",
+                          );
+
+                          // Also try to focus the iframe element itself
+                          iframe.focus();
+                        }
+                      }, 100);
+                    }}
+                    onDelete={handleDeleteTab}
+                  />
+                );
+              })}
+            </SortableContext>
+
+            {/* Add Tab Button */}
+            <AddTabPopover
+              open={showCreateTabDialog}
+              onOpenChange={setShowCreateTabDialog}
+              onCreateTab={handleCreateTab}
+              availableServices={availableServices}
+              existingServiceTabs={existingServiceTabs}
+            >
               <button
                 type="button"
-                key={tab.id}
-                onClick={() => {
-                  setActiveTab(tab.id);
-
-                  // Send focus message to the iframe
-                  setTimeout(() => {
-                    const iframe = document.getElementById(
-                      `js-iframe-tab-${tab.id}`,
-                    ) as HTMLIFrameElement;
-
-                    console.log("iframe?.contentWindow", iframe?.contentWindow);
-                    if (iframe?.contentWindow) {
-                      // Send focus message to injected script
-                      iframe.contentWindow.postMessage(
-                        { type: "pinacle-focus" },
-                        "*",
-                      );
-
-                      // Also try to focus the iframe element itself
-                      iframe.focus();
-                    }
-                  }, 100);
-                }}
-                className={`
-                  flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
-                  ${
-                    isActive
-                      ? "bg-neutral-800 text-white shadow-lg ring-1 ring-neutral-700"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
-                  }
-                `}
-                title={
-                  tab.shortcut ? `${tab.label} (⌘${tab.shortcut})` : tab.label
-                }
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-mono text-sm transition-all text-neutral-400 hover:text-white hover:bg-neutral-800/50 cursor-pointer"
+                title="Add new tab"
               >
-                <Icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-                {tab.shortcut && (
-                  <kbd className="hidden lg:inline text-[10px] bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-300">
-                    ⌘{tab.shortcut}
-                  </kbd>
-                )}
+                <Plus className="w-4 h-4" />
               </button>
-            );
-          })}
-        </div>
+            </AddTabPopover>
+          </div>
+        </DndContext>
 
         {/* User Menu */}
         <DropdownMenu>
@@ -495,7 +726,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           </div>
         ) : (
           tabs.map((tab) => {
-            const isTerminal = tab.id === "web-terminal";
+            const isTerminal = tab.serviceRef === "web-terminal";
             const isActive = activeTab === tab.id;
 
             return (

@@ -17,6 +17,7 @@ import { z } from "zod";
 import { RESOURCE_TIERS, type TierId } from "./resource-tier-registry";
 import {
   getServiceTemplate,
+  getServiceTemplateUnsafe,
   SERVICE_TEMPLATES,
   type ServiceId,
 } from "./service-registry";
@@ -39,10 +40,12 @@ const SERVICE_NAMES = Object.keys(SERVICE_TEMPLATES);
 
 /**
  * Tab configuration for pod UI
+ * Can either reference a service (with optional custom URL) or be a pure custom URL
  */
 const TabSchema = z.object({
   name: z.string(),
-  url: z.string(),
+  service: z.string().optional(), // Optional service reference (e.g., "web-terminal", "code-server")
+  url: z.string().optional(), // Optional custom URL override (defaults to service's default port if service is specified)
 });
 
 /**
@@ -171,10 +174,6 @@ export const generatePinacleConfigFromForm = (formData: {
       ? formData.customServices
       : DEFAULT_PINACLE_CONFIG.services;
 
-  // Generate tabs if not provided
-  const tabs =
-    formData.tabs || generateDefaultTabs(services, formData.slug || "pod");
-
   // Build processes array from processConfig (for existing repos)
   const processes: Array<{
     name: string;
@@ -193,13 +192,18 @@ export const generatePinacleConfigFromForm = (formData: {
     });
   }
 
-  // If processes were added, add tabs for them
-  const processTab = processes.find((p) => p.url);
-  if (processTab?.url) {
-    tabs.push({
-      name: processTab.displayName || processTab.name,
-      url: processTab.url,
-    });
+  // Generate tabs for services
+  const tabs =
+    formData.tabs || generateDefaultTabs(services, formData.slug || "pod");
+
+  // Add process tabs for any processes with URLs
+  for (const process of processes) {
+    if (process.url) {
+      tabs.push({
+        name: process.displayName || process.name,
+        url: process.url,
+      });
+    }
   }
 
   return PinacleConfigSchema.parse({
@@ -207,7 +211,7 @@ export const generatePinacleConfigFromForm = (formData: {
     template: formData.template,
     tier: formData.tier || "dev.small",
     services,
-    tabs,
+    tabs: tabs.length > 0 ? tabs : undefined,
     install: formData.processConfig?.installCommand,
     processes,
   });
@@ -215,28 +219,21 @@ export const generatePinacleConfigFromForm = (formData: {
 
 /**
  * Generate default tabs from services
- * Auto-creates tabs for each service that has a UI port
+ * Creates tabs that reference services so they get proper icons and can be managed
  */
 export const generateDefaultTabs = (
   services: string[],
   _podSlug: string,
-): Array<{ name: string; url: string }> => {
-  const tabs: Array<{ name: string; url: string }> = [];
+): Array<{ name: string; url?: string; service?: string }> => {
+  const tabs: Array<{ name: string; url?: string; service?: string }> = [];
 
-  // Add app tab (user's application)
-  tabs.push({
-    name: "App",
-    url: "http://localhost:3000",
-  });
-
-  // Add tabs for each service
+  // Add a tab for each service
   for (const serviceName of services) {
-    const service =
-      SERVICE_TEMPLATES[serviceName as keyof typeof SERVICE_TEMPLATES];
-    if (service?.defaultPort) {
+    const template = getServiceTemplateUnsafe(serviceName);
+    if (template) {
       tabs.push({
-        name: service.displayName,
-        url: `http://localhost:${service.defaultPort}`,
+        name: template.displayName,
+        service: serviceName,
       });
     }
   }
@@ -299,12 +296,16 @@ export const getServicesFromConfig = (config: PinacleConfig): string[] => {
 };
 
 /**
- * Get tabs from pod config (with auto-generation if not specified)
+ * Get tabs from pod config
+ * Note: This function is deprecated. The workbench now auto-generates tabs from:
+ * 1. config.services (for service tabs)
+ * 2. config.processes (for process tabs with URLs)
+ * 3. config.tabs (for custom tabs)
  */
 export const getTabsFromConfig = (
   config: PinacleConfig,
   podSlug: string,
-): Array<{ name: string; url: string }> => {
+): Array<{ name: string; url?: string; service?: string }> => {
   if (config.tabs && config.tabs.length > 0) {
     return config.tabs;
   }
@@ -453,16 +454,17 @@ export const podConfigToPinacleConfig = (
       healthCheck: p.healthCheck,
     })) || [];
 
-  // Generate tabs from services
-  const tabs = generateDefaultTabs(services, podConfig.slug);
-
   // Build PinacleConfig
+  // Note: We don't auto-generate tabs from services here because:
+  // 1. The workbench auto-generates service tabs from config.services
+  // 2. The workbench auto-generates process tabs from config.processes
+  // 3. Only truly custom tabs should be in config.tabs
   const pinacleConfig: PinacleConfig = {
     version: "1.0",
     tier,
     services,
     processes,
-    tabs, // Include auto-generated tabs
+    // tabs are not included here - they're managed separately
   };
 
   // Add optional fields if present
