@@ -422,6 +422,27 @@ const createPodProxy = async (
             const focusScript = `
 <script nonce="${nonce}">
 (function() {
+  // Forward keyboard shortcuts from iframe to parent
+  window.addEventListener('keydown', function(event) {
+    // Only forward Cmd/Ctrl + number shortcuts
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+      const key = event.key;
+      const num = parseInt(key, 10);
+
+      if (num >= 1 && num <= 9) {
+        // Forward to parent window
+        window.parent.postMessage({
+          type: 'pinacle-keyboard-shortcut',
+          key: key,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey
+        }, '*');
+      }
+    }
+  });
+
   // Listen for focus messages from parent window
   window.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'pinacle-focus') {
@@ -429,10 +450,17 @@ const createPodProxy = async (
       window.focus();
       document.body.focus();
 
-      // Find first focusable element and focus it
-      const focusable = document.querySelector('input, textarea, [contenteditable], [tabindex]:not([tabindex="-1"])');
-      if (focusable) {
-        focusable.focus();
+      // If VS Code, focus the open tab
+      const openTab = document.querySelector(".tabs-and-actions-container .tab.active.selected a");
+      if (openTab) {
+        const syntheticEvent = new PointerEvent("mousedown", { bubbles: true, cancelable: true });
+        openTab.dispatchEvent(syntheticEvent);
+      } else {
+        // Find first focusable element and focus it
+        const focusable = document.querySelector('input, textarea, [contenteditable], [tabindex]:not([tabindex="-1"])');
+        if (focusable) {
+          focusable.focus();
+        }
       }
 
       // Dispatch a custom event that apps can listen to
@@ -443,6 +471,23 @@ const createPodProxy = async (
       const sourceControlViewIcon = document.querySelector(".action-label.codicon.codicon-source-control-view-icon");
       if (sourceControlViewIcon && !sourceControlViewIcon.parentElement?.classList.contains("checked")) {
         sourceControlViewIcon.click();
+        let attempts = 0;
+        let searchInterval = setInterval(() => {
+          const resourceGroup = document.querySelector(".resource-group");
+          if (resourceGroup) {
+            clearInterval(searchInterval);
+            setTimeout(() => {
+              const firstModifiedFile = document.querySelector(".resource[data-tooltip='Modified']");
+              if (firstModifiedFile) {
+                firstModifiedFile.click();
+              }
+            }, attempts > 0 ? 2000 : 500);
+          }
+          attempts++;
+          if (attempts > 10) {
+            clearInterval(searchInterval);
+          }
+        }, 1000);
       } else {
         // alreaty opened or not found, do nothing
       }

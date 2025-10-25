@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Plus, Terminal, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { api } from "../../lib/trpc/client";
 
@@ -18,10 +18,17 @@ type TerminalTabsProps = {
     config: string;
     uiState?: string | null;
   };
+  terminalTabId: string; // The actual hash-based ID of the terminal tab
   getTabUrl: (tabId: string, terminalSession?: string) => string;
+  focusTrigger?: number; // Timestamp that changes when parent wants to focus this terminal
 };
 
-export const TerminalTabs = ({ pod, getTabUrl }: TerminalTabsProps) => {
+export const TerminalTabs = ({
+  pod,
+  terminalTabId,
+  getTabUrl,
+  focusTrigger,
+}: TerminalTabsProps) => {
   const [sessions, setSessions] = useState<TerminalSession[]>([]);
   const [sessionCounter, setSessionCounter] = useState(1);
   const [activeTerminalSession, setActiveTerminalSession] =
@@ -115,6 +122,47 @@ export const TerminalTabs = ({ pod, getTabUrl }: TerminalTabsProps) => {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, pod.id, isInitialized, updateUiStateMutation.mutate]);
+
+  // Focus the active terminal session iframe
+  const focusActiveTerminal = useCallback(() => {
+    if (!activeTerminalSession) return;
+
+    const iframe = document.getElementById(
+      `terminal-${activeTerminalSession}`,
+    ) as HTMLIFrameElement;
+
+    console.log(
+      "[TerminalTabs] Attempting to focus terminal iframe:",
+      `terminal-${activeTerminalSession}`,
+      iframe,
+    );
+
+    if (iframe?.contentWindow) {
+      // Send focus message to injected script
+      iframe.contentWindow.postMessage({ type: "pinacle-focus" }, "*");
+      // Also try to focus the iframe element itself
+      iframe.focus();
+      console.log("[TerminalTabs] Sent focus message to terminal");
+    } else {
+      console.warn(
+        "[TerminalTabs] Terminal iframe not found or contentWindow not available",
+      );
+    }
+  }, [activeTerminalSession]);
+
+  // Focus when parent requests it (e.g., when switching to terminal tab)
+  useEffect(() => {
+    if (focusTrigger) {
+      focusActiveTerminal();
+    }
+  }, [focusTrigger, focusActiveTerminal]);
+
+  // Focus when switching between terminal sessions
+  useEffect(() => {
+    if (activeTerminalSession) {
+      focusActiveTerminal();
+    }
+  }, [activeTerminalSession, focusActiveTerminal]);
 
   // Create a new terminal session
   const createNewSession = () => {
@@ -262,7 +310,8 @@ export const TerminalTabs = ({ pod, getTabUrl }: TerminalTabsProps) => {
         {sessions.map((session) => (
           <iframe
             key={`terminal-${session.id}`}
-            src={getTabUrl("web-terminal", session.tmuxSession || session.id)}
+            id={`terminal-${session.id}`}
+            src={getTabUrl(terminalTabId, session.tmuxSession || session.id)}
             className="absolute inset-0 w-full h-full border-0"
             title={`Terminal - ${session.name}`}
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"

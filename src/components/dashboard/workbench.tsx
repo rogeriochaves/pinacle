@@ -85,6 +85,26 @@ type WorkbenchProps = {
 };
 
 /**
+ * Generate a stable hash-based ID for a tab
+ * Includes name, service, and url to ensure uniqueness
+ */
+const generateTabId = (
+  name: string,
+  service?: string,
+  url?: string,
+): string => {
+  const key = `${name}:${service || ""}:${url || ""}`;
+  // Simple hash function - convert to base36 for shorter IDs
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    const char = key.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `tab_${Math.abs(hash).toString(36)}`;
+};
+
+/**
  * Map service names to icons
  */
 const getServiceIcon = (serviceName: string): LucideIcon => {
@@ -142,6 +162,8 @@ function SortableTab({
     isDragging,
   } = useSortable({ id: tab.id });
 
+  const [isHovered, setIsHovered] = React.useState(false);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -151,12 +173,15 @@ function SortableTab({
   const Icon = tab.icon;
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Hover tracking for child interactive elements
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
       className="relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <button
         type="button"
@@ -174,21 +199,24 @@ function SortableTab({
         <Icon className="w-4 h-4" />
         <span className="hidden sm:inline">{tab.label}</span>
         {tab.shortcut && (
-          <kbd className="hidden lg:inline text-[10px] bg-neutral-700 px-1.5 py-0.5 rounded text-neutral-300">
-            ⌘{tab.shortcut}
-          </kbd>
+          <button
+            type="button"
+            onClick={(e) => {
+              if (isHovered) {
+                e.stopPropagation();
+                onDelete(tab.id);
+              }
+            }}
+            className={`hidden lg:flex items-center justify-center text-[10px] px-1.5 py-0.5 rounded min-w-[32px] cursor-pointer ${
+              isHovered
+                ? "text-neutral-400 hover:bg-neutral-700"
+                : "bg-neutral-700 text-neutral-300"
+            }`}
+            title={isHovered ? "Close tab" : undefined}
+          >
+            {isHovered ? <X className="w-3 h-3" /> : `⌘${tab.shortcut}`}
+          </button>
         )}
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(tab.id);
-        }}
-        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Delete tab"
-      >
-        <X className="w-3 h-3 text-white" />
       </button>
     </div>
   );
@@ -199,6 +227,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [availableServices, setAvailableServices] = useState<string[]>([]);
   const [existingServiceTabs, setExistingServiceTabs] = useState<string[]>([]);
   const [showCreateTabDialog, setShowCreateTabDialog] = useState(false);
+  const [terminalFocusTrigger, setTerminalFocusTrigger] = useState<number>(0);
   // Setup drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -254,7 +283,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             const returnUrl = isTerminal && customUrl ? customUrl : undefined;
 
             generatedTabs.push({
-              id: tab.service,
+              id: generateTabId(tab.name, tab.service, undefined),
               label: tab.name,
               icon: getServiceIcon(tab.service),
               port: template.defaultPort,
@@ -276,7 +305,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         // Pure custom URL tab (no service reference)
         const port = extractPortFromUrl(tab.url || "");
         generatedTabs.push({
-          id: `tab-${tab.name}`,
+          id: generateTabId(tab.name, undefined, tab.url),
           label: tab.name,
           icon: Globe,
           port: port,
@@ -314,6 +343,18 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [activeTab, setActiveTab] = useState<string>(
     tabs[0]?.id || "code-server",
   );
+
+  // Ensure activeTab is valid when tabs change
+  useEffect(() => {
+    if (tabs.length > 0) {
+      const isActiveTabValid = tabs.some((tab) => tab.id === activeTab);
+      if (!isActiveTabValid) {
+        // Active tab doesn't exist anymore, switch to first tab
+        setActiveTab(tabs[0].id);
+      }
+    }
+  }, [tabs, activeTab]);
+
   const { data: session } = useSession();
   const isRunning = pod.status === "running";
   const startPodMutation = api.pods.start.useMutation();
@@ -369,7 +410,22 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
   // Handle creating a new tab
   const handleCreateTab = (name: string, url: string, service?: string) => {
+    // Generate tab ID based on name + service/url
+    const tabId = generateTabId(name, service, service ? undefined : url);
+
+    // Check if tab with this ID already exists (duplicate)
+    const existingTab = tabs.find((tab) => tab.id === tabId);
+    if (existingTab) {
+      toast.error("Tab already exists", {
+        description: `A tab with this name and URL/service already exists`,
+      });
+      return;
+    }
+
     let newTab: TabConfig;
+
+    // Calculate next available shortcut number
+    const nextShortcut = String(tabs.length + 1);
 
     if (service) {
       // Service tab - reference the service
@@ -379,10 +435,11 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       const isTerminal = service === "web-terminal";
 
       newTab = {
-        id: service,
+        id: tabId,
         label: name,
         icon: getServiceIcon(service),
         port: template.defaultPort,
+        shortcut: nextShortcut,
         serviceRef: service,
         keepRendered:
           isTerminal ||
@@ -395,10 +452,11 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       // Custom URL tab
       const port = extractPortFromUrl(url);
       newTab = {
-        id: `custom-${Date.now()}`,
+        id: tabId,
         label: name,
         icon: Globe,
         port: port,
+        shortcut: nextShortcut,
         customUrl: url,
       };
     }
@@ -468,6 +526,67 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     };
   }, [pod.status, utils.pods.getUserPods]);
 
+  // Handle keyboard shortcuts (Cmd+1, Cmd+2, etc.)
+  useEffect(() => {
+    const handleShortcut = (key: string) => {
+      const num = parseInt(key, 10);
+
+      if (num >= 1 && num <= 9) {
+        // Find the tab with this shortcut
+        const targetTab = tabs.find((tab) => tab.shortcut === String(num));
+        if (targetTab) {
+          setActiveTab(targetTab.id);
+
+          // Focus the tab
+          if (targetTab.serviceRef === "web-terminal") {
+            setTerminalFocusTrigger(Date.now());
+          } else {
+            setTimeout(() => {
+              const iframe = document.getElementById(
+                `js-iframe-tab-${targetTab.id}`,
+              ) as HTMLIFrameElement;
+
+              if (iframe?.contentWindow) {
+                iframe.contentWindow.postMessage(
+                  { type: "pinacle-focus" },
+                  "*",
+                );
+                iframe.focus();
+              }
+            }, 100);
+          }
+        }
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Cmd/Ctrl+number (1-9)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+        const num = parseInt(e.key, 10);
+
+        if (num >= 1 && num <= 9) {
+          e.preventDefault(); // Prevent browser default behavior
+          handleShortcut(e.key);
+        }
+      }
+    };
+
+    // Listen for keyboard shortcuts forwarded from iframes
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data && e.data.type === "pinacle-keyboard-shortcut") {
+        // Shortcut forwarded from iframe
+        handleShortcut(e.data.key);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("message", handleMessage);
+    };
+  }, [tabs]);
+
   const getTabUrl = useCallback(
     (tabId: string, terminalSession?: string): string => {
       const tabConfig = tabs.find((t) => t.id === tabId);
@@ -482,7 +601,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
       // For terminal, use the active session (passed from TerminalTabs component)
       let returnUrl = tabConfig.returnUrl || "";
-      if (tabId === "web-terminal" && terminalSession) {
+      if (tabConfig.serviceRef === "web-terminal" && terminalSession) {
         returnUrl = `/?arg=${terminalSession}`;
       }
 
@@ -552,23 +671,29 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                     onTabClick={() => {
                       setActiveTab(tab.id);
 
-                      // Send focus message to the iframe
-                      setTimeout(() => {
-                        const iframe = document.getElementById(
-                          `js-iframe-tab-${tab.id}`,
-                        ) as HTMLIFrameElement;
+                      // Check if this is a terminal tab
+                      if (tab.serviceRef === "web-terminal") {
+                        // Trigger focus in TerminalTabs component
+                        setTerminalFocusTrigger(Date.now());
+                      } else {
+                        // Send focus message to regular iframe
+                        setTimeout(() => {
+                          const iframe = document.getElementById(
+                            `js-iframe-tab-${tab.id}`,
+                          ) as HTMLIFrameElement;
 
-                        if (iframe?.contentWindow) {
-                          // Send focus message to injected script
-                          iframe.contentWindow.postMessage(
-                            { type: "pinacle-focus" },
-                            "*",
-                          );
+                          if (iframe?.contentWindow) {
+                            // Send focus message to injected script
+                            iframe.contentWindow.postMessage(
+                              { type: "pinacle-focus" },
+                              "*",
+                            );
 
-                          // Also try to focus the iframe element itself
-                          iframe.focus();
-                        }
-                      }, 100);
+                            // Also try to focus the iframe element itself
+                            iframe.focus();
+                          }
+                        }, 100);
+                      }
                     }}
                     onDelete={handleDeleteTab}
                   />
@@ -600,13 +725,19 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           <button
             type="button"
             onClick={() => {
+              // Find the VSCode tab
+              const vscodeTab = tabs.find(
+                (tab) => tab.serviceRef === "code-server",
+              );
+              if (!vscodeTab) return;
+
               // Switch to VSCode tab
-              setActiveTab("code-server");
+              setActiveTab(vscodeTab.id);
 
               // Send postMessage to open source control view
               setTimeout(() => {
                 const iframe = document.getElementById(
-                  "js-iframe-tab-code-server",
+                  `js-iframe-tab-${vscodeTab.id}`,
                 ) as HTMLIFrameElement;
 
                 if (iframe?.contentWindow) {
@@ -792,7 +923,12 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                           }
                     }
                   >
-                    <TerminalTabs pod={pod} getTabUrl={getTabUrl} />
+                    <TerminalTabs
+                      pod={pod}
+                      terminalTabId={tab.id}
+                      getTabUrl={getTabUrl}
+                      focusTrigger={terminalFocusTrigger}
+                    />
                   </div>
                 ) : (
                   /* Regular iframe for non-terminal tabs */
