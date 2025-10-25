@@ -514,6 +514,7 @@ export const podsRouter = createTRPCRouter({
           lastHeartbeatAt: pods.lastHeartbeatAt,
           archivedAt: pods.archivedAt,
           teamId: pods.teamId,
+          githubRepo: pods.githubRepo,
         })
         .from(pods)
         .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
@@ -1707,6 +1708,88 @@ export const podsRouter = createTRPCRouter({
           message:
             error instanceof Error ? error.message : "Failed to update tabs",
         });
+      }
+    }),
+
+  /**
+   * Get git status for a pod
+   * - Runs git status --porcelain in the container
+   * - Returns whether there are uncommitted/untracked files and the count
+   */
+  getGitStatus: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if user has access to this pod
+      const pod = await ctx.db.query.pods.findFirst({
+        where: and(eq(pods.id, input.podId), eq(pods.ownerId, userId)),
+      });
+
+      if (!pod) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Pod not found" });
+      }
+
+      // Only check git status if pod is running and has a repo
+      if (pod.status !== "running" || !pod.githubRepo || !pod.serverId) {
+        return { hasChanges: false, changedFiles: 0 };
+      }
+
+      try {
+        const { PodProvisioningService } = await import(
+          "../../pod-orchestration/pod-provisioning-service"
+        );
+
+        const provisioningService = new PodProvisioningService();
+        const serverConnection =
+          await provisioningService.getServerConnectionDetails(pod.serverId);
+
+        const { GVisorRuntime } = await import(
+          "../../pod-orchestration/container-runtime"
+        );
+        const runtime = new GVisorRuntime(serverConnection);
+
+        // Get the active container
+        const container = await runtime.getActiveContainerForPodOrThrow(
+          input.podId,
+        );
+
+        // Get the repo directory
+        const repoName = pod.githubRepo.split("/")[1];
+        const repoPath = `/workspace/${repoName}`;
+
+        // Run git status --porcelain to get changed files
+        // --porcelain gives machine-readable output, one line per changed file
+        const result = await runtime.execInContainer(
+          input.podId,
+          container.id,
+          [
+            "sh",
+            "-c",
+            `cd ${repoPath} && git status --porcelain 2>/dev/null || echo ""`,
+          ],
+        );
+
+        const output = result.stdout?.trim() || "";
+
+        // Each line in porcelain output represents a changed/untracked file
+        const lines = output
+          .split("\n")
+          .filter((line: string) => line.trim().length > 0);
+        const changedFiles = lines.length;
+
+        return {
+          hasChanges: changedFiles > 0,
+          changedFiles,
+        };
+      } catch (error) {
+        console.error(`[getGitStatus] Failed to check git status:`, error);
+        // Don't throw - just return no changes if we can't check
+        return { hasChanges: false, changedFiles: 0 };
       }
     }),
 });

@@ -38,7 +38,11 @@ export const SERVICE_TEMPLATES = {
 {
   "files.autoSave": "off",
   "workbench.colorTheme": "Default Dark Modern",
-  "security.workspace.trust.enabled": false
+  "security.workspace.trust.enabled": false,
+  "editor.minimap.enabled": false,
+  "workbench.startupEditor": "none",
+  "diffEditor.renderSideBySide": false,
+  "diffEditor.hideUnchangedRegions.enabled": true
 }
 EOF`,
       "apk add --no-cache libarchive-tools",

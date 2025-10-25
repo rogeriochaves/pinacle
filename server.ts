@@ -12,6 +12,7 @@
  * - 3001: Proxy server (handles subdomain requests)
  */
 
+import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { parse } from "node:url";
@@ -391,6 +392,21 @@ const createPodProxy = async (
       const isHtml = contentType.includes("text/html");
 
       if (isHtml) {
+        // Generate a unique nonce for this request
+        const nonce = randomBytes(16).toString("base64");
+
+        // Modify CSP header to allow our nonce-based inline script
+        const csp = proxyRes.headers["content-security-policy"];
+        if (csp) {
+          const cspStr = Array.isArray(csp) ? csp.join("; ") : csp;
+          // Add our nonce to the script-src directive
+          const modifiedCsp = cspStr.replace(
+            /script-src ([^;]+)/,
+            `script-src $1 'nonce-${nonce}'`,
+          );
+          proxyRes.headers["content-security-policy"] = modifiedCsp;
+        }
+
         // Buffer HTML responses to inject our focus script
         const chunks: Buffer[] = [];
 
@@ -402,9 +418,9 @@ const createPodProxy = async (
           try {
             const body = Buffer.concat(chunks).toString("utf8");
 
-            // Script to listen for focus messages from parent
+            // Script to listen for focus messages from parent (with nonce)
             const focusScript = `
-<script>
+<script nonce="${nonce}">
 (function() {
   // Listen for focus messages from parent window
   window.addEventListener('message', function(event) {
@@ -421,6 +437,15 @@ const createPodProxy = async (
 
       // Dispatch a custom event that apps can listen to
       window.dispatchEvent(new CustomEvent('pinacle-focused'));
+    }
+
+    if (event.data && event.data.type === 'pinacle-source-control-view') {
+      const sourceControlViewIcon = document.querySelector(".action-label.codicon.codicon-source-control-view-icon");
+      if (sourceControlViewIcon && !sourceControlViewIcon.parentElement?.classList.contains("checked")) {
+        sourceControlViewIcon.click();
+      } else {
+        // alreaty opened or not found, do nothing
+      }
     }
   });
 })();

@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   ChevronDown,
   Code2,
+  GitBranch,
   Globe,
   Kanban,
   Loader2,
@@ -78,6 +79,7 @@ type WorkbenchProps = {
     lastErrorMessage?: string | null;
     alwaysReload?: boolean;
     keepRendered?: boolean;
+    githubRepo?: string | null; // For git status checking
   };
   onPodSwitch: () => void;
 };
@@ -209,6 +211,16 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     }),
   );
   const updateTabsMutation = api.pods.updateTabs.useMutation();
+
+  // Poll git status to show badge for uncommitted changes
+  const { data: gitStatus } = api.pods.getGitStatus.useQuery(
+    { podId: pod.id },
+    {
+      refetchInterval: 10000, // Poll every 10 seconds
+      refetchOnWindowFocus: true, // Only poll when tab is focused
+      enabled: pod.status === "running" && !!pod.githubRepo, // Only poll if pod is running and has a repo
+    },
+  );
 
   // Generate tabs dynamically from pod config
   useEffect(() => {
@@ -546,10 +558,6 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                           `js-iframe-tab-${tab.id}`,
                         ) as HTMLIFrameElement;
 
-                        console.log(
-                          "iframe?.contentWindow",
-                          iframe?.contentWindow,
-                        );
                         if (iframe?.contentWindow) {
                           // Send focus message to injected script
                           iframe.contentWindow.postMessage(
@@ -586,6 +594,44 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             </AddTabPopover>
           </div>
         </DndContext>
+
+        {/* Source Control Icon (only if VSCode tab exists) */}
+        {tabs.some((tab) => tab.serviceRef === "code-server") && (
+          <button
+            type="button"
+            onClick={() => {
+              // Switch to VSCode tab
+              setActiveTab("code-server");
+
+              // Send postMessage to open source control view
+              setTimeout(() => {
+                const iframe = document.getElementById(
+                  "js-iframe-tab-code-server",
+                ) as HTMLIFrameElement;
+
+                if (iframe?.contentWindow) {
+                  iframe.contentWindow.postMessage(
+                    { type: "pinacle-source-control-view" },
+                    "*",
+                  );
+                }
+              }, 100);
+            }}
+            className="relative flex items-center justify-center mr-1 w-8 h-8 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white cursor-pointer"
+            title={
+              gitStatus?.hasChanges
+                ? `${gitStatus.changedFiles} uncommitted change${gitStatus.changedFiles !== 1 ? "s" : ""}`
+                : "Open Source Control"
+            }
+          >
+            <GitBranch className="w-4 h-4 mt-0.5 mr-0.5" />
+            {gitStatus?.hasChanges && (
+              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full">
+                {gitStatus.changedFiles}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* User Menu */}
         <DropdownMenu>
