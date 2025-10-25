@@ -2,7 +2,6 @@ import { exec } from "node:child_process";
 import { unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { podLogs } from "../db/schema";
@@ -12,11 +11,18 @@ import type {
   ServerConnectionConfig,
 } from "./types";
 
-const execAsync = promisify(exec);
+type OutputBuffer = {
+  stdout: string;
+  stderr: string;
+  lastFlush: number;
+  flushTimer: NodeJS.Timeout | null;
+};
 
 export class SSHServerConnection implements ServerConnection {
   private config: ServerConnectionConfig;
   private keyFilePath: string | null = null;
+  // Debounce configuration for log updates (ms)
+  private readonly LOG_FLUSH_INTERVAL = 500;
 
   constructor(config: ServerConnectionConfig) {
     this.config = config;
@@ -70,54 +76,156 @@ export class SSHServerConnection implements ServerConnection {
       : null;
 
     const startTime = Date.now();
-    let exitCode = 0;
+
+    return new Promise<{ stdout: string; stderr: string }>(
+      (resolve, reject) => {
+        // Use non-promisified exec to get access to streams
+        const childProcess = exec(sshCommand, {
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
+        });
+
+        // Initialize output buffer for debounced updates
+        const outputBuffer: OutputBuffer = {
+          stdout: "",
+          stderr: "",
+          lastFlush: Date.now(),
+          flushTimer: null,
+        };
+
+        // Set up streaming update function with debouncing
+        const scheduleFlush = () => {
+          if (outputBuffer.flushTimer) {
+            return; // Flush already scheduled
+          }
+
+          outputBuffer.flushTimer = setTimeout(() => {
+            this.flushOutputBuffer(podId, logId, outputBuffer);
+            outputBuffer.flushTimer = null;
+          }, this.LOG_FLUSH_INTERVAL);
+        };
+
+        // Stream stdout
+        if (childProcess.stdout) {
+          childProcess.stdout.on("data", (data: Buffer) => {
+            const chunk = data.toString();
+            outputBuffer.stdout += chunk;
+            scheduleFlush();
+          });
+        }
+
+        // Stream stderr
+        if (childProcess.stderr) {
+          childProcess.stderr.on("data", (data: Buffer) => {
+            const chunk = data.toString();
+            outputBuffer.stderr += chunk;
+            scheduleFlush();
+          });
+        }
+
+        // Handle process completion
+        childProcess.on("exit", (code) => {
+          const exitCode = code ?? 0;
+
+          // Clear any pending flush timer
+          if (outputBuffer.flushTimer) {
+            clearTimeout(outputBuffer.flushTimer);
+            outputBuffer.flushTimer = null;
+          }
+
+          // Final flush with exit code and duration
+          if (podId && logId) {
+            this.updateCommandLog(podId, logId, {
+              stdout: outputBuffer.stdout,
+              stderr: outputBuffer.stderr,
+              exitCode,
+              duration: Date.now() - startTime,
+            }).catch((error) => {
+              console.error(
+                `[ServerConnection] Failed to write final log update: ${error}`,
+              );
+            });
+          }
+
+          if (exitCode === 0) {
+            resolve({
+              stdout: outputBuffer.stdout,
+              stderr: outputBuffer.stderr,
+            });
+          } else {
+            console.error(
+              `[ServerConnection] SSH command failed (exit code ${exitCode}): >${fullCommand}\n ${outputBuffer.stdout} ${outputBuffer.stderr}`,
+            );
+            // Create error with stderr as message (to match promisify(exec) behavior)
+            // This ensures error.message contains the actual command output for error checking
+            const errorMessage = outputBuffer.stderr || outputBuffer.stdout || `Command failed with exit code ${exitCode}`;
+            const error: Error & { code?: number; stdout?: string; stderr?: string } =
+              new Error(errorMessage);
+            error.code = exitCode;
+            error.stdout = outputBuffer.stdout;
+            error.stderr = outputBuffer.stderr;
+            reject(error);
+          }
+        });
+
+        // Handle errors
+        childProcess.on("error", (error) => {
+          // Clear any pending flush timer
+          if (outputBuffer.flushTimer) {
+            clearTimeout(outputBuffer.flushTimer);
+            outputBuffer.flushTimer = null;
+          }
+
+          // Final flush with error state
+          if (podId && logId) {
+            this.updateCommandLog(podId, logId, {
+              stdout: outputBuffer.stdout,
+              stderr: outputBuffer.stderr || error.message,
+              exitCode: 1,
+              duration: Date.now() - startTime,
+            }).catch((flushError) => {
+              console.error(
+                `[ServerConnection] Failed to write error log update: ${flushError}`,
+              );
+            });
+          }
+
+          console.error(
+            `[ServerConnection] SSH command error: >${fullCommand}\n`,
+            error,
+          );
+          reject(error);
+        });
+      },
+    );
+  }
+
+  /**
+   * Flush output buffer to database (for streaming updates during command execution)
+   * This is called periodically via debouncing and does NOT set exitCode/duration
+   */
+  private async flushOutputBuffer(
+    podId: string | undefined,
+    logId: string | null,
+    buffer: OutputBuffer,
+  ): Promise<void> {
+    if (!podId || !logId) return;
 
     try {
-      const result = await execAsync(sshCommand);
+      await db
+        .update(podLogs)
+        .set({
+          stdout: buffer.stdout || "",
+          stderr: buffer.stderr || "",
+          // Don't set exitCode or duration - command is still running
+        })
+        .where(eq(podLogs.id, logId));
 
-      // Update log with successful execution results
-      if (podId && logId) {
-        await this.updateCommandLog(podId, logId, {
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode,
-          duration: Date.now() - startTime,
-        });
-      }
-
-      return result;
+      buffer.lastFlush = Date.now();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const stderr =
-        error && typeof error === "object" && "stderr" in error
-          ? // biome-ignore lint/suspicious/noExplicitAny: meh
-            String((error as any).stderr)
-          : message;
-      const stdout =
-        error && typeof error === "object" && "stdout" in error
-          ? // biome-ignore lint/suspicious/noExplicitAny: meh
-            String((error as any).stdout)
-          : "";
-      exitCode =
-        error && typeof error === "object" && "code" in error
-          ? // biome-ignore lint/suspicious/noExplicitAny: meh
-            Number((error as any).code)
-          : 1;
-
-      // Update log with failed execution results
-      if (podId && logId) {
-        await this.updateCommandLog(podId, logId, {
-          stdout,
-          stderr,
-          exitCode,
-          duration: Date.now() - startTime,
-        });
-      }
-
       console.error(
-        `[ServerConnection] SSH command failed (exit code ${exitCode}): >${fullCommand}\n ${stdout} ${stderr}`,
+        `[ServerConnection] Failed to flush output buffer for log ${logId}:`,
+        error,
       );
-      throw error;
     }
   }
 

@@ -39,6 +39,9 @@ describe("ProcessProvisioner Integration Tests", () => {
     console.log(`\n📦 Creating test pod ${testPodId}...`);
 
     const podConfig: PodSpec = {
+      version: "1.0",
+      tier: "dev.small",
+      services: [],
       id: testPodId,
       name: "Test Process Pod",
       slug: "test-process-pod",
@@ -52,7 +55,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       network: {
         ports: [],
       },
-      services: [],
       environment: {},
       installCommand: "echo 'Installing dependencies...' && sleep 1",
       workingDir: "/workspace",
@@ -81,6 +83,9 @@ describe("ProcessProvisioner Integration Tests", () => {
     };
 
     const podConfig: PodSpec = {
+      version: "1.0",
+      tier: "dev.small",
+      services: [],
       id: testPodId,
       name: "Test Process Pod",
       slug: "test-process-pod",
@@ -94,7 +99,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       network: {
         ports: [],
       },
-      services: [],
       environment: {},
       processes: [process],
       workingDir: "/workspace",
@@ -128,6 +132,9 @@ describe("ProcessProvisioner Integration Tests", () => {
 
   it("should handle install failure gracefully for existing repo", async () => {
     const podConfig: PodSpec = {
+      version: "1.0",
+      tier: "dev.small",
+      services: [],
       id: testPodId,
       name: "Test Process Pod",
       slug: "test-process-pod",
@@ -141,7 +148,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       network: {
         ports: [],
       },
-      services: [],
       environment: {},
       installCommand: "exit 1", // Intentional failure
       workingDir: "/workspace",
@@ -160,6 +166,9 @@ describe("ProcessProvisioner Integration Tests", () => {
 
   it("should fail install for new repo on error", async () => {
     const podConfig: PodSpec = {
+      version: "1.0",
+      tier: "dev.small",
+      services: [],
       id: testPodId,
       name: "Test Process Pod",
       slug: "test-process-pod",
@@ -173,7 +182,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       network: {
         ports: [],
       },
-      services: [],
       environment: {},
       installCommand: "exit 1", // Intentional failure
       workingDir: "/workspace",

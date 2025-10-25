@@ -79,7 +79,18 @@ export interface ProcessConfig {
   tmuxSession?: string; // Generated session name
 }
 
-export interface PodSpec {
+/**
+ * PodSpec is a superset of PinacleConfig with additional runtime fields.
+ * It includes all user-facing config (from pinacle.yaml) plus runtime expansion.
+ *
+ * This ensures lossless conversion: PodSpec → PinacleConfig → PodSpec
+ */
+export interface PodSpec
+  extends Omit<
+    import("./pinacle-config").PinacleConfig,
+    "services" | "install"
+  > {
+  // Runtime ID fields
   id: string;
   name: string;
   slug: string;
@@ -89,20 +100,23 @@ export interface PodSpec {
   templateId?: TemplateId;
   baseImage: string; // Base container image
 
-  // Resource allocation
+  // Resource allocation (expanded from tier)
   resources: ResourceConfig;
 
-  // Networking
+  // Networking (runtime assigned)
   network: NetworkConfig;
 
-  // Services to run in the pod
+  // Services (expanded from PinacleConfig.services: string[] → ServiceConfig[])
   services: ServiceConfig[];
 
-  // Environment variables
+  // Install command (same as PinacleConfig.install, just renamed for clarity)
+  installCommand?: string | string[];
+
+  // Environment variables (runtime merged)
   environment: Record<string, string>;
   secrets?: Record<string, string>;
 
-  // GitHub integration
+  // GitHub integration (runtime expanded)
   githubRepo?: string;
   githubBranch?: string;
   sshKeyPath?: string;
@@ -115,10 +129,6 @@ export interface PodSpec {
     };
     deployKeyId?: number;
   };
-
-  // User processes
-  installCommand?: string | string[];
-  processes?: ProcessConfig[];
 
   // Runtime configuration
   workingDir?: string;

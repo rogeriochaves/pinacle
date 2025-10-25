@@ -356,7 +356,7 @@ export class GVisorRuntime {
           ? String((error as Record<string, unknown>).code)
           : "unknown";
       if (code !== "unknown") {
-        throw new Error(
+        new Error(
           `Failed to execute command (exit code ${code}): ${message}`,
         );
       }

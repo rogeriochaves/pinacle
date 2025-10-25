@@ -187,7 +187,7 @@ function SortableTab({
         type="button"
         onClick={onTabClick}
         className={`
-          flex items-center gap-2 px-4 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
+          flex items-center gap-2 px-4 pr-2 py-1.5 rounded-lg font-mono text-sm transition-all cursor-pointer
           ${
             isActive
               ? "bg-neutral-800 text-white shadow-lg ring-1 ring-neutral-700"

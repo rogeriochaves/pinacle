@@ -175,7 +175,16 @@ export class PodProvisioningService {
       // Attention: this will mutate the spec, adding for example the proxy port
       const podInstance = await podManager.createPod(spec);
 
-      // 8. Update pod in database with provisioning results
+      // 8. Convert PodSpec back to PinacleConfig to update database
+      // This ensures database has the complete config including processes/install/tabs from template
+      // Since PodSpec extends PinacleConfig, all fields including tabs are preserved automatically!
+      const { podConfigToPinacleConfig, pinacleConfigToJSON } = await import(
+        "./pinacle-config"
+      );
+      const completeConfig = podConfigToPinacleConfig(spec);
+      const configJSON = pinacleConfigToJSON(completeConfig);
+
+      // 9. Update pod in database with provisioning results and complete config
       await db
         .update(pods)
         .set({
@@ -184,6 +193,7 @@ export class PodProvisioningService {
           internalIp: spec.network.podIp,
           publicUrl: `https://${podRecord.slug}.pinacle.dev`,
           ports: JSON.stringify(spec.network.ports),
+          config: configJSON, // Update with complete config including processes/install
           lastStartedAt: new Date(),
           updatedAt: new Date(),
         })

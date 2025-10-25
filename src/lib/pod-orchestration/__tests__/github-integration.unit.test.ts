@@ -154,14 +154,22 @@ describe("GitHub Integration Tests", () => {
       const nextjsTemplate = getTemplate("nextjs");
       expect(nextjsTemplate).toBeDefined();
       expect(nextjsTemplate?.initScript).toBeDefined();
-      expect(nextjsTemplate?.initScript?.length).toBeGreaterThan(0);
-      const nextjsScriptStr = nextjsTemplate?.initScript?.join(" ") || "";
+      const nextjsScripts =
+        typeof nextjsTemplate?.initScript === "function"
+          ? nextjsTemplate.initScript({ services: [] } as any)
+          : nextjsTemplate?.initScript || [];
+      expect(nextjsScripts.length).toBeGreaterThan(0);
+      const nextjsScriptStr = nextjsScripts.join(" ");
       expect(nextjsScriptStr).toContain("create-next-app");
 
       const viteTemplate = getTemplate("vite");
       expect(viteTemplate).toBeDefined();
       expect(viteTemplate?.initScript).toBeDefined();
-      const viteScriptStr = viteTemplate?.initScript?.join(" ") || "";
+      const viteScripts =
+        typeof viteTemplate?.initScript === "function"
+          ? viteTemplate.initScript({ services: [] } as any)
+          : viteTemplate?.initScript || [];
+      const viteScriptStr = viteScripts.join(" ");
       expect(viteScriptStr).toContain("vite");
 
       console.log("✅ All templates have valid init scripts");

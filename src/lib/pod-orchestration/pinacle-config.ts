@@ -91,7 +91,7 @@ export const PinacleConfigSchema = z.object({
   install: z.union([z.string(), z.array(z.string())]).optional(),
 
   // User processes (frontend, backend, workers, etc.)
-  processes: z.array(ProcessSchema).optional().default([]),
+  processes: z.array(ProcessSchema).optional(),
 
   // Tabs for the pod UI (auto-generated from services by default)
   tabs: z.array(TabSchema).optional(),
@@ -122,8 +122,17 @@ export const serializePinacleConfig = (config: PinacleConfig): string => {
     "",
   ].join("\n");
 
+  // Clean up empty arrays to avoid writing them to YAML
+  const cleanConfig = { ...config };
+  if (cleanConfig.processes && cleanConfig.processes.length === 0) {
+    delete cleanConfig.processes;
+  }
+  if (cleanConfig.tabs && cleanConfig.tabs.length === 0) {
+    delete cleanConfig.tabs;
+  }
+
   // Serialize using js-yaml for proper YAML formatting
-  const yamlContent = yaml.dump(config, {
+  const yamlContent = yaml.dump(cleanConfig, {
     indent: 2,
     lineWidth: 80,
     noRefs: true,
@@ -168,13 +177,23 @@ export const generatePinacleConfigFromForm = (formData: {
     appUrl?: string;
   };
 }): PinacleConfig => {
-  // Use customServices if provided, otherwise fall back to defaults
+  // Get template if specified
+  const template = formData.template
+    ? getTemplateUnsafe(formData.template)
+    : undefined;
+
+  // Determine services:
+  // 1. Use customServices if explicitly provided
+  // 2. Otherwise, if template is provided, use template's services
+  // 3. Otherwise, fall back to defaults
   const services =
     formData.customServices && formData.customServices.length > 0
       ? formData.customServices
-      : DEFAULT_PINACLE_CONFIG.services;
+      : template?.services || DEFAULT_PINACLE_CONFIG.services;
 
-  // Build processes array from processConfig (for existing repos)
+  // Determine processes:
+  // 1. If processConfig provided (existing repo), use that
+  // 2. Otherwise, use template's defaultProcesses if available
   const processes: Array<{
     name: string;
     displayName?: string;
@@ -184,26 +203,40 @@ export const generatePinacleConfigFromForm = (formData: {
   }> = [];
 
   if (formData.processConfig?.startCommand) {
+    // Existing repo: use manual config
     processes.push({
       name: "app",
       displayName: "Application",
       startCommand: formData.processConfig.startCommand,
       url: formData.processConfig.appUrl,
     });
+  } else if (template?.defaultProcesses) {
+    // New template repo: use template's default processes
+    processes.push(...template.defaultProcesses);
   }
 
-  // Generate tabs for services
-  const tabs =
-    formData.tabs || generateDefaultTabs(services, formData.slug || "pod");
+  // Generate tabs (if not provided by user)
+  const tabs: Array<{ name: string; url?: string; service?: string }> = [];
 
-  // Add process tabs for any processes with URLs
-  for (const process of processes) {
-    if (process.url) {
-      tabs.push({
-        name: process.displayName || process.name,
-        url: process.url,
-      });
+  if (formData.tabs) {
+    // User provided custom tabs
+    tabs.push(...formData.tabs);
+  } else {
+    // Auto-generate tabs
+    // Order: 1. Process tabs (app URLs) FIRST, 2. Then service tabs
+
+    // 1. Add process tabs for any processes with URLs
+    for (const process of processes) {
+      if (process.url) {
+        tabs.push({
+          name: process.displayName || process.name,
+          url: process.url,
+        });
+      }
     }
+
+    // 2. Add service tabs in preferred order
+    tabs.push(...generateDefaultTabs(services, formData.slug || "pod"));
   }
 
   return PinacleConfigSchema.parse({
@@ -212,7 +245,7 @@ export const generatePinacleConfigFromForm = (formData: {
     tier: formData.tier || "dev.small",
     services,
     tabs: tabs.length > 0 ? tabs : undefined,
-    install: formData.processConfig?.installCommand,
+    install: formData.processConfig?.installCommand || template?.installCommand,
     processes,
   });
 };
@@ -220,6 +253,7 @@ export const generatePinacleConfigFromForm = (formData: {
 /**
  * Generate default tabs from services
  * Creates tabs that reference services so they get proper icons and can be managed
+ * Order: Coding assistant, VS Code, Terminal, Vibe Kanban, others
  */
 export const generateDefaultTabs = (
   services: string[],
@@ -227,14 +261,40 @@ export const generateDefaultTabs = (
 ): Array<{ name: string; url?: string; service?: string }> => {
   const tabs: Array<{ name: string; url?: string; service?: string }> = [];
 
-  // Add a tab for each service
+  // Define the preferred order for service tabs
+  const serviceOrder = [
+    "claude-code",
+    "openai-codex",
+    "cursor-cli",
+    "gemini-cli",
+    "code-server",
+    "web-terminal",
+    "vibe-kanban",
+  ];
+
+  // Add service tabs in preferred order
+  for (const serviceName of serviceOrder) {
+    if (services.includes(serviceName)) {
+      const template = getServiceTemplateUnsafe(serviceName);
+      if (template) {
+        tabs.push({
+          name: template.displayName,
+          service: serviceName,
+        });
+      }
+    }
+  }
+
+  // Add any remaining services not in the preferred order
   for (const serviceName of services) {
-    const template = getServiceTemplateUnsafe(serviceName);
-    if (template) {
-      tabs.push({
-        name: template.displayName,
-        service: serviceName,
-      });
+    if (!serviceOrder.includes(serviceName)) {
+      const template = getServiceTemplateUnsafe(serviceName);
+      if (template) {
+        tabs.push({
+          name: template.displayName,
+          service: serviceName,
+        });
+      }
     }
   }
 
@@ -390,11 +450,21 @@ export const expandPinacleConfigToSpec = async (
   }));
 
   // Build complete PodSpec
+  // PodSpec extends PinacleConfig, so include all PinacleConfig fields
   const podSpec: import("./types").PodSpec = {
+    // PinacleConfig fields (preserved as-is)
+    version: pinacleConfig.version,
+    tier: pinacleConfig.tier,
+    template: pinacleConfig.template,
+    tabs: pinacleConfig.tabs,
+
+    // Runtime ID fields
     id: runtimeData.id,
     name: runtimeData.name,
     slug: runtimeData.slug,
     description: runtimeData.description,
+
+    // Runtime expansion
     templateId: pinacleConfig.template,
     baseImage,
     resources: {
@@ -423,58 +493,36 @@ export const expandPinacleConfigToSpec = async (
 
 /**
  * Convert PodSpec (runtime config) to PinacleConfig (YAML config)
- * Extracts only the user-facing configuration that should be stored in pinacle.yaml
+ *
+ * Since PodSpec extends PinacleConfig, this is now a simple extraction of the
+ * PinacleConfig fields from the expanded PodSpec. No data loss!
  */
 export const podConfigToPinacleConfig = (
   podConfig: import("./types").PodSpec,
 ): PinacleConfig => {
-  // Find matching tier from resources
-  let tier: TierId = "dev.small"; // Default fallback
-  for (const [tierId, tierSpec] of Object.entries(RESOURCE_TIERS)) {
-    if (
-      tierSpec.cpu === podConfig.resources.cpuCores &&
-      tierSpec.memory * 1024 === podConfig.resources.memoryMb &&
-      tierSpec.storage * 1024 === podConfig.resources.storageMb
-    ) {
-      tier = tierId as TierId;
-      break;
-    }
-  }
-
-  // Extract service names from ServiceConfig array
+  // Extract service names from ServiceConfig array (services is expanded in PodSpec)
   const services = podConfig.services.map((service) => service.name);
 
   // Extract processes (remove tmuxSession as it's runtime-only)
-  const processes =
-    podConfig.processes?.map((p) => ({
-      name: p.name,
-      displayName: p.displayName,
-      startCommand: p.startCommand,
-      url: p.url,
-      healthCheck: p.healthCheck,
-    })) || [];
+  const processes = podConfig.processes?.map((p) => ({
+    name: p.name,
+    displayName: p.displayName,
+    startCommand: p.startCommand,
+    url: p.url,
+    healthCheck: p.healthCheck,
+  }));
 
-  // Build PinacleConfig
-  // Note: We don't auto-generate tabs from services here because:
-  // 1. The workbench auto-generates service tabs from config.services
-  // 2. The workbench auto-generates process tabs from config.processes
-  // 3. Only truly custom tabs should be in config.tabs
+  // Build PinacleConfig by extracting fields from PodSpec
+  // PodSpec extends PinacleConfig, so all fields are already there!
   const pinacleConfig: PinacleConfig = {
-    version: "1.0",
-    tier,
+    version: podConfig.version,
+    tier: podConfig.tier,
     services,
+    template: podConfig.templateId || podConfig.template,
+    install: podConfig.installCommand, // installCommand is the expanded version of install
     processes,
-    // tabs are not included here - they're managed separately
+    tabs: podConfig.tabs, // Now preserved automatically!
   };
-
-  // Add optional fields if present
-  if (podConfig.templateId) {
-    pinacleConfig.template = podConfig.templateId;
-  }
-
-  if (podConfig.installCommand) {
-    pinacleConfig.install = podConfig.installCommand;
-  }
 
   return pinacleConfig;
 };

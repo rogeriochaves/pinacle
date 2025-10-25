@@ -1,6 +1,6 @@
 import type { TierId } from "./resource-tier-registry";
 import type { ServiceId } from "./service-registry";
-import type { ServiceConfig } from "./types";
+import type { PodSpec, ServiceConfig } from "./types";
 
 export type TemplateId =
   | "vite"
@@ -54,7 +54,7 @@ export type PodTemplate = {
 
   // Template initialization
   templateType: "blank" | "vite" | "nextjs" | "nodejs" | "python" | "custom";
-  initScript?: string[]; // Commands to run after cloning/creating repo
+  initScript?: string[] | ((spec: PodSpec) => string[]); // Commands to run after cloning/creating repo
 };
 
 /**
@@ -114,19 +114,158 @@ export const POD_TEMPLATES = {
     ],
 
     templateType: "vite",
-    initScript: [
-      "cd /workspace",
-      "npm create vite@latest . -- --template react-ts",
-      "npm install",
-    ],
+    initScript: (spec: PodSpec): string[] => {
+      // Detect which coding assistant is available
+      const codingAssistant = spec.services.find(
+        (s) => s.name === "claude-code",
+      )?.enabled
+        ? "Claude Code"
+        : spec.services.find((s) => s.name === "openai-codex")?.enabled
+          ? "OpenAI Codex"
+          : spec.services.find((s) => s.name === "cursor-cli")?.enabled
+            ? "Cursor CLI"
+            : spec.services.find((s) => s.name === "gemini-cli")?.enabled
+              ? "Gemini CLI"
+              : "Claude Code"; // Default fallback
+
+      return [
+        // 1. Create Vite project
+        "pnpm create vite@latest . --rolldown --no-interactive --template react-ts",
+        "pnpm install",
+
+        // 2. Patch package.json to bind Vite to 0.0.0.0
+        `sed -i 's/"dev": "vite"/"dev": "vite --host 0.0.0.0"/' package.json`,
+
+        // 3. Install Tailwind CSS v4
+        "pnpm add -D tailwindcss @tailwindcss/vite",
+
+        // 4. Update vite.config.ts to include Tailwind plugin
+        `sed -i "s/import { defineConfig } from 'vite'/import { defineConfig } from 'vite'\\nimport tailwindcss from '@tailwindcss\\/vite'/" vite.config.ts`,
+        `sed -i 's/plugins: \\[react()\\]/plugins: [react(), tailwindcss()]/' vite.config.ts`,
+
+        // 5. Replace index.css with Tailwind imports
+        `echo '@import "tailwindcss";' > src/index.css`,
+
+        // 6. Install shadcn dependencies
+        "pnpm add class-variance-authority clsx tailwind-merge lucide-react",
+
+        // 7. Create lib/utils.ts for shadcn
+        "mkdir -p src/lib",
+        `cat > src/lib/utils.ts << 'EOF'
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export const cn = (...inputs: ClassValue[]) => {
+  return twMerge(clsx(inputs));
+};
+EOF`,
+
+        // 8. Replace App.tsx with welcome page
+        `cat > src/App.tsx << 'EOF'
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import viteLogo from "/vite.svg";
+
+function App() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto">
+          {/* Logos */}
+          <div className="flex justify-center gap-8 mb-8">
+            <a
+              href="https://vite.dev"
+              target="_blank"
+              className="transition-transform hover:scale-110"
+            >
+              <img src={viteLogo} className="h-24 w-24" alt="Vite logo" />
+            </a>
+            <a
+              href="https://react.dev"
+              target="_blank"
+              className="transition-transform hover:scale-110"
+            >
+              <img
+                src={reactLogo}
+                className="h-24 w-24 animate-spin"
+                style={{ animationDuration: "20s" }}
+                alt="React logo"
+              />
+            </a>
+          </div>
+
+          {/* Main Content */}
+          <div className="text-center space-y-8">
+            <h1 className="text-5xl font-bold text-gray-900 mb-4">
+              Your Pinacle Vite Template is Ready! 🚀
+            </h1>
+
+            <p className="text-xl text-gray-600">
+              This template includes:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">⚡ Vite + React</h3>
+                <p className="text-sm text-gray-600">Lightning-fast HMR with Rolldown</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">🎨 Tailwind CSS v4</h3>
+                <p className="text-sm text-gray-600">Latest version with @tailwindcss/vite</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">🧩 shadcn/ui Ready</h3>
+                <p className="text-sm text-gray-600">Pre-configured with utils & dependencies</p>
+              </div>
+            </div>
+
+            {/* Interactive Demo */}
+            <div className="border border-gray-200 rounded-lg p-8">
+              <button
+                onClick={() => setCount((count) => count + 1)}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                Count is {count}
+              </button>
+              <p className="mt-4 text-gray-600">
+                Edit <code className="bg-gray-100 px-2 py-1 rounded text-sm">src/App.tsx</code> and save to test HMR
+              </p>
+            </div>
+
+            {/* Next Steps */}
+            <div className="mt-12 p-6 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-lg text-gray-900 font-medium mb-2">
+                Ready to start building?
+              </p>
+              <p className="text-gray-700">
+                Go to the <span className="font-semibold">${codingAssistant}</span> or{" "}
+                <span className="font-semibold">VS Code</span> tab above and start building! 💻
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+EOF`,
+
+        // 9. Clean up App.css (not needed with Tailwind)
+        "rm -f src/App.css",
+      ];
+    },
   },
 
   nextjs: {
     id: "nextjs",
-    name: "Next.js T3 Stack",
+    name: "Next.js SaaS Starter",
     icon: "/logos/nextjs.svg",
     iconAlt: "Next.js",
-    techStack: "React, TypeScript, Tailwind CSS, NextAuth, PostgreSQL, tRPC",
+    techStack: "React, TypeScript, Tailwind CSS, NextAuth, PostgreSQL, Stripe",
     mainUseCase: "For building SaaS applications",
     category: "fullstack",
 
@@ -136,12 +275,19 @@ export const POD_TEMPLATES = {
     memoryGb: 2,
     storageGb: 20,
 
-    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
+    services: [
+      "claude-code",
+      "vibe-kanban",
+      "code-server",
+      "web-terminal",
+      "postgres",
+    ],
     defaultPorts: [
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
+      { name: "postgres", internal: 5432 },
     ],
     environment: {
       NODE_ENV: "development",
@@ -151,7 +297,7 @@ export const POD_TEMPLATES = {
     requiredEnvVars: ["NEXTAUTH_SECRET", "DATABASE_URL"],
     envVarDefaults: {
       NEXTAUTH_SECRET: () => generateRandomSecret(32),
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/app",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
     },
 
     installCommand: "pnpm install",
@@ -167,9 +313,20 @@ export const POD_TEMPLATES = {
 
     templateType: "nextjs",
     initScript: [
-      "cd /workspace",
-      "npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias '@/*' --no-git",
-      "npm install",
+      // 1. Clone the Next.js SaaS Starter
+      "git clone https://github.com/nextjs/saas-starter.git temp-saas-starter",
+      "mv temp-saas-starter/* .",
+      "mv temp-saas-starter/.* . 2>/dev/null || true",
+      "rm -rf temp-saas-starter",
+
+      // 2. Install dependencies
+      "pnpm install",
+
+      // 3. Wait for Postgres to be ready
+      "until pg_isready -h localhost -U postgres; do echo 'Waiting for postgres...'; sleep 2; done",
+
+      // 4. Run database migrations
+      "pnpm db:migrate",
     ],
   },
 

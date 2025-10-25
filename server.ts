@@ -430,6 +430,9 @@ const createPodProxy = async (
       const num = parseInt(key, 10);
 
       if (num >= 1 && num <= 9) {
+        // Prevent default browser behavior (tab switching)
+        event.preventDefault();
+        
         // Forward to parent window
         window.parent.postMessage({
           type: 'pinacle-keyboard-shortcut',
@@ -716,7 +719,30 @@ const startServer = async (): Promise<void> => {
       } else {
         // Not a proxy request - pass to Next.js
         const parsedUrl = parse(req.url || "/", true);
+        const listenersBefore = server.listenerCount("upgrade");
         await handle(req, res, parsedUrl);
+        const listenersAfter = server.listenerCount("upgrade");
+        
+        // Detect if Next.js added its upgrade listener (happens after first compilation)
+        if (listenersBefore !== listenersAfter && !nextJsUpgradeHandler) {
+          logger.debug(
+            { before: listenersBefore, after: listenersAfter },
+            "Next.js added upgrade listener, storing and removing it to prevent conflicts",
+          );
+          
+          const upgradeListeners = server.listeners("upgrade");
+          
+          // Next.js's handler is the last one added
+          if (upgradeListeners.length >= 2) {
+            nextJsUpgradeHandler = upgradeListeners[upgradeListeners.length - 1] as any;
+            
+            // Remove all listeners and re-add only ours (the first one)
+            server.removeAllListeners("upgrade");
+            server.on("upgrade", upgradeListeners[0] as any);
+            
+            logger.debug("Stored Next.js upgrade handler, will call it manually for HMR");
+          }
+        }
       }
     } catch (err) {
       logger.error({ err }, "Server error");
@@ -726,6 +752,9 @@ const startServer = async (): Promise<void> => {
       }
     }
   });
+
+  // Store Next.js's upgrade handler when it gets added (after first HTTP request)
+  let nextJsUpgradeHandler: ((req: any, socket: any, head: any) => void) | null = null;
 
   // Handle WebSocket upgrades
   server.on("upgrade", async (req, socket, head) => {
@@ -787,7 +816,7 @@ const startServer = async (): Promise<void> => {
         }
 
         // Upgrade the WebSocket connection using the same proxy
-        logger.info(
+        logger.debug(
           { podSlug: parsed.podSlug, port: parsed.port, url: req.url },
           "Upgrading WebSocket through cached proxy",
         );
@@ -801,9 +830,22 @@ const startServer = async (): Promise<void> => {
         });
 
         proxy.ws(req, socket, head);
+      } else {
+        // Not a proxy request - pass to Next.js HMR handler if available
+        if (nextJsUpgradeHandler) {
+          logger.debug(
+            { hostname: requestHostname, url: req.url },
+            "Non-proxy WebSocket upgrade, passing to Next.js HMR",
+          );
+          nextJsUpgradeHandler(req, socket, head);
+        } else {
+          // Next.js handler not available yet (before first compilation)
+          logger.debug(
+            { hostname: requestHostname, url: req.url },
+            "Non-proxy WebSocket upgrade but Next.js handler not ready yet",
+          );
+        }
       }
-      // else: Not a proxy request - don't handle it, let it be handled elsewhere
-      // This allows Next.js HMR WebSocket to work
     } catch (err) {
       logger.error({ err }, "WebSocket upgrade error");
       socket.destroy();

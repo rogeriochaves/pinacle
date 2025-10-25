@@ -15,6 +15,7 @@ export type ServiceTemplate = {
   postStartScript?: string[] | ((spec: PodSpec) => string[]); // Commands to install service dependencies
   startCommand: (spec: PodSpec) => string[]; // Function that returns command and args to start the service
   cleanupCommand: string[]; // Commands to run on service stop
+  healthCheckStartDelay?: number; // Delay in seconds before health check starts
   healthCheckCommand: string[]; // Command to check if service is healthy
   defaultPort: number; // Default port the service listens on
   environment?: Record<string, string>; // Environment variables for the service
@@ -63,6 +64,7 @@ EOF`,
       ];
     },
     cleanupCommand: [],
+    healthCheckStartDelay: 8,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:8726"],
     defaultPort: 8726,
     environment: {
@@ -302,9 +304,15 @@ EOF`,
     icon: "/file.svg",
     iconAlt: "PostgreSQL",
     installScript: [
-      "apk add --no-cache postgresql postgresql-contrib",
+      "apk add --no-cache postgresql",
       "mkdir -p /var/lib/postgresql/data",
       "chown -R postgres:postgres /var/lib/postgresql",
+      "su-exec postgres initdb -D /var/lib/postgresql/data",
+      "su-exec postgres pg_ctl -D /var/lib/postgresql/data -o '-c listen_addresses=*' -w start",
+    ],
+    postStartScript: [
+      // Ensure postgres is stopped after install (it will be started by OpenRC)
+      "su-exec postgres pg_ctl -D /var/lib/postgresql/data -m fast -w stop || true",
     ],
     startCommand: () => [
       "su-exec",
@@ -312,6 +320,8 @@ EOF`,
       "postgres",
       "-D",
       "/var/lib/postgresql/data",
+      "-c",
+      "listen_addresses=*",
     ],
     cleanupCommand: [],
     healthCheckCommand: ["pg_isready", "-U", "postgres"],

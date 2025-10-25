@@ -135,17 +135,27 @@ export class DefaultConfigResolver implements ConfigResolver {
     const mergedConfig = this.mergeConfigs(baseConfig, userConfig || {});
 
     // Ensure required fields are present
+    const tierValue = (mergedConfig.resources?.tier ||
+      "dev.small") as ResourceTier;
     const finalSpec: PodSpec = {
+      // PinacleConfig fields
+      version: "1.0",
+      tier: tierValue,
+      template: template?.id as TemplateId,
+
+      // Runtime ID fields
       id: mergedConfig.id || this.generateId(),
       name: mergedConfig.name || "Unnamed Pod",
       slug:
         mergedConfig.slug ||
         this.generateSlug(mergedConfig.name || "unnamed-pod"),
       description: mergedConfig.description,
+
+      // Runtime expansion
       templateId: template?.id as TemplateId,
       baseImage: mergedConfig.baseImage || "alpine:3.22.1",
       resources: {
-        tier: (mergedConfig.resources?.tier || "dev.small") as ResourceTier,
+        tier: tierValue,
         cpuCores: mergedConfig.resources?.cpuCores || 1,
         memoryMb: mergedConfig.resources?.memoryMb || 1024,
         storageMb: mergedConfig.resources?.storageMb || 10240,

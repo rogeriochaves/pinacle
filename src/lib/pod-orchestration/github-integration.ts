@@ -5,6 +5,7 @@ import type { PinacleConfig } from "./pinacle-config";
 import { serializePinacleConfig } from "./pinacle-config";
 import type { PodManager } from "./pod-manager";
 import type { PodTemplate } from "./template-registry";
+import type { PodSpec } from "./types";
 
 const execAsync = promisify(exec);
 
@@ -162,20 +163,32 @@ export class GitHubIntegration {
     template: PodTemplate,
     repository: string,
     sshKeyPair: SSHKeyPair,
+    spec: PodSpec,
   ): Promise<void> {
     console.log(
       `[GitHubIntegration] Initializing template ${template.id} for ${repository}`,
     );
 
     try {
+      // Extract project folder name from repository
+      const projectFolder = getProjectFolderFromRepository(repository);
+      if (!projectFolder) {
+        throw new Error(
+          `Could not extract project folder from repository: ${repository}`,
+        );
+      }
+
+      const projectPath = `/workspace/${projectFolder}`;
+      console.log(`[GitHubIntegration] Creating project in ${projectPath}`);
+
       // 1. Setup SSH key (same as clone)
       await this.podManager.execInPod(["mkdir", "-p", "/workspace/.ssh"]);
 
-      const escapedPrivateKey = sshKeyPair.privateKey.replace(/'/g, "'\\''");
+      const escapedPrivateKey = sshKeyPair.privateKey.replace(/"/g, '\\"');
       await this.podManager.execInPod([
         "sh",
         "-c",
-        `'echo '${escapedPrivateKey}' > /workspace/.ssh/id_ed25519 && chmod 600 /workspace/.ssh/id_ed25519'`,
+        `'echo "${escapedPrivateKey}" > /workspace/.ssh/id_ed25519 && chmod 600 /workspace/.ssh/id_ed25519'`,
       ]);
 
       await this.podManager.execInPod([
@@ -200,13 +213,14 @@ export class GitHubIntegration {
         `Pinacle Pod`,
       ]);
 
-      // 3. Initialize git repository
-      await this.podManager.execInPod(["git", "init", "/workspace"]);
-
+      // 3. Create project directory and initialize git repository there
+      await this.podManager.execInPod(["mkdir", "-p", projectPath]);
       await this.podManager.execInPod([
-        "sh",
-        "-c",
-        "'cd /workspace && git branch -M main'",
+        "git",
+        "init",
+        "-b",
+        "main",
+        projectPath,
       ]);
 
       // 4. Add remote
@@ -214,21 +228,28 @@ export class GitHubIntegration {
       await this.podManager.execInPod([
         "sh",
         "-c",
-        `'cd /workspace && git remote add origin ${gitUrl}'`,
+        `'cd ${projectPath} && git remote add origin ${gitUrl}'`,
       ]);
 
       // 5. Run template initialization script
-      if (template.initScript && template.initScript.length > 0) {
+      if (template.initScript) {
         console.log(
           `[GitHubIntegration] Running template init script for ${template.id}`,
         );
 
-        for (const cmd of template.initScript) {
+        // Resolve initScript (could be array or function)
+        const commands =
+          typeof template.initScript === "function"
+            ? template.initScript(spec)
+            : template.initScript;
+
+        for (const cmd of commands) {
           console.log(`[GitHubIntegration] Executing: ${cmd}`);
+          // Run commands in the project directory
           await this.podManager.execInPod([
             "sh",
             "-c",
-            `'${cmd.replace(/'/g, "'\\''")}'`,
+            `'cd ${projectPath} && ${cmd.replace(/'/g, "'\\''")}'`,
           ]);
         }
       }
@@ -237,21 +258,35 @@ export class GitHubIntegration {
       await this.podManager.execInPod([
         "sh",
         "-c",
-        "'cd /workspace && git add -A'",
+        `'cd ${projectPath} && git add -A'`,
       ]);
 
       await this.podManager.execInPod([
         "sh",
         "-c",
-        `'cd /workspace && git commit -m "Initial commit from Pinacle (${template.name})" || true'`,
+        `'cd ${projectPath} && git commit -m "Initial commit from Pinacle (${template.name})" || true'`,
       ]);
 
       // 7. Push to GitHub
-      await this.podManager.execInPod([
-        "sh",
-        "-c",
-        "'cd /workspace && git push -u origin main'",
-      ]);
+      try {
+        await this.podManager.execInPod([
+          "sh",
+          "-c",
+          `'cd ${projectPath} && git push -u origin main'`,
+        ]);
+      } catch (error) {
+        // Means we are retrying the provisioning, so we need to force push
+        if (
+          error instanceof Error &&
+          error.message.includes("remote contains work")
+        ) {
+          await this.podManager.execInPod([
+            "sh",
+            "-c",
+            `'cd ${projectPath} && git push --force -u origin main'`,
+          ]);
+        }
+      }
 
       console.log(
         `[GitHubIntegration] Successfully initialized template and pushed to ${repository}`,
@@ -273,6 +308,7 @@ export class GitHubIntegration {
     podId: string,
     setup: GitHubRepoSetup,
     template?: PodTemplate,
+    spec?: PodSpec,
   ): Promise<void> {
     if (setup.type === "existing") {
       // Clone existing repository
@@ -287,10 +323,14 @@ export class GitHubIntegration {
       if (!template) {
         throw new Error("Template is required for new projects");
       }
+      if (!spec) {
+        throw new Error("PodSpec is required for new projects with templates");
+      }
       await this.initializeTemplate(
         template,
         setup.repository,
         setup.sshKeyPair,
+        spec,
       );
     }
   }

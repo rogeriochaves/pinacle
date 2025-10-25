@@ -1631,7 +1631,7 @@ export const podsRouter = createTRPCRouter({
           });
         }
 
-        // Parse current config
+        // Parse current config from database
         const { podRecordToPinacleConfig, pinacleConfigToJSON } = await import(
           "../../pod-orchestration/pinacle-config"
         );

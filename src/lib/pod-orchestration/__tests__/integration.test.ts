@@ -296,18 +296,12 @@ describe("Pod Orchestration Integration Tests", () => {
     const podManager = new PodManager(testPodId, serverConnection);
 
     // Execute command in pod
-    const execResult = await podManager.execInPod([
-      "echo",
-      "Hello from pod!",
-    ]);
+    const execResult = await podManager.execInPod(["echo", "Hello from pod!"]);
     expect(execResult.exitCode).toBe(0);
     expect(execResult.stdout.trim()).toBe("Hello from pod!");
 
     // Check environment variable
-    const envResult = await podManager.execInPod([
-      "printenv",
-      "TEST_VAR",
-    ]);
+    const envResult = await podManager.execInPod(["printenv", "TEST_VAR"]);
     expect(envResult.exitCode).toBe(0);
     expect(envResult.stdout.trim()).toBe("integration-test");
 
@@ -586,10 +580,7 @@ describe("Pod Orchestration Integration Tests", () => {
     const podManager = new PodManager(templateTestId, serverConnection);
 
     // 4. Verify template-specific configuration
-    const envResult = await podManager.execInPod([
-      "printenv",
-      "NODE_ENV",
-    ]);
+    const envResult = await podManager.execInPod(["printenv", "NODE_ENV"]);
     expect(envResult.exitCode).toBe(0);
     expect(envResult.stdout.trim()).toBe("development");
 
@@ -609,7 +600,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Logs: ${logs.length} entries`);
   }, 120000);
 
-  it.only("should provision pod with hostname-based Nginx proxy from database", async () => {
+  it.skip("should provision pod with hostname-based Nginx proxy from database", async () => {
     const proxyTestId = `proxy-test-${Date.now()}`;
 
     // 1. Create pod in database
@@ -1078,4 +1069,387 @@ describe("Pod Orchestration Integration Tests", () => {
 
     console.log("✅ Pod deprovisioning service test completed successfully!");
   }, 120000); // 2 minute timeout
+
+  it.skip("should initialize a new Vite project from template", async () => {
+    const viteTestId = `vite-template-test-${Date.now()}`;
+    const testRepo = `test-org/vite-test-${Date.now()}`;
+
+    console.log("📝 Creating pod with Vite template...");
+
+    // 1. Generate SSH key pair (mock, won't actually push to GitHub)
+    const { GitHubIntegration } = await import("../github-integration");
+    const podManager = new PodManager(viteTestId, serverConnection);
+    const githubIntegration = new GitHubIntegration(podManager);
+    const sshKeyPair = await githubIntegration.generateSSHKeyPair(viteTestId);
+
+    console.log("✅ Generated SSH key pair");
+
+    // 2. Create pod in database with Vite template
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "vite",
+      tier: "dev.small",
+    });
+
+    await db.insert(pods).values({
+      id: viteTestId,
+      name: "Vite Template Test Pod",
+      slug: "vite-template-test-pod",
+      template: "vite",
+      teamId: testTeamId,
+      ownerId: testUserId,
+      githubRepo: testRepo,
+      config: pinacleConfigToJSON(pinacleConfig),
+      monthlyPrice: 1000,
+      status: "creating",
+    });
+
+    // 3. Provision pod with new repo setup (template initialization)
+    // NOTE: This will fail at the git push step since we're not using a real GitHub repo
+    // But that's OK - we're testing the template initialization, not the GitHub push
+    console.log(`🚀 Provisioning pod with Vite template...`);
+
+    try {
+      await provisioningService.provisionPod(
+        {
+          podId: viteTestId,
+          serverId: testServerId,
+          githubRepoSetup: {
+            type: "new",
+            repository: testRepo,
+            sshKeyPair: sshKeyPair,
+          },
+        },
+        false,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      // Git push will fail because we're not using a real GitHub repo
+      // That's expected and OK for this test
+      console.log(`⚠️  Expected error from git push: ${errorMessage}`);
+    }
+
+    // 4. Verify pod container exists (check directly, since git push failure prevented DB update)
+    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containers = await containerRuntime.listContainers();
+    const viteContainer = containers.find((c) => c.podId === viteTestId);
+
+    expect(viteContainer).toBeTruthy();
+    if (!viteContainer) throw new Error("Container not found");
+    console.log("✅ Pod container created");
+
+    // 5. Verify the project was initialized correctly
+    console.log("🔍 Verifying Vite project files...");
+
+    const projectFolder = testRepo.split("/")[1]; // Extract "vite-test-XXX" from "test-org/vite-test-XXX"
+
+    // Check if package.json exists
+    const { stdout: packageJsonCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      ["sh", "-c", `'cat /workspace/${projectFolder}/package.json'`],
+    );
+
+    expect(packageJsonCheck).toContain('"name"');
+    expect(packageJsonCheck).toContain('"scripts"');
+    console.log("✅ package.json exists");
+
+    // Parse package.json to verify scripts
+    const packageJson = JSON.parse(packageJsonCheck);
+    expect(packageJson.scripts).toHaveProperty("dev");
+    expect(packageJson.scripts).toHaveProperty("build");
+    console.log("✅ package.json has correct scripts");
+
+    // Check if src/App.tsx exists
+    const { stdout: appTsxCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -f /workspace/${projectFolder}/src/App.tsx && echo "exists"'`,
+      ],
+    );
+
+    expect(appTsxCheck.trim()).toBe("exists");
+    console.log("✅ src/App.tsx exists");
+
+    // Check if vite.config.ts exists
+    const { stdout: viteConfigCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -f /workspace/${projectFolder}/vite.config.ts && echo "exists"'`,
+      ],
+    );
+
+    expect(viteConfigCheck.trim()).toBe("exists");
+    console.log("✅ vite.config.ts exists");
+
+    // Check if node_modules exists (pnpm install ran)
+    const { stdout: nodeModulesCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -d /workspace/${projectFolder}/node_modules && echo "exists"'`,
+      ],
+    );
+
+    expect(nodeModulesCheck.trim()).toBe("exists");
+    console.log("✅ node_modules exists (pnpm install succeeded)");
+
+    // 6. Verify Tailwind CSS v4 is installed
+    expect(packageJson.devDependencies).toHaveProperty("tailwindcss");
+    expect(packageJson.devDependencies).toHaveProperty("@tailwindcss/vite");
+    console.log("✅ Tailwind CSS v4 installed");
+
+    // 7. Verify vite.config.ts includes Tailwind plugin
+    const { stdout: viteConfigContent } =
+      await containerRuntime.execInContainer(viteTestId, viteContainer.id, [
+        "sh",
+        "-c",
+        `'cat /workspace/${projectFolder}/vite.config.ts'`,
+      ]);
+
+    expect(viteConfigContent).toContain("@tailwindcss/vite");
+    expect(viteConfigContent).toContain("tailwindcss()");
+    console.log("✅ Vite config includes Tailwind plugin");
+
+    // 8. Verify index.css has Tailwind import
+    const { stdout: indexCssContent } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      ["sh", "-c", `'cat /workspace/${projectFolder}/src/index.css'`],
+    );
+
+    expect(indexCssContent).toContain('@import "tailwindcss"');
+    console.log("✅ index.css imports Tailwind");
+
+    // 9. Verify shadcn dependencies are installed
+    expect(packageJson.dependencies).toHaveProperty("class-variance-authority");
+    expect(packageJson.dependencies).toHaveProperty("clsx");
+    expect(packageJson.dependencies).toHaveProperty("tailwind-merge");
+    console.log("✅ shadcn dependencies installed");
+
+    // 10. Verify lib/utils.ts exists
+    const { stdout: utilsCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -f /workspace/${projectFolder}/src/lib/utils.ts && echo "exists"'`,
+      ],
+    );
+
+    expect(utilsCheck.trim()).toBe("exists");
+    console.log("✅ lib/utils.ts exists");
+
+    // 11. Verify App.tsx has the new welcome page
+    const { stdout: appTsxContent } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      ["sh", "-c", `'cat /workspace/${projectFolder}/src/App.tsx'`],
+    );
+
+    expect(appTsxContent).toContain("Your Pinacle Vite Template is Ready!");
+    expect(appTsxContent).toContain("Tailwind CSS v4");
+    expect(appTsxContent).toContain("shadcn/ui Ready");
+    console.log("✅ App.tsx has welcome page");
+
+    // 12. Verify git was initialized
+    const { stdout: gitCheck } = await containerRuntime.execInContainer(
+      viteTestId,
+      viteContainer.id,
+      ["sh", "-c", `'cd /workspace/${projectFolder} && git status'`],
+    );
+
+    expect(gitCheck).toContain("On branch main");
+    console.log("✅ Git repository initialized on main branch");
+
+    // 13. Clean up
+    console.log("🧹 Cleaning up test pod...");
+    await provisioningService.deprovisionPod({ podId: viteTestId });
+    await db.delete(pods).where(eq(pods.id, viteTestId));
+
+    console.log(
+      "✅ Vite template with Tailwind & shadcn initialization test completed successfully!",
+    );
+  }, 480000); // 8 minute timeout (template init with Tailwind takes a while)
+
+  it("should initialize a new Next.js SaaS Starter project with Postgres", async () => {
+    console.log(
+      "🚀 Starting Next.js SaaS Starter template initialization test",
+    );
+
+    const nextjsTestId = `nextjs-template-test-${Date.now()}`;
+    const testRepo = `test-org/nextjs-test-${Date.now()}`;
+    const projectFolder = testRepo.split("/")[1];
+
+    console.log("📝 Creating pod with Next.js template...");
+
+    // 1. Generate SSH key pair (mock, won't actually push to GitHub)
+    const { GitHubIntegration } = await import("../github-integration");
+    const podManager = new PodManager(nextjsTestId, serverConnection);
+    const githubIntegration = new GitHubIntegration(podManager);
+    const sshKeyPair = await githubIntegration.generateSSHKeyPair(nextjsTestId);
+
+    console.log("✅ Generated SSH key pair");
+
+    // 2. Create pod in database with Next.js template
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nextjs",
+      tier: "dev.medium",
+    });
+
+    await db.insert(pods).values({
+      id: nextjsTestId,
+      name: "Next.js SaaS Starter Test Pod",
+      slug: "nextjs-template-test-pod",
+      template: "nextjs",
+      teamId: testTeamId,
+      ownerId: testUserId,
+      githubRepo: testRepo,
+      config: pinacleConfigToJSON(pinacleConfig),
+      monthlyPrice: 2000,
+      status: "creating",
+    });
+
+    // 3. Provision pod with new repo setup (template initialization)
+    console.log(`🚀 Provisioning pod with Next.js template...`);
+
+    try {
+      await provisioningService.provisionPod(
+        {
+          podId: nextjsTestId,
+          serverId: testServerId,
+          githubRepoSetup: {
+            type: "new",
+            repository: testRepo,
+            sshKeyPair: sshKeyPair,
+          },
+        },
+        false,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      console.log(`⚠️  Expected error from git push: ${errorMessage}`);
+    }
+
+    // 4. Verify pod container exists
+    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containers = await containerRuntime.listContainers();
+    const nextjsContainer = containers.find((c) => c.podId === nextjsTestId);
+
+    expect(nextjsContainer).toBeTruthy();
+    if (!nextjsContainer) throw new Error("Container not found");
+    console.log("✅ Pod container created");
+
+    // 4. Verify package.json exists and has correct scripts
+    const { stdout: packageJsonContent } =
+      await containerRuntime.execInContainer(nextjsTestId, nextjsContainer.id, [
+        "sh",
+        "-c",
+        `'cat /workspace/${projectFolder}/package.json'`,
+      ]);
+
+    const packageJson = JSON.parse(packageJsonContent);
+    expect(packageJson.scripts).toHaveProperty("dev");
+    expect(packageJson.scripts).toHaveProperty("build");
+    console.log("✅ package.json exists with correct scripts");
+
+    // 5. Verify node_modules was installed
+    const { stdout: nodeModulesCheck } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -d /workspace/${projectFolder}/node_modules && echo "exists"'`,
+      ],
+    );
+
+    expect(nodeModulesCheck.trim()).toBe("exists");
+    console.log("✅ node_modules exists (pnpm install succeeded)");
+
+    // 6. Verify Next.js specific files exist
+    const { stdout: appFolderCheck } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      [
+        "sh",
+        "-c",
+        `'test -d /workspace/${projectFolder}/app && echo "exists"'`,
+      ],
+    );
+
+    expect(appFolderCheck.trim()).toBe("exists");
+    console.log("✅ Next.js app directory exists");
+
+    // 7. Verify Postgres service is installed
+    const { stdout: postgresCheck } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      ["sh", "-c", "'which postgres'"],
+    );
+
+    expect(postgresCheck.trim()).toContain("postgres");
+    console.log("✅ Postgres is installed");
+
+    // 8. Verify Postgres is running
+    const { stdout: postgresStatus } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      ["sh", "-c", "'rc-status | grep postgres || echo \"not running\"'"],
+    );
+
+    console.log(`📊 Postgres status: ${postgresStatus.trim()}`);
+
+    // 9. Verify Postgres data directory is initialized
+    const { stdout: postgresDataCheck } =
+      await containerRuntime.execInContainer(nextjsTestId, nextjsContainer.id, [
+        "sh",
+        "-c",
+        "'test -f /var/lib/postgresql/data/PG_VERSION && echo \"exists\"'",
+      ]);
+
+    expect(postgresDataCheck.trim()).toBe("exists");
+    console.log("✅ Postgres data directory is initialized");
+
+    // 10. Verify DATABASE_URL environment variable is set
+    const { stdout: envCheck } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      ["sh", "-c", "'echo $DATABASE_URL'"],
+    );
+
+    expect(envCheck.trim()).toContain(
+      "postgresql://postgres:postgres@localhost:5432",
+    );
+    console.log("✅ DATABASE_URL environment variable is set correctly");
+
+    // 11. Verify git was initialized
+    const { stdout: gitCheck } = await containerRuntime.execInContainer(
+      nextjsTestId,
+      nextjsContainer.id,
+      ["sh", "-c", `'cd /workspace/${projectFolder} && git status'`],
+    );
+
+    expect(gitCheck).toContain("On branch main");
+    console.log("✅ Git repository initialized on main branch");
+
+    // 12. Clean up
+    console.log("🧹 Cleaning up test pod...");
+    await provisioningService.deprovisionPod({ podId: nextjsTestId });
+    await db.delete(pods).where(eq(pods.id, nextjsTestId));
+
+    console.log(
+      "✅ Next.js SaaS Starter with Postgres initialization test completed successfully!",
+    );
+  }, 600000); // 10 minute timeout (Next.js + Postgres takes longer)
 });

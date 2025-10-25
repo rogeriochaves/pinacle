@@ -117,13 +117,17 @@ export class ServiceProvisioner {
       }
 
       // Wait a moment for service to start
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const template = getServiceTemplateUnsafe(serviceName);
+      const delay = template?.healthCheckStartDelay
+        ? template.healthCheckStartDelay! * 1000
+        : 2000;
+      await new Promise((resolve) => setTimeout(resolve, delay));
 
       // Verify service is running
       const isHealthy = await this.checkServiceHealth(
         podId,
         serviceName,
-        10_000,
+        30_000,
       );
       if (!isHealthy) {
         throw new Error(
@@ -135,7 +139,6 @@ export class ServiceProvisioner {
         `[ServiceProvisioner] Successfully started service ${serviceName}`,
       );
 
-      const template = getServiceTemplateUnsafe(serviceName);
       if (template?.postStartScript) {
         console.log(
           `[ServiceProvisioner] Running post-start script for ${serviceName}`,

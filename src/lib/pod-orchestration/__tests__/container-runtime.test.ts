@@ -47,6 +47,9 @@ describe("LimaGVisorRuntime", () => {
     runtime = new GVisorRuntime(await getLimaServerConnection());
 
     testConfig = {
+      version: "1.0",
+      tier: "dev.small",
+      services: [],
       id: "test-pod-123",
       name: "Test Pod",
       slug: "test-pod",
@@ -63,7 +66,6 @@ describe("LimaGVisorRuntime", () => {
           { name: "api", internal: 8000, external: 30001, protocol: "tcp" },
         ],
       },
-      services: [],
       environment: {
         NODE_ENV: "development",
         PORT: "3000",
@@ -254,7 +256,11 @@ describe("LimaGVisorRuntime", () => {
         callback(null, { stdout: "hello world\n", stderr: "" });
       });
 
-      const result = await runtime.execInContainer("test-pod", containerId, command);
+      const result = await runtime.execInContainer(
+        "test-pod",
+        containerId,
+        command,
+      );
 
       expect(result).toEqual({
         stdout: "hello world\n",
@@ -273,7 +279,11 @@ describe("LimaGVisorRuntime", () => {
         callback(error, { stdout: "", stderr: "Command failed" });
       });
 
-      const result = await runtime.execInContainer("test-pod", containerId, command);
+      const result = await runtime.execInContainer(
+        "test-pod",
+        containerId,
+        command,
+      );
 
       expect(result).toEqual({
         stdout: "",

@@ -133,12 +133,12 @@ export default function PodProvisioningPage() {
     }
   }, [data?.logs]);
 
-  // Auto-scroll to bottom when new logs arrive
+  // Auto-scroll to bottom when new logs arrive or existing logs are updated
   useEffect(() => {
     if (consoleEndRef.current && allLogs.length > 0) {
       consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [allLogs.length]);
+  }, [allLogs]);
 
   // Auto-redirect to dashboard when status becomes "running"
   useEffect(() => {
