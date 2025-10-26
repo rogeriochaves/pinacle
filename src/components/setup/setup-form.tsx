@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
+import { useGitHubReauth } from "../../hooks/use-github-reauth";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { api } from "../../lib/trpc/client";
 import {
@@ -19,6 +20,7 @@ const SetupForm = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { reauthenticate } = useGitHubReauth();
 
   const form = useForm<SetupFormValues>({
     resolver: zodResolver(setupFormSchema),
@@ -40,17 +42,22 @@ const SetupForm = () => {
     },
   });
 
-  // Check GitHub token validity (only if session doesn't already indicate expiry)
-  const { data: tokenValidation } = api.github.checkTokenValidity.useQuery(
+  // Check GitHub token validity in parallel with repo loading
+  const { data: tokenValidation, isLoading: isCheckingToken } = api.github.checkTokenValidity.useQuery(
     undefined,
     {
-      enabled: status === "authenticated" && !!session?.user?.githubAccessToken && !session?.error,
+      enabled: status === "authenticated" && !!session?.user?.githubAccessToken,
       retry: false,
     },
   );
 
-  // Check if token is expired (from session or from validation check)
-  const isTokenExpired = session?.error === "github_token_expired" || (tokenValidation && !tokenValidation.valid);
+  // Automatically redirect to re-auth if token is expired
+  useEffect(() => {
+    if (tokenValidation && !tokenValidation.valid) {
+      console.log("[SetupForm] Token expired, automatically triggering re-auth...");
+      reauthenticate();
+    }
+  }, [tokenValidation, reauthenticate]);
 
   // GitHub App queries
   const { data: installationData, isLoading: installationsLoading } =
@@ -195,13 +202,21 @@ const SetupForm = () => {
     router.push(`/pods/${pod.id}/provisioning`);
   };
 
-  if (status === "loading" || installationsLoading) {
+  // Show loading screen while:
+  // 1. Session is loading
+  // 2. Checking token validity
+  // 3. Loading repositories
+  // 4. Token is invalid (to prevent screen blink during redirect)
+  const isTokenInvalid = tokenValidation && !tokenValidation.valid;
+  const isLoading = status === "loading" || isCheckingToken || installationsLoading || isTokenInvalid;
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
           <h2 className="text-xl font-semibold text-white mb-2 font-mono">
-            Loading your repositories...
+            {isTokenInvalid ? "Refreshing authentication..." : "Loading your repositories..."}
           </h2>
           <p className="text-slate-400 font-mono">Just a moment</p>
         </div>
@@ -211,49 +226,6 @@ const SetupForm = () => {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {/* Token Expiration Warning Banner */}
-      {isTokenExpired && (
-        <div className="bg-orange-500/10 border-b border-orange-500/30">
-          <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-orange-500/20 p-2 rounded">
-                  <svg
-                    className="w-5 h-5 text-orange-500"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-foreground font-mono text-sm font-semibold">
-                    GitHub Authentication Expired
-                  </p>
-                  <p className="text-muted-foreground font-mono text-xs">
-                    Your GitHub token has expired. Click below to refresh your authentication.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  // Seamless re-auth: just re-authenticate without signing out
-                  const returnUrl = encodeURIComponent(window.location.pathname);
-                  window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
-                }}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
-              >
-                Re-authenticate with GitHub
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       <ConfigureForm
         form={form}
         onSubmit={handleFinalSubmit}

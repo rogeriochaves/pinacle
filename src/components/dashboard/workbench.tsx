@@ -44,6 +44,7 @@ import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { getServiceTemplateUnsafe } from "../../lib/pod-orchestration/service-registry";
 import { api } from "../../lib/trpc/client";
+import { GitHubReauthButton } from "../shared/github-reauth-button";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -988,19 +989,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                           Your GitHub token has expired. Click below to refresh
                           your authentication and retry the operation.
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            // Seamless re-auth: redirect to GitHub auth with return URL
-                            const returnUrl = encodeURIComponent(
-                              window.location.pathname,
-                            );
-                            window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
-                          }}
-                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
-                        >
-                          Re-authenticate with GitHub
-                        </button>
+                        <GitHubReauthButton className="cursor-pointer px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors" />
                       </div>
                     ) : (
                       <p className="text-slate-400 font-mono text-sm">

@@ -124,7 +124,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account, profile, trigger }) {
+    async jwt({ token, user, account, profile }) {
       // Initial sign in
       if (user) {
         token.id = user.id;
@@ -172,53 +172,11 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Store GitHub OAuth token and expiry
+      // Store GitHub OAuth token
       if (account?.provider === "github") {
         token.githubAccessToken = account.access_token;
         token.githubId = account.providerAccountId;
-        
-        // GitHub OAuth tokens from orgs with expiration policies typically expire in 8 hours
-        // We'll be conservative and assume 8 hours, then validate proactively
-        // expires_in is in seconds if provided, otherwise default to 8 hours
-        const expiresIn = account.expires_at 
-          ? account.expires_at * 1000 // Convert to milliseconds
-          : Date.now() + 8 * 60 * 60 * 1000; // 8 hours from now
-        
-        token.githubAccessTokenExpires = expiresIn;
         token.error = undefined; // Clear any previous errors
-        
-        console.log(`[Auth] Stored GitHub token, expires at: ${new Date(expiresIn).toISOString()}`);
-      }
-
-      // Check if token needs validation (on subsequent requests)
-      if (token.githubAccessToken && trigger !== "signIn" && trigger !== "signUp") {
-        const now = Date.now();
-        const expiresAt = token.githubAccessTokenExpires || 0;
-        const timeUntilExpiry = expiresAt - now;
-        const oneHour = 60 * 60 * 1000;
-
-        // If token expires in less than 1 hour, validate it
-        if (timeUntilExpiry < oneHour) {
-          console.log(`[Auth] Token expires soon (${Math.round(timeUntilExpiry / 1000 / 60)} minutes), validating...`);
-          
-          try {
-            const { checkGitHubTokenValidity } = await import("./github-helpers");
-            const validation = await checkGitHubTokenValidity(token.githubAccessToken as string);
-            
-            if (!validation.valid) {
-              console.error("[Auth] GitHub token is invalid:", validation.error);
-              token.error = "github_token_expired";
-              // Keep the token for now - the UI will prompt re-auth
-            } else {
-              console.log("[Auth] GitHub token is still valid");
-              // Extend expiry by 8 hours since it's still valid
-              token.githubAccessTokenExpires = Date.now() + 8 * 60 * 60 * 1000;
-            }
-          } catch (error) {
-            console.error("[Auth] Error validating GitHub token:", error);
-            // Don't mark as error on network issues - give benefit of doubt
-          }
-        }
       }
 
       return token;
@@ -228,11 +186,6 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.githubAccessToken = token.githubAccessToken;
         session.user.githubId = token.githubId;
-        
-        // Pass error flag to session so UI can handle re-auth
-        if (token.error === "github_token_expired") {
-          session.error = "github_token_expired";
-        }
       }
       return session;
     },

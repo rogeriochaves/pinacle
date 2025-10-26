@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { GitHubReauthButton } from "@/components/shared/github-reauth-button";
 import { Button } from "@/components/ui/button";
 import { isGitHubAuthError } from "@/lib/github-error-detection";
 import { api } from "@/lib/trpc/client";
@@ -382,19 +383,7 @@ export default function PodProvisioningPage() {
                             pod.
                           </p>
                           <div className="flex gap-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                // Seamless re-auth: redirect to GitHub auth with return URL
-                                const returnUrl = encodeURIComponent(
-                                  window.location.pathname,
-                                );
-                                window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
-                              }}
-                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
-                            >
-                              Re-authenticate with GitHub
-                            </button>
+                            <GitHubReauthButton />
                             <button
                               type="button"
                               onClick={() => {

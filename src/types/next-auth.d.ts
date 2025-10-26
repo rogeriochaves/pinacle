@@ -11,7 +11,6 @@ declare module "next-auth" {
       githubAccessToken?: string;
       githubId?: string;
     };
-    error?: string; // Error flag for expired tokens
   }
 
   interface User {
@@ -27,7 +26,5 @@ declare module "next-auth/jwt" {
     id?: string;
     githubAccessToken?: string;
     githubId?: string;
-    githubAccessTokenExpires?: number; // Timestamp when token expires
-    error?: string; // Error flag for token refresh failures
   }
 }
