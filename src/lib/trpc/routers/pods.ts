@@ -900,20 +900,20 @@ export const podsRouter = createTRPCRouter({
           // Stop the container
           await podManager.stopPod();
 
-          // Remove the stopped container so we can restore from snapshot on next start
-          // Keep volumes so the pod can be restarted with persistent data
+          // Remove the stopped container AND volumes - user stop = full deprovisioning
+          // Snapshot was already created above, so all data is safely backed up
+          // On restart, we'll restore from snapshot
           const container = await podManager.getPodContainer();
           if (container) {
             console.log(
-              `[pods.stop] Removing stopped container ${container.id} (keeping volumes)`,
+              `[pods.stop] Removing stopped container ${container.id} AND volumes (full deprovision)`,
             );
             const { GVisorRuntime } = await import(
               "../../pod-orchestration/container-runtime"
             );
             const runtime = new GVisorRuntime(serverConnection);
-            await runtime.removeContainer(container.id, {
-              removeVolumes: false, // Keep volumes for restart
-            });
+            // removeVolumes defaults to true
+            await runtime.removeContainer(container.id);
           }
 
           // Clear container ID from DB
@@ -928,7 +928,7 @@ export const podsRouter = createTRPCRouter({
             .where(eq(pods.id, input.id));
 
           console.log(
-            `[pods.stop] Successfully stopped and removed container for pod ${input.id}`,
+            `[pods.stop] Successfully stopped, removed container, and deleted volumes for pod ${input.id}`,
           );
         } catch (error) {
           const errorMessage =

@@ -370,10 +370,8 @@ export class PodManager extends EventEmitter {
         await this.stopPod();
       }
 
-      // Remove container and volumes
-      await this.containerRuntime.removeContainer(container.id, {
-        removeVolumes: true,
-      });
+      // Remove container and volumes (removeVolumes defaults to true)
+      await this.containerRuntime.removeContainer(container.id);
 
       // Destroy network
       await this.networkManager.destroyPodNetwork(this.podId);

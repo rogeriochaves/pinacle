@@ -239,6 +239,9 @@ export class GVisorRuntime {
     containerId: string,
     options?: { removeVolumes?: boolean },
   ): Promise<void> {
+    // Default to removing volumes (full cleanup) unless explicitly set to false
+    const removeVolumes = options?.removeVolumes ?? true;
+
     // Get container info to extract pod ID for volume cleanup
     const container = await this.getContainer(containerId);
     const podId = container?.podId;
@@ -249,7 +252,7 @@ export class GVisorRuntime {
         `[GVisorRuntime] Container ${containerId} doesn't exist, skipping removal`,
       );
       // Still try to clean up volumes if requested and we can extract pod ID from container name
-      if (options?.removeVolumes) {
+      if (removeVolumes) {
         // Try to extract pod ID from container ID format: pinacle-pod-{podId}
         const podIdFromName = containerId.replace("pinacle-pod-", "");
         if (podIdFromName !== containerId) {
@@ -294,8 +297,8 @@ export class GVisorRuntime {
       }
     }
 
-    // Optionally remove volumes
-    if (options?.removeVolumes && podId) {
+    // Remove volumes (default behavior, unless explicitly disabled)
+    if (removeVolumes && podId) {
       console.log(`[GVisorRuntime] Cleaning up volumes for pod ${podId}`);
       await this.removeAllPodVolumes(podId);
     }
