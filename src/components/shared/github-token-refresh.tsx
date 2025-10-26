@@ -1,7 +1,7 @@
 "use client";
 
-import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -16,12 +16,12 @@ export const GitHubTokenRefresh = () => {
 
   const handleReauth = useCallback(() => {
     if (isRefreshing) return; // Prevent multiple redirects
-    
+
     setIsRefreshing(true);
-    
+
     // Store the current URL to return to after re-auth
     const returnUrl = encodeURIComponent(pathname || "/dashboard");
-    
+
     // Redirect to GitHub OAuth with automatic re-auth
     // Using callbackUrl to return to current page
     window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
@@ -43,4 +43,3 @@ export const GitHubTokenRefresh = () => {
   // This component doesn't render anything - it just monitors and redirects
   return null;
 };
-
