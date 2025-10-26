@@ -28,6 +28,7 @@ import {
   type LucideIcon,
   Play,
   Plus,
+  RefreshCw,
   Sparkles,
   Square,
   Terminal,
@@ -51,6 +52,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import { AddTabPopover } from "./add-tab-popover";
 import { TerminalTabs } from "./terminal-tabs";
 
@@ -228,6 +235,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [existingServiceTabs, setExistingServiceTabs] = useState<string[]>([]);
   const [showCreateTabDialog, setShowCreateTabDialog] = useState(false);
   const [terminalFocusTrigger, setTerminalFocusTrigger] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Setup drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -495,6 +503,71 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     }
   };
 
+  // Handle refresh button click
+  const handleRefresh = () => {
+    const currentTab = tabs.find((tab) => tab.id === activeTab);
+    if (!currentTab) return;
+
+    setIsRefreshing(true);
+
+    // Special case for web-terminal: refresh the current active terminal session
+    if (currentTab.serviceRef === "web-terminal") {
+      // Find the active terminal session iframe
+      const terminalIframes = document.querySelectorAll('[id^="terminal-"]');
+      let activeTerminalIframe: HTMLIFrameElement | null = null;
+
+      for (const iframe of terminalIframes) {
+        const iframeElement = iframe as HTMLIFrameElement;
+        if (
+          iframeElement.style.visibility === "visible" ||
+          window.getComputedStyle(iframeElement).visibility === "visible"
+        ) {
+          activeTerminalIframe = iframeElement;
+          break;
+        }
+      }
+
+      if (activeTerminalIframe) {
+        // Store the current src and reload it
+        const currentSrc = activeTerminalIframe.src;
+        activeTerminalIframe.src = "";
+        setTimeout(() => {
+          if (activeTerminalIframe) {
+            activeTerminalIframe.src = currentSrc;
+          }
+        }, 10);
+
+        // Stop spinning after a short delay (iframe onload is tricky with cross-origin)
+        setTimeout(() => {
+          setIsRefreshing(false);
+        }, 1000);
+      } else {
+        setIsRefreshing(false);
+      }
+    } else {
+      // Regular tab: refresh the iframe
+      const iframe = document.getElementById(
+        `js-iframe-tab-${currentTab.id}`,
+      ) as HTMLIFrameElement;
+
+      if (iframe) {
+        // Store the current src and reload it
+        const currentSrc = iframe.src;
+        iframe.src = "";
+        setTimeout(() => {
+          iframe.src = currentSrc;
+        }, 10);
+
+        // Stop spinning after a short delay
+        setTimeout(() => {
+          setIsRefreshing(false);
+        }, 1000);
+      } else {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
   // Poll for status updates when pod is in transitional state
   useEffect(() => {
     const isTransitional =
@@ -634,315 +707,323 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-900">
-      {/* Top Bar - Minimal */}
-      <div className="bg-neutral-900 border-b border-neutral-700 flex items-center px-4 h-12 shrink-0">
-        {/* Pod Selector */}
-        <button
-          type="button"
-          onClick={onPodSwitch}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors group"
-        >
-          <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
-          <span className="font-mono text-sm text-white font-medium">
-            {pod.name}
-          </span>
-          <ChevronDown className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
-        </button>
-
-        {/* Tabs */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex-1 flex items-center justify-center gap-1">
-            <SortableContext
-              items={tabs.map((tab) => tab.id)}
-              strategy={horizontalListSortingStrategy}
-            >
-              {tabs.map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <SortableTab
-                    key={tab.id}
-                    tab={tab}
-                    isActive={isActive}
-                    onTabClick={() => {
-                      setActiveTab(tab.id);
-
-                      // Check if this is a terminal tab
-                      if (tab.serviceRef === "web-terminal") {
-                        // Trigger focus in TerminalTabs component
-                        setTerminalFocusTrigger(Date.now());
-                      } else {
-                        // Send focus message to regular iframe
-                        setTimeout(() => {
-                          const iframe = document.getElementById(
-                            `js-iframe-tab-${tab.id}`,
-                          ) as HTMLIFrameElement;
-
-                          if (iframe?.contentWindow) {
-                            // Send focus message to injected script
-                            iframe.contentWindow.postMessage(
-                              { type: "pinacle-focus" },
-                              "*",
-                            );
-
-                            // Also try to focus the iframe element itself
-                            iframe.focus();
-                          }
-                        }, 100);
-                      }
-                    }}
-                    onDelete={handleDeleteTab}
-                  />
-                );
-              })}
-            </SortableContext>
-
-            {/* Add Tab Button */}
-            <AddTabPopover
-              open={showCreateTabDialog}
-              onOpenChange={setShowCreateTabDialog}
-              onCreateTab={handleCreateTab}
-              availableServices={availableServices}
-              existingServiceTabs={existingServiceTabs}
-            >
-              <button
-                type="button"
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-mono text-sm transition-all text-neutral-400 hover:text-white hover:bg-neutral-800/50 cursor-pointer"
-                title="Add new tab"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </AddTabPopover>
-          </div>
-        </DndContext>
-
-        {/* Source Control Icon (only if VSCode tab exists) */}
-        {tabs.some((tab) => tab.serviceRef === "code-server") && (
+    <TooltipProvider delayDuration={0}>
+      <div className="h-screen flex flex-col bg-neutral-900">
+        {/* Top Bar - Minimal */}
+        <div className="bg-neutral-900 border-b border-neutral-700 flex items-center px-4 h-12 shrink-0">
+          {/* Pod Selector */}
           <button
             type="button"
-            onClick={() => {
-              // Find the VSCode tab
-              const vscodeTab = tabs.find(
-                (tab) => tab.serviceRef === "code-server",
-              );
-              if (!vscodeTab) return;
-
-              // Switch to VSCode tab
-              setActiveTab(vscodeTab.id);
-
-              // Send postMessage to open source control view
-              setTimeout(() => {
-                const iframe = document.getElementById(
-                  `js-iframe-tab-${vscodeTab.id}`,
-                ) as HTMLIFrameElement;
-
-                if (iframe?.contentWindow) {
-                  iframe.contentWindow.postMessage(
-                    { type: "pinacle-source-control-view" },
-                    "*",
-                  );
-                }
-              }, 100);
-            }}
-            className="relative flex items-center justify-center mr-1 w-8 h-8 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white cursor-pointer"
-            title={
-              gitStatus?.hasChanges
-                ? `${gitStatus.changedFiles} uncommitted change${gitStatus.changedFiles !== 1 ? "s" : ""}`
-                : "Open Source Control"
-            }
+            onClick={onPodSwitch}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors group"
           >
-            <GitBranch className="w-4 h-4 mt-0.5 mr-0.5" />
-            {gitStatus?.hasChanges && (
-              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full">
-                {gitStatus.changedFiles}
-              </span>
-            )}
+            <div className={`w-2 h-2 rounded-full ${getStatusColor()}`} />
+            <span className="font-mono text-sm text-white font-medium">
+              {pod.name}
+            </span>
+            <ChevronDown className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
           </button>
-        )}
 
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
-            >
-              <div className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                <span className="text-white font-mono text-xs font-bold">
-                  {session?.user?.name?.charAt(0).toUpperCase() || "U"}
-                </span>
-              </div>
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-2 py-1.5">
-              <p className="text-sm font-mono font-bold text-neutral-900">
-                {session?.user?.name}
-              </p>
-              <p className="text-xs text-neutral-600">{session?.user?.email}</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/team">
-                <Users className="mr-2 h-4 w-4" />
-                Team
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/account">
-                <User className="mr-2 h-4 w-4" />
-                Account
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+          {/* Tabs */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="flex-1 flex items-center justify-center gap-1">
+              <SortableContext
+                items={tabs.map((tab) => tab.id)}
+                strategy={horizontalListSortingStrategy}
+              >
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <SortableTab
+                      key={tab.id}
+                      tab={tab}
+                      isActive={isActive}
+                      onTabClick={() => {
+                        setActiveTab(tab.id);
 
-      {/* Main Content Area */}
-      <div className="flex-1 relative bg-white overflow-hidden">
-        {!isRunning ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
-            <div className="text-center">
-              {pod.status === "starting" ||
-              pod.status === "creating" ||
-              pod.status === "stopping" ||
-              pod.status === "deleting" ? (
-                <>
-                  <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
-                  <p className="text-white font-mono text-lg font-bold mb-2">
-                    {pod.status === "stopping"
-                      ? "Stopping your pod..."
-                      : pod.status === "deleting"
-                        ? "Deleting your pod..."
-                        : "Starting your pod..."}
-                  </p>
-                  <p className="text-slate-400 font-mono text-sm">
-                    {pod.status === "stopping"
-                      ? "Creating snapshot and stopping container..."
-                      : pod.status === "deleting"
-                        ? "Removing container and cleaning up resources..."
-                        : "Checking for snapshots and starting container..."}
-                  </p>
-                  <p className="text-slate-500 font-mono text-xs mt-2">
-                    {pod.status === "stopping"
-                      ? "Your pod state is being saved"
-                      : pod.status === "deleting"
-                        ? ""
-                        : "This usually takes 10-30 seconds"}
-                  </p>
-                </>
-              ) : pod.status === "stopped" ? (
-                <>
-                  <Square className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-white font-mono text-lg font-bold mb-2">
-                    Pod is stopped
-                  </p>
-                  <p className="text-slate-400 font-mono text-sm mb-6">
-                    Start your pod to access your development environment
-                  </p>
-                  <Button
-                    size="lg"
-                    onClick={handleStartPod}
-                    disabled={startPodMutation.isPending}
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold disabled:opacity-50"
-                  >
-                    {startPodMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Starting...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 mr-2" />
-                        Start Pod
-                      </>
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Square className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                  <p className="text-white font-mono text-lg font-bold mb-2">
-                    Pod error
-                  </p>
-                  {isGitHubAuthError(pod.lastErrorMessage) ? (
-                    <div className="max-w-lg mx-auto">
-                      <p className="text-slate-300 font-mono text-sm mb-4">
-                        Your GitHub token has expired. Click below to refresh
-                        your authentication and retry the operation.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Seamless re-auth: redirect to GitHub auth with return URL
-                          const returnUrl = encodeURIComponent(window.location.pathname);
-                          window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
-                        }}
-                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
-                      >
-                        Re-authenticate with GitHub
-                      </button>
-                    </div>
-                  ) : (
-                    <p className="text-slate-400 font-mono text-sm">
-                      Something went wrong. Check pod details for more info.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          tabs.map((tab) => {
-            const isTerminal = tab.serviceRef === "web-terminal";
-            const isActive = activeTab === tab.id;
+                        // Check if this is a terminal tab
+                        if (tab.serviceRef === "web-terminal") {
+                          // Trigger focus in TerminalTabs component
+                          setTerminalFocusTrigger(Date.now());
+                        } else {
+                          // Send focus message to regular iframe
+                          setTimeout(() => {
+                            const iframe = document.getElementById(
+                              `js-iframe-tab-${tab.id}`,
+                            ) as HTMLIFrameElement;
 
-            return (
-              <React.Fragment key={tab.id}>
-                {/* Terminal with sub-tabs */}
-                {isTerminal ? (
-                  <div
-                    className="absolute inset-0 w-full h-full"
-                    style={
-                      isActive
-                        ? { visibility: "visible", position: "static" }
-                        : {
-                            visibility: "hidden",
-                            position: "absolute",
-                            top: 0,
-                            zIndex: -1,
-                          }
-                    }
-                  >
-                    <TerminalTabs
-                      pod={pod}
-                      terminalTabId={tab.id}
-                      getTabUrl={getTabUrl}
-                      focusTrigger={terminalFocusTrigger}
+                            if (iframe?.contentWindow) {
+                              // Send focus message to injected script
+                              iframe.contentWindow.postMessage(
+                                { type: "pinacle-focus" },
+                                "*",
+                              );
+
+                              // Also try to focus the iframe element itself
+                              iframe.focus();
+                            }
+                          }, 100);
+                        }
+                      }}
+                      onDelete={handleDeleteTab}
                     />
-                  </div>
+                  );
+                })}
+              </SortableContext>
+
+              {/* Add Tab Button */}
+              <Tooltip>
+                <AddTabPopover
+                  open={showCreateTabDialog}
+                  onOpenChange={setShowCreateTabDialog}
+                  onCreateTab={handleCreateTab}
+                  availableServices={availableServices}
+                  existingServiceTabs={existingServiceTabs}
+                >
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg font-mono text-sm transition-all text-neutral-400 hover:text-white hover:bg-neutral-800/50 cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                </AddTabPopover>
+                <TooltipContent>
+                  <p>Add new tab</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </DndContext>
+
+          {/* Refresh Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={!isRunning || isRefreshing}
+                className="flex items-center justify-center mr-1 w-8 h-8 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Refresh current tab</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Source Control Icon (only if VSCode tab exists) */}
+          {tabs.some((tab) => tab.serviceRef === "code-server") && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Find the VSCode tab
+                    const vscodeTab = tabs.find(
+                      (tab) => tab.serviceRef === "code-server",
+                    );
+                    if (!vscodeTab) return;
+
+                    // Switch to VSCode tab
+                    setActiveTab(vscodeTab.id);
+
+                    // Send postMessage to open source control view
+                    setTimeout(() => {
+                      const iframe = document.getElementById(
+                        `js-iframe-tab-${vscodeTab.id}`,
+                      ) as HTMLIFrameElement;
+
+                      if (iframe?.contentWindow) {
+                        iframe.contentWindow.postMessage(
+                          { type: "pinacle-source-control-view" },
+                          "*",
+                        );
+                      }
+                    }, 100);
+                  }}
+                  className="relative flex items-center justify-center mr-1 w-8 h-8 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white cursor-pointer"
+                >
+                  <GitBranch className="w-4 h-4 mt-0.5 mr-0.5" />
+                  {gitStatus?.hasChanges && (
+                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-orange-500 text-white text-[10px] font-bold rounded-full">
+                      {gitStatus.changedFiles}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {gitStatus?.hasChanges
+                    ? `${gitStatus.changedFiles} uncommitted change${gitStatus.changedFiles !== 1 ? "s" : ""}`
+                    : "Commit changes"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white"
+              >
+                <div className="w-7 h-7 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                  <span className="text-white font-mono text-xs font-bold">
+                    {session?.user?.name?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                </div>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="px-2 py-1.5">
+                <p className="text-sm font-mono font-bold text-neutral-900">
+                  {session?.user?.name}
+                </p>
+                <p className="text-xs text-neutral-600">
+                  {session?.user?.email}
+                </p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/team">
+                  <Users className="mr-2 h-4 w-4" />
+                  Team
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/account">
+                  <User className="mr-2 h-4 w-4" />
+                  Account
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 relative bg-white overflow-hidden">
+          {!isRunning ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+              <div className="text-center">
+                {pod.status === "starting" ||
+                pod.status === "creating" ||
+                pod.status === "stopping" ||
+                pod.status === "deleting" ? (
+                  <>
+                    <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                    <p className="text-white font-mono text-lg font-bold mb-2">
+                      {pod.status === "stopping"
+                        ? "Stopping your pod..."
+                        : pod.status === "deleting"
+                          ? "Deleting your pod..."
+                          : "Starting your pod..."}
+                    </p>
+                    <p className="text-slate-400 font-mono text-sm">
+                      {pod.status === "stopping"
+                        ? "Creating snapshot and stopping container..."
+                        : pod.status === "deleting"
+                          ? "Removing container and cleaning up resources..."
+                          : "Checking for snapshots and starting container..."}
+                    </p>
+                    <p className="text-slate-500 font-mono text-xs mt-2">
+                      {pod.status === "stopping"
+                        ? "Your pod state is being saved"
+                        : pod.status === "deleting"
+                          ? ""
+                          : "This usually takes 10-30 seconds"}
+                    </p>
+                  </>
+                ) : pod.status === "stopped" ? (
+                  <>
+                    <Square className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+                    <p className="text-white font-mono text-lg font-bold mb-2">
+                      Pod is stopped
+                    </p>
+                    <p className="text-slate-400 font-mono text-sm mb-6">
+                      Start your pod to access your development environment
+                    </p>
+                    <Button
+                      size="lg"
+                      onClick={handleStartPod}
+                      disabled={startPodMutation.isPending}
+                      className="bg-orange-500 hover:bg-orange-600 text-white font-mono font-bold disabled:opacity-50"
+                    >
+                      {startPodMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Starting...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4 mr-2" />
+                          Start Pod
+                        </>
+                      )}
+                    </Button>
+                  </>
                 ) : (
-                  /* Regular iframe for non-terminal tabs */
-                  <iframe
-                    key={tab.id}
-                    id={`js-iframe-tab-${tab.id}`}
-                    src={getTabUrl(tab.id)}
-                    className="w-full h-full border-0"
-                    title={tab.label}
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
-                    style={
-                      tab.keepRendered
-                        ? isActive
+                  <>
+                    <Square className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <p className="text-white font-mono text-lg font-bold mb-2">
+                      Pod error
+                    </p>
+                    {isGitHubAuthError(pod.lastErrorMessage) ? (
+                      <div className="max-w-lg mx-auto">
+                        <p className="text-slate-300 font-mono text-sm mb-4">
+                          Your GitHub token has expired. Click below to refresh
+                          your authentication and retry the operation.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Seamless re-auth: redirect to GitHub auth with return URL
+                            const returnUrl = encodeURIComponent(
+                              window.location.pathname,
+                            );
+                            window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
+                          }}
+                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
+                        >
+                          Re-authenticate with GitHub
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-slate-400 font-mono text-sm">
+                        Something went wrong. Check pod details for more info.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            tabs.map((tab) => {
+              const isTerminal = tab.serviceRef === "web-terminal";
+              const isActive = activeTab === tab.id;
+
+              return (
+                <React.Fragment key={tab.id}>
+                  {/* Terminal with sub-tabs */}
+                  {isTerminal ? (
+                    <div
+                      className="absolute inset-0 w-full h-full"
+                      style={
+                        isActive
                           ? { visibility: "visible", position: "static" }
                           : {
                               visibility: "hidden",
@@ -950,17 +1031,46 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                               top: 0,
                               zIndex: -1,
                             }
-                        : activeTab === tab.id
-                          ? { display: "block" }
-                          : { display: "none" }
-                    }
-                  />
-                )}
-              </React.Fragment>
-            );
-          })
-        )}
+                      }
+                    >
+                      <TerminalTabs
+                        pod={pod}
+                        terminalTabId={tab.id}
+                        getTabUrl={getTabUrl}
+                        focusTrigger={terminalFocusTrigger}
+                      />
+                    </div>
+                  ) : (
+                    /* Regular iframe for non-terminal tabs */
+                    <iframe
+                      key={tab.id}
+                      id={`js-iframe-tab-${tab.id}`}
+                      src={getTabUrl(tab.id)}
+                      className="w-full h-full border-0"
+                      title={tab.label}
+                      sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                      style={
+                        tab.keepRendered
+                          ? isActive
+                            ? { visibility: "visible", position: "static" }
+                            : {
+                                visibility: "hidden",
+                                position: "absolute",
+                                top: 0,
+                                zIndex: -1,
+                              }
+                          : activeTab === tab.id
+                            ? { display: "block" }
+                            : { display: "none" }
+                      }
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
