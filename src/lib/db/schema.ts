@@ -3,6 +3,7 @@ import { relations } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -226,35 +227,53 @@ export const podUsage = pgTable("pod_usage", {
 });
 
 // Server metrics for monitoring
-export const serverMetrics = pgTable("server_metrics", {
-  id: text("id")
-    .primaryKey()
-    .notNull()
-    .$defaultFn(generateKsuidBuilder("server_metrics")),
-  serverId: text("server_id").notNull(),
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
-  cpuUsagePercent: real("cpu_usage_percent").notNull(),
-  memoryUsageMb: real("memory_usage_mb").notNull(),
-  diskUsageGb: real("disk_usage_gb").notNull(),
-  activePodsCount: integer("active_pods_count").notNull().default(0),
-  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
-});
+export const serverMetrics = pgTable(
+  "server_metrics",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("server_metrics")),
+    serverId: text("server_id").notNull(),
+    timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
+    cpuUsagePercent: real("cpu_usage_percent").notNull(),
+    memoryUsageMb: real("memory_usage_mb").notNull(),
+    diskUsageGb: real("disk_usage_gb").notNull(),
+    activePodsCount: integer("active_pods_count").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    serverIdTimestampIdx: index("server_metrics_server_id_timestamp_idx").on(
+      table.serverId,
+      table.timestamp,
+    ),
+  }),
+);
 
 // Pod metrics for per-pod resource tracking
-export const podMetrics = pgTable("pod_metrics", {
-  id: text("id")
-    .primaryKey()
-    .notNull()
-    .$defaultFn(generateKsuidBuilder("pod_metrics")),
-  podId: text("pod_id").notNull(),
-  timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
-  cpuUsagePercent: real("cpu_usage_percent").notNull(),
-  memoryUsageMb: real("memory_usage_mb").notNull(),
-  diskUsageMb: real("disk_usage_mb").notNull(),
-  networkRxBytes: real("network_rx_bytes").notNull().default(0),
-  networkTxBytes: real("network_tx_bytes").notNull().default(0),
-  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
-});
+export const podMetrics = pgTable(
+  "pod_metrics",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("pod_metrics")),
+    podId: text("pod_id").notNull(),
+    timestamp: timestamp("timestamp", { mode: "date" }).notNull().defaultNow(),
+    cpuUsagePercent: real("cpu_usage_percent").notNull(),
+    memoryUsageMb: real("memory_usage_mb").notNull(),
+    diskUsageMb: real("disk_usage_mb").notNull(),
+    networkRxBytes: real("network_rx_bytes").notNull().default(0),
+    networkTxBytes: real("network_tx_bytes").notNull().default(0),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => ({
+    podIdTimestampIdx: index("pod_metrics_pod_id_timestamp_idx").on(
+      table.podId,
+      table.timestamp,
+    ),
+  }),
+);
 
 // Pod provisioning logs
 export const podLogs = pgTable("pod_logs", {

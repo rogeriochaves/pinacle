@@ -127,6 +127,20 @@
       "when": 1761070083249,
       "tag": "0017_add_pod_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1761471237526,
+      "tag": "0018_add_metrics_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1761471284393,
+      "tag": "0019_add_metrics_indexes",
+      "breakpoints": true
     }
   ]
 }

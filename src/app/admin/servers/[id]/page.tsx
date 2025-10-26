@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MetricsChart } from "@/components/admin/metrics-chart";
 import { PodRow } from "@/components/admin/pod-row";
 import { getServerDisplayStatus } from "@/lib/server-status";
@@ -16,9 +16,20 @@ const formatBytes = (mb: number): string => {
   return `${mb.toFixed(0)} MB`;
 };
 
+const TIME_RANGE_OPTIONS = [
+  { label: "1 Hour", value: 1 },
+  { label: "3 Hours", value: 3 },
+  { label: "6 Hours", value: 6 },
+  { label: "12 Hours", value: 12 },
+  { label: "24 Hours", value: 24 },
+  { label: "3 Days", value: 72 },
+  { label: "7 Days", value: 168 },
+] as const;
+
 export default function ServerDetailPage() {
   const params = useParams();
   const serverId = params?.id as string;
+  const [timeRange, setTimeRange] = useState(6); // Default to 6 hours
 
   const {
     data: server,
@@ -27,8 +38,8 @@ export default function ServerDetailPage() {
   } = api.admin.getServerById.useQuery({ serverId });
 
   const { data: metricsHistory, refetch: refetchMetrics } =
-    api.admin.getServerMetricsHistory.useQuery(
-      { serverId, hoursAgo: 24 },
+    api.admin.getServerMetricsAggregated.useQuery(
+      { serverId, hoursAgo: timeRange },
       { enabled: !!server },
     );
 
@@ -38,16 +49,62 @@ export default function ServerDetailPage() {
     refetch: refetchPods,
   } = api.admin.getPodsOnServer.useQuery({ serverId });
 
-  // Auto-refresh every 5 seconds
+  // Auto-refresh every 30 seconds (reduced from 5 seconds)
+  // Only refetch server info and pods list, not full metrics history
   useEffect(() => {
     const interval = setInterval(() => {
       void refetchServer();
-      void refetchMetrics();
       void refetchPods();
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [refetchServer, refetchMetrics, refetchPods]);
+  }, [refetchServer, refetchPods]);
+
+  // Separate interval for metrics (every 60 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refetchMetrics();
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [refetchMetrics]);
+
+  // Prepare data for charts with memoization (must be before early returns)
+  const cpuData = useMemo(
+    () =>
+      metricsHistory?.map((m) => ({
+        timestamp: m.timestamp,
+        value: m.cpuUsagePercent,
+      })) || [],
+    [metricsHistory],
+  );
+
+  const memoryData = useMemo(
+    () =>
+      metricsHistory?.map((m) => ({
+        timestamp: m.timestamp,
+        value: server ? (m.memoryUsageMb / server.memoryMb) * 100 : 0,
+      })) || [],
+    [metricsHistory, server],
+  );
+
+  const diskData = useMemo(
+    () =>
+      metricsHistory?.map((m) => ({
+        timestamp: m.timestamp,
+        value: server ? (m.diskUsageGb / server.diskGb) * 100 : 0,
+      })) || [],
+    [metricsHistory, server],
+  );
+
+  const activePodCountData = useMemo(
+    () =>
+      metricsHistory?.map((m) => ({
+        timestamp: m.timestamp,
+        value: m.activePodsCount,
+      })) || [],
+    [metricsHistory],
+  );
 
   if (serverLoading) {
     return (
@@ -88,31 +145,6 @@ export default function ServerDetailPage() {
     : 0;
   const diskPercent = metrics ? (metrics.diskUsageGb / server.diskGb) * 100 : 0;
 
-  // Prepare data for charts
-  const cpuData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.cpuUsagePercent,
-    })) || [];
-
-  const memoryData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: (m.memoryUsageMb / server.memoryMb) * 100,
-    })) || [];
-
-  const diskData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: (m.diskUsageGb / server.diskGb) * 100,
-    })) || [];
-
-  const activePodCountData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.activePodsCount,
-    })) || [];
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
@@ -145,6 +177,27 @@ export default function ServerDetailPage() {
               <div className="h-2 w-2 animate-pulse rounded-full bg-green-500"></div>
               Auto-refreshing
             </div>
+          </div>
+        </div>
+
+        {/* Time Range Selector */}
+        <div className="mt-4 flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Time Range:</span>
+          <div className="flex gap-2">
+            {TIME_RANGE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTimeRange(option.value)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  timeRange === option.value
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -259,7 +312,7 @@ export default function ServerDetailPage() {
         <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <MetricsChart
             data={cpuData}
-            title="CPU Usage (24h)"
+            title={`CPU Usage (${TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label})`}
             color="#ef4444"
             unit="%"
             maxValue={100}
@@ -267,7 +320,7 @@ export default function ServerDetailPage() {
           />
           <MetricsChart
             data={memoryData}
-            title="Memory Usage (24h)"
+            title={`Memory Usage (${TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label})`}
             color="#3b82f6"
             unit="%"
             maxValue={100}
@@ -275,7 +328,7 @@ export default function ServerDetailPage() {
           />
           <MetricsChart
             data={diskData}
-            title="Disk Usage (24h)"
+            title={`Disk Usage (${TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label})`}
             color="#10b981"
             unit="%"
             maxValue={100}
@@ -283,7 +336,7 @@ export default function ServerDetailPage() {
           />
           <MetricsChart
             data={activePodCountData}
-            title="Active Pods (24h)"
+            title={`Active Pods (${TIME_RANGE_OPTIONS.find((o) => o.value === timeRange)?.label})`}
             color="#8b5cf6"
             unit=""
             height={250}

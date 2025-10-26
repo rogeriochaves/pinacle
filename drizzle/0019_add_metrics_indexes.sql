@@ -1,0 +1,2 @@
+CREATE INDEX "pod_metrics_pod_id_timestamp_idx" ON "pod_metrics" USING btree ("pod_id","timestamp");--> statement-breakpoint
+CREATE INDEX "server_metrics_server_id_timestamp_idx" ON "server_metrics" USING btree ("server_id","timestamp");

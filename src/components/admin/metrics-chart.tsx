@@ -69,7 +69,10 @@ export const MetricsChart = ({
               borderRadius: "8px",
               padding: "8px 12px",
             }}
-            formatter={(value: number) => [`${value.toFixed(2)}${unit}`, title]}
+            formatter={(value: unknown) => {
+              const numValue = typeof value === "number" ? value : Number(value) || 0;
+              return [`${numValue.toFixed(2)}${unit}`, title];
+            }}
             labelStyle={{ color: "#374151", fontWeight: 600 }}
           />
           <Area
