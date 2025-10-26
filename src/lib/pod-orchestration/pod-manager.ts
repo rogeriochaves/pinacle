@@ -276,6 +276,9 @@ export class PodManager extends EventEmitter {
    * Clean up pod resources using container ID from database
    * This doesn't require the pod to be loaded in memory - works with just the container ID
    * Set removeVolumes=true for permanent deletion, false for temporary stop
+   * 
+   * This method is resilient to missing containers - if the container is already gone,
+   * it will still clean up volumes and networks.
    */
   async cleanupPodByContainerId(
     containerId: string,
@@ -289,22 +292,58 @@ export class PodManager extends EventEmitter {
       // Stop the container if it's running
       try {
         const container = await this.containerRuntime.getContainer(containerId);
-        if (container && container.status === "running") {
+        if (!container) {
+          console.log(
+            `[PodManager] Container ${containerId} doesn't exist (already removed)`,
+          );
+        } else if (container.status === "running") {
           console.log(`[PodManager] Stopping container ${containerId}`);
           await this.containerRuntime.stopContainer(containerId);
         }
       } catch (error) {
-        console.log(`[PodManager] Container may already be stopped: ${error}`);
-        // Continue - container might already be stopped
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(
+          `[PodManager] Container check/stop failed: ${message} (continuing cleanup)`,
+        );
+        containerMissing = true;
       }
 
       // Remove the container (and optionally volumes)
-      console.log(`[PodManager] Removing container ${containerId}`);
-      await this.containerRuntime.removeContainer(containerId, options);
+      // If container is already missing, this will gracefully skip and just clean up volumes
+      try {
+        console.log(`[PodManager] Removing container ${containerId}`);
+        await this.containerRuntime.removeContainer(containerId, options);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("No such container")) {
+          console.log(
+            `[PodManager] Container already removed, continuing with cleanup`,
+          );
+          // If volumes need to be removed and container is missing, do it directly
+          if (options?.removeVolumes) {
+            console.log(
+              `[PodManager] Cleaning up volumes for pod ${this.podId}`,
+            );
+            await this.containerRuntime.removeAllPodVolumes(this.podId);
+          }
+        } else {
+          throw error;
+        }
+      }
 
       // Destroy the network (uses deterministic network name from pod ID)
       console.log(`[PodManager] Destroying network for pod ${this.podId}`);
-      await this.networkManager.destroyPodNetwork(this.podId);
+      try {
+        await this.networkManager.destroyPodNetwork(this.podId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("No such network") || message.includes("not found")) {
+          console.log(`[PodManager] Network already removed for pod ${this.podId}`);
+        } else {
+          console.warn(`[PodManager] Failed to remove network: ${message}`);
+          // Don't fail cleanup if network removal fails
+        }
+      }
 
       console.log(
         `[PodManager] Successfully cleaned up resources for pod: ${this.podId}`,

@@ -36,6 +36,10 @@ export class GVisorRuntime {
     return `pinacle-pod-${podId}`;
   }
 
+  private generateVolumeName(podId: string, volumeName: string): string {
+    return `pinacle-vol-${podId}-${volumeName}`;
+  }
+
   private parseResourceLimits(spec: PodSpec): string {
     const { resources } = spec;
     const limits: string[] = [];
@@ -76,6 +80,47 @@ export class GVisorRuntime {
       .join(" ");
   }
 
+  /**
+   * Get universal volumes that should be persisted for all pods
+   * This covers the entire filesystem except virtual/temporary directories
+   */
+  private getUniversalVolumes(): Array<{ name: string; path: string }> {
+    return [
+      // User data and code
+      { name: "workspace", path: "/workspace" },
+      { name: "home", path: "/home" },
+      { name: "root", path: "/root" },
+      
+      // System configuration and packages
+      { name: "etc", path: "/etc" },
+      { name: "usr-local", path: "/usr/local" },
+      { name: "opt", path: "/opt" },
+      
+      // Variable data (logs, databases, caches, etc.)
+      { name: "var", path: "/var" },
+      
+      // Additional application data
+      { name: "srv", path: "/srv" },
+    ];
+    
+    // NOT persisted (virtual or temporary):
+    // - /tmp (temporary files)
+    // - /proc (process information, virtual)
+    // - /sys (system information, virtual)
+    // - /dev (devices, virtual)
+    // - /run (runtime data)
+  }
+
+  private parseVolumeMounts(podId: string): string {
+    const volumes = this.getUniversalVolumes();
+    return volumes
+      .map((v) => {
+        const volumeName = this.generateVolumeName(podId, v.name);
+        return `-v ${volumeName}:${v.path}`;
+      })
+      .join(" ");
+  }
+
   async createContainer(spec: PodSpec): Promise<ContainerInfo> {
     const containerName = this.generateContainerName(spec.id);
     const resourceLimits = this.parseResourceLimits(spec);
@@ -96,6 +141,15 @@ export class GVisorRuntime {
       await this.exec(`docker rm ${containerId}`, true);
     }
 
+    // Create Docker volumes for persistent storage (universal for all pods)
+    const volumes = this.getUniversalVolumes();
+    for (const volume of volumes) {
+      await this.createVolume(spec.id, volume.name);
+    }
+
+    // Parse volume mounts
+    const volumeMounts = this.parseVolumeMounts(spec.id);
+
     // Build Docker run command with gVisor runtime - use array to avoid shell escaping issues
     const dockerArgs = [
       "docker",
@@ -106,6 +160,7 @@ export class GVisorRuntime {
       ...resourceLimits.split(" ").filter(Boolean),
       ...portMappings.split(" ").filter(Boolean),
       ...envVars.split(" ").filter(Boolean),
+      ...volumeMounts.split(" ").filter(Boolean),
       "--workdir",
       spec.workingDir || "/workspace",
       "--user",
@@ -180,21 +235,69 @@ export class GVisorRuntime {
     }
   }
 
-  async removeContainer(containerId: string): Promise<void> {
-    try {
-      // Stop container first if running
-      try {
-        await this.stopContainer(containerId);
-      } catch {
-        // Ignore if already stopped
-      }
+  async removeContainer(
+    containerId: string,
+    options?: { removeVolumes?: boolean },
+  ): Promise<void> {
+    // Get container info to extract pod ID for volume cleanup
+    const container = await this.getContainer(containerId);
+    const podId = container?.podId;
 
+    // If container doesn't exist, that's fine - it's already gone
+    if (!container) {
+      console.log(
+        `[GVisorRuntime] Container ${containerId} doesn't exist, skipping removal`,
+      );
+      // Still try to clean up volumes if requested and we can extract pod ID from container name
+      if (options?.removeVolumes) {
+        // Try to extract pod ID from container ID format: pinacle-pod-{podId}
+        const podIdFromName = containerId.replace("pinacle-pod-", "");
+        if (podIdFromName !== containerId) {
+          console.log(
+            `[GVisorRuntime] Cleaning up volumes for pod ${podIdFromName}`,
+          );
+          await this.removeAllPodVolumes(podIdFromName);
+        }
+      }
+      return;
+    }
+
+    // Stop container first if running
+    try {
+      await this.stopContainer(containerId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Ignore if container doesn't exist or is already stopped
+      if (
+        !message.includes("No such container") &&
+        !message.includes("is not running")
+      ) {
+        console.warn(`[GVisorRuntime] Error stopping container: ${message}`);
+      }
+    }
+
+    // Remove the container
+    try {
       await this.exec(`docker rm ${containerId}`, true);
       console.log(`[GVisorRuntime] Removed container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to remove container: ${message}`);
-      throw new Error(`Container removal failed: ${message}`);
+      // If container doesn't exist, that's fine
+      if (message.includes("No such container")) {
+        console.log(
+          `[GVisorRuntime] Container ${containerId} already removed`,
+        );
+      } else {
+        const errorMsg = `Failed to remove container: ${message}`;
+        console.error(`[GVisorRuntime] ${errorMsg}`);
+        throw new Error(errorMsg);
+      }
+    }
+
+    // Optionally remove volumes
+    if (options?.removeVolumes && podId) {
+      console.log(`[GVisorRuntime] Cleaning up volumes for pod ${podId}`);
+      await this.removeAllPodVolumes(podId);
     }
   }
 
@@ -443,6 +546,82 @@ export class GVisorRuntime {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`[GVisorRuntime] gVisor validation failed: ${message}`);
       return false;
+    }
+  }
+
+  // Volume management methods
+  async createVolume(podId: string, volumeName: string): Promise<void> {
+    const fullVolumeName = this.generateVolumeName(podId, volumeName);
+
+    try {
+      // Check if volume already exists
+      const { stdout } = await this.exec(
+        `docker volume inspect ${fullVolumeName}`,
+        true,
+      );
+
+      if (stdout.trim()) {
+        console.log(
+          `[GVisorRuntime] Volume ${fullVolumeName} already exists, reusing it`,
+        );
+        return;
+      }
+    } catch {
+      // Volume doesn't exist, create it
+    }
+
+    try {
+      await this.exec(`docker volume create ${fullVolumeName}`, true);
+      console.log(`[GVisorRuntime] Created volume: ${fullVolumeName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[GVisorRuntime] Failed to create volume: ${message}`);
+      throw new Error(`Volume creation failed: ${message}`);
+    }
+  }
+
+  async removeVolume(podId: string, volumeName: string): Promise<void> {
+    const fullVolumeName = this.generateVolumeName(podId, volumeName);
+
+    try {
+      await this.exec(`docker volume rm ${fullVolumeName}`, true);
+      console.log(`[GVisorRuntime] Removed volume: ${fullVolumeName}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[GVisorRuntime] Failed to remove volume ${fullVolumeName}: ${message}`,
+      );
+      // Don't throw - volume might not exist or be in use
+    }
+  }
+
+  async removeAllPodVolumes(podId: string): Promise<void> {
+    try {
+      // List all volumes for this pod
+      const { stdout } = await this.exec(
+        `docker volume ls --filter "name=pinacle-vol-${podId}-" --format "{{.Name}}"`,
+        true,
+      );
+
+      const volumeNames = stdout
+        .trim()
+        .split("\n")
+        .filter((name) => name.trim());
+
+      for (const volumeName of volumeNames) {
+        try {
+          await this.exec(`docker volume rm ${volumeName}`, true);
+          console.log(`[GVisorRuntime] Removed volume: ${volumeName}`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[GVisorRuntime] Failed to remove volume ${volumeName}: ${message}`,
+          );
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[GVisorRuntime] Failed to list pod volumes: ${message}`);
     }
   }
 }

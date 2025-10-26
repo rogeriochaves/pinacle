@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowDown,
   ArrowLeft,
   CheckCircle,
   Loader2,
@@ -75,6 +76,7 @@ export default function PodProvisioningPage() {
   const utils = api.useUtils();
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [lastLogId, setLastLogId] = useState<string | undefined>();
   const [allLogs, setAllLogs] = useState<
     Array<{
@@ -88,6 +90,8 @@ export default function PodProvisioningPage() {
     }>
   >([]);
   const [shouldRefetchLogs, setShouldRefetchLogs] = useState(true);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [hasNewLogs, setHasNewLogs] = useState(false);
 
   // Poll status and logs every 500ms for faster updates
   const { data, isLoading, error, refetch } =
@@ -133,12 +137,43 @@ export default function PodProvisioningPage() {
     }
   }, [data?.logs]);
 
-  // Auto-scroll to bottom when new logs arrive or existing logs are updated
-  useEffect(() => {
-    if (consoleEndRef.current && allLogs.length > 0) {
-      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
+  // Check if user is at bottom of scroll container
+  const checkIfAtBottom = () => {
+    if (!scrollContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    // Consider at bottom if within 50px of the bottom
+    return scrollHeight - scrollTop - clientHeight < 50;
+  };
+
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = () => {
+    const atBottom = checkIfAtBottom();
+    setIsAtBottom(atBottom);
+    if (atBottom) {
+      setHasNewLogs(false);
     }
-  }, [allLogs]);
+  };
+
+  // Auto-scroll to bottom when new logs arrive, but only if user is at bottom
+  useEffect(() => {
+    if (allLogs.length > 0) {
+      if (isAtBottom) {
+        // User is at bottom, scroll smoothly
+        consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        setHasNewLogs(false);
+      } else {
+        // User has scrolled up, show indicator
+        setHasNewLogs(true);
+      }
+    }
+  }, [allLogs, isAtBottom]);
+
+  // Handler to scroll to bottom and restore auto-scroll
+  const scrollToBottom = () => {
+    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
+    setHasNewLogs(false);
+  };
 
   // Auto-redirect to dashboard when status becomes "running"
   useEffect(() => {
@@ -390,61 +425,79 @@ export default function PodProvisioningPage() {
               </div>
             )
           ) : (
-            <div className="max-h-[600px] overflow-y-auto bg-slate-900 p-4 font-mono text-xs">
-              {allLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="mb-4 border-t border-slate-700 pt-4 first:border-t-0"
-                >
-                  {/* Log header */}
-                  <div className="mb-1 flex items-center gap-2 text-slate-500">
-                    <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                    <span>•</span>
-                    {log.exitCode === null ? (
-                      <>
-                        <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
-                        <span className="text-blue-400">Running...</span>
-                      </>
-                    ) : log.exitCode === 0 ? (
-                      <>
-                        <CheckCircle className="h-3 w-3 text-green-400" />
-                        <span>Exit: {log.exitCode}</span>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="h-3 w-3 text-red-400" />
-                        <span>Exit: {log.exitCode}</span>
-                      </>
+            <div className="relative">
+              <div 
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="max-h-[600px] overflow-y-auto bg-slate-900 p-4 font-mono text-xs"
+              >
+                {allLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="mb-4 border-t border-slate-700 pt-4 first:border-t-0"
+                  >
+                    {/* Log header */}
+                    <div className="mb-1 flex items-center gap-2 text-slate-500">
+                      <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      <span>•</span>
+                      {log.exitCode === null ? (
+                        <>
+                          <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
+                          <span className="text-blue-400">Running...</span>
+                        </>
+                      ) : log.exitCode === 0 ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 text-green-400" />
+                          <span>Exit: {log.exitCode}</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-3 w-3 text-red-400" />
+                          <span>Exit: {log.exitCode}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Label if present */}
+                    {log.label && (
+                      <div className="mb-1 text-blue-400">{log.label}</div>
+                    )}
+
+                    {/* Command */}
+                    <div className="whitespace-pre-wrap mb-1 text-yellow-300">
+                      $ {log.containerCommand}
+                    </div>
+
+                    {/* Stdout */}
+                    {log.stdout && (
+                      <div className="whitespace-pre-wrap text-slate-300">
+                        {log.stdout}
+                      </div>
+                    )}
+
+                    {/* Stderr */}
+                    {log.stderr && (
+                      <div className="whitespace-pre-wrap text-red-400">
+                        {log.stderr}
+                      </div>
                     )}
                   </div>
+                ))}
+                {/* Auto-scroll anchor */}
+                <div ref={consoleEndRef} />
+              </div>
 
-                  {/* Label if present */}
-                  {log.label && (
-                    <div className="mb-1 text-blue-400">{log.label}</div>
-                  )}
-
-                  {/* Command */}
-                  <div className="whitespace-pre-wrap mb-1 text-yellow-300">
-                    $ {log.containerCommand}
-                  </div>
-
-                  {/* Stdout */}
-                  {log.stdout && (
-                    <div className="whitespace-pre-wrap text-slate-300">
-                      {log.stdout}
-                    </div>
-                  )}
-
-                  {/* Stderr */}
-                  {log.stderr && (
-                    <div className="whitespace-pre-wrap text-red-400">
-                      {log.stderr}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {/* Auto-scroll anchor */}
-              <div ref={consoleEndRef} />
+              {/* New logs indicator */}
+              {hasNewLogs && !isAtBottom && (
+                <button
+                  type="button"
+                  onClick={scrollToBottom}
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+                >
+                  <ArrowDown className="h-3 w-3" />
+                  New logs
+                </button>
+              )}
             </div>
           )}
         </div>

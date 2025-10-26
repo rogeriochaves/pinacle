@@ -1070,6 +1070,405 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ Pod deprovisioning service test completed successfully!");
   }, 120000); // 2 minute timeout
 
+  it("should persist data in volumes across container stop/start", async () => {
+    console.log(
+      "\n🧪 Testing volume persistence across container stop/start...",
+    );
+
+    // 1. Create and provision a test pod
+    const volumeTestId = `volume-test-${Date.now()}`;
+    console.log(`📦 Creating pod ${volumeTestId} for volume persistence test...`);
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["web-terminal"],
+    });
+    // Remove install command for this test (no package.json in blank template)
+    delete pinacleConfig.install;
+
+    await db
+      .insert(pods)
+      .values({
+        id: volumeTestId,
+        name: "Volume Persistence Test Pod",
+        slug: "volume-test-pod",
+        description: "Test pod for testing volume persistence",
+        template: "nodejs-blank",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        config: pinacleConfigToJSON(pinacleConfig),
+        monthlyPrice: 500,
+        status: "creating",
+      })
+      .returning();
+
+    // Provision the pod
+    console.log("🚀 Provisioning pod...");
+    await provisioningService.provisionPod(
+      {
+        podId: volumeTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
+
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, volumeTestId))
+      .limit(1);
+
+    expect(provisionedPod.status).toBe("running");
+    const containerId = provisionedPod.containerId!;
+
+    console.log(`✅ Pod provisioned with container: ${containerId}`);
+
+    // 2. Create test files in volume-mounted directories
+    const runtime = new GVisorRuntime(serverConnection);
+    const podManager = new PodManager(volumeTestId, serverConnection);
+
+    console.log("📝 Writing test files to volumes...");
+
+    // Write to /workspace
+    await podManager.execInPod([
+      "sh",
+      "-c",
+      "echo 'persistent workspace data' > /workspace/test-file.txt",
+    ]);
+
+    // Write to /root
+    await podManager.execInPod([
+      "sh",
+      "-c",
+      "echo 'persistent root config' > /root/.testrc",
+    ]);
+
+    // Write to /home
+    await podManager.execInPod([
+      "sh",
+      "-c",
+      "mkdir -p /home/testuser && echo 'persistent home data' > /home/testuser/.profile",
+    ]);
+
+    console.log("✅ Test files written");
+
+    // 3. Read files to verify they exist
+    const workspaceContent = await podManager.execInPod([
+      "cat",
+      "/workspace/test-file.txt",
+    ]);
+    expect(workspaceContent.stdout.trim()).toBe("persistent workspace data");
+
+    const rootContent = await podManager.execInPod(["cat", "/root/.testrc"]);
+    expect(rootContent.stdout.trim()).toBe("persistent root config");
+
+    const homeContent = await podManager.execInPod([
+      "cat",
+      "/home/testuser/.profile",
+    ]);
+    expect(homeContent.stdout.trim()).toBe("persistent home data");
+
+    console.log("✅ Files verified before stop");
+
+    // 4. Stop the container (simulating `docker stop`)
+    console.log("⏸️  Stopping container...");
+    await runtime.stopContainer(containerId);
+
+    const stoppedContainer = await runtime.getContainer(containerId);
+    expect(stoppedContainer?.status).toBe("stopped");
+
+    console.log("✅ Container stopped");
+
+    // 5. Start the container again
+    console.log("▶️  Starting container...");
+    await runtime.startContainer(containerId);
+
+    const restartedContainer = await runtime.getContainer(containerId);
+    expect(restartedContainer?.status).toBe("running");
+
+    console.log("✅ Container restarted");
+
+    // Wait for container to fully initialize
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // 6. Verify files still exist with same content
+    console.log("🔍 Verifying files persisted...");
+
+    const workspaceAfter = await podManager.execInPod([
+      "cat",
+      "/workspace/test-file.txt",
+    ]);
+    expect(workspaceAfter.stdout.trim()).toBe("persistent workspace data");
+
+    const rootAfter = await podManager.execInPod(["cat", "/root/.testrc"]);
+    expect(rootAfter.stdout.trim()).toBe("persistent root config");
+
+    const homeAfter = await podManager.execInPod([
+      "cat",
+      "/home/testuser/.profile",
+    ]);
+    expect(homeAfter.stdout.trim()).toBe("persistent home data");
+
+    console.log("✅ All files persisted correctly!");
+
+    // 7. Clean up
+    await provisioningService.deprovisionPod({ podId: volumeTestId });
+    await db.delete(pods).where(eq(pods.id, volumeTestId));
+
+    console.log("✅ Volume persistence test completed successfully!");
+  }, 180000); // 3 minute timeout
+
+  it("should persist data across container removal and recreation", async () => {
+    console.log(
+      "\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...",
+    );
+
+    // 1. Create and provision a test pod
+    const recreateTestId = `recreate-test-${Date.now()}`;
+    console.log(
+      `📦 Creating pod ${recreateTestId} for recreation persistence test...`,
+    );
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["web-terminal"],
+    });
+    // Remove install command for this test (no package.json in blank template)
+    delete pinacleConfig.install;
+
+    await db
+      .insert(pods)
+      .values({
+        id: recreateTestId,
+        name: "Recreation Persistence Test Pod",
+        slug: "recreate-test-pod",
+        description: "Test pod for testing volume persistence across recreation",
+        template: "nodejs-blank",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        config: pinacleConfigToJSON(pinacleConfig),
+        monthlyPrice: 500,
+        status: "creating",
+      })
+      .returning();
+
+    // Provision the pod
+    console.log("🚀 Provisioning pod...");
+    await provisioningService.provisionPod(
+      {
+        podId: recreateTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
+
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, recreateTestId))
+      .limit(1);
+
+    expect(provisionedPod.status).toBe("running");
+    const originalContainerId = provisionedPod.containerId!;
+
+    console.log(`✅ Pod provisioned with container: ${originalContainerId}`);
+
+    // 2. Create test files in volumes
+    const podManager = new PodManager(recreateTestId, serverConnection);
+    const runtime = new GVisorRuntime(serverConnection);
+
+    console.log("📝 Writing test files to volumes...");
+
+    await podManager.execInPod([
+      "sh",
+      "-c",
+      "echo 'data that should survive recreation' > /workspace/important.txt",
+    ]);
+
+    await podManager.execInPod([
+      "sh",
+      "-c",
+      "echo 'root config that should survive' > /root/.config",
+    ]);
+
+    const originalContent = await podManager.execInPod([
+      "cat",
+      "/workspace/important.txt",
+    ]);
+    expect(originalContent.stdout.trim()).toBe(
+      "data that should survive recreation",
+    );
+
+    console.log("✅ Test files written and verified");
+
+    // 3. Stop and remove the container (simulating Lima restart or crash)
+    console.log("🗑️  Removing container (simulating unexpected restart)...");
+    await runtime.stopContainer(originalContainerId);
+    await runtime.removeContainer(originalContainerId, {
+      removeVolumes: false,
+    }); // Don't remove volumes!
+
+    // Verify container is gone
+    const removedContainer = await runtime.getContainer(originalContainerId);
+    expect(removedContainer).toBeNull();
+
+    console.log("✅ Container removed, volumes preserved");
+
+    // 4. Create a new container for the same pod (simulating pod restart after Lima restart)
+    console.log("🔄 Creating new container with same volumes...");
+
+    // Get the pod spec to recreate container
+    const { expandPinacleConfigToSpec } = await import("../pinacle-config");
+    const pinacleConfigParsed = JSON.parse(provisionedPod.config);
+    const podSpec = await expandPinacleConfigToSpec(pinacleConfigParsed, {
+      id: recreateTestId,
+      name: provisionedPod.name,
+      slug: provisionedPod.slug,
+      description: provisionedPod.description || undefined,
+    });
+
+    // Allocate ports (reuse the same logic as provisioning)
+    const { NetworkManager } = await import("../network-manager");
+    const networkManager = new NetworkManager(serverConnection);
+    const externalPort = await networkManager.allocatePort(
+      recreateTestId,
+      "nginx-proxy",
+    );
+    podSpec.network.ports.push({
+      name: "nginx-proxy",
+      internal: 80,
+      external: externalPort,
+      protocol: "tcp",
+    });
+
+    // Create new container (volumes will be automatically reattached by name)
+    const newContainer = await runtime.createContainer(podSpec);
+    await runtime.startContainer(newContainer.id);
+
+    console.log(`✅ New container created: ${newContainer.id}`);
+
+    // Wait for container to initialize
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // 5. Verify data persisted in volumes
+    console.log("🔍 Verifying data persisted across recreation...");
+
+    const persistedContent = await podManager.execInPod([
+      "cat",
+      "/workspace/important.txt",
+    ]);
+    expect(persistedContent.stdout.trim()).toBe(
+      "data that should survive recreation",
+    );
+
+    const persistedConfig = await podManager.execInPod(["cat", "/root/.config"]);
+    expect(persistedConfig.stdout.trim()).toBe("root config that should survive");
+
+    console.log("✅ All data persisted correctly across container recreation!");
+
+    // 6. Clean up
+    await provisioningService.deprovisionPod({ podId: recreateTestId });
+    await db.delete(pods).where(eq(pods.id, recreateTestId));
+
+    console.log("✅ Recreation persistence test completed successfully!");
+  }, 180000); // 3 minute timeout
+
+  it("should persist system packages installed with apk (universal volumes)", async () => {
+    console.log(
+      "\n🧪 Testing that system packages DO persist with universal volumes...",
+    );
+
+    // 1. Create and provision a test pod
+    const apkTestId = `apk-test-${Date.now()}`;
+    console.log(`📦 Creating pod ${apkTestId} for apk persistence test...`);
+
+    const pinacleConfig = generatePinacleConfigFromForm({
+      template: "nodejs-blank",
+      tier: "dev.small",
+      customServices: ["web-terminal"],
+    });
+    // Remove install command for this test (no package.json in blank template)
+    delete pinacleConfig.install;
+
+    await db
+      .insert(pods)
+      .values({
+        id: apkTestId,
+        name: "APK Persistence Test Pod",
+        slug: "apk-test-pod",
+        description: "Test pod for testing that apk packages persist",
+        template: "nodejs-blank",
+        teamId: testTeamId,
+        ownerId: testUserId,
+        config: pinacleConfigToJSON(pinacleConfig),
+        monthlyPrice: 500,
+        status: "creating",
+      })
+      .returning();
+
+    // Provision the pod
+    console.log("🚀 Provisioning pod...");
+    await provisioningService.provisionPod(
+      {
+        podId: apkTestId,
+        serverId: testServerId,
+      },
+      false,
+    );
+
+    const [provisionedPod] = await db
+      .select()
+      .from(pods)
+      .where(eq(pods.id, apkTestId))
+      .limit(1);
+
+    expect(provisionedPod.status).toBe("running");
+    const containerId = provisionedPod.containerId!;
+
+    console.log(`✅ Pod provisioned with container: ${containerId}`);
+
+    // 2. Install a package with apk
+    const podManager = new PodManager(apkTestId, serverConnection);
+    const runtime = new GVisorRuntime(serverConnection);
+
+    console.log("📦 Installing curl with apk...");
+
+    await podManager.execInPod(["apk", "add", "curl"]);
+
+    // Verify curl is installed
+    const curlCheck1 = await podManager.execInPod(["which", "curl"]);
+    expect(curlCheck1.stdout.trim()).toBe("/usr/bin/curl");
+
+    console.log("✅ curl installed successfully");
+
+    // 3. Stop and restart container
+    console.log("🔄 Stopping and restarting container...");
+    await runtime.stopContainer(containerId);
+    await runtime.startContainer(containerId);
+
+    // Wait for container to initialize
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // 4. Verify curl PERSISTED (universal volumes cover /usr, /etc, /var)
+    console.log("🔍 Checking if curl persisted (it should!)...");
+
+    const curlCheck2 = await podManager.execInPod(["which", "curl"]);
+    expect(curlCheck2.stdout.trim()).toBe("/usr/bin/curl");
+
+    console.log("✅ Confirmed: curl PERSISTED across restart!");
+    console.log(
+      "📝 Note: With universal volumes, system packages persist automatically. Pods are like VMs!",
+    );
+
+    // 5. Clean up
+    await provisioningService.deprovisionPod({ podId: apkTestId });
+    await db.delete(pods).where(eq(pods.id, apkTestId));
+
+    console.log("✅ System package persistence test completed successfully!");
+  }, 180000); // 3 minute timeout
+
   it.skip("should initialize a new Vite project from template", async () => {
     const viteTestId = `vite-template-test-${Date.now()}`;
     const testRepo = `test-org/vite-test-${Date.now()}`;

@@ -117,7 +117,7 @@ export default function Dashboard() {
   const handleDeletePod = async (podId: string) => {
     if (
       !confirm(
-        "Are you sure you want to archive this pod? The container will be stopped and removed.",
+        "Are you sure you want to delete this pod? The container will be stopped and removed.",
       )
     ) {
       return;
@@ -139,7 +139,7 @@ export default function Dashboard() {
       console.error("Failed to delete pod:", error);
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error occurred";
-      toast.error(`Failed to archive ${podName}`, {
+      toast.error(`Failed to delete ${podName}`, {
         description: errorMessage,
       });
     } finally {
@@ -190,6 +190,29 @@ export default function Dashboard() {
     );
   }
 
+  const podSelector = showPodSelector && pods && (
+    <PodSelector
+      pods={pods}
+      currentPodId={selectedPodId || pods[0]?.id || ""}
+      onSelect={(podId) => {
+        setSelectedPodId(podId);
+        setShowPodSelector(false);
+        // Update URL
+        router.push(`/dashboard?pod=${podId}`);
+      }}
+      onClose={() => setShowPodSelector(false)}
+      onStartPod={handleStartPod}
+      onStopPod={handleStopPod}
+      onDeletePod={handleDeletePod}
+      deletingPodId={deletingPodId}
+      onViewDetails={(podId) => {
+        setSelectedPodId(podId);
+        setShowPodSelector(false);
+        setShowPodDetails(true);
+      }}
+    />
+  );
+
   // No active pod selected or pod was archived
   if (!activePod) {
     return (
@@ -221,56 +244,16 @@ export default function Dashboard() {
             </Button>
           </div>
         </div>
-        {showPodSelector && pods && (
-          <PodSelector
-            pods={pods}
-            currentPodId={selectedPodId || pods[0]?.id || ""}
-            onSelect={(podId) => {
-              setSelectedPodId(podId);
-              setShowPodSelector(false);
-              // Update URL
-              router.push(`/dashboard?pod=${podId}`);
-            }}
-            onClose={() => setShowPodSelector(false)}
-            onStartPod={handleStartPod}
-            onStopPod={handleStopPod}
-            onDeletePod={handleDeletePod}
-            deletingPodId={deletingPodId}
-            onViewDetails={(podId) => {
-              setSelectedPodId(podId);
-              setShowPodSelector(false);
-              setShowPodDetails(true);
-            }}
-          />
-        )}
+        {podSelector}
       </div>
     );
   }
 
   return (
     <>
-      <Workbench
-        pod={activePod}
-        onPodSwitch={() => setShowPodSelector(true)}
-      />
+      <Workbench pod={activePod} onPodSwitch={() => setShowPodSelector(true)} />
 
-      {showPodSelector && pods && (
-        <PodSelector
-          pods={pods}
-          currentPodId={activePod.id}
-          onSelect={handleSelectPod}
-          onClose={() => setShowPodSelector(false)}
-          onStartPod={handleStartPod}
-          onStopPod={handleStopPod}
-          onDeletePod={handleDeletePod}
-          deletingPodId={deletingPodId}
-          onViewDetails={(podId) => {
-            setSelectedPodId(podId);
-            setShowPodSelector(false);
-            setShowPodDetails(true);
-          }}
-        />
-      )}
+      {podSelector}
 
       {showPodDetails && (
         <PodDetailsPanel

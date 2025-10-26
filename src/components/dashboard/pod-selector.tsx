@@ -129,10 +129,15 @@ export const PodSelector = ({
             const isDeleting = deletingPodId === pod.id;
 
             return (
-              <div
+              <button
                 key={pod.id}
+                type="button"
+                onClick={() => {
+                  onSelect(pod.id);
+                  onClose();
+                }}
                 className={`
-                  bg-white rounded-xl p-4 border-2 transition-all
+                  bg-white rounded-xl p-4 border-2 transition-all w-full cursor-pointer
                   ${
                     isCurrent
                       ? "border-orange-500 shadow-lg"
@@ -140,24 +145,15 @@ export const PodSelector = ({
                   }
                 `}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelect(pod.id);
-                      onClose();
-                    }}
-                    className="flex-1 text-left"
-                  >
-                    <h3 className="font-mono font-bold text-slate-900 flex items-center gap-2">
-                      {pod.name}
-                      {isCurrent && (
-                        <Badge className="bg-orange-100 text-orange-800 text-[10px] border-orange-200">
-                          Current
-                        </Badge>
-                      )}
-                    </h3>
-                  </button>
+                <div className="flex items-start justify-between mb-3 gap-2">
+                  <h3 className="font-mono font-bold text-slate-900 text-left break-all">
+                    {pod.name}asdsadsad
+                    {isCurrent && (
+                      <Badge className="bg-orange-100 text-orange-800 text-[10px] border-orange-200 ml-2">
+                        Current
+                      </Badge>
+                    )}
+                  </h3>
                   {getStatusBadge(pod.status)}
                 </div>
 
@@ -234,7 +230,7 @@ export const PodSelector = ({
                     )}
                   </Button>
                 </div>
-              </div>
+              </button>
             );
           })}
 

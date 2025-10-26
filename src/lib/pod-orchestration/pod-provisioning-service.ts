@@ -210,9 +210,14 @@ export class PodProvisioningService {
         errorMessage,
       );
 
-      // Clean up container if it exists
+      // Clean up container if it exists (remove volumes on error)
       if (cleanupOnError) {
-        await podManager?.cleanupPod();
+        const container = await podManager?.getPodContainer();
+        if (container) {
+          await podManager?.cleanupPodByContainerId(container.id, {
+            removeVolumes: true,
+          });
+        }
       }
 
       // Update pod status to error
@@ -272,10 +277,13 @@ export class PodProvisioningService {
       const podManager = new PodManager(podId, serverConnection);
 
       console.log(
-        `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId}`,
+        `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId} (removing volumes)`,
       );
 
-      await podManager.cleanupPodByContainerId(podRecord.containerId);
+      // Deprovision = permanent deletion, so remove volumes
+      await podManager.cleanupPodByContainerId(podRecord.containerId, {
+        removeVolumes: true,
+      });
 
       console.log(
         `[PodProvisioningService] Successfully deprovisioned pod ${podId}`,
