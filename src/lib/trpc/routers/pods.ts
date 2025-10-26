@@ -679,6 +679,79 @@ export const podsRouter = createTRPCRouter({
             await podManager.startPod();
           }
 
+          // After container is running, restart all services and processes
+          console.log(
+            `[pods.start] Restarting services and processes for pod ${input.id}`,
+          );
+          const { ServiceProvisioner } = await import(
+            "../../pod-orchestration/service-provisioner"
+          );
+          const { ProcessProvisioner } = await import(
+            "../../pod-orchestration/process-provisioner"
+          );
+          const { expandPinacleConfigToSpec } = await import(
+            "../../pod-orchestration/pinacle-config"
+          );
+
+          // Get pod config to know which services and processes to restart
+          const pinacleConfig = JSON.parse(pod.config);
+          const podSpec = await expandPinacleConfigToSpec(pinacleConfig, {
+            id: pod.id,
+            name: pod.name,
+            slug: pod.slug,
+            description: pod.description || undefined,
+            githubRepo: pod.githubRepo || undefined,
+            githubBranch: pod.githubBranch || undefined,
+          });
+
+          const serviceProvisioner = new ServiceProvisioner(
+            input.id,
+            serverConnection,
+          );
+          const processProvisioner = new ProcessProvisioner(
+            input.id,
+            serverConnection,
+          );
+
+          // Restart all user processes (tmux sessions)
+          if (podSpec.processes && podSpec.processes.length > 0) {
+            for (const process of podSpec.processes) {
+              try {
+                console.log(`[pods.start] Starting process: ${process.name}`);
+                await processProvisioner.startProcess(podSpec, process);
+              } catch (error) {
+                console.warn(
+                  `[pods.start] Failed to start process ${process.name}:`,
+                  error,
+                );
+                // Continue with other processes even if one fails
+              }
+            }
+          }
+
+          // Restart all services (OpenRC services)
+          for (const service of podSpec.services) {
+            if (service.enabled) {
+              try {
+                console.log(`[pods.start] Starting service: ${service.name}`);
+                await serviceProvisioner.startService({
+                  spec: podSpec,
+                  podId: input.id,
+                  serviceName: service.name,
+                });
+              } catch (error) {
+                console.warn(
+                  `[pods.start] Failed to start service ${service.name}:`,
+                  error,
+                );
+                // Continue with other services even if one fails
+              }
+            }
+          }
+
+          // Wait a moment for services and processes to start
+          await new Promise((resolve) => setTimeout(resolve, 5_000));
+
           await ctx.db
             .update(pods)
             .set({
@@ -828,16 +901,19 @@ export const podsRouter = createTRPCRouter({
           await podManager.stopPod();
 
           // Remove the stopped container so we can restore from snapshot on next start
+          // Keep volumes so the pod can be restarted with persistent data
           const container = await podManager.getPodContainer();
           if (container) {
             console.log(
-              `[pods.stop] Removing stopped container ${container.id}`,
+              `[pods.stop] Removing stopped container ${container.id} (keeping volumes)`,
             );
             const { GVisorRuntime } = await import(
               "../../pod-orchestration/container-runtime"
             );
             const runtime = new GVisorRuntime(serverConnection);
-            await runtime.removeContainer(container.id);
+            await runtime.removeContainer(container.id, {
+              removeVolumes: false, // Keep volumes for restart
+            });
           }
 
           // Clear container ID from DB

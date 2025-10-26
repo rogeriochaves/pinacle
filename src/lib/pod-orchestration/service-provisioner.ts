@@ -373,16 +373,22 @@ stop_pre() {
 `;
 
     // Create OpenRC service script using heredoc to avoid all escaping issues
+    // Also add service to default runlevel so it starts automatically on boot
     const writeScriptCommand = `cat > /etc/init.d/${serviceName} << 'PINACLE_EOF'
 ${serviceScript}
 PINACLE_EOF
-chmod +x /etc/init.d/${serviceName}`;
+chmod +x /etc/init.d/${serviceName}
+rc-update add ${serviceName} default || true`;
 
     await this.containerRuntime.execInContainer(this.podId, containerId, [
       "sh",
       "-c",
       writeScriptCommand,
     ]);
+
+    console.log(
+      `[ServiceProvisioner] Created service script and enabled boot for ${serviceName}`,
+    );
   }
 
   // Utility methods

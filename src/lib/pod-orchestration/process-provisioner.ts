@@ -1,3 +1,4 @@
+import { dump } from "js-yaml";
 import { getProjectFolderFromRepository } from "../utils";
 import { GVisorRuntime } from "./container-runtime";
 import type { PodSpec, ProcessConfig, ServerConnection } from "./types";
@@ -120,20 +121,44 @@ export class ProcessProvisioner {
   }
 
   /**
-   * Start a process (attach to tmux session or restart if needed)
+   * Start a process (create or recreate tmux session with the command)
+   * This is called on pod start/restart to ensure the process is actually running
    */
-  async startProcess(_spec: PodSpec, process: ProcessConfig): Promise<void> {
-    console.log(
-      `[ProcessProvisioner] Starting process ${process.name} for pod ${this.podId}`,
-    );
+  async startProcess(spec: PodSpec, process: ProcessConfig): Promise<void> {
+    const container =
+      await this.containerRuntime.getActiveContainerForPodOrThrow(this.podId);
 
-    // Tmux sessions start automatically when created with provisionProcess
-    // This method is for consistency with service provisioning flow
-    // We could add health checks here if needed
+    try {
+      console.log(
+        `[ProcessProvisioner] Starting process ${process.name} for pod ${this.podId}`,
+      );
 
-    console.log(
-      `[ProcessProvisioner] Process ${process.name} is running in tmux`,
-    );
+      const sessionName =
+        process.tmuxSession || `process-${this.podId}-${process.name}`;
+      const startCmd = this.commandToShellString(process.startCommand);
+      const workDir = this.getWorkDir(spec);
+
+      // Kill existing session if it exists (it might be empty from persisted volumes)
+      // Then create a new session with the command
+      const tmuxCmd = `tmux kill-session -t "${sessionName}" 2>/dev/null || true; tmux new -d -s "${sessionName}" "cd ${workDir} && ${startCmd}"`;
+      console.log('tmuxCmd', tmuxCmd);
+
+      await this.containerRuntime.execInContainer(this.podId, container.id, [
+        "sh",
+        "-c",
+        tmuxCmd,
+      ]);
+
+      console.log(
+        `[ProcessProvisioner] Successfully started process ${process.name} in tmux session ${sessionName}`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[ProcessProvisioner] Failed to start process ${process.name}: ${message}`,
+      );
+      throw new Error(`Failed to start process ${process.name}: ${message}`);
+    }
   }
 
   /**

@@ -147,7 +147,7 @@ export const PodSelector = ({
               >
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <h3 className="font-mono font-bold text-slate-900 text-left break-all">
-                    {pod.name}asdsadsad
+                    {pod.name}
                     {isCurrent && (
                       <Badge className="bg-orange-100 text-orange-800 text-[10px] border-orange-200 ml-2">
                         Current

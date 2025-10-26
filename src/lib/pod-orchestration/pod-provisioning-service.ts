@@ -262,30 +262,39 @@ export class PodProvisioningService {
       return;
     }
 
-    if (!podRecord.containerId) {
-      console.log(
-        `[PodProvisioningService] Pod ${podId} has no container, nothing to clean up`,
-      );
-      return;
-    }
-
     try {
       // 2. Get server connection details
       const serverConnection = await this.getServerConnectionDetails(
         podRecord.serverId,
       );
 
-      // 3. Create PodManager and clean up container
-      const podManager = new PodManager(podId, serverConnection);
+      // 3. Clean up container (if exists) and volumes
+      if (podRecord.containerId) {
+        // Container exists - clean it up normally
+        const podManager = new PodManager(podId, serverConnection);
 
-      console.log(
-        `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId} (removing volumes)`,
-      );
+        console.log(
+          `[PodProvisioningService] Cleaning up container ${podRecord.containerId} for pod ${podId} (removing volumes)`,
+        );
 
-      // Deprovision = permanent deletion, so remove volumes
-      await podManager.cleanupPodByContainerId(podRecord.containerId, {
-        removeVolumes: true,
-      });
+        // Deprovision = permanent deletion, so remove volumes
+        await podManager.cleanupPodByContainerId(podRecord.containerId, {
+          removeVolumes: true,
+        });
+      } else {
+        // No container but still need to clean up volumes (pod was stopped before deletion)
+        console.log(
+          `[PodProvisioningService] Pod ${podId} has no container, cleaning up volumes only`,
+        );
+
+        const { GVisorRuntime } = await import("./container-runtime");
+        const runtime = new GVisorRuntime(serverConnection);
+        await runtime.removeAllPodVolumes(podId);
+
+        console.log(
+          `[PodProvisioningService] Cleaned up volumes for pod ${podId}`,
+        );
+      }
 
       console.log(
         `[PodProvisioningService] Successfully deprovisioned pod ${podId}`,
