@@ -113,9 +113,14 @@ export class PodManager extends EventEmitter {
         console.log(
           `[PodManager] Setting up GitHub repository for pod ${spec.id}`,
         );
-        await this.setupGitHubRepository(spec);
         const pinacleConfig = podConfigToPinacleConfig(spec);
-        await this.injectPinacleConfig(pinacleConfig, spec.githubRepo);
+        await this.setupGitHubRepository(spec, pinacleConfig);
+        
+        // Only inject pinacle.yaml for existing repos
+        // For new repos, it's already included in the initial commit
+        if (spec.githubRepoSetup.type === "existing") {
+          await this.injectPinacleConfig(pinacleConfig, spec.githubRepo);
+        }
       }
 
       // Determine if this is an existing repo (affects error handling)
@@ -270,10 +275,14 @@ export class PodManager extends EventEmitter {
   /**
    * Clean up pod resources using container ID from database
    * This doesn't require the pod to be loaded in memory - works with just the container ID
+   * Set removeVolumes=true for permanent deletion, false for temporary stop
    */
-  async cleanupPodByContainerId(containerId: string): Promise<void> {
+  async cleanupPodByContainerId(
+    containerId: string,
+    options?: { removeVolumes?: boolean },
+  ): Promise<void> {
     console.log(
-      `[PodManager] Cleaning up resources for pod ${this.podId}, container ${containerId}`,
+      `[PodManager] Cleaning up resources for pod ${this.podId}, container ${containerId} (removeVolumes: ${options?.removeVolumes ?? false})`,
     );
 
     try {
@@ -289,9 +298,9 @@ export class PodManager extends EventEmitter {
         // Continue - container might already be stopped
       }
 
-      // Remove the container
+      // Remove the container (and optionally volumes)
       console.log(`[PodManager] Removing container ${containerId}`);
-      await this.containerRuntime.removeContainer(containerId);
+      await this.containerRuntime.removeContainer(containerId, options);
 
       // Destroy the network (uses deterministic network name from pod ID)
       console.log(`[PodManager] Destroying network for pod ${this.podId}`);
@@ -315,18 +324,20 @@ export class PodManager extends EventEmitter {
       throw new Error(`Pod ${this.podId} has no container`);
     }
 
-    console.log(`[PodManager] Deleting pod container: ${container.id}`);
+    console.log(
+      `[PodManager] Deleting pod container: ${container.id} (permanently removing volumes)`,
+    );
 
     try {
-      await this.containerRuntime.removeContainer(container.id);
-
       // Stop pod if running
       if (container.status === "running") {
         await this.stopPod();
       }
 
-      // Remove container
-      await this.containerRuntime.removeContainer(container.id);
+      // Remove container and volumes
+      await this.containerRuntime.removeContainer(container.id, {
+        removeVolumes: true,
+      });
 
       // Destroy network
       await this.networkManager.destroyPodNetwork(this.podId);
@@ -492,7 +503,10 @@ export class PodManager extends EventEmitter {
     // They're all accessible through the Nginx proxy via hostname routing
   }
 
-  private async setupGitHubRepository(spec: PodSpec): Promise<void> {
+  private async setupGitHubRepository(
+    spec: PodSpec,
+    pinacleConfig?: PinacleConfig,
+  ): Promise<void> {
     if (!spec.githubRepo || !spec.githubRepoSetup) {
       return;
     }
@@ -516,6 +530,7 @@ export class PodManager extends EventEmitter {
       setup,
       template,
       spec,
+      pinacleConfig,
     );
   }
 

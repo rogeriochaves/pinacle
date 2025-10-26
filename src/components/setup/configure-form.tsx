@@ -4,9 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import type { PinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
+import { parsePinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
 import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
+import { api } from "../../lib/trpc/client";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
@@ -60,6 +63,10 @@ export const ConfigureForm = ({
   const [isCreating, setIsCreating] = useState(false);
   const [customServices, setCustomServices] =
     useState<ServiceId[]>(DEFAULT_SERVICES);
+  const [pinacleConfig, setPinacleConfig] = useState<PinacleConfig | null>(
+    null,
+  );
+  const [hasPinacleYaml, setHasPinacleYaml] = useState(false);
 
   const setupType = form.watch("setupType");
   const selectedRepo = form.watch("selectedRepo");
@@ -68,6 +75,25 @@ export const ConfigureForm = ({
   const bundle = form.watch("bundle");
   const tier = form.watch("tier");
   const agent = form.watch("agent");
+
+  // Get the default branch for the selected repo
+  const selectedRepoData = repositories.find(
+    (repo) => repo.full_name === selectedRepo,
+  );
+  const defaultBranch = selectedRepoData?.default_branch || "main";
+
+  // Fetch pinacle.yaml when a repository is selected
+  const { data: pinacleConfigData, isLoading: isLoadingPinacleConfig } =
+    api.githubApp.getPinacleConfig.useQuery(
+      {
+        repository: selectedRepo || "",
+        branch: defaultBranch,
+      },
+      {
+        enabled: setupType === "repository" && !!selectedRepo,
+        retry: false,
+      },
+    );
 
   // Get selected template data
   const selectedTemplate = bundle ? getTemplateUnsafe(bundle) : undefined;
@@ -80,6 +106,81 @@ export const ConfigureForm = ({
     setupType === "repository"
       ? selectedRepo || ""
       : `${selectedOrg || ""}/${newRepoName || ""}`;
+
+  // Clear pinacle.yaml state when switching to "New Repository" or when repo is deselected
+  React.useEffect(() => {
+    // Clear pinacle.yaml state for new repos or when no repo is selected
+    if (setupType === "new" || (setupType === "repository" && !selectedRepo)) {
+      // If we had pinacle yaml before, clear everything
+      if (hasPinacleYaml) {
+        setHasPinacleYaml(false);
+        setPinacleConfig(null);
+        form.setValue("bundle", "");
+        form.clearErrors("bundle");
+        // Also clear process config that came from pinacle.yaml
+        form.setValue("processInstallCommand", "");
+        form.setValue("processStartCommand", "");
+        form.setValue("processAppUrl", "");
+      }
+    }
+  }, [setupType, selectedRepo, hasPinacleYaml, form]);
+
+  // Parse and apply pinacle.yaml config when fetched
+  React.useEffect(() => {
+    if (pinacleConfigData?.found && pinacleConfigData.content) {
+      try {
+        const config = parsePinacleConfig(pinacleConfigData.content);
+        setPinacleConfig(config);
+        setHasPinacleYaml(true);
+
+        // Use the template from pinacle.yaml if it exists, otherwise use a blank template
+        const templateToUse = config.template || "nodejs-blank";
+        form.setValue("bundle", templateToUse);
+        form.clearErrors("bundle");
+
+        // Set tier from config
+        if (config.tier) {
+          form.setValue("tier", config.tier);
+        }
+
+        // Set services from config
+        if (config.services) {
+          setCustomServices(config.services as ServiceId[]);
+        }
+
+        // Set install command
+        if (config.install) {
+          const installCmd =
+            typeof config.install === "string"
+              ? config.install
+              : config.install.join(" && ");
+          form.setValue("processInstallCommand", installCmd);
+        }
+
+        // Set process configuration from first process
+        if (config.processes && config.processes.length > 0) {
+          const firstProcess = config.processes[0];
+          const startCmd =
+            typeof firstProcess.startCommand === "string"
+              ? firstProcess.startCommand
+              : firstProcess.startCommand.join(" && ");
+          form.setValue("processStartCommand", startCmd);
+          if (firstProcess.url) {
+            form.setValue("processAppUrl", firstProcess.url);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse pinacle.yaml:", error);
+        // If parsing fails, just continue without the config
+        setHasPinacleYaml(false);
+        setPinacleConfig(null);
+      }
+    } else if (setupType === "repository" && selectedRepo) {
+      // No pinacle.yaml found for the selected repo
+      setHasPinacleYaml(false);
+      setPinacleConfig(null);
+    }
+  }, [pinacleConfigData, form, setupType, selectedRepo]);
 
   // Auto-select first org for "new" mode
   React.useEffect(() => {
@@ -102,11 +203,14 @@ export const ConfigureForm = ({
   }, [agent, selectedTemplate]);
 
   // Clear template selection if switching to "repository" mode with non-blank template
+  // But preserve pinacle-yaml if we have a config
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only want to run when setupType changes
   React.useEffect(() => {
     if (setupType === "repository" && bundle) {
       const isBlankTemplate =
-        bundle === "nodejs-blank" || bundle === "python-blank";
+        bundle === "nodejs-blank" ||
+        bundle === "python-blank" ||
+        bundle === "pinacle-yaml";
       if (!isBlankTemplate) {
         form.setValue("bundle", "");
         form.clearErrors("bundle");
@@ -302,11 +406,46 @@ export const ConfigureForm = ({
                   {form.formState.errors.bundle.message}
                 </p>
               )}
+              {isLoadingPinacleConfig && setupType === "repository" && selectedRepo && (
+                <p className="text-xs font-mono text-slate-500 mb-2">
+                  Checking for pinacle.yaml...
+                </p>
+              )}
               <TemplateSelector
                 selectedTemplate={bundle}
                 onTemplateChange={(templateId) => {
                   form.setValue("bundle", templateId);
                   form.clearErrors("bundle");
+
+                  // If user is selecting the pinacle.yaml option, reload its config
+                  if (hasPinacleYaml && pinacleConfig && templateId === (pinacleConfig.template || "nodejs-blank")) {
+                    // Reload pinacle.yaml configuration
+                    if (pinacleConfig.tier) {
+                      form.setValue("tier", pinacleConfig.tier);
+                    }
+                    if (pinacleConfig.services) {
+                      setCustomServices(pinacleConfig.services as ServiceId[]);
+                    }
+                    if (pinacleConfig.install) {
+                      const installCmd =
+                        typeof pinacleConfig.install === "string"
+                          ? pinacleConfig.install
+                          : pinacleConfig.install.join(" && ");
+                      form.setValue("processInstallCommand", installCmd);
+                    }
+                    if (pinacleConfig.processes && pinacleConfig.processes.length > 0) {
+                      const firstProcess = pinacleConfig.processes[0];
+                      const startCmd =
+                        typeof firstProcess.startCommand === "string"
+                          ? firstProcess.startCommand
+                          : firstProcess.startCommand.join(" && ");
+                      form.setValue("processStartCommand", startCmd);
+                      if (firstProcess.url) {
+                        form.setValue("processAppUrl", firstProcess.url);
+                      }
+                    }
+                    return;
+                  }
 
                   // Pre-fill process config based on template
                   const template = getTemplateUnsafe(templateId);
@@ -335,20 +474,18 @@ export const ConfigureForm = ({
                 }}
                 compact={true}
                 showOnlyBlank={setupType === "repository"}
+                pinacleConfig={hasPinacleYaml ? pinacleConfig : undefined}
               />
             </div>
 
             {/* Process Configuration (for existing repos) */}
-            {setupType === "repository" && selectedTemplate && (
-              <div className="bg-white p-6 rounded-lg border border-slate-200">
+            {setupType === "repository" && (bundle === "pinacle-yaml" || selectedTemplate) && (
+              <>
                 <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
                   APPLICATION CONFIGURATION
                 </Label>
-                <p className="text-xs font-mono text-slate-500 mb-4">
-                  Configure how to install and run your application
-                </p>
 
-                <div className="space-y-4">
+                <div className="bg-white p-6 rounded-lg border-2 border-slate-200 space-y-4">
                   {/* Install Command */}
                   <div>
                     <Label
@@ -407,13 +544,9 @@ export const ConfigureForm = ({
                       }
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     />
-                    <p className="text-xs font-mono text-slate-500 mt-1">
-                      If provided, a browser tab will be created to preview your
-                      app
-                    </p>
                   </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Resource Tier Selection */}

@@ -164,6 +164,7 @@ export class GitHubIntegration {
     repository: string,
     sshKeyPair: SSHKeyPair,
     spec: PodSpec,
+    pinacleConfig?: PinacleConfig,
   ): Promise<void> {
     console.log(
       `[GitHubIntegration] Initializing template ${template.id} for ${repository}`,
@@ -254,6 +255,25 @@ export class GitHubIntegration {
         }
       }
 
+      // 5.5. Inject pinacle.yaml before the initial commit
+      if (pinacleConfig) {
+        console.log(
+          `[GitHubIntegration] Injecting pinacle.yaml into initial commit`,
+        );
+        const yamlContent = serializePinacleConfig(pinacleConfig);
+        const escapedContent = yamlContent.replace(/'/g, "'\\''");
+        
+        await this.podManager.execInPod([
+          "sh",
+          "-c",
+          `echo '${escapedContent}' > ${projectPath}/pinacle.yaml`,
+        ]);
+        
+        console.log(
+          `[GitHubIntegration] Successfully wrote pinacle.yaml to ${projectPath}`,
+        );
+      }
+
       // 6. Create initial commit
       await this.podManager.execInPod([
         "sh",
@@ -309,6 +329,7 @@ export class GitHubIntegration {
     setup: GitHubRepoSetup,
     template?: PodTemplate,
     spec?: PodSpec,
+    pinacleConfig?: PinacleConfig,
   ): Promise<void> {
     if (setup.type === "existing") {
       // Clone existing repository
@@ -331,6 +352,7 @@ export class GitHubIntegration {
         setup.repository,
         setup.sshKeyPair,
         spec,
+        pinacleConfig,
       );
     }
   }

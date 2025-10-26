@@ -1,6 +1,8 @@
 "use client";
 
+import { FileCode2 } from "lucide-react";
 import Image from "next/image";
+import type { PinacleConfig } from "@/lib/pod-orchestration/pinacle-config";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
 import { Badge } from "../ui/badge";
 
@@ -9,6 +11,7 @@ type TemplateSelectorProps = {
   onTemplateChange: (templateId: string) => void;
   compact?: boolean;
   showOnlyBlank?: boolean; // Only show blank templates for existing repositories
+  pinacleConfig?: PinacleConfig | null; // If present, show pinacle.yaml option
 };
 
 export const TemplateSelector = ({
@@ -16,6 +19,7 @@ export const TemplateSelector = ({
   onTemplateChange,
   compact = false,
   showOnlyBlank = false,
+  pinacleConfig,
 }: TemplateSelectorProps) => {
   const allTemplates = getPublicTemplates();
 
@@ -23,13 +27,67 @@ export const TemplateSelector = ({
   const templates = showOnlyBlank
     ? allTemplates.filter(
         (template) =>
-          template.id === "nodejs-blank" || template.id === "python-blank"
+          template.id === "nodejs-blank" || template.id === "python-blank",
       )
     : allTemplates;
 
   if (compact) {
+    // Get the template ID from pinacle.yaml config if it exists
+    const pinacleTemplateId = pinacleConfig?.template || "nodejs-blank";
+    const isPinacleTemplate = pinacleConfig && showOnlyBlank && selectedTemplate === pinacleTemplateId;
+    
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {/* Show pinacle.yaml indicator first if config exists and we're in blank template mode (existing repo) */}
+        {pinacleConfig && showOnlyBlank && (
+          <button
+            key="pinacle-yaml-indicator"
+            type="button"
+            onClick={() => onTemplateChange(pinacleTemplateId)}
+            className={`
+              w-full flex items-center gap-3 px-4 py-2 rounded-lg border-2 transition-all
+              ${
+                isPinacleTemplate
+                  ? "border-orange-500 bg-orange-50"
+                  : "border-gray-200 hover:border-gray-300 bg-white"
+              }
+            `}
+          >
+            {/* Icon */}
+            <div className="shrink-0">
+              <FileCode2 className="w-6 h-6 text-orange-500" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-mono font-bold text-sm text-slate-900">
+                  From pinacle.yaml
+                </span>
+                <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0">
+                  Detected
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-600 truncate">
+                {pinacleConfig.template ? `Template: ${pinacleConfig.template}` : "Using config from repo"}
+              </p>
+            </div>
+
+            {/* Radio indicator */}
+            <div
+              className={`
+                w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0
+                ${isPinacleTemplate ? "border-orange-500" : "border-gray-300"}
+              `}
+            >
+              {isPinacleTemplate && (
+                <div className="w-3 h-3 rounded-full bg-orange-500" />
+              )}
+            </div>
+          </button>
+        )}
+
+        {/* Show regular templates */}
         {templates.map((template) => {
           const isSelected = selectedTemplate === template.id;
 
