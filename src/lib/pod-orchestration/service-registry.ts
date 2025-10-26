@@ -2,6 +2,74 @@ import { getProjectFolderFromRepository } from "../utils";
 import type { PodSpec } from "./types";
 
 /**
+ * Coding Assistant Metadata
+ * Central registry for all coding assistant services with their specific configurations
+ */
+export type CodingAssistantId =
+  | "claude-code"
+  | "openai-codex"
+  | "cursor-cli"
+  | "gemini-cli"
+  | "amp-code"
+  | "qwen-code";
+
+export type CodingAssistantMetadata = {
+  urlParamName: string; // For landing page agent param (e.g., "claude", "openai")
+  vibeKanbanExecutor: string; // Executor name for Vibe Kanban config
+};
+
+export const CODING_ASSISTANTS: Record<
+  CodingAssistantId,
+  CodingAssistantMetadata
+> = {
+  "claude-code": {
+    urlParamName: "claude",
+    vibeKanbanExecutor: "CLAUDE_CODE",
+  },
+  "openai-codex": {
+    urlParamName: "openai",
+    vibeKanbanExecutor: "CODEX",
+  },
+  "cursor-cli": {
+    urlParamName: "cursor",
+    vibeKanbanExecutor: "CURSOR",
+  },
+  "gemini-cli": {
+    urlParamName: "gemini",
+    vibeKanbanExecutor: "GEMINI",
+  },
+  "amp-code": {
+    urlParamName: "amp",
+    vibeKanbanExecutor: "AMP",
+  },
+  "qwen-code": {
+    urlParamName: "qwen",
+    vibeKanbanExecutor: "QWEN_CODE",
+  },
+} as const;
+
+// Helper to check if a service is a coding assistant
+export const isCodingAssistant = (
+  serviceId: string,
+): serviceId is CodingAssistantId => {
+  return serviceId in CODING_ASSISTANTS;
+};
+
+// Helper to get coding assistant by URL param name
+export const getCodingAssistantByUrlParam = (
+  urlParam: string,
+): CodingAssistantId | undefined => {
+  return Object.entries(CODING_ASSISTANTS).find(
+    ([_, assistant]) => assistant.urlParamName === urlParam,
+  )?.[0] as CodingAssistantId | undefined;
+};
+
+// Helper to get all coding assistant service IDs
+export const getCodingAssistantIds = (): CodingAssistantId[] => {
+  return Object.keys(CODING_ASSISTANTS) as CodingAssistantId[];
+};
+
+/**
  * Service template definition
  * Defines how to install, start, stop, and monitor a service
  */
@@ -79,19 +147,18 @@ EOF`,
     icon: "/logos/vibe-kanban.svg",
     iconAlt: "Vibe",
     installScript: (spec: PodSpec): string[] => {
-      const codingAssistant = spec.services.find(
-        (s) => s.name === "openai-codex",
-      )?.enabled
-        ? "CODEX"
-        : spec.services.find((s) => s.name === "cursor-cli")?.enabled
-          ? "CURSOR"
-          : spec.services.find((s) => s.name === "gemini-cli")?.enabled
-            ? "GEMINI_CLI"
-            : "CLAUDE_CODE";
+      // Find the first coding assistant service and use its Vibe Kanban executor name
+      const codingAssistantService = spec.services.find((s) =>
+        isCodingAssistant(s.name),
+      );
+      const codingAssistant = codingAssistantService
+        ? CODING_ASSISTANTS[codingAssistantService.name as CodingAssistantId]
+            .vibeKanbanExecutor
+        : "CLAUDE"; // Default to CLAUDE if no coding assistant found
 
       return [
-        `mkdir -p /root/.local/share/vibe-kanban`,
-        `cat <<'EOF' > /root/.local/share/vibe-kanban/config.json
+        `mkdir -p ~/.local/share/vibe-kanban`,
+        `cat <<'EOF' > ~/.local/share/vibe-kanban/config.json
 {
   "config_version": "v7",
   "theme": "SYSTEM",
@@ -125,8 +192,8 @@ EOF`,
   "language": "BROWSER"
 }
 EOF`,
-        `mkdir -p ~/.local/share/vibe-kanban`,
-        `ln -s /root/.local/share/vibe-kanban/config.json ~/.local/share/vibe-kanban/config.json`,
+        `mkdir -p /root/.local/share/vibe-kanban`,
+        `ln -s ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
       ];
     },
     startCommand: () => ["vibe-kanban"],
@@ -147,7 +214,7 @@ EOF`,
     description: "AI coding assistant via terminal",
     icon: "/logos/claude.svg",
     iconAlt: "Claude",
-    installScript: ["pnpm install -g @anthropic-ai/claude-code"],
+    installScript: ["pnpm add -g @anthropic-ai/claude-code@latest"],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -169,10 +236,7 @@ EOF`,
     cleanupCommand: [],
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
     defaultPort: 2528,
-    environment: {
-      IS_SANDBOX: "1",
-    },
-    requiredEnvVars: ["ANTHROPIC_API_KEY"],
+    environment: {},
   },
 
   "openai-codex": {
@@ -181,7 +245,7 @@ EOF`,
     description: "OpenAI powered coding assistant",
     icon: "/logos/openai.svg",
     iconAlt: "OpenAI",
-    installScript: ["pip install openai"],
+    installScript: ["pnpm add -g @openai/codex"],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -193,16 +257,17 @@ EOF`,
         getProjectFolder(spec),
         "--writable",
         "--",
-        "bash",
+        "tmux",
+        "new",
+        "-As",
+        "codex",
+        "/root/.local/share/pnpm/codex",
       ];
     },
     cleanupCommand: [],
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
     defaultPort: 2528,
-    environment: {
-      IS_SANDBOX: "1",
-    },
-    requiredEnvVars: ["OPENAI_API_KEY"],
+    environment: {},
   },
 
   "cursor-cli": {
@@ -211,7 +276,43 @@ EOF`,
     description: "Cursor AI coding assistant",
     icon: "/logos/cursor.svg",
     iconAlt: "Cursor",
-    installScript: ["npm install -g cursor-cli"],
+    installScript: [
+      // Install cursor-agent
+      "curl https://cursor.com/install -fsS | bash",
+      // Alpine Linux compatibility fixes
+      `
+      # Find the cursor-agent version directory
+      CURSOR_VERSION_DIR=$(ls -t /workspace/.local/share/cursor-agent/versions/ | head -1)
+      CURSOR_PATH=/workspace/.local/share/cursor-agent/versions/$CURSOR_VERSION_DIR
+      
+      # 1. Replace glibc Node.js with Alpine-native Node.js
+      if [ -f "$CURSOR_PATH/node" ]; then
+        mv "$CURSOR_PATH/node" "$CURSOR_PATH/node.glibc"
+        ln -s /usr/local/bin/node "$CURSOR_PATH/node"
+        echo "✓ Replaced Node.js binary with Alpine-compatible version"
+      fi
+      
+      # 2. Patch index.js to stub out merkle-tree native module (glibc-only)
+      if [ -f "$CURSOR_PATH/index.js" ]; then
+        cp "$CURSOR_PATH/index.js" "$CURSOR_PATH/index.js.backup"
+        sed -i 's/nativeBinding = __webpack_require__("..\\/merkle-tree\\/merkle-tree-napi.linux-arm64-gnu.node");/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: "\\/" };/' "$CURSOR_PATH/index.js"
+        echo "✓ Patched merkle-tree module"
+      fi
+      
+      # 3. Download and replace sqlite3 with musl-compatible version
+      if [ -f "$CURSOR_PATH/node_sqlite3.node" ]; then
+        cd /tmp
+        wget -q https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
+        tar -xzf sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
+        mv "$CURSOR_PATH/node_sqlite3.node" "$CURSOR_PATH/node_sqlite3.node.glibc"
+        cp build/Release/node_sqlite3.node "$CURSOR_PATH/node_sqlite3.node"
+        rm -rf /tmp/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz /tmp/build
+        echo "✓ Replaced sqlite3 with musl-compatible version"
+      fi
+
+      echo "export NO_OPEN_BROWSER=1" >> /etc/profile
+      `,
+    ],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -223,15 +324,17 @@ EOF`,
         getProjectFolder(spec),
         "--writable",
         "--",
-        "bash",
+        "tmux",
+        "new",
+        "-As",
+        "cursor",
+        "/workspace/.local/bin/cursor-agent",
       ];
     },
     cleanupCommand: [],
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
     defaultPort: 2528,
-    environment: {
-      IS_SANDBOX: "1",
-    },
+    environment: {},
     requiredEnvVars: [],
   },
 
@@ -241,7 +344,7 @@ EOF`,
     description: "Google Gemini coding assistant",
     icon: "/logos/gemini.svg",
     iconAlt: "Gemini",
-    installScript: ["pip install google-generativeai"],
+    installScript: ["pnpm add -g @google/gemini-cli"],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -253,16 +356,80 @@ EOF`,
         getProjectFolder(spec),
         "--writable",
         "--",
-        "bash",
+        "tmux",
+        "new",
+        "-As",
+        "gemini",
+        "/root/.local/share/pnpm/gemini",
+        "--yolo"
       ];
     },
     cleanupCommand: [],
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
     defaultPort: 2528,
-    environment: {
-      IS_SANDBOX: "1",
+    environment: {},
+  },
+
+  "amp-code": {
+    name: "amp-code",
+    displayName: "Amp Code",
+    description: "Amp - AI coding agent by Sourcegraph",
+    icon: "/logos/amp.svg",
+    iconAlt: "Amp",
+    installScript: ["pnpm add -g @sourcegraph/amp"],
+    startCommand: (spec: PodSpec) => {
+      return [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        getProjectFolder(spec),
+        "--writable",
+        "--",
+        "tmux",
+        "new",
+        "-As",
+        "amp",
+        "/root/.local/share/pnpm/amp",
+      ];
     },
-    requiredEnvVars: ["GEMINI_API_KEY"],
+    cleanupCommand: [],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
+    defaultPort: 2528,
+    environment: {},
+  },
+
+  "qwen-code": {
+    name: "qwen-code",
+    displayName: "Qwen Code",
+    description: "AI coding agent for the open source Qwen family of models by Alibaba",
+    icon: "/logos/qwen.png",
+    iconAlt: "Qwen",
+    installScript: ["pnpm add -g @qwen-code/qwen-code"],
+    startCommand: (spec: PodSpec) => {
+      return [
+        "ttyd",
+        "-p",
+        "2528",
+        "-i",
+        "0.0.0.0",
+        "-w",
+        getProjectFolder(spec),
+        "--writable",
+        "--",
+        "tmux",
+        "new",
+        "-As",
+        "amp",
+        "/root/.local/share/pnpm/qwen",
+      ];
+    },
+    cleanupCommand: [],
+    healthCheckCommand: ["curl", "-fsSL", "http://localhost:2528"],
+    defaultPort: 2528,
+    environment: {},
   },
 
   "web-terminal": {
