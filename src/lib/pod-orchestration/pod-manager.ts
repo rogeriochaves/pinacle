@@ -233,10 +233,7 @@ export class PodManager extends EventEmitter {
     console.log(`[PodManager] Stopping pod: ${this.podId}`);
 
     try {
-      // Stop services
-      await this.serviceProvisioner.stopService(this.podId, container.id);
-
-      // Stop container
+      // Stop container (docker stop sends SIGTERM to all processes, including services)
       await this.containerRuntime.stopContainer(container.id);
 
       this.emitEvent("stopped");
@@ -306,7 +303,6 @@ export class PodManager extends EventEmitter {
         console.log(
           `[PodManager] Container check/stop failed: ${message} (continuing cleanup)`,
         );
-        containerMissing = true;
       }
 
       // Remove the container (and optionally volumes)
