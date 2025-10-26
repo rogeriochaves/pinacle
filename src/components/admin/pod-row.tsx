@@ -7,6 +7,7 @@ import {
   getResourcesFromTier,
   podRecordToPinacleConfig,
 } from "@/lib/pod-orchestration/pinacle-config";
+import { getPodComputedStatus } from "@/lib/server-status";
 import type { RouterOutputs } from "@/lib/trpc/client";
 import { api } from "@/lib/trpc/client";
 import { MetricsChart } from "./metrics-chart";
@@ -33,6 +34,13 @@ export const PodRow = ({ pod }: { pod: PodWithDetails }) => {
     name: pod.name,
   });
   const resources = getResourcesFromTier(podConfig.tier);
+
+  // Compute actual pod status based on heartbeat
+  const computedStatus = getPodComputedStatus(
+    pod.status,
+    pod.lastHeartbeatAt,
+    pod.lastStartedAt,
+  );
 
   const metrics = pod.latestMetrics;
   const cpuPercent = metrics?.cpuUsagePercent || 0;
@@ -90,14 +98,14 @@ export const PodRow = ({ pod }: { pod: PodWithDetails }) => {
             </h4>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                pod.status === "running"
+                computedStatus === "running"
                   ? "bg-green-100 text-green-800"
-                  : pod.status === "stopped"
+                  : computedStatus === "stopped"
                     ? "bg-gray-100 text-gray-800"
                     : "bg-yellow-100 text-yellow-800"
               }`}
             >
-              {pod.status}
+              {computedStatus.charAt(0).toUpperCase() + computedStatus.slice(1)}
             </span>
           </div>
           <div className="mt-1 flex items-center gap-4 text-xs text-gray-500">
