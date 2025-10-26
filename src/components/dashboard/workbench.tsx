@@ -878,18 +878,19 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   {isGitHubAuthError(pod.lastErrorMessage) ? (
                     <div className="max-w-lg mx-auto">
                       <p className="text-slate-300 font-mono text-sm mb-4">
-                        Your GitHub credentials have expired. Please sign out
-                        and sign in again to reconnect your GitHub account.
+                        Your GitHub token has expired. Click below to refresh
+                        your authentication and retry the operation.
                       </p>
                       <button
                         type="button"
                         onClick={() => {
-                          window.location.href =
-                            "/api/auth/signout?callbackUrl=/auth/signin";
+                          // Seamless re-auth: redirect to GitHub auth with return URL
+                          const returnUrl = encodeURIComponent(window.location.pathname);
+                          window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
                         }}
                         className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-sm font-semibold rounded transition-colors"
                       >
-                        Sign Out & Re-authenticate
+                        Re-authenticate with GitHub
                       </button>
                     </div>
                   ) : (

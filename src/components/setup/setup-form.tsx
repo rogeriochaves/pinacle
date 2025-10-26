@@ -39,14 +39,17 @@ const SetupForm = () => {
     },
   });
 
-  // Check GitHub token validity
+  // Check GitHub token validity (only if session doesn't already indicate expiry)
   const { data: tokenValidation } = api.github.checkTokenValidity.useQuery(
     undefined,
     {
-      enabled: status === "authenticated" && !!session?.user?.githubAccessToken,
+      enabled: status === "authenticated" && !!session?.user?.githubAccessToken && !session?.error,
       retry: false,
     },
   );
+
+  // Check if token is expired (from session or from validation check)
+  const isTokenExpired = session?.error === "github_token_expired" || (tokenValidation && !tokenValidation.valid);
 
   // GitHub App queries
   const { data: installationData, isLoading: installationsLoading } =
@@ -206,7 +209,7 @@ const SetupForm = () => {
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Token Expiration Warning Banner */}
-      {tokenValidation && !tokenValidation.valid && (
+      {isTokenExpired && (
         <div className="bg-orange-500/10 border-b border-orange-500/30">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
@@ -229,20 +232,20 @@ const SetupForm = () => {
                     GitHub Authentication Expired
                   </p>
                   <p className="text-muted-foreground font-mono text-xs">
-                    Your GitHub credentials have expired. Please sign out and
-                    sign in again.
+                    Your GitHub token has expired. Click below to refresh your authentication.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href =
-                    "/api/auth/signout?callbackUrl=/auth/signin";
+                  // Seamless re-auth: just re-authenticate without signing out
+                  const returnUrl = encodeURIComponent(window.location.pathname);
+                  window.location.href = `/api/auth/signin/github?callbackUrl=${returnUrl}`;
                 }}
                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-mono text-xs font-semibold rounded transition-colors"
               >
-                Sign Out & Re-authenticate
+                Re-authenticate with GitHub
               </button>
             </div>
           </div>
