@@ -3,4 +3,4 @@ description: Commit
 alwaysApply: false
 ---
 
-ok nice, now can you now commit the files you changes, using a convential commit message?
+ok nice, now can you now commit (ONLY the files you changed, don't git add -A), using a convential commit message?

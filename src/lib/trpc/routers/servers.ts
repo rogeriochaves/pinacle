@@ -116,31 +116,32 @@ export const serversRouter = createTRPCRouter({
 
       // Save per-pod metrics and update pod heartbeat timestamps
       if (input.podMetrics.length > 0) {
-        await ctx.db.insert(podMetrics).values(
-          input.podMetrics
-            .filter(
-              (pm) =>
-                pm.cpuUsagePercent !== null &&
-                pm.cpuUsagePercent !== undefined &&
-                pm.memoryUsageMb !== null &&
-                pm.memoryUsageMb !== undefined &&
-                pm.diskUsageMb !== null &&
-                pm.diskUsageMb !== undefined &&
-                pm.networkRxBytes !== null &&
-                pm.networkRxBytes !== undefined &&
-                pm.networkTxBytes !== null &&
-                pm.networkTxBytes !== undefined &&
-                pm.networkTxBytes !== null,
-            )
-            .map((pm) => ({
-              podId: pm.podId,
-              cpuUsagePercent: pm.cpuUsagePercent!,
-              memoryUsageMb: pm.memoryUsageMb!,
-              diskUsageMb: pm.diskUsageMb!,
-              networkRxBytes: pm.networkRxBytes!,
-              networkTxBytes: pm.networkTxBytes!,
-            })),
-        );
+        const podMetricsToInsert = input.podMetrics
+          .filter(
+            (pm) =>
+              pm.cpuUsagePercent !== null &&
+              pm.cpuUsagePercent !== undefined &&
+              pm.memoryUsageMb !== null &&
+              pm.memoryUsageMb !== undefined &&
+              pm.diskUsageMb !== null &&
+              pm.diskUsageMb !== undefined &&
+              pm.networkRxBytes !== null &&
+              pm.networkRxBytes !== undefined &&
+              pm.networkTxBytes !== null &&
+              pm.networkTxBytes !== undefined &&
+              pm.networkTxBytes !== null,
+          )
+          .map((pm) => ({
+            podId: pm.podId,
+            cpuUsagePercent: pm.cpuUsagePercent!,
+            memoryUsageMb: pm.memoryUsageMb!,
+            diskUsageMb: pm.diskUsageMb!,
+            networkRxBytes: pm.networkRxBytes!,
+            networkTxBytes: pm.networkTxBytes!,
+          }));
+        if (podMetricsToInsert.length > 0) {
+          await ctx.db.insert(podMetrics).values(podMetricsToInsert);
+        }
 
         // Update lastHeartbeatAt for all pods that sent metrics
         const now = new Date();
