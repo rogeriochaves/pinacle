@@ -146,7 +146,6 @@ export class PodManager extends EventEmitter {
             process,
             isExistingRepo,
           );
-          await this.processProvisioner.startProcess(spec, process);
 
           // Wait a little bit for process to start
           await new Promise((resolve) => setTimeout(resolve, 5_000));

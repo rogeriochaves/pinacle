@@ -65,6 +65,17 @@ const createPodSchema = z.object({
     )
     .optional(), // Custom service selection
 
+  // Tabs configuration (for existing pinacle.yaml)
+  tabs: z
+    .array(
+      z.object({
+        name: z.string(),
+        url: z.string().optional(),
+        service: z.string().optional(),
+      }),
+    )
+    .optional(),
+
   // Configuration
   config: z.record(z.string(), z.unknown()).optional(), // pinacle.yaml config as object
   envVars: z.record(z.string(), z.string()).optional(), // environment variables
@@ -105,6 +116,7 @@ export const podsRouter = createTRPCRouter({
         selectedOrg,
         tier,
         customServices,
+        tabs,
         envVars,
         processConfig,
         hasPinacleYaml,
@@ -306,6 +318,7 @@ export const podsRouter = createTRPCRouter({
         template,
         tier,
         customServices,
+        tabs,
         slug,
         processConfig,
       });

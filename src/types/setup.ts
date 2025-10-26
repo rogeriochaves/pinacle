@@ -16,6 +16,16 @@ export const setupFormSchema = z
     agent: z.string().optional(),
     envVars: z.record(z.string(), z.string()),
     customServices: z.array(z.string()).optional(), // Custom service selection
+    // Tabs configuration (from existing pinacle.yaml)
+    tabs: z
+      .array(
+        z.object({
+          name: z.string(),
+          url: z.string().optional(),
+          service: z.string().optional(),
+        }),
+      )
+      .optional(),
     // Process configuration (for existing repos)
     processInstallCommand: z.string().optional(),
     processStartCommand: z.string().optional(),

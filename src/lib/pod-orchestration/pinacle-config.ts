@@ -18,6 +18,7 @@ import { RESOURCE_TIERS, type TierId } from "./resource-tier-registry";
 import {
   getServiceTemplate,
   getServiceTemplateUnsafe,
+  isCodingAssistant,
   SERVICE_TEMPLATES,
   type ServiceId,
 } from "./service-registry";
@@ -53,7 +54,6 @@ const TabSchema = z.object({
  */
 const ProcessSchema = z.object({
   name: z.string(),
-  displayName: z.string().optional(),
   startCommand: z.union([z.string(), z.array(z.string())]),
   url: z.string().optional(),
   healthCheck: z.union([z.string(), z.array(z.string())]).optional(),
@@ -169,7 +169,7 @@ export const generatePinacleConfigFromForm = (formData: {
   template?: TemplateId;
   tier?: TierId;
   customServices?: ServiceId[];
-  tabs?: Array<{ name: string; url: string }>;
+  tabs?: Array<{ name: string; url?: string; service?: string }>;
   slug?: string;
   processConfig?: {
     installCommand?: string;
@@ -196,7 +196,6 @@ export const generatePinacleConfigFromForm = (formData: {
   // 2. Otherwise, use template's defaultProcesses if available
   const processes: Array<{
     name: string;
-    displayName?: string;
     startCommand: string | string[];
     url?: string;
     healthCheck?: string | string[];
@@ -206,7 +205,6 @@ export const generatePinacleConfigFromForm = (formData: {
     // Existing repo: use manual config
     processes.push({
       name: "app",
-      displayName: "Application",
       startCommand: formData.processConfig.startCommand,
       url: formData.processConfig.appUrl,
     });
@@ -215,21 +213,21 @@ export const generatePinacleConfigFromForm = (formData: {
     processes.push(...template.defaultProcesses);
   }
 
-  // Generate tabs (if not provided by user)
+  // Generate or patch tabs
   const tabs: Array<{ name: string; url?: string; service?: string }> = [];
 
-  if (formData.tabs) {
-    // User provided custom tabs
-    tabs.push(...formData.tabs);
+  if (formData.tabs && formData.tabs.length > 0) {
+    // Existing tabs: intelligently patch based on service changes
+    tabs.push(...patchTabs(formData.tabs, services));
   } else {
-    // Auto-generate tabs
+    // No existing tabs: auto-generate from scratch
     // Order: 1. Process tabs (app URLs) FIRST, 2. Then service tabs
 
     // 1. Add process tabs for any processes with URLs
     for (const process of processes) {
       if (process.url) {
         tabs.push({
-          name: process.displayName || process.name,
+          name: process.name,
           url: process.url,
         });
       }
@@ -248,6 +246,77 @@ export const generatePinacleConfigFromForm = (formData: {
     install: formData.processConfig?.installCommand || template?.installCommand,
     processes,
   });
+};
+
+/**
+ * Intelligently patch existing tabs based on service changes
+ * - Replace coding assistant tab if coding assistant changed
+ * - Remove tabs for services that no longer exist
+ * - Add tabs for new services
+ * - Keep all other tabs (process tabs, custom URLs, etc.) untouched
+ */
+export const patchTabs = (
+  existingTabs: Array<{ name: string; url?: string; service?: string }>,
+  newServices: string[],
+): Array<{ name: string; url?: string; service?: string }> => {
+  // Find new coding assistant
+  const newCodingAssistant = newServices.find((s) => isCodingAssistant(s));
+
+  // Get services that existed before (from existing tabs)
+  const oldServices = new Set(
+    existingTabs.filter((tab) => tab.service).map((tab) => tab.service!)
+  );
+
+  // Track which services we've seen
+  const newServiceSet = new Set(newServices);
+  const patchedTabs: Array<{ name: string; url?: string; service?: string }> = [];
+
+  // Step 1: Iterate through existing tabs and keep/update them
+  for (const tab of existingTabs) {
+    if (!tab.service) {
+      // Non-service tab (process tab, custom URL): always keep
+      patchedTabs.push(tab);
+    } else if (isCodingAssistant(tab.service)) {
+      // Coding assistant tab: replace with new one if different
+      if (newCodingAssistant && newCodingAssistant !== tab.service) {
+        const template = getServiceTemplateUnsafe(newCodingAssistant);
+        if (template) {
+          patchedTabs.push({
+            name: template.displayName,
+            service: newCodingAssistant,
+          });
+        }
+      } else if (newCodingAssistant === tab.service) {
+        // Same coding assistant: keep it
+        patchedTabs.push(tab);
+      }
+      // If no new coding assistant, drop the tab
+    } else if (newServiceSet.has(tab.service)) {
+      // Service still exists: keep the tab
+      patchedTabs.push(tab);
+    }
+    // Service was removed: drop the tab
+  }
+
+  // Step 2: Add tabs for newly added services
+  const existingServiceTabIds = new Set(
+    patchedTabs.filter((tab) => tab.service).map((tab) => tab.service!)
+  );
+
+  for (const serviceName of newServices) {
+    if (!existingServiceTabIds.has(serviceName) && !oldServices.has(serviceName)) {
+      // New service: add a tab for it
+      const template = getServiceTemplateUnsafe(serviceName);
+      if (template) {
+        patchedTabs.push({
+          name: template.displayName,
+          service: serviceName,
+        });
+      }
+    }
+  }
+
+  return patchedTabs;
 };
 
 /**
@@ -431,10 +500,6 @@ export const expandPinacleConfigToSpec = async (
     ...(runtimeData.environment || {}),
   };
 
-  // Helper to capitalize first letter
-  const capitalizeFirst = (str: string): string =>
-    str.charAt(0).toUpperCase() + str.slice(1);
-
   // Install command: from pinacleConfig or template
   const installCommand = pinacleConfig.install || template?.installCommand;
 
@@ -446,7 +511,6 @@ export const expandPinacleConfigToSpec = async (
 
   const processes = configProcesses.map((p) => ({
     ...p,
-    displayName: p.displayName || capitalizeFirst(p.name),
     tmuxSession: `process-${runtimeData.id}-${p.name}`,
   }));
 
@@ -508,7 +572,6 @@ export const podConfigToPinacleConfig = (
   // Extract processes (remove tmuxSession as it's runtime-only)
   const processes = podConfig.processes?.map((p) => ({
     name: p.name,
-    displayName: p.displayName,
     startCommand: p.startCommand,
     url: p.url,
     healthCheck: p.healthCheck,

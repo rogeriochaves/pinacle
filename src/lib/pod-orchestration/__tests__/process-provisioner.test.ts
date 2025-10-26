@@ -77,7 +77,6 @@ describe("ProcessProvisioner Integration Tests", () => {
   it("should provision and start a process in tmux", async () => {
     const process: ProcessConfig = {
       name: "test-app",
-      displayName: "Test App",
       startCommand: "while true; do echo 'Hello from process'; sleep 5; done",
       tmuxSession: `process-${testPodId}-test-app`,
     };

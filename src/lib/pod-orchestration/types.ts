@@ -72,7 +72,6 @@ export interface ServiceConfig {
 
 export interface ProcessConfig {
   name: string;
-  displayName?: string;
   startCommand: string | string[];
   url?: string;
   healthCheck?: string | string[];

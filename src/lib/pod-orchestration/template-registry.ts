@@ -1,5 +1,6 @@
 import type { TierId } from "./resource-tier-registry";
 import type { ServiceId } from "./service-registry";
+import { isCodingAssistant, SERVICE_TEMPLATES } from "./service-registry";
 import type { PodSpec, ServiceConfig } from "./types";
 
 export type TemplateId =
@@ -46,7 +47,6 @@ export type PodTemplate = {
   installCommand?: string | string[];
   defaultProcesses?: Array<{
     name: string;
-    displayName?: string;
     startCommand: string | string[];
     url?: string;
     healthCheck?: string | string[];
@@ -106,7 +106,6 @@ export const POD_TEMPLATES = {
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "pnpm dev",
         url: "http://localhost:5173",
         healthCheck: "curl -f http://localhost:5173",
@@ -115,18 +114,14 @@ export const POD_TEMPLATES = {
 
     templateType: "vite",
     initScript: (spec: PodSpec): string[] => {
-      // Detect which coding assistant is available
-      const codingAssistant = spec.services.find(
-        (s) => s.name === "claude-code",
-      )?.enabled
-        ? "Claude Code"
-        : spec.services.find((s) => s.name === "openai-codex")?.enabled
-          ? "OpenAI Codex"
-          : spec.services.find((s) => s.name === "cursor-cli")?.enabled
-            ? "Cursor CLI"
-            : spec.services.find((s) => s.name === "gemini-cli")?.enabled
-              ? "Gemini CLI"
-              : "Claude Code"; // Default fallback
+      // Find the first coding assistant service and use its display name
+      const codingAssistantService = spec.services.find((s) =>
+        isCodingAssistant(s.name),
+      );
+      const codingAssistant = codingAssistantService
+        ? SERVICE_TEMPLATES[codingAssistantService.name]?.displayName ||
+          "Claude Code"
+        : "Claude Code"; // Default to Claude Code if no coding assistant found
 
       return [
         // 1. Create Vite project
@@ -362,7 +357,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "uv run mastra dev",
         url: "http://localhost:8000",
         healthCheck: "curl -f http://localhost:8000",
@@ -405,7 +399,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "pnpm dev",
         url: "http://localhost:3000",
       },
@@ -452,7 +445,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "uv run python main.py",
         url: "http://localhost:8000",
       },
@@ -499,7 +491,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand:
           "uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
         url: "http://localhost:8000",
@@ -550,7 +541,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "pnpm dev",
         url: "http://localhost:3000",
         healthCheck: "curl -f http://localhost:3000",
@@ -597,7 +587,6 @@ EOF`,
     defaultProcesses: [
       {
         name: "langflow",
-        displayName: "Langflow",
         startCommand: "uv run langflow run --host 0.0.0.0 --port 7860",
         url: "http://localhost:7860",
         healthCheck: "curl -f http://localhost:7860",

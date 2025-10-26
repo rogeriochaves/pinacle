@@ -179,8 +179,9 @@ const SetupForm = () => {
       newRepoName: data.newRepoName,
       selectedOrg: data.selectedOrg,
       template: selectedTemplate.id,
-      tier: tier, // Backend derives CPU/memory/storage from tier
-      customServices: selectedTemplate.services, // Send services at root level
+      tier: tier, // Use form's tier selection (or template default)
+      customServices: (data.customServices as typeof selectedTemplate.services) || selectedTemplate.services, // Use form's selected services
+      tabs: data.tabs, // Pass tabs from existing pinacle.yaml (if any)
       envVars: data.envVars,
       // Process configuration for existing repos
       processConfig:

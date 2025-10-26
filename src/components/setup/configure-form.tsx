@@ -8,6 +8,10 @@ import type { PinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { parsePinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
 import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
+import {
+  getCodingAssistantByUrlParam,
+  isCodingAssistant,
+} from "../../lib/pod-orchestration/service-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { api } from "../../lib/trpc/client";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
@@ -41,14 +45,6 @@ const DEFAULT_SERVICES: ServiceId[] = [
   "vibe-kanban",
   "code-server",
 ];
-
-// Map agent IDs from landing page to service names
-const AGENT_TO_SERVICE_MAP: Record<string, ServiceId> = {
-  claude: "claude-code",
-  openai: "openai-codex",
-  cursor: "cursor-cli",
-  gemini: "gemini-cli",
-};
 
 export const ConfigureForm = ({
   form,
@@ -122,6 +118,8 @@ export const ConfigureForm = ({
         form.setValue("processInstallCommand", "");
         form.setValue("processStartCommand", "");
         form.setValue("processAppUrl", "");
+        // Clear tabs
+        form.setValue("tabs", undefined);
       }
     }
   }, [setupType, selectedRepo, hasPinacleYaml, form]);
@@ -133,7 +131,7 @@ export const ConfigureForm = ({
         const config = parsePinacleConfig(pinacleConfigData.content);
         setPinacleConfig(config);
         setHasPinacleYaml(true);
-        
+
         // Set the flag in the form so it gets passed to backend
         form.setValue("hasPinacleYaml", true);
 
@@ -150,6 +148,12 @@ export const ConfigureForm = ({
         // Set services from config
         if (config.services) {
           setCustomServices(config.services as ServiceId[]);
+          form.setValue("customServices", config.services);
+        }
+
+        // Set tabs from config
+        if (config.tabs) {
+          form.setValue("tabs", config.tabs);
         }
 
         // Set install command
@@ -196,11 +200,13 @@ export const ConfigureForm = ({
 
   // Initialize services with agent from URL before template is selected
   React.useEffect(() => {
-    if (agent && AGENT_TO_SERVICE_MAP[agent] && !selectedTemplate) {
-      const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
+    const selectedCodingAssistant = agent
+      ? getCodingAssistantByUrlParam(agent)
+      : undefined;
+    if (selectedCodingAssistant && !selectedTemplate) {
       setCustomServices((prev) => {
         const withoutCodingAssistant = prev.filter(
-          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service),
+          (service) => !isCodingAssistant(service),
         );
         return [selectedCodingAssistant, ...withoutCodingAssistant];
       });
@@ -261,11 +267,13 @@ export const ConfigureForm = ({
       let newServices = [...selectedTemplate.services];
 
       // If there's an agent from URL, replace the template's coding assistant with the selected one
-      if (agent && AGENT_TO_SERVICE_MAP[agent]) {
-        const selectedCodingAssistant = AGENT_TO_SERVICE_MAP[agent];
+      const selectedCodingAssistant = agent
+        ? getCodingAssistantByUrlParam(agent)
+        : undefined;
+      if (selectedCodingAssistant) {
         // Remove any coding assistants from template services
         newServices = newServices.filter(
-          (service) => !Object.values(AGENT_TO_SERVICE_MAP).includes(service),
+          (service) => !isCodingAssistant(service),
         );
         // Add the selected coding assistant at the beginning
         newServices = [selectedCodingAssistant, ...newServices];
@@ -398,7 +406,10 @@ export const ConfigureForm = ({
             <ServiceCustomizer
               defaultServices={DEFAULT_SERVICES}
               selectedServices={customServices}
-              onChange={setCustomServices}
+              onChange={(services) => {
+                setCustomServices(services);
+                form.setValue("customServices", services);
+              }}
             />
 
             {/* Template Selection */}
@@ -411,11 +422,13 @@ export const ConfigureForm = ({
                   {form.formState.errors.bundle.message}
                 </p>
               )}
-              {isLoadingPinacleConfig && setupType === "repository" && selectedRepo && (
-                <p className="text-xs font-mono text-slate-500 mb-2">
-                  Checking for pinacle.yaml...
-                </p>
-              )}
+              {isLoadingPinacleConfig &&
+                setupType === "repository" &&
+                selectedRepo && (
+                  <p className="text-xs font-mono text-slate-500 mb-2">
+                    Checking for pinacle.yaml...
+                  </p>
+                )}
               <TemplateSelector
                 selectedTemplate={bundle}
                 onTemplateChange={(templateId) => {
@@ -423,7 +436,11 @@ export const ConfigureForm = ({
                   form.clearErrors("bundle");
 
                   // If user is selecting the pinacle.yaml option, reload its config
-                  if (hasPinacleYaml && pinacleConfig && templateId === (pinacleConfig.template || "nodejs-blank")) {
+                  if (
+                    hasPinacleYaml &&
+                    pinacleConfig &&
+                    templateId === (pinacleConfig.template || "nodejs-blank")
+                  ) {
                     // Reload pinacle.yaml configuration
                     if (pinacleConfig.tier) {
                       form.setValue("tier", pinacleConfig.tier);
@@ -438,7 +455,10 @@ export const ConfigureForm = ({
                           : pinacleConfig.install.join(" && ");
                       form.setValue("processInstallCommand", installCmd);
                     }
-                    if (pinacleConfig.processes && pinacleConfig.processes.length > 0) {
+                    if (
+                      pinacleConfig.processes &&
+                      pinacleConfig.processes.length > 0
+                    ) {
                       const firstProcess = pinacleConfig.processes[0];
                       const startCmd =
                         typeof firstProcess.startCommand === "string"
@@ -484,75 +504,76 @@ export const ConfigureForm = ({
             </div>
 
             {/* Process Configuration (for existing repos) */}
-            {setupType === "repository" && (bundle === "pinacle-yaml" || selectedTemplate) && (
-              <>
-                <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
-                  APPLICATION CONFIGURATION
-                </Label>
+            {setupType === "repository" &&
+              (bundle === "pinacle-yaml" || selectedTemplate) && (
+                <>
+                  <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+                    APPLICATION CONFIGURATION
+                  </Label>
 
-                <div className="bg-white p-6 rounded-lg border-2 border-slate-200 space-y-4">
-                  {/* Install Command */}
-                  <div>
-                    <Label
-                      htmlFor="processInstallCommand"
-                      className="text-xs font-mono text-slate-700 mb-2 block"
-                    >
-                      Install Command (optional)
-                    </Label>
-                    <input
-                      id="processInstallCommand"
-                      type="text"
-                      placeholder="e.g., pnpm install or uv sync"
-                      value={form.watch("processInstallCommand") || ""}
-                      onChange={(e) =>
-                        form.setValue("processInstallCommand", e.target.value)
-                      }
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
+                  <div className="bg-white p-6 rounded-lg border-2 border-slate-200 space-y-4">
+                    {/* Install Command */}
+                    <div>
+                      <Label
+                        htmlFor="processInstallCommand"
+                        className="text-xs font-mono text-slate-700 mb-2 block"
+                      >
+                        Install Command (optional)
+                      </Label>
+                      <input
+                        id="processInstallCommand"
+                        type="text"
+                        placeholder="e.g., pnpm install or uv sync"
+                        value={form.watch("processInstallCommand") || ""}
+                        onChange={(e) =>
+                          form.setValue("processInstallCommand", e.target.value)
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
 
-                  {/* Start Command */}
-                  <div>
-                    <Label
-                      htmlFor="processStartCommand"
-                      className="text-xs font-mono text-slate-700 mb-2 block"
-                    >
-                      Start Command (optional)
-                    </Label>
-                    <input
-                      id="processStartCommand"
-                      type="text"
-                      placeholder="e.g., pnpm dev or uv run fastapi dev"
-                      value={form.watch("processStartCommand") || ""}
-                      onChange={(e) =>
-                        form.setValue("processStartCommand", e.target.value)
-                      }
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
+                    {/* Start Command */}
+                    <div>
+                      <Label
+                        htmlFor="processStartCommand"
+                        className="text-xs font-mono text-slate-700 mb-2 block"
+                      >
+                        Start Command (optional)
+                      </Label>
+                      <input
+                        id="processStartCommand"
+                        type="text"
+                        placeholder="e.g., pnpm dev or uv run fastapi dev"
+                        value={form.watch("processStartCommand") || ""}
+                        onChange={(e) =>
+                          form.setValue("processStartCommand", e.target.value)
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
 
-                  {/* App URL */}
-                  <div>
-                    <Label
-                      htmlFor="processAppUrl"
-                      className="text-xs font-mono text-slate-700 mb-2 block"
-                    >
-                      Application URL (optional)
-                    </Label>
-                    <input
-                      id="processAppUrl"
-                      type="text"
-                      placeholder="e.g., http://localhost:3000"
-                      value={form.watch("processAppUrl") || ""}
-                      onChange={(e) =>
-                        form.setValue("processAppUrl", e.target.value)
-                      }
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
+                    {/* App URL */}
+                    <div>
+                      <Label
+                        htmlFor="processAppUrl"
+                        className="text-xs font-mono text-slate-700 mb-2 block"
+                      >
+                        Application URL (optional)
+                      </Label>
+                      <input
+                        id="processAppUrl"
+                        type="text"
+                        placeholder="e.g., http://localhost:3000"
+                        value={form.watch("processAppUrl") || ""}
+                        onChange={(e) =>
+                          form.setValue("processAppUrl", e.target.value)
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
 
             {/* Resource Tier Selection */}
             <div>

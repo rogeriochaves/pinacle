@@ -3,8 +3,11 @@
 import { Check, LucidePlus, X } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
-import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry";
+import type { CodingAssistantId, ServiceId } from "../../lib/pod-orchestration/service-registry";
+import {
+  CODING_ASSISTANTS,
+  SERVICE_TEMPLATES,
+} from "../../lib/pod-orchestration/service-registry";
 import { Button } from "../ui/button";
 import {
   Command,
@@ -22,12 +25,7 @@ import {
   SelectValue,
 } from "../ui/select";
 
-const CODING_ASSISTANTS: ServiceId[] = [
-  "claude-code",
-  "openai-codex",
-  "cursor-cli",
-  "gemini-cli",
-];
+const CODING_ASSISTANT_KEYS = Object.keys(CODING_ASSISTANTS) as CodingAssistantId[];
 
 const AVAILABLE_TOOLS: ServiceId[] = ["vibe-kanban", "code-server"];
 
@@ -46,8 +44,8 @@ export const ServiceCustomizer = ({
 
   // Find the current coding assistant
   const currentCodingAssistant =
-    selectedServices.find((s) => CODING_ASSISTANTS.includes(s)) ||
-    defaultServices.find((s) => CODING_ASSISTANTS.includes(s)) ||
+    selectedServices.find((s) => CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId)) ||
+    defaultServices.find((s) => CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId)) ||
     "claude-code";
 
   // Get selected tools (non-coding assistants)
@@ -58,7 +56,7 @@ export const ServiceCustomizer = ({
   const handleCodingAssistantChange = (newAssistant: ServiceId) => {
     // Remove old coding assistant and add new one
     const withoutCodingAssistant = selectedServices.filter(
-      (s) => !CODING_ASSISTANTS.includes(s),
+      (s) => !CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId),
     );
     onChange([...withoutCodingAssistant, newAssistant]);
   };
@@ -94,7 +92,7 @@ export const ServiceCustomizer = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CODING_ASSISTANTS.map((serviceName) => {
+            {CODING_ASSISTANT_KEYS.map((serviceName) => {
               const service = SERVICE_TEMPLATES[serviceName];
               return (
                 <SelectItem key={serviceName} value={serviceName}>
