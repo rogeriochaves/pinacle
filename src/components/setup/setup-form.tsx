@@ -36,6 +36,7 @@ const SetupForm = () => {
       processInstallCommand: "",
       processStartCommand: "",
       processAppUrl: "",
+      hasPinacleYaml: false,
     },
   });
 
@@ -186,6 +187,8 @@ const SetupForm = () => {
               appUrl: data.processAppUrl,
             }
           : undefined,
+      // Pass flag to indicate if repo already has pinacle.yaml
+      hasPinacleYaml: data.hasPinacleYaml,
     });
 
     // Redirect to provisioning page to watch progress

@@ -77,6 +77,10 @@ const createPodSchema = z.object({
       appUrl: z.string().optional(),
     })
     .optional(),
+  
+  // Flag to indicate if existing repo already has pinacle.yaml
+  // When true, we won't inject a new pinacle.yaml file
+  hasPinacleYaml: z.boolean().optional(),
 });
 
 export const podsRouter = createTRPCRouter({
@@ -103,6 +107,7 @@ export const podsRouter = createTRPCRouter({
         customServices,
         envVars,
         processConfig,
+        hasPinacleYaml,
       } = input;
       const userId = ctx.session.user.id;
 
@@ -430,6 +435,7 @@ export const podsRouter = createTRPCRouter({
               podId: pod.id,
               serverId: availableServer.id,
               githubRepoSetup,
+              hasPinacleYaml,
             }),
             timeoutPromise,
           ]);

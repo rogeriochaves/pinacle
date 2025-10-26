@@ -391,6 +391,7 @@ export const expandPinacleConfigToSpec = async (
     githubRepo?: string;
     githubBranch?: string;
     githubRepoSetup?: import("./types").PodSpec["githubRepoSetup"];
+    hasPinacleYaml?: boolean;
   },
 ): Promise<PodSpec> => {
   // Get template defaults if template is specified
@@ -484,6 +485,7 @@ export const expandPinacleConfigToSpec = async (
     githubRepo: runtimeData.githubRepo,
     githubBranch: runtimeData.githubBranch,
     githubRepoSetup: runtimeData.githubRepoSetup,
+    hasPinacleYaml: runtimeData.hasPinacleYaml,
     workingDir: "/workspace",
     user: "root",
   };

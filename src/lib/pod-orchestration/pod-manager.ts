@@ -116,9 +116,10 @@ export class PodManager extends EventEmitter {
         const pinacleConfig = podConfigToPinacleConfig(spec);
         await this.setupGitHubRepository(spec, pinacleConfig);
         
-        // Only inject pinacle.yaml for existing repos
+        // Only inject pinacle.yaml for existing repos that don't already have one
         // For new repos, it's already included in the initial commit
-        if (spec.githubRepoSetup.type === "existing") {
+        // For existing repos with pinacle.yaml, skip injection to preserve their version
+        if (spec.githubRepoSetup.type === "existing" && !spec.hasPinacleYaml) {
           await this.injectPinacleConfig(pinacleConfig, spec.githubRepo);
         }
       }

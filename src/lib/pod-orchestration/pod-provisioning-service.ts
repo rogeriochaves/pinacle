@@ -22,6 +22,7 @@ export type ProvisionPodInput = {
   podId: string;
   serverId?: string; // If not provided, will auto-select a server
   githubRepoSetup?: GitHubRepoSetup; // SSH key pair and deploy key info for GitHub repos
+  hasPinacleYaml?: boolean; // Whether the repo already has pinacle.yaml (skip injection)
 };
 
 export type DeprovisionPodInput = {
@@ -75,7 +76,7 @@ export class PodProvisioningService {
     input: ProvisionPodInput,
     cleanupOnError: boolean = true,
   ): Promise<void> {
-    const { podId, githubRepoSetup } = input;
+    const { podId, githubRepoSetup, hasPinacleYaml } = input;
 
     // 1. Get pod from database
     const [podRecord] = await db
@@ -164,6 +165,7 @@ export class PodProvisioningService {
         githubRepo: podRecord.githubRepo || undefined,
         githubBranch: podRecord.githubBranch || undefined,
         githubRepoSetup: githubRepoSetup,
+        hasPinacleYaml: hasPinacleYaml,
       });
 
       console.log(

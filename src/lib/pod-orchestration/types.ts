@@ -129,6 +129,7 @@ export interface PodSpec
     };
     deployKeyId?: number;
   };
+  hasPinacleYaml?: boolean; // Flag to skip pinacle.yaml injection if repo already has one
 
   // Runtime configuration
   workingDir?: string;

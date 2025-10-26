@@ -115,6 +115,7 @@ export const ConfigureForm = ({
       if (hasPinacleYaml) {
         setHasPinacleYaml(false);
         setPinacleConfig(null);
+        form.setValue("hasPinacleYaml", false);
         form.setValue("bundle", "");
         form.clearErrors("bundle");
         // Also clear process config that came from pinacle.yaml
@@ -132,6 +133,9 @@ export const ConfigureForm = ({
         const config = parsePinacleConfig(pinacleConfigData.content);
         setPinacleConfig(config);
         setHasPinacleYaml(true);
+        
+        // Set the flag in the form so it gets passed to backend
+        form.setValue("hasPinacleYaml", true);
 
         // Use the template from pinacle.yaml if it exists, otherwise use a blank template
         const templateToUse = config.template || "nodejs-blank";
@@ -179,6 +183,7 @@ export const ConfigureForm = ({
       // No pinacle.yaml found for the selected repo
       setHasPinacleYaml(false);
       setPinacleConfig(null);
+      form.setValue("hasPinacleYaml", false);
     }
   }, [pinacleConfigData, form, setupType, selectedRepo]);
 

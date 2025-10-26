@@ -20,6 +20,8 @@ export const setupFormSchema = z
     processInstallCommand: z.string().optional(),
     processStartCommand: z.string().optional(),
     processAppUrl: z.string().optional(),
+    // Flag to indicate if existing repo already has pinacle.yaml
+    hasPinacleYaml: z.boolean().optional(),
   })
   .refine(
     (data) => {
