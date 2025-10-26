@@ -135,17 +135,18 @@ export class SnapshotService {
   }
 
   /**
-   * Restore a snapshot by loading the Docker image
-   * Returns the image name to use for container creation
+   * Restore a snapshot by restoring all Docker volumes
+   * Returns the base image name to use for container creation (volumes will be mounted automatically)
    */
   async restoreSnapshot(params: {
     snapshotId: string;
     podId: string;
     serverConnection: ServerConnection;
+    baseImage?: string; // Base image to return (default: alpine:3.22.1)
   }): Promise<string> {
-    const { snapshotId, podId, serverConnection } = params;
+    const { snapshotId, podId, serverConnection, baseImage = "alpine:3.22.1" } = params;
 
-    console.log(`[SnapshotService] Restoring snapshot ${snapshotId}`);
+    console.log(`[SnapshotService] Restoring snapshot ${snapshotId} for pod ${podId}`);
 
     // Get snapshot metadata
     const [snapshot] = await db
@@ -178,6 +179,7 @@ export class SnapshotService {
       // Build command to run snapshot-restore script on remote server
       const command = this.buildSnapshotRestoreCommand(
         snapshotId,
+        podId,
         storageType,
       );
 
@@ -190,12 +192,12 @@ export class SnapshotService {
       // Parse JSON output from script
       const output = this.parseScriptOutput(result.stdout);
 
-      if (!output.success || !output.imageName) {
+      if (!output.success) {
         throw new Error(output.error || "Snapshot restoration failed");
       }
 
       console.log(
-        `[SnapshotService] Successfully restored snapshot ${snapshotId} as image ${output.imageName}`,
+        `[SnapshotService] Successfully restored snapshot ${snapshotId} volumes for pod ${podId}`,
       );
 
       // Update status back to ready
@@ -204,8 +206,8 @@ export class SnapshotService {
         .set({ status: "ready" })
         .where(eq(podSnapshots.id, snapshotId));
 
-      // Return the image name to use for container creation
-      return output.imageName;
+      // Return the base image name (volumes are already restored and will be mounted automatically)
+      return baseImage;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -337,6 +339,7 @@ export class SnapshotService {
    */
   private buildSnapshotRestoreCommand(
     snapshotId: string,
+    podId: string,
     storageType: "s3" | "filesystem",
   ): string {
     const scriptPath =
@@ -344,6 +347,7 @@ export class SnapshotService {
     const parts = [
       `node ${scriptPath}`,
       `--snapshot-id ${snapshotId}`,
+      `--pod-id ${podId}`,
       `--storage-type ${storageType}`,
     ];
 

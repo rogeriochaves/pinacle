@@ -16,9 +16,9 @@ import { SnapshotService } from "../snapshot-service";
 const execAsync = promisify(exec);
 
 describe("Snapshot Integration Tests", () => {
-  const testContainerId = `test-snapshot-${Date.now()}`;
   const testPodId = `pod-snapshot-test-${Date.now()}`;
-  const testFile = "/tmp/test-data.txt";
+  const testContainerName = `pinacle-pod-${testPodId}`;
+  const testFile = "/root/test-data.txt"; // In volume-mounted /root
   const testContent = "Hello from snapshot test!";
 
   // Mock server connection for Lima
@@ -62,7 +62,7 @@ describe("Snapshot Integration Tests", () => {
     // Clean up any existing test containers from previous runs
     try {
       await execAsync(
-        `limactl shell gvisor-alpine -- docker rm -f ${testContainerId}`,
+        `limactl shell gvisor-alpine -- docker rm -f ${testContainerName}`,
       );
     } catch {
       // Ignore if doesn't exist
@@ -93,28 +93,44 @@ describe("Snapshot Integration Tests", () => {
   }, 30_000);
 
   it("should create a container with test data", async () => {
-    console.log("[SnapshotTest] Creating test container...");
+    console.log("[SnapshotTest] Creating test container with volumes...");
 
-    // Create a simple Alpine container
+    // First, create volumes for the test pod (simulating real pod setup)
+    const volumeTypes = ["workspace", "home", "root", "etc", "usr-local", "opt", "var", "srv"];
+    for (const volumeType of volumeTypes) {
+      const volumeName = `pinacle-vol-${testPodId}-${volumeType}`;
+      await execAsync(
+        `limactl shell gvisor-alpine -- docker volume create ${volumeName}`,
+      );
+    }
+
+    // Create a container with proper pod naming pattern and mounted volumes
+    // Use pinacle-pod-<podId> naming pattern to match real pods
+    const containerName = `pinacle-pod-${testPodId}`;
+    const volumeMounts = volumeTypes
+      .map((type) => `-v pinacle-vol-${testPodId}-${type}:/${type === "usr-local" ? "usr/local" : type}`)
+      .join(" ");
+
     const { stdout: containerId } = await execAsync(
-      `limactl shell gvisor-alpine -- docker run -d --name ${testContainerId} alpine:latest sleep infinity`,
+      `limactl shell gvisor-alpine -- docker run -d --name ${containerName} ${volumeMounts} alpine:latest sleep infinity`,
     );
 
     expect(containerId.trim()).toBeTruthy();
 
-    // Write test data to container
+    // Write test data to a persisted location (in /root which is mounted)
+    const testFileInVolume = "/root/test-data.txt";
     await execAsync(
-      `limactl shell gvisor-alpine -- docker exec ${testContainerId} sh -c "echo '${testContent}' > ${testFile}"`,
+      `limactl shell gvisor-alpine -- docker exec ${containerName} sh -c "echo '${testContent}' > ${testFileInVolume}"`,
     );
 
     // Verify data was written
     const { stdout: fileContent } = await execAsync(
-      `limactl shell gvisor-alpine -- docker exec ${testContainerId} cat ${testFile}`,
+      `limactl shell gvisor-alpine -- docker exec ${containerName} cat ${testFileInVolume}`,
     );
 
     expect(fileContent.trim()).toBe(testContent);
 
-    console.log("[SnapshotTest] ✅ Test container created with data");
+    console.log("[SnapshotTest] ✅ Test container created with data in volumes");
   }, 30_000);
 
   it("should create a snapshot of the container", async () => {
@@ -125,7 +141,7 @@ describe("Snapshot Integration Tests", () => {
     const snapshotId = await snapshotService.createSnapshot({
       podId: testPodId,
       serverConnection,
-      containerId: testContainerId,
+      containerId: testContainerName,
       name: "test-snapshot",
       description: "Integration test snapshot",
       isAuto: false,
@@ -157,12 +173,12 @@ describe("Snapshot Integration Tests", () => {
 
     // Remove the original container
     await execAsync(
-      `limactl shell gvisor-alpine -- docker rm -f ${testContainerId}`,
+      `limactl shell gvisor-alpine -- docker rm -f ${testContainerName}`,
     );
 
     // Verify container is gone
     const { stdout: containerList } = await execAsync(
-      `limactl shell gvisor-alpine -- docker ps -a --filter name=${testContainerId} --format '{{.Names}}'`,
+      `limactl shell gvisor-alpine -- docker ps -a --filter name=${testContainerName} --format '{{.Names}}'`,
     );
     expect(containerList.trim()).toBe("");
 
@@ -181,35 +197,34 @@ describe("Snapshot Integration Tests", () => {
 
     const snapshotService = new SnapshotService();
 
-    const restoredImageName = await snapshotService.restoreSnapshot({
+    // Restore snapshot (restores all volumes)
+    const baseImage = await snapshotService.restoreSnapshot({
       snapshotId: snapshot.id,
       podId: testPodId,
       serverConnection,
+      baseImage: "alpine:latest",
     });
 
-    expect(restoredImageName).toBeTruthy();
-    expect(restoredImageName).toContain("pinacle-restore-");
-    // Image names are always lowercase
-    expect(restoredImageName).toBe(restoredImageName.toLowerCase());
-
-    // Verify the image was created
-    const { stdout: imageList } = await execAsync(
-      `limactl shell gvisor-alpine -- docker images --format '{{.Repository}}' | grep '^pinacle-restore-'`,
-    );
-    expect(imageList.trim()).toContain(restoredImageName);
+    expect(baseImage).toBeTruthy();
+    expect(baseImage).toBe("alpine:latest");
 
     console.log(
-      `[SnapshotTest] ✅ Snapshot restored to image: ${restoredImageName}`,
+      `[SnapshotTest] ✅ Snapshot volumes restored`,
     );
 
-    // Create a new container from the restored image
+    // Create a new container with the same volumes mounted
+    const volumeTypes = ["workspace", "home", "root", "etc", "usr-local", "opt", "var", "srv"];
+    const volumeMounts = volumeTypes
+      .map((type) => `-v pinacle-vol-${testPodId}-${type}:/${type === "usr-local" ? "usr/local" : type}`)
+      .join(" ");
+
     await execAsync(
-      `limactl shell gvisor-alpine -- docker run -d --name ${testContainerId} ${restoredImageName} sleep infinity`,
+      `limactl shell gvisor-alpine -- docker run -d --name ${testContainerName} ${volumeMounts} alpine:latest sleep infinity`,
     );
 
-    // Verify the test data is still there
+    // Verify the test data is still there in the restored volume
     const { stdout: restoredContent } = await execAsync(
-      `limactl shell gvisor-alpine -- docker exec ${testContainerId} cat ${testFile}`,
+      `limactl shell gvisor-alpine -- docker exec ${testContainerName} cat ${testFile}`,
     );
 
     expect(restoredContent.trim()).toBe(testContent);

@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * Snapshot Create Script
+ * Snapshot Create Script - Volume-Based Approach
  *
- * Creates a gVisor container snapshot by:
- * 1. Extracting rootfs changes using runsc tar rootfs-upper
- * 2. Building a Docker image with those changes baked in
- * 3. Exporting the image using docker save
- * 4. Storing the image (S3 or filesystem)
+ * Creates a snapshot by exporting all Docker volumes for a pod.
+ * This replaces the old rootfs-upper approach which didn't capture volume data.
  *
- * This approach avoids overlayfs overhead by baking changes into image layers.
+ * Process:
+ * 1. Identify all volumes for the pod (8 volumes: workspace, home, root, etc, usr-local, opt, var, srv)
+ * 2. Create a temporary container to export volume data
+ * 3. Tar all volumes into a single archive
+ * 4. Compress and upload to storage (S3 or filesystem)
  *
  * Usage:
  *   snapshot-create --container-id <id> --snapshot-id <id> --storage-type <s3|filesystem> [options]
@@ -16,7 +17,7 @@
 
 import { spawn } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -89,43 +90,6 @@ const parseArgs = (): Config => {
 };
 
 /**
- * Get full container ID from Docker (runsc requires the full 64-char ID)
- */
-const getFullContainerId = async (
-  shortOrFullId: string,
-): Promise<string> => {
-  return new Promise<string>((resolve, reject) => {
-    const dockerInspect = spawn("docker", [
-      "inspect",
-      shortOrFullId,
-      "--format={{.Id}}",
-    ]);
-
-    let stdout = "";
-    let stderr = "";
-
-    dockerInspect.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-
-    dockerInspect.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    dockerInspect.on("close", (code) => {
-      if (code === 0) {
-        const fullId = stdout.trim();
-        resolve(fullId);
-      } else {
-        reject(new Error(`Failed to get container ID: ${stderr}`));
-      }
-    });
-
-    dockerInspect.on("error", reject);
-  });
-};
-
-/**
  * Run a command and return stdout
  */
 const runCommand = (
@@ -155,177 +119,188 @@ const runCommand = (
 };
 
 /**
- * Create snapshot using the new image-based approach
+ * Get pod ID from container name
+ * Container names follow pattern: pinacle-pod-<podId>
+ */
+const getPodIdFromContainer = async (containerId: string): Promise<string> => {
+  const { stdout, code, stderr } = await runCommand("docker", [
+    "inspect",
+    containerId,
+    "--format={{.Name}}",
+  ]);
+
+  if (code !== 0) {
+    throw new Error(`Failed to get container name: ${stderr}`);
+  }
+
+  const containerName = stdout.trim().replace(/^\//, ""); // Remove leading slash
+  const match = containerName.match(/^pinacle-pod-(.+)$/);
+
+  if (!match?.[1]) {
+    throw new Error(
+      `Container name ${containerName} doesn't match expected pattern pinacle-pod-<podId>`,
+    );
+  }
+
+  return match[1];
+};
+
+/**
+ * Get list of volumes for a pod
+ * Returns volume names in format: pinacle-vol-<podId>-<volumeType>
+ */
+const getVolumeNames = (podId: string): string[] => {
+  const volumeTypes = [
+    "workspace",
+    "home",
+    "root",
+    "etc",
+    "usr-local",
+    "opt",
+    "var",
+    "srv",
+  ];
+
+  return volumeTypes.map((type) => `pinacle-vol-${podId}-${type}`);
+};
+
+/**
+ * Create snapshot by exporting all volumes
  */
 const createSnapshot = async (
   config: Config,
 ): Promise<{ success: boolean; storagePath: string; sizeBytes: number }> => {
   console.log(
-    `[SnapshotCreate] Creating snapshot ${config.snapshotId} for container ${config.containerId}`,
+    `[SnapshotCreate] Creating volume-based snapshot ${config.snapshotId} for container ${config.containerId}`,
   );
 
-  // Get full container ID
-  const fullContainerId = await getFullContainerId(config.containerId);
-  console.log(`[SnapshotCreate] Full container ID: ${fullContainerId}`);
+  // Get pod ID from container name
+  const podId = await getPodIdFromContainer(config.containerId);
+  console.log(`[SnapshotCreate] Pod ID: ${podId}`);
 
-  // Get the image the container was created from (for cleanup later)
-  const inspectResult = await runCommand("docker", [
-    "inspect",
-    fullContainerId,
-    "--format={{.Config.Image}}",
-  ]);
-  const oldImageName = inspectResult.stdout.trim();
-  console.log(`[SnapshotCreate] Container using image: ${oldImageName}`);
+  // Get all volume names
+  const volumeNames = getVolumeNames(podId);
+  console.log(
+    `[SnapshotCreate] Found ${volumeNames.length} volumes to snapshot`,
+  );
 
   // Create temp directory for this snapshot
   const tempDir = join(tmpdir(), `pinacle-snapshot-${config.snapshotId}`);
   await mkdir(tempDir, { recursive: true });
   console.log(`[SnapshotCreate] Using temp directory: ${tempDir}`);
 
-  let imageTarPath: string;
+  let volumesTarPath: string;
   let result: { success: boolean; storagePath: string; sizeBytes: number };
 
   try {
-    // Step 1: Extract rootfs using runsc tar rootfs-upper
-    const rootfsTarPath = join(tempDir, "rootfs.tar");
-    console.log(`[SnapshotCreate] Extracting rootfs to ${rootfsTarPath}...`);
-
-    const { code, stderr } = await runCommand("sudo", [
-      "runsc",
-      "--root=/run/docker/runtime-runc/moby",
-      "tar",
-      "rootfs-upper",
-      "--file",
-      rootfsTarPath,
-      fullContainerId,
-    ]);
-
-    if (code !== 0) {
-      throw new Error(`runsc tar rootfs-upper failed: ${stderr}`);
+    // Step 1: Verify all volumes exist
+    console.log(`[SnapshotCreate] Verifying volumes exist...`);
+    for (const volumeName of volumeNames) {
+      const { code } = await runCommand("docker", [
+        "volume",
+        "inspect",
+        volumeName,
+      ]);
+      if (code !== 0) {
+        console.warn(`[SnapshotCreate] Volume ${volumeName} doesn't exist, skipping`);
+      }
     }
 
-    const stats = await stat(rootfsTarPath);
-    console.log(
-      `[SnapshotCreate] Extracted ${(stats.size / 1024 / 1024).toFixed(2)} MB`,
-    );
+    // Step 2: Create a metadata file with snapshot info
+    const metadataPath = join(tempDir, "snapshot-metadata.json");
+    const metadata = {
+      snapshotId: config.snapshotId,
+      podId,
+      volumes: volumeNames,
+      timestamp: new Date().toISOString(),
+      version: "2.0", // New volume-based format
+    };
+    await writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+    console.log(`[SnapshotCreate] Created metadata file`);
 
-    // Step 2: Extract tar to build directory
-    const buildDir = join(tempDir, "build");
-    await mkdir(buildDir, { recursive: true });
-    console.log(`[SnapshotCreate] Extracting tar to ${buildDir}...`);
+    // Step 3: Export each volume to a tar in temp directory
+    const volumeExportsDir = join(tempDir, "volumes");
+    await mkdir(volumeExportsDir, { recursive: true });
 
-    const extractResult = await runCommand("tar", [
-      "-xf",
-      rootfsTarPath,
-      "-C",
-      buildDir,
-      "--exclude=dev",
-      "--exclude=proc",
-      "--exclude=sys",
-      "--exclude=run",
-    ]);
+    for (const volumeName of volumeNames) {
+      console.log(`[SnapshotCreate] Exporting volume ${volumeName}...`);
 
-    if (extractResult.code !== 0 && extractResult.code !== 2) {
-      // Exit code 2 is acceptable (partial success)
-      throw new Error(`tar extract failed: ${extractResult.stderr}`);
-    }
+      // Check if volume exists first
+      const { code: inspectCode } = await runCommand("docker", [
+        "volume",
+        "inspect",
+        volumeName,
+      ]);
 
-    // Step 3: Remove special files (devices, sockets, etc) that can't be copied in Dockerfile
-    console.log(`[SnapshotCreate] Removing special files...`);
-    await runCommand("find", [
-      buildDir,
-      "(",
-      "-type",
-      "p",
-      "-o",
-      "-type",
-      "s",
-      "-o",
-      "-type",
-      "b",
-      "-o",
-      "-type",
-      "c",
-      ")",
-      "-delete",
-    ]);
-
-    // Step 4: Create Dockerfile
-    // Use the current image as base (builds on top of previous snapshot)
-    const dockerfile = `FROM ${oldImageName}
-COPY . /
-`;
-    await writeFile(join(buildDir, "Dockerfile"), dockerfile);
-    console.log(`[SnapshotCreate] Created Dockerfile using base image: ${oldImageName}`);
-
-    // Step 5: Build Docker image
-    const imageName = `pinacle-snapshot:${config.snapshotId}`;
-    console.log(`[SnapshotCreate] Building image ${imageName}...`);
-
-    const buildResult = await runCommand("docker", [
-      "build",
-      "-t",
-      imageName,
-      buildDir,
-    ]);
-
-    if (buildResult.code !== 0) {
-      console.error(`[SnapshotCreate] Build output: ${buildResult.stdout}`);
-      throw new Error(`docker build failed: ${buildResult.stderr}`);
-    }
-
-    console.log(`[SnapshotCreate] Image built successfully`);
-
-    // Step 6: Export image using docker save
-    imageTarPath = join(tempDir, "snapshot-image.tar");
-    console.log(`[SnapshotCreate] Exporting image to ${imageTarPath}...`);
-
-    const saveResult = await runCommand("docker", [
-      "save",
-      "-o",
-      imageTarPath,
-      imageName,
-    ]);
-
-    if (saveResult.code !== 0) {
-      throw new Error(`docker save failed: ${saveResult.stderr}`);
-    }
-
-    const imageStats = await stat(imageTarPath);
-    console.log(
-      `[SnapshotCreate] Exported ${(imageStats.size / 1024 / 1024).toFixed(2)} MB`,
-    );
-
-    // Step 7: Compress and store
-    if (config.storageType === "s3") {
-      await uploadToS3(config, imageTarPath);
-    } else {
-      await saveToFilesystem(config, imageTarPath);
-    }
-
-    // Step 8: Clean up new Docker image (keep storage space down)
-    console.log(`[SnapshotCreate] Removing new image ${imageName}...`);
-    await runCommand("docker", ["rmi", imageName]);
-
-    // Step 9: Clean up old snapshot image if container was using one
-    if (oldImageName.startsWith("pinacle-snapshot:")) {
-      console.log(
-        `[SnapshotCreate] Cleaning up old snapshot image ${oldImageName}...`,
-      );
-      const cleanupResult = await runCommand("docker", ["rmi", oldImageName]);
-      if (cleanupResult.code === 0) {
+      if (inspectCode !== 0) {
         console.log(
-          `[SnapshotCreate] Successfully removed old image ${oldImageName}`,
+          `[SnapshotCreate] Volume ${volumeName} doesn't exist, skipping`,
         );
-      } else {
-        console.warn(
-          `[SnapshotCreate] Failed to remove old image (may not exist): ${cleanupResult.stderr}`,
+        continue;
+      }
+
+      const volumeType = volumeName.split("-").pop(); // Extract "workspace", "home", etc
+      const volumeTarPath = join(volumeExportsDir, `${volumeType}.tar`);
+
+      // Use a temporary Alpine container to tar the volume contents
+      // Mount the volume to /data and tar its contents
+      const { code, stderr } = await runCommand("docker", [
+        "run",
+        "--rm",
+        "-v",
+        `${volumeName}:/data:ro`,
+        "-v",
+        `${volumeExportsDir}:/output`,
+        "alpine:3.22.1",
+        "tar",
+        "-cf",
+        `/output/${volumeType}.tar`,
+        "-C",
+        "/data",
+        ".",
+      ]);
+
+      if (code !== 0) {
+        throw new Error(
+          `Failed to export volume ${volumeName}: ${stderr}`,
         );
       }
-    } else {
+
+      const stats = await stat(volumeTarPath);
       console.log(
-        `[SnapshotCreate] Skipping cleanup - container using base image ${oldImageName}`,
+        `[SnapshotCreate] Exported ${volumeName}: ${(stats.size / 1024 / 1024).toFixed(2)} MB`,
       );
+    }
+
+    // Step 4: Create a single tar containing metadata + all volume tars
+    volumesTarPath = join(tempDir, "snapshot.tar");
+    console.log(
+      `[SnapshotCreate] Creating combined snapshot archive...`,
+    );
+
+    const { code: tarCode, stderr: tarStderr } = await runCommand("tar", [
+      "-cf",
+      volumesTarPath,
+      "-C",
+      tempDir,
+      "snapshot-metadata.json",
+      "volumes",
+    ]);
+
+    if (tarCode !== 0) {
+      throw new Error(`Failed to create snapshot archive: ${tarStderr}`);
+    }
+
+    const tarStats = await stat(volumesTarPath);
+    console.log(
+      `[SnapshotCreate] Created snapshot archive: ${(tarStats.size / 1024 / 1024).toFixed(2)} MB`,
+    );
+
+    // Step 5: Compress and store
+    if (config.storageType === "s3") {
+      await uploadToS3(config, volumesTarPath);
+    } else {
+      await saveToFilesystem(config, volumesTarPath);
     }
 
     console.log(`[SnapshotCreate] Snapshot created successfully`);
@@ -333,7 +308,7 @@ COPY . /
     // Prepare success result (expected by snapshot-service.ts)
     const finalPath =
       config.storageType === "s3"
-        ? `${imageTarPath}.gz`
+        ? `${volumesTarPath}.gz`
         : join(config.storagePath!, `${config.snapshotId}.tar.gz`);
 
     const finalStats = await stat(finalPath);
@@ -356,11 +331,11 @@ COPY . /
 };
 
 /**
- * Upload snapshot image to S3
+ * Upload snapshot to S3
  */
 const uploadToS3 = async (
   config: Config,
-  imageTarPath: string,
+  volumesTarPath: string,
 ): Promise<void> => {
   console.log(`[SnapshotCreate] Uploading to S3...`);
 
@@ -374,9 +349,9 @@ const uploadToS3 = async (
   });
 
   // Compress and upload
-  const compressedPath = `${imageTarPath}.gz`;
+  const compressedPath = `${volumesTarPath}.gz`;
   await pipeline(
-    createReadStream(imageTarPath),
+    createReadStream(volumesTarPath),
     createGzip(),
     createWriteStream(compressedPath),
   );
@@ -399,11 +374,11 @@ const uploadToS3 = async (
 };
 
 /**
- * Save snapshot image to filesystem
+ * Save snapshot to filesystem
  */
 const saveToFilesystem = async (
   config: Config,
-  imageTarPath: string,
+  volumesTarPath: string,
 ): Promise<void> => {
   console.log(`[SnapshotCreate] Saving to filesystem...`);
 
@@ -413,7 +388,7 @@ const saveToFilesystem = async (
   // Compress and save
   const destPath = join(config.storagePath!, `${config.snapshotId}.tar.gz`);
   await pipeline(
-    createReadStream(imageTarPath),
+    createReadStream(volumesTarPath),
     createGzip(),
     createWriteStream(destPath),
   );

@@ -114,18 +114,19 @@ export const recreatePodWithSnapshot = async ({
 
   if (snapshotIdToRestore) {
     console.log(
-      `[recreatePodWithSnapshot] Found snapshot ${snapshotIdToRestore}, loading snapshot image...`,
+      `[recreatePodWithSnapshot] Found snapshot ${snapshotIdToRestore}, restoring volumes...`,
     );
 
-    // Restore the snapshot (loads image into Docker, returns image name)
+    // Restore the snapshot (restores all volumes, returns base image name)
     imageName = await snapshotService.restoreSnapshot({
       snapshotId: snapshotIdToRestore,
       podId: pod.id,
       serverConnection,
+      baseImage: podSpec.baseImage, // Volumes will be restored and mounted automatically
     });
 
     console.log(
-      `[recreatePodWithSnapshot] Snapshot loaded as image ${imageName}`,
+      `[recreatePodWithSnapshot] Snapshot volumes restored, using base image ${imageName}`,
     );
   } else {
     console.log(

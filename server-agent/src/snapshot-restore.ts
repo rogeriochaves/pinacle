@@ -1,19 +1,25 @@
 #!/usr/bin/env node
 /**
- * Snapshot Restore Script
+ * Snapshot Restore Script - Volume-Based Approach
  *
- * Restores a gVisor container snapshot by loading the Docker image.
- * The image was created during snapshot with all changes baked into layers.
+ * Restores a snapshot by importing all Docker volumes for a pod.
+ * This replaces the old image-loading approach.
+ *
+ * Process:
+ * 1. Download snapshot archive from storage
+ * 2. Extract metadata and volume tars
+ * 3. For each volume, create/clear it and restore data
+ * 4. Return success
  *
  * Usage:
- *   snapshot-restore --snapshot-id <id> --storage-type <s3|filesystem> [options]
+ *   snapshot-restore --snapshot-id <id> --pod-id <id> --storage-type <s3|filesystem> [options]
  *
- * Returns: JSON with the image name to use for container creation
+ * Returns: JSON with success status
  */
 
 import { spawn } from "node:child_process";
 import { createReadStream, createWriteStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Readable } from "node:stream";
@@ -23,6 +29,7 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type Config = {
   snapshotId: string;
+  podId: string;
   storageType: "s3" | "filesystem";
 
   // S3 config
@@ -34,6 +41,14 @@ type Config = {
 
   // Filesystem config
   storagePath?: string;
+};
+
+type SnapshotMetadata = {
+  snapshotId: string;
+  podId: string;
+  volumes: string[];
+  timestamp: string;
+  version: string;
 };
 
 const parseArgs = (): Config => {
@@ -48,6 +63,9 @@ const parseArgs = (): Config => {
       switch (key) {
         case "snapshot-id":
           config.snapshotId = value;
+          break;
+        case "pod-id":
+          config.podId = value;
           break;
         case "storage-type":
           config.storageType = value as "s3" | "filesystem";
@@ -74,7 +92,7 @@ const parseArgs = (): Config => {
     }
   }
 
-  if (!config.snapshotId || !config.storageType) {
+  if (!config.snapshotId || !config.podId || !config.storageType) {
     console.error("Missing required arguments");
     process.exit(1);
   }
@@ -112,64 +130,173 @@ const runCommand = (
 };
 
 /**
- * Restore snapshot by loading the Docker image
+ * Get list of volume names for a pod
+ */
+const getVolumeNames = (podId: string): string[] => {
+  const volumeTypes = [
+    "workspace",
+    "home",
+    "root",
+    "etc",
+    "usr-local",
+    "opt",
+    "var",
+    "srv",
+  ];
+
+  return volumeTypes.map((type) => `pinacle-vol-${podId}-${type}`);
+};
+
+/**
+ * Restore snapshot by importing all volumes
  */
 const restoreSnapshot = async (config: Config): Promise<string> => {
-  console.log(`[SnapshotRestore] Restoring snapshot ${config.snapshotId}`);
+  console.log(
+    `[SnapshotRestore] Restoring snapshot ${config.snapshotId} for pod ${config.podId}`,
+  );
 
   // Create temp directory
   const tempDir = join(tmpdir(), `pinacle-restore-${config.snapshotId}`);
   await mkdir(tempDir, { recursive: true });
 
   try {
-    // Step 1: Download/decompress snapshot image
-    const imageTarPath = join(tempDir, "snapshot-image.tar");
+    // Step 1: Download/decompress snapshot archive
+    const snapshotTarPath = join(tempDir, "snapshot.tar");
 
     if (config.storageType === "s3") {
-      await downloadFromS3(config, imageTarPath);
+      await downloadFromS3(config, snapshotTarPath);
     } else {
-      await loadFromFilesystem(config, imageTarPath);
+      await loadFromFilesystem(config, snapshotTarPath);
     }
 
-    console.log(`[SnapshotRestore] Snapshot downloaded to ${imageTarPath}`);
+    console.log(`[SnapshotRestore] Snapshot downloaded to ${snapshotTarPath}`);
 
-    // Step 2: Load image using docker load
-    const imageName = `pinacle-snapshot:${config.snapshotId}`;
-    console.log(`[SnapshotRestore] Loading image as ${imageName}...`);
+    // Step 2: Extract snapshot archive
+    console.log(`[SnapshotRestore] Extracting snapshot archive...`);
+    const { code: extractCode, stderr: extractStderr } = await runCommand(
+      "tar",
+      ["-xf", snapshotTarPath, "-C", tempDir],
+    );
 
-    const loadResult = await runCommand("docker", ["load", "-i", imageTarPath]);
-
-    if (loadResult.code !== 0) {
-      throw new Error(`docker load failed: ${loadResult.stderr}`);
+    if (extractCode !== 0) {
+      throw new Error(`Failed to extract snapshot: ${extractStderr}`);
     }
 
-    console.log(`[SnapshotRestore] Image loaded successfully`);
+    // Step 3: Read metadata
+    const metadataPath = join(tempDir, "snapshot-metadata.json");
+    const metadataContent = await readFile(metadataPath, "utf-8");
+    const metadata: SnapshotMetadata = JSON.parse(metadataContent);
 
-    // Step 3: Tag the loaded image with our expected name
-    // docker load outputs the image name, but we want a consistent name
-    const loadedImageMatch = loadResult.stdout.match(/Loaded image: (.+)/);
-    if (loadedImageMatch?.[1]) {
-      const loadedImageName = loadedImageMatch[1].trim();
-      console.log(`[SnapshotRestore] Loaded image: ${loadedImageName}`);
+    console.log(
+      `[SnapshotRestore] Snapshot metadata: version ${metadata.version}, ${metadata.volumes.length} volumes`,
+    );
 
-      // Tag it with our expected name
-      const tagResult = await runCommand("docker", [
-        "tag",
-        loadedImageName,
-        imageName,
+    // Step 4: Restore each volume
+    const volumesDir = join(tempDir, "volumes");
+    const volumeNames = getVolumeNames(config.podId);
+
+    for (const volumeName of volumeNames) {
+      const volumeType = volumeName.split("-").pop(); // Extract "workspace", "home", etc
+      const volumeTarPath = join(volumesDir, `${volumeType}.tar`);
+
+      console.log(`[SnapshotRestore] Restoring volume ${volumeName}...`);
+
+      // Check if this volume exists in the snapshot
+      const { code: statCode } = await runCommand("stat", [volumeTarPath]);
+      if (statCode !== 0) {
+        console.log(
+          `[SnapshotRestore] Volume tar ${volumeType}.tar not found in snapshot, skipping`,
+        );
+        continue;
+      }
+
+      // Ensure volume exists (create if needed)
+      const { code: inspectCode } = await runCommand("docker", [
+        "volume",
+        "inspect",
+        volumeName,
       ]);
 
-      if (tagResult.code !== 0) {
-        console.warn(
-          `[SnapshotRestore] Failed to tag image: ${tagResult.stderr}`,
+      if (inspectCode !== 0) {
+        console.log(`[SnapshotRestore] Creating volume ${volumeName}...`);
+        const { code: createCode, stderr: createStderr } = await runCommand(
+          "docker",
+          ["volume", "create", volumeName],
         );
-        // Continue anyway, use the loaded name
-        return JSON.stringify({ success: true, imageName: loadedImageName });
+
+        if (createCode !== 0) {
+          throw new Error(
+            `Failed to create volume ${volumeName}: ${createStderr}`,
+          );
+        }
+      } else {
+        // Volume exists - we need to clear it first by removing and recreating
+        console.log(
+          `[SnapshotRestore] Clearing existing volume ${volumeName}...`,
+        );
+
+        const { code: rmCode, stderr: rmStderr } = await runCommand("docker", [
+          "volume",
+          "rm",
+          volumeName,
+        ]);
+
+        if (rmCode !== 0) {
+          // Volume might be in use, try to continue anyway
+          console.warn(
+            `[SnapshotRestore] Failed to remove volume ${volumeName} (might be in use): ${rmStderr}`,
+          );
+          console.warn(
+            `[SnapshotRestore] Will attempt to restore anyway by overwriting`,
+          );
+        } else {
+          // Recreate the volume
+          const { code: createCode, stderr: createStderr } = await runCommand(
+            "docker",
+            ["volume", "create", volumeName],
+          );
+
+          if (createCode !== 0) {
+            throw new Error(
+              `Failed to recreate volume ${volumeName}: ${createStderr}`,
+            );
+          }
+        }
       }
+
+      // Restore volume data using a temporary container
+      // Mount the volume and extract the tar into it
+      console.log(`[SnapshotRestore] Extracting data to ${volumeName}...`);
+
+      const { code: restoreCode, stderr: restoreStderr } = await runCommand(
+        "docker",
+        [
+          "run",
+          "--rm",
+          "-v",
+          `${volumeName}:/data`,
+          "-v",
+          `${volumesDir}:/input:ro`,
+          "alpine:3.22.1",
+          "sh",
+          "-c",
+          `rm -rf /data/* /data/.[!.]* /data/..?* 2>/dev/null || true && tar -xf /input/${volumeType}.tar -C /data`,
+        ],
+      );
+
+      if (restoreCode !== 0) {
+        throw new Error(
+          `Failed to restore volume ${volumeName}: ${restoreStderr}`,
+        );
+      }
+
+      console.log(`[SnapshotRestore] Successfully restored ${volumeName}`);
     }
 
-    // Return the image name for container creation
-    return JSON.stringify({ success: true, imageName });
+    console.log(`[SnapshotRestore] All volumes restored successfully`);
+
+    // Return success
+    return JSON.stringify({ success: true });
   } catch (error) {
     console.error(`[SnapshotRestore] Error:`, error);
     return JSON.stringify({
