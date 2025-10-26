@@ -9,26 +9,55 @@
 
 | Action | Volumes Behavior | Reason |
 |--------|-----------------|---------|
-| **Stop pod** | ✅ **KEPT** | For fast restart or snapshot restore |
-| **Stop with snapshot** | ✅ **KEPT** | Snapshot captures data, volumes enable fast restart |
-| **Start pod** | ✅ **REATTACHED** | Same pod ID = same volume names |
+| **User Stop** (UI) | 🗑️ **DELETED** | Full deprovisioning - creates snapshot first, then removes ALL resources |
+| **Accidental Pause** (crash) | ✅ **KEPT** | System event only - volumes allow fast recovery |
+| **Start pod** | ✅ **CREATED/REATTACHED** | Restores from snapshot if volumes don't exist, or reuses existing |
 | **Deprovision pod** | 🗑️ **DELETED** | Permanent removal, free storage |
-| **Delete pod** | 🗑️ **DELETED** | Permanent removal, free storage |
+| **Archive/Delete pod** | 🗑️ **DELETED** | Permanent removal, free storage |
 | **Provision error** | 🗑️ **DELETED** | Clean up failed provisioning |
+
+## Architecture: Stop vs Pause
+
+### User Stop (UI Button) - Full Deprovisioning
+
+**What happens:**
+1. Create snapshot (export ALL volumes to S3/disk)
+2. Stop container (`docker stop`)
+3. Remove container
+4. **DELETE all 8 volumes** ← Frees storage
+5. Update DB: `status='stopped'`, `containerId=null`
+
+**Why delete volumes?**
+- User wants to free resources (disk space, memory overhead)
+- Pod may be stopped for days/weeks/indefinitely
+- May migrate to different server (snapshot is portable)
+- Snapshot contains complete backup - can always restore
+
+### Accidental Pause (System Event) - Fast Recovery
+
+**What happens:**
+- Lima crashes, server restart, maintenance
+- Container stops but volumes remain
+- No user interaction, no snapshot created
+
+**Why keep volumes?**
+- Fast recovery: just start container, remount volumes
+- No restore needed
+- Rare occurrence (system events only)
 
 ## Implementation
 
-### Stop Pod (Keep Volumes)
+### Stop Pod (Delete Volumes)
 
 ```typescript
 // pods.stop mutation
-1. Create snapshot (if enabled)
+1. Create snapshot (export volumes to S3)
 2. stopPod() - docker stop
-3. removeContainer(containerId) // NO options = volumes kept!
+3. removeContainer(containerId, { removeVolumes: true }) // ✅ Delete volumes!
 4. Update DB: status='stopped', containerId=null
 ```
 
-**Result**: Volumes remain on disk, can restart quickly or restore from snapshot.
+**Result**: Snapshot uploaded, all resources freed, pod fully deprovisioned.
 
 ### Deprovision Pod (Delete Volumes)
 
