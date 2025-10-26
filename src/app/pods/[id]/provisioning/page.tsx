@@ -493,7 +493,11 @@ export default function PodProvisioningPage() {
 
                     {/* Stderr */}
                     {log.stderr && (
-                      <div className="whitespace-pre-wrap text-red-400">
+                      <div
+                        className={`whitespace-pre-wrap ${
+                          log.exitCode === 0 ? "text-slate-300" : "text-red-400"
+                        }`}
+                      >
                         {processTerminalOutput(log.stderr)}
                       </div>
                     )}
