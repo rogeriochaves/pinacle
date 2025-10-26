@@ -18,6 +18,34 @@ import { api } from "@/lib/trpc/client";
 
 type PodStatus = "creating" | "provisioning" | "running" | "stopped" | "error";
 
+/**
+ * Processes terminal output to handle carriage returns (\r) and ANSI escape codes.
+ * - Strips ANSI color codes and terminal control sequences (colors, cursor movement, etc.)
+ * - Handles carriage returns (\r) by keeping only the last segment on each line
+ */
+const processTerminalOutput = (text: string): string => {
+  // First, strip all ANSI escape codes
+  // This regex matches ANSI escape sequences like \x1b[0m, \x1b[1;32m, \x1b[2K, etc.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: Need to match ANSI escape codes
+  const cleaned = text.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "");
+
+  // Split by newlines to process each line separately
+  const lines = cleaned.split("\n");
+
+  const processedLines = lines.map((line) => {
+    // If line contains \r, split by it and keep only the last segment
+    // (as each \r overwrites everything before it on that line)
+    if (line.includes("\r")) {
+      const segments = line.split("\r");
+      // Return the last non-empty segment, or the last segment if all are present
+      return segments[segments.length - 1] || "";
+    }
+    return line;
+  });
+
+  return processedLines.join("\n");
+};
+
 const StatusBadge = ({ status }: { status: PodStatus }) => {
   const statusConfig = {
     creating: {
@@ -141,7 +169,8 @@ export default function PodProvisioningPage() {
   // Check if user is at bottom of scroll container
   const checkIfAtBottom = () => {
     if (!scrollContainerRef.current) return true;
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } =
+      scrollContainerRef.current;
     // Consider at bottom if within 150px of the bottom (safe zone for smooth scrolling)
     return scrollHeight - scrollTop - clientHeight < 150;
   };
@@ -296,11 +325,7 @@ export default function PodProvisioningPage() {
                 : "Setting up your development environment..."}
             </p>
           </div>
-          <Button
-            asChild
-            variant="ghost"
-            className="text-slate-400 hover:text-white font-mono"
-          >
+          <Button asChild variant="ghost" className="text-slate-400 font-mono">
             <Link href="/dashboard">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Dashboard
@@ -415,7 +440,7 @@ export default function PodProvisioningPage() {
             )
           ) : (
             <div className="relative">
-              <div 
+              <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
                 className="max-h-[600px] overflow-y-auto bg-slate-900 p-4 font-mono text-xs"
@@ -427,7 +452,9 @@ export default function PodProvisioningPage() {
                   >
                     {/* Log header */}
                     <div className="mb-1 flex items-center gap-2 text-slate-500">
-                      <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      <span>
+                        {new Date(log.timestamp).toLocaleTimeString()}
+                      </span>
                       <span>•</span>
                       {log.exitCode === null ? (
                         <>
@@ -460,14 +487,14 @@ export default function PodProvisioningPage() {
                     {/* Stdout */}
                     {log.stdout && (
                       <div className="whitespace-pre-wrap text-slate-300">
-                        {log.stdout}
+                        {processTerminalOutput(log.stdout)}
                       </div>
                     )}
 
                     {/* Stderr */}
                     {log.stderr && (
                       <div className="whitespace-pre-wrap text-red-400">
-                        {log.stderr}
+                        {processTerminalOutput(log.stderr)}
                       </div>
                     )}
                   </div>
