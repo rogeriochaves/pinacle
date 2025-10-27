@@ -182,6 +182,7 @@ const SetupForm = () => {
       tier: tier, // Use form's tier selection (or template default)
       customServices: (data.customServices as typeof selectedTemplate.services) || selectedTemplate.services, // Use form's selected services
       tabs: data.tabs, // Pass tabs from existing pinacle.yaml (if any)
+      processes: data.processes, // Pass full processes from existing pinacle.yaml (preserves healthCheck)
       envVars: data.envVars,
       // Process configuration for existing repos
       processConfig:

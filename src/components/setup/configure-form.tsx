@@ -118,8 +118,9 @@ export const ConfigureForm = ({
         form.setValue("processInstallCommand", "");
         form.setValue("processStartCommand", "");
         form.setValue("processAppUrl", "");
-        // Clear tabs
+        // Clear tabs and processes
         form.setValue("tabs", undefined);
+        form.setValue("processes", undefined);
       }
     }
   }, [setupType, selectedRepo, hasPinacleYaml, form]);
@@ -165,8 +166,11 @@ export const ConfigureForm = ({
           form.setValue("processInstallCommand", installCmd);
         }
 
-        // Set process configuration from first process
+        // Set full processes array to preserve all fields (including healthCheck)
         if (config.processes && config.processes.length > 0) {
+          form.setValue("processes", config.processes);
+          
+          // Also set simplified form fields for UI display
           const firstProcess = config.processes[0];
           const startCmd =
             typeof firstProcess.startCommand === "string"

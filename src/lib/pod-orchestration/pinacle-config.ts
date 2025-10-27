@@ -117,9 +117,6 @@ export const serializePinacleConfig = (config: PinacleConfig): string => {
     "# Pinacle Pod Configuration",
     "# https://pinacle.dev/docs/pinacle-yaml",
     "",
-    `# Available tiers: ${Object.keys(RESOURCE_TIERS).join(", ")}`,
-    `# Available services: ${Object.keys(SERVICE_TEMPLATES).join(", ")}`,
-    "",
   ].join("\n");
 
   // Clean up empty arrays to avoid writing them to YAML
@@ -139,6 +136,7 @@ export const serializePinacleConfig = (config: PinacleConfig): string => {
     sortKeys: false,
     quotingType: '"', // Use double quotes for strings
     forceQuotes: false, // Only quote when necessary
+    skipInvalid: true, // Skip undefined values
   });
 
   return header + yamlContent;
@@ -171,6 +169,12 @@ export const generatePinacleConfigFromForm = (formData: {
   customServices?: ServiceId[];
   tabs?: Array<{ name: string; url?: string; service?: string }>;
   slug?: string;
+  processes?: Array<{
+    name: string;
+    startCommand: string | string[];
+    url?: string;
+    healthCheck?: string | string[];
+  }>;
   processConfig?: {
     installCommand?: string;
     startCommand?: string;
@@ -192,8 +196,9 @@ export const generatePinacleConfigFromForm = (formData: {
       : template?.services || DEFAULT_PINACLE_CONFIG.services;
 
   // Determine processes:
-  // 1. If processConfig provided (existing repo), use that
-  // 2. Otherwise, use template's defaultProcesses if available
+  // 1. If full processes provided (from existing pinacle.yaml), use those to preserve all fields
+  // 2. Else if processConfig provided (simplified form), create basic process
+  // 3. Otherwise, use template's defaultProcesses if available
   const processes: Array<{
     name: string;
     startCommand: string | string[];
@@ -201,8 +206,11 @@ export const generatePinacleConfigFromForm = (formData: {
     healthCheck?: string | string[];
   }> = [];
 
-  if (formData.processConfig?.startCommand) {
-    // Existing repo: use manual config
+  if (formData.processes && formData.processes.length > 0) {
+    // Existing repo with full process data: preserve everything (including healthCheck)
+    processes.push(...formData.processes);
+  } else if (formData.processConfig?.startCommand) {
+    // Existing repo with simplified form data: create basic process
     processes.push({
       name: "app",
       startCommand: formData.processConfig.startCommand,

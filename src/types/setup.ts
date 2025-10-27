@@ -26,7 +26,18 @@ export const setupFormSchema = z
         }),
       )
       .optional(),
-    // Process configuration (for existing repos)
+    // Full processes from existing pinacle.yaml (preserves healthCheck, etc.)
+    processes: z
+      .array(
+        z.object({
+          name: z.string(),
+          startCommand: z.union([z.string(), z.array(z.string())]),
+          url: z.string().optional(),
+          healthCheck: z.union([z.string(), z.array(z.string())]).optional(),
+        }),
+      )
+      .optional(),
+    // Process configuration (for existing repos - simplified form fields)
     processInstallCommand: z.string().optional(),
     processStartCommand: z.string().optional(),
     processAppUrl: z.string().optional(),

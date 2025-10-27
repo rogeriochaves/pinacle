@@ -109,14 +109,17 @@ describe("YAML Serialization", () => {
     expect(yaml).toContain("  - code-server");
   });
 
-  it("should include helpful comments", () => {
+  it("should include header comments but not outdated lists", () => {
     const config: PinacleConfig = DEFAULT_PINACLE_CONFIG;
     const yaml = serializePinacleConfig(config);
 
+    // Should include basic header
     expect(yaml).toContain("# Pinacle Pod Configuration");
     expect(yaml).toContain("# https://pinacle.dev/docs/pinacle-yaml");
-    expect(yaml).toContain("# Available tiers:");
-    expect(yaml).toContain("# Available services:");
+    
+    // Should NOT include lists that get outdated
+    expect(yaml).not.toContain("# Available tiers:");
+    expect(yaml).not.toContain("# Available services:");
   });
 });
 

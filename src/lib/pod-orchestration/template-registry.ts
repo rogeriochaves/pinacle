@@ -1,6 +1,6 @@
 import type { TierId } from "./resource-tier-registry";
 import type { ServiceId } from "./service-registry";
-import { isCodingAssistant, SERVICE_TEMPLATES } from "./service-registry";
+import { getServiceTemplateUnsafe, isCodingAssistant } from "./service-registry";
 import type { PodSpec, ServiceConfig } from "./types";
 
 export type TemplateId =
@@ -119,7 +119,7 @@ export const POD_TEMPLATES = {
         isCodingAssistant(s.name),
       );
       const codingAssistant = codingAssistantService
-        ? SERVICE_TEMPLATES[codingAssistantService.name]?.displayName ||
+        ? getServiceTemplateUnsafe(codingAssistantService.name)?.displayName ||
           "Claude Code"
         : "Claude Code"; // Default to Claude Code if no coding assistant found
 
@@ -299,13 +299,11 @@ EOF`,
     defaultProcesses: [
       {
         name: "app",
-        displayName: "App",
         startCommand: "pnpm dev",
         url: "http://localhost:3000",
         healthCheck: "curl -f http://localhost:3000",
       },
     ],
-
     templateType: "nextjs",
     initScript: [
       // 1. Clone the Next.js SaaS Starter
