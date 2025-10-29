@@ -171,8 +171,8 @@ export default function PodProvisioningPage() {
     if (!scrollContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } =
       scrollContainerRef.current;
-    // Consider at bottom if within 150px of the bottom (safe zone for smooth scrolling)
-    return scrollHeight - scrollTop - clientHeight < 150;
+    // Consider at bottom if within 50px of the bottom (safe zone for smooth scrolling)
+    return scrollHeight - scrollTop - clientHeight < 24;
   };
 
   // Handle scroll events to detect manual scrolling

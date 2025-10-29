@@ -114,7 +114,6 @@ export const SERVICE_TEMPLATES = {
   "diffEditor.hideUnchangedRegions.enabled": true
 }
 EOF`,
-      "apk add --no-cache libarchive-tools",
       "mkdir -p ~/.local/share/code-server/extensions",
       "curl -JL https://marketplace.visualstudio.com/_apis/public/gallery/publishers/Supermaven/vsextensions/supermaven/1.1.5/vspackage | bsdtar -xvf - extension",
       "mv extension ~/.local/share/code-server/extensions/supermaven.supermaven-1.1.5-universal",
@@ -158,7 +157,7 @@ EOF`,
 
       return [
         `mkdir -p ~/.local/share/vibe-kanban`,
-        `cat <<'EOF' > ~/.local/share/vibe-kanban/config.json
+        `cat <<EOF > ~/.local/share/vibe-kanban/config.json
 {
   "config_version": "v7",
   "theme": "SYSTEM",
@@ -187,24 +186,29 @@ EOF`,
   },
   "analytics_enabled": false,
   "workspace_dir": null,
-  "last_app_version": "0.0.98",
+  "last_app_version": "$(pnpm show vibe-kanban version)",
   "show_release_notes": false,
-  "language": "BROWSER"
+  "language": "BROWSER",
+  "git_branch_prefix": "vk",
+  "showcases": {
+    "seen_features": []
+  }
 }
 EOF`,
         `mkdir -p /root/.local/share/vibe-kanban`,
         `ln -s ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
       ];
     },
-    startCommand: () => ["vibe-kanban"],
+    startCommand: () => ["/root/.local/share/pnpm/vibe-kanban"],
     cleanupCommand: [],
+    healthCheckStartDelay: 4,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],
     defaultPort: 5262,
     environment: {
       NODE_ENV: "production",
       PORT: "5262",
       HOST: "0.0.0.0",
-      IS_SANDBOX: "1",
+      GITHUB_CLIENT_ID: "Iv23li8mWSwG4NGXTA3y",
     },
   },
 
@@ -214,7 +218,21 @@ EOF`,
     description: "AI coding assistant via terminal",
     icon: "/logos/claude.svg",
     iconAlt: "Claude",
-    installScript: ["pnpm add -g @anthropic-ai/claude-code@latest"],
+    installScript: [
+      "pnpm add -g @anthropic-ai/claude-code@latest",
+      `cat <<EOF > ~/.claude/settings.json
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}
+EOF`,
+    ],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -245,7 +263,16 @@ EOF`,
     description: "OpenAI powered coding assistant",
     icon: "/logos/openai.svg",
     iconAlt: "OpenAI",
-    installScript: ["pnpm add -g @openai/codex"],
+    installScript: (spec: PodSpec) => [
+      "pnpm add -g @openai/codex",
+      `cat <<EOF > ~/.codex/config.toml
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+[projects."${getProjectFolder(spec)}"]
+trust_level = "trusted"
+EOF`,
+    ],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -284,21 +311,21 @@ EOF`,
       # Find the cursor-agent version directory
       CURSOR_VERSION_DIR=$(ls -t /workspace/.local/share/cursor-agent/versions/ | head -1)
       CURSOR_PATH=/workspace/.local/share/cursor-agent/versions/$CURSOR_VERSION_DIR
-      
+
       # 1. Replace glibc Node.js with Alpine-native Node.js
       if [ -f "$CURSOR_PATH/node" ]; then
         mv "$CURSOR_PATH/node" "$CURSOR_PATH/node.glibc"
         ln -s /usr/local/bin/node "$CURSOR_PATH/node"
         echo "✓ Replaced Node.js binary with Alpine-compatible version"
       fi
-      
+
       # 2. Patch index.js to stub out merkle-tree native module (glibc-only)
       if [ -f "$CURSOR_PATH/index.js" ]; then
         cp "$CURSOR_PATH/index.js" "$CURSOR_PATH/index.js.backup"
         sed -i 's/nativeBinding = __webpack_require__("..\\/merkle-tree\\/merkle-tree-napi.linux-arm64-gnu.node");/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: "\\/" };/' "$CURSOR_PATH/index.js"
         echo "✓ Patched merkle-tree module"
       fi
-      
+
       # 3. Download and replace sqlite3 with musl-compatible version
       if [ -f "$CURSOR_PATH/node_sqlite3.node" ]; then
         cd /tmp
@@ -344,7 +371,16 @@ EOF`,
     description: "Google Gemini coding assistant",
     icon: "/logos/gemini.svg",
     iconAlt: "Gemini",
-    installScript: ["pnpm add -g @google/gemini-cli"],
+    installScript: [
+      "pnpm add -g @google/gemini-cli",
+      // Patch node-pty to skip Debug build check (removes warning)
+      `NODE_PTY_FILE=$(find /root/.local/share/pnpm/global -path "*node-pty*/lib/unixTerminal.js" 2>/dev/null | grep -v "@lydell" | head -1)
+      if [ -f "$NODE_PTY_FILE" ]; then
+        # Comment out the Debug build require to prevent warning
+        sed -i "s|pty = require('../build/Debug/pty.node');|// pty = require('../build/Debug/pty.node'); // Patched: skip Debug|" "$NODE_PTY_FILE"
+        echo "✓ Patched node-pty to skip Debug build check"
+      fi`,
+    ],
     startCommand: (spec: PodSpec) => {
       return [
         "ttyd",
@@ -361,7 +397,7 @@ EOF`,
         "-As",
         "gemini",
         "/root/.local/share/pnpm/gemini",
-        "--yolo"
+        "--yolo",
       ];
     },
     cleanupCommand: [],
@@ -404,7 +440,8 @@ EOF`,
   "qwen-code": {
     name: "qwen-code",
     displayName: "Qwen Code",
-    description: "AI coding agent for the open source Qwen family of models by Alibaba",
+    description:
+      "AI coding agent for the open source Qwen family of models by Alibaba",
     icon: "/logos/qwen.png",
     iconAlt: "Qwen",
     installScript: ["pnpm add -g @qwen-code/qwen-code"],
@@ -424,6 +461,7 @@ EOF`,
         "-As",
         "amp",
         "/root/.local/share/pnpm/qwen",
+        "--yolo",
       ];
     },
     cleanupCommand: [],
