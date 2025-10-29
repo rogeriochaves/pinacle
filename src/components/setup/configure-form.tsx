@@ -169,7 +169,7 @@ export const ConfigureForm = ({
         // Set full processes array to preserve all fields (including healthCheck)
         if (config.processes && config.processes.length > 0) {
           form.setValue("processes", config.processes);
-          
+
           // Also set simplified form fields for UI display
           const firstProcess = config.processes[0];
           const startCmd =
@@ -267,23 +267,44 @@ export const ConfigureForm = ({
       });
       setEnvVars(newEnvVars);
 
-      // Update custom services to match template's services
-      let newServices = [...selectedTemplate.services];
+      // Intelligently merge template services with current selection
+      setCustomServices((currentServices) => {
+        // 1. Preserve the currently selected coding assistant
+        const currentCodingAssistant = currentServices.find((service) =>
+          isCodingAssistant(service),
+        );
 
-      // If there's an agent from URL, replace the template's coding assistant with the selected one
-      const selectedCodingAssistant = agent
-        ? getCodingAssistantByUrlParam(agent)
-        : undefined;
-      if (selectedCodingAssistant) {
-        // Remove any coding assistants from template services
-        newServices = newServices.filter(
+        // Get coding assistant from URL param if no current selection
+        const selectedCodingAssistant = currentCodingAssistant ||
+          (agent ? getCodingAssistantByUrlParam(agent) : undefined);
+
+        // 2. Get non-coding-assistant services from template
+        const templateNonCodingServices = selectedTemplate.services.filter(
           (service) => !isCodingAssistant(service),
         );
-        // Add the selected coding assistant at the beginning
-        newServices = [selectedCodingAssistant, ...newServices];
-      }
 
-      setCustomServices(newServices);
+        // 3. Get non-coding-assistant services from current selection
+        const currentNonCodingServices = currentServices.filter(
+          (service) => !isCodingAssistant(service),
+        );
+
+        // 4. Merge: add template services that aren't in current, remove current services not in template
+        const mergedNonCodingServices = [
+          ...new Set([
+            ...templateNonCodingServices,
+            ...currentNonCodingServices.filter((service) =>
+              templateNonCodingServices.includes(service),
+            ),
+          ]),
+        ];
+
+        // 5. Combine coding assistant + merged non-coding services
+        const newServices = selectedCodingAssistant
+          ? [selectedCodingAssistant, ...mergedNonCodingServices]
+          : mergedNonCodingServices;
+
+        return newServices;
+      });
 
       form.setValue("bundle", selectedTemplate.id);
     }
