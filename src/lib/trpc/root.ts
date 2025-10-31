@@ -1,5 +1,6 @@
 import { adminRouter } from "./routers/admin";
 import { authRouter } from "./routers/auth";
+import { billingRouter } from "./routers/billing";
 import { envSetsRouter } from "./routers/env-sets";
 import { githubRouter } from "./routers/github";
 import { githubAppRouter } from "./routers/github-app";
@@ -19,6 +20,7 @@ export const appRouter = createTRPCRouter({
   servers: serversRouter,
   admin: adminRouter,
   snapshots: snapshotsRouter,
+  billing: billingRouter,
 });
 
 export type AppRouter = typeof appRouter;

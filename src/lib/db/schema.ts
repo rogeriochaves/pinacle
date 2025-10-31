@@ -267,12 +267,9 @@ export const podMetrics = pgTable(
     networkTxBytes: real("network_tx_bytes").notNull().default(0),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   },
-  (table) => ({
-    podIdTimestampIdx: index("pod_metrics_pod_id_timestamp_idx").on(
-      table.podId,
-      table.timestamp,
-    ),
-  }),
+  (table) => [
+    index("pod_metrics_pod_id_timestamp_idx").on(table.podId, table.timestamp),
+  ],
 );
 
 // Pod provisioning logs
@@ -342,14 +339,186 @@ export const userGithubInstallations = pgTable("user_github_installation", {
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
+// Stripe customers (billing)
+export const stripeCustomers = pgTable("stripe_customer", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("stripe_customer")),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 })
+    .notNull()
+    .unique(),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  status: varchar("status", { length: 50 }).notNull().default("active"), // active, past_due, canceled, paused
+  defaultPaymentMethodId: varchar("default_payment_method_id", { length: 255 }),
+  gracePeriodStartedAt: timestamp("grace_period_started_at", { mode: "date" }),
+  currency: varchar("currency", { length: 3 }).notNull().default("usd"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Stripe subscriptions (detailed subscription info)
+export const stripeSubscriptions = pgTable("stripe_subscription", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("stripe_subscription")),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 })
+    .notNull()
+    .unique(),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }).notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: varchar("status", { length: 50 }).notNull(), // active, past_due, canceled, incomplete, paused, etc.
+  currentPeriodStart: timestamp("current_period_start", {
+    mode: "date",
+  }).notNull(),
+  currentPeriodEnd: timestamp("current_period_end", { mode: "date" }).notNull(),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+  canceledAt: timestamp("canceled_at", { mode: "date" }),
+  trialStart: timestamp("trial_start", { mode: "date" }),
+  trialEnd: timestamp("trial_end", { mode: "date" }),
+  metadata: text("metadata"), // JSON metadata from Stripe
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Stripe prices (maps resource tiers to Stripe price IDs)
+export const stripePrices = pgTable("stripe_price", {
+  id: text("id")
+    .primaryKey()
+    .notNull()
+    .$defaultFn(generateKsuidBuilder("stripe_price")),
+  tierId: varchar("tier_id", { length: 50 }).notNull(), // dev.small, dev.medium, etc
+  currency: varchar("currency", { length: 3 }).notNull(), // usd, eur, brl
+  stripePriceId: varchar("stripe_price_id", { length: 255 }).notNull().unique(),
+  stripeProductId: varchar("stripe_product_id", { length: 255 }).notNull(),
+  unitAmountDecimal: varchar("unit_amount_decimal", { length: 50 }).notNull(), // Stripe uses string for decimal precision
+  interval: varchar("interval", { length: 50 }).notNull().default("month"),
+  usageType: varchar("usage_type", { length: 50 }).notNull().default("metered"), // metered or licensed
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+// Usage records (local tracking for billing)
+export const usageRecords = pgTable(
+  "usage_record",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("usage_record")),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    podId: text("pod_id").notNull(), // No FK - pod may be deleted
+    tierId: varchar("tier_id", { length: 50 }).notNull(),
+    recordType: varchar("record_type", { length: 50 }).notNull(), // runtime or storage
+    quantity: real("quantity").notNull(), // Hours or GB-hours
+    periodStart: timestamp("period_start", { mode: "date" }).notNull(),
+    periodEnd: timestamp("period_end", { mode: "date" }).notNull(),
+    reportedToStripe: boolean("reported_to_stripe").notNull().default(false),
+    stripeUsageRecordId: varchar("stripe_usage_record_id", { length: 255 }),
+    stripeSubscriptionItemId: varchar("stripe_subscription_item_id", {
+      length: 255,
+    }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("usage_record_user_id_period_idx").on(
+      table.userId,
+      table.periodStart,
+      table.periodEnd,
+    ),
+    index("usage_record_reported_idx").on(
+      table.reportedToStripe,
+      table.createdAt,
+    ),
+  ],
+);
+
+// Stripe webhook events (for idempotency and auditing)
+export const stripeEvents = pgTable(
+  "stripe_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("stripe_event")),
+    stripeEventId: varchar("stripe_event_id", { length: 255 })
+      .notNull()
+      .unique(),
+    eventType: varchar("event_type", { length: 255 }).notNull(),
+    processed: boolean("processed").notNull().default(false),
+    processingError: text("processing_error"),
+    data: text("data").notNull(), // JSON event data
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    processedAt: timestamp("processed_at", { mode: "date" }),
+  },
+  (table) => [
+    index("stripe_event_stripe_event_id_idx").on(
+      table.stripeEventId,
+    ),
+    index("stripe_event_event_type_idx").on(table.eventType),
+  ],
+);
+
+// Invoices (cache Stripe invoice data)
+export const invoices = pgTable(
+  "invoice",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("invoice")),
+    stripeInvoiceId: varchar("stripe_invoice_id", { length: 255 })
+      .notNull()
+      .unique(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }).notNull(),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    status: varchar("status", { length: 50 }).notNull(), // draft, open, paid, uncollectible, void
+    amountDue: integer("amount_due").notNull(), // In cents
+    amountPaid: integer("amount_paid").notNull().default(0), // In cents
+    currency: varchar("currency", { length: 3 }).notNull().default("usd"),
+    periodStart: timestamp("period_start", { mode: "date" }),
+    periodEnd: timestamp("period_end", { mode: "date" }),
+    hostedInvoiceUrl: text("hosted_invoice_url"),
+    invoicePdfUrl: text("invoice_pdf_url"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("invoice_user_id_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+  ],
+);
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   accounts: many(accounts),
   sessions: many(sessions),
   ownedTeams: many(teams),
   teamMemberships: many(teamMembers),
   ownedPods: many(pods),
   githubInstallations: many(userGithubInstallations),
+  stripeCustomer: one(stripeCustomers, {
+    fields: [users.id],
+    references: [stripeCustomers.userId],
+  }),
+  subscriptions: many(stripeSubscriptions),
+  usageRecords: many(usageRecords),
+  invoices: many(invoices),
 }));
 
 export const teamsRelations = relations(teams, ({ one, many }) => ({
@@ -453,5 +622,44 @@ export const podLogsRelations = relations(podLogs, ({ one }) => ({
   pod: one(pods, {
     fields: [podLogs.podId],
     references: [pods.id],
+  }),
+}));
+
+export const stripeCustomersRelations = relations(
+  stripeCustomers,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [stripeCustomers.userId],
+      references: [users.id],
+    }),
+    subscriptions: many(stripeSubscriptions),
+  }),
+);
+
+export const stripeSubscriptionsRelations = relations(
+  stripeSubscriptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [stripeSubscriptions.userId],
+      references: [users.id],
+    }),
+    customer: one(stripeCustomers, {
+      fields: [stripeSubscriptions.stripeCustomerId],
+      references: [stripeCustomers.stripeCustomerId],
+    }),
+  }),
+);
+
+export const usageRecordsRelations = relations(usageRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [usageRecords.userId],
+    references: [users.id],
+  }),
+}));
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  user: one(users, {
+    fields: [invoices.userId],
+    references: [users.id],
   }),
 }));

@@ -23,6 +23,12 @@ const server = z.object({
   SNAPSHOT_S3_BUCKET: z.string().default("pinacle-snapshots"),
   SNAPSHOT_S3_REGION: z.string().default("us-east-1"),
   SNAPSHOT_MAX_SIZE_GB: z.coerce.number().default(10), // Max snapshot size in GB
+
+  // Stripe configuration
+  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  RESEND_API_KEY: z.string().min(1).optional(), // Already used but not in schema
 });
 
 const client = z.object({
@@ -50,6 +56,10 @@ const processEnv = {
   SNAPSHOT_S3_BUCKET: process.env.SNAPSHOT_S3_BUCKET,
   SNAPSHOT_S3_REGION: process.env.SNAPSHOT_S3_REGION,
   SNAPSHOT_MAX_SIZE_GB: process.env.SNAPSHOT_MAX_SIZE_GB,
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+  STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
 };
 
 const merged = server.merge(client);

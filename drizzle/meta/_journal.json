@@ -141,6 +141,13 @@
       "when": 1761471284393,
       "tag": "0019_add_metrics_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1761864409699,
+      "tag": "0020_kind_shadowcat",
+      "breakpoints": true
     }
   ]
 }

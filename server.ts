@@ -30,7 +30,7 @@ import { parseProxyHostname } from "./src/lib/proxy-utils";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
-const port = 3000; // Single port for both app and proxy
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000; // Single port for both app and proxy
 
 // Cookie names for scoped authentication
 const PROXY_TOKEN_COOKIE = "pinacle-proxy-token";
@@ -432,7 +432,7 @@ const createPodProxy = async (
       if (num >= 1 && num <= 9) {
         // Prevent default browser behavior (tab switching)
         event.preventDefault();
-        
+
         // Forward to parent window
         window.parent.postMessage({
           type: 'pinacle-keyboard-shortcut',
@@ -722,24 +722,24 @@ const startServer = async (): Promise<void> => {
         const listenersBefore = server.listenerCount("upgrade");
         await handle(req, res, parsedUrl);
         const listenersAfter = server.listenerCount("upgrade");
-        
+
         // Detect if Next.js added its upgrade listener (happens after first compilation)
         if (listenersBefore !== listenersAfter && !nextJsUpgradeHandler) {
           logger.debug(
             { before: listenersBefore, after: listenersAfter },
             "Next.js added upgrade listener, storing and removing it to prevent conflicts",
           );
-          
+
           const upgradeListeners = server.listeners("upgrade");
-          
+
           // Next.js's handler is the last one added
           if (upgradeListeners.length >= 2) {
             nextJsUpgradeHandler = upgradeListeners[upgradeListeners.length - 1] as any;
-            
+
             // Remove all listeners and re-add only ours (the first one)
             server.removeAllListeners("upgrade");
             server.on("upgrade", upgradeListeners[0] as any);
-            
+
             logger.debug("Stored Next.js upgrade handler, will call it manually for HMR");
           }
         }
