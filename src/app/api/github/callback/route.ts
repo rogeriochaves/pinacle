@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { env } from "../../../../env";
 import { authOptions } from "../../../../lib/auth";
 import { db } from "../../../../lib/db";
 import {
@@ -10,10 +11,13 @@ import {
 import { getGitHubApp } from "../../../../lib/github-app";
 
 export async function GET(request: NextRequest) {
+  // Use NEXTAUTH_URL as base URL for redirects (production URL)
+  const baseUrl = env.NEXTAUTH_URL || request.url;
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.redirect(new URL("/auth/signin", request.url));
+      return NextResponse.redirect(new URL("/auth/signin", baseUrl));
     }
 
     const searchParams = request.nextUrl.searchParams;
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     if (!installationId) {
       return NextResponse.redirect(
-        new URL("/setup/project?error=missing_installation", request.url),
+        new URL("/setup/project?error=missing_installation", baseUrl),
       );
     }
 
@@ -79,17 +83,17 @@ export async function GET(request: NextRequest) {
         : "/setup/project";
       const separator = baseRedirectUrl.includes("?") ? "&" : "?";
       const finalRedirectUrl = `${baseRedirectUrl}${separator}success=installation_complete`;
-      return NextResponse.redirect(new URL(finalRedirectUrl, request.url));
+      return NextResponse.redirect(new URL(finalRedirectUrl, baseUrl));
     } catch (error) {
       console.error("Failed to process GitHub App installation:", error);
       return NextResponse.redirect(
-        new URL("/setup/project?error=installation_failed", request.url),
+        new URL("/setup/project?error=installation_failed", baseUrl),
       );
     }
   } catch (error) {
     console.error("GitHub App callback error:", error);
     return NextResponse.redirect(
-      new URL("/setup/project?error=callback_failed", request.url),
+      new URL("/setup/project?error=callback_failed", baseUrl),
     );
   }
 }

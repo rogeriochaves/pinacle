@@ -3,8 +3,11 @@ node_modules
 server-agent/node_modules
 server-agent/dist
 
-# Build outputs
-.next
+# Build outputs (keep .next and compiled files - we need them!)
+# .next - KEEP THIS
+# server.js - KEEP THIS
+# src/worker.js - KEEP THIS
+.next/cache
 dist
 build
 *.tsbuildinfo

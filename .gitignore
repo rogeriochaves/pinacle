@@ -43,6 +43,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# compiled server files
+/server.js
+/src/worker.js
+
 worktrees
 
 !.cursorindexingignore
