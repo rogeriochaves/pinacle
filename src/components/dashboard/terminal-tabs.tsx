@@ -59,7 +59,7 @@ export const TerminalTabs = ({
       for (const process of config.processes || []) {
         initSessions.push({
           id: `process-${pod.id}-${process.name}`,
-          name: process.displayName || process.name,
+          name: process.name,
           tmuxSession: `process-${pod.id}-${process.name}`,
         });
       }

@@ -1,30 +1,31 @@
-import { and, eq, isNotNull, lte } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
-import { pods, stripeCustomers, users } from "../db/schema";
+import { stripeCustomers, users } from "../db/schema";
 import {
   sendFinalDeletionWarningEmail,
   sendGracePeriodWarningEmail,
 } from "../email";
-import { podSuspensionService } from "./pod-suspension";
+import { deleteUserPods, suspendUserPods } from "./pod-suspension";
 
 /**
  * Grace Period Enforcer
  * Manages grace period lifecycle for users with payment failures
  *
  * Timeline:
- * - Day 0: Payment fails, grace period starts (7 days)
- * - Day 4: Warning email (3 days remaining)
- * - Day 6: Final warning email (1 day remaining)
- * - Day 7: Pods suspended
+ * - Hour 0: Payment fails, grace period starts (24 hours)
+ * - Hour 12: Warning email (12 hours remaining)
+ * - Hour 18: Final warning email (6 hours remaining)
+ * - Hour 24: Pods suspended
  * - Day 14: Warning email (7 days until deletion)
  * - Day 21: Warning email (data deletion in 7 days)
  * - Day 28: All data permanently deleted
  */
 
-const GRACE_PERIOD_DAYS = 7;
+const GRACE_PERIOD_HOURS = 24; // 24 hours = 1 day
+const GRACE_PERIOD_DAYS = 1; // For compatibility with day-based calculations
 const SUSPENSION_TO_DELETION_DAYS = 21; // 3 weeks after suspension
-const WARNING_DAYS = [3, 1]; // Send warnings at 3 days and 1 day remaining
-const DELETION_WARNING_DAYS = [14, 7]; // Warnings before final deletion
+const WARNING_HOURS = [12, 6]; // Send warnings at 12 hours and 6 hours remaining
+const DELETION_WARNING_DAYS = [20, 14, 7]; // Warnings before final deletion
 
 type GracePeriodStatus = {
   userId: string;
@@ -97,7 +98,8 @@ export class GracePeriodEnforcer {
       (now.getTime() - gracePeriodStart.getTime()) / (1000 * 60 * 60);
     const daysInGracePeriod = Math.floor(hoursSinceStart / 24);
 
-    const daysRemaining = GRACE_PERIOD_DAYS - daysInGracePeriod;
+    // Calculate hours remaining (for 24-hour grace period)
+    const hoursRemaining = Math.ceil(GRACE_PERIOD_HOURS - hoursSinceStart);
 
     return {
       userId: user.id,
@@ -105,9 +107,9 @@ export class GracePeriodEnforcer {
       name: user.name,
       gracePeriodStartedAt: gracePeriodStart,
       daysInGracePeriod,
-      shouldSuspend: daysInGracePeriod >= GRACE_PERIOD_DAYS,
+      shouldSuspend: hoursSinceStart >= GRACE_PERIOD_HOURS,
       shouldWarn:
-        WARNING_DAYS.includes(daysRemaining) && daysRemaining > 0,
+        WARNING_HOURS.includes(hoursRemaining) && hoursRemaining > 0,
       shouldDelete: false, // Handled in checkForDeletion
       shouldWarnDeletion: false,
       currency: customer.currency,
@@ -140,9 +142,7 @@ export class GracePeriodEnforcer {
         .limit(1);
 
       if (customer.length > 0) {
-        await podSuspensionService.suspendUserPods(
-          customer[0].stripeCustomerId,
-        );
+        await suspendUserPods(customer[0].userId);
 
         // Update customer status to suspended
         await db
@@ -170,10 +170,14 @@ export class GracePeriodEnforcer {
    * Send grace period warning email
    */
   private async sendWarningEmail(status: GracePeriodStatus): Promise<void> {
-    const daysRemaining = GRACE_PERIOD_DAYS - status.daysInGracePeriod;
+    // Calculate hours remaining (for 24-hour grace period)
+    const now = new Date();
+    const hoursSinceStart =
+      (now.getTime() - status.gracePeriodStartedAt.getTime()) / (1000 * 60 * 60);
+    const hoursRemaining = Math.ceil(GRACE_PERIOD_HOURS - hoursSinceStart);
 
     console.log(
-      `[GracePeriodEnforcer] Sending warning email to ${status.email} (${daysRemaining} days remaining)`,
+      `[GracePeriodEnforcer] Sending warning email to ${status.email} (${hoursRemaining} hours remaining)`,
     );
 
     try {
@@ -187,7 +191,7 @@ export class GracePeriodEnforcer {
       await sendGracePeriodWarningEmail({
         to: status.email,
         name: status.name || "there",
-        daysRemaining,
+        daysRemaining: hoursRemaining, // Actually hours, not days (field name kept for compatibility)
         amount,
         currency,
         billingUrl: `${baseUrl}/dashboard/billing`,
@@ -292,13 +296,13 @@ export class GracePeriodEnforcer {
    */
   private async deleteUserData(
     userId: string,
-    stripeCustomerId: string,
+    _stripeCustomerId: string,
   ): Promise<void> {
     console.log(`[GracePeriodEnforcer] Deleting all data for user ${userId}`);
 
     try {
       // Delete all pods and snapshots
-      await podSuspensionService.deleteUserPods(stripeCustomerId);
+      await deleteUserPods(userId);
 
       // Update customer status to deleted
       await db

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { pods, stripeCustomers, usageRecords } from "../db/schema";
+import { podSnapshots, pods, stripeCustomers, usageRecords } from "../db/schema";
 import type { TierId } from "../pod-orchestration/resource-tier-registry";
 import { stripe } from "../stripe";
 import { generateKSUID } from "../utils";
@@ -69,7 +69,149 @@ export class UsageTracker {
   }
 
   /**
-   * Report usage to Stripe using Billing Meters
+   * Track snapshot storage for all snapshots
+   * Called every hour by the worker
+   */
+  async trackSnapshotStorage(): Promise<void> {
+    console.log("[UsageTracker] Starting hourly snapshot storage tracking...");
+
+    const now = new Date();
+    const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    // Get all ready snapshots (not in creating/failed state)
+    const snapshots = await db
+      .select()
+      .from(podSnapshots)
+      .where(eq(podSnapshots.status, "ready"));
+
+    console.log(`[UsageTracker] Found ${snapshots.length} snapshots`);
+
+    // Group snapshots by user (podId doesn't have FK so we need to join through pods)
+    // Actually, we can't join since pod may be deleted. Need to track userId in snapshots
+    // For now, let's query pods to get userId for each snapshot
+
+    const snapshotsWithUser = await Promise.all(
+      snapshots.map(async (snapshot) => {
+        // Try to find pod to get userId
+        const [pod] = await db
+          .select()
+          .from(pods)
+          .where(eq(pods.id, snapshot.podId))
+          .limit(1);
+
+        return {
+          snapshot,
+          userId: pod?.ownerId || null,
+        };
+      })
+    );
+
+    // Filter out snapshots without user (orphaned)
+    const validSnapshots = snapshotsWithUser.filter((s) => s.userId !== null);
+
+    for (const { snapshot, userId } of validSnapshots) {
+      try {
+        // Calculate MB from bytes
+        const storageMb = snapshot.sizeBytes / 1024 / 1024;
+
+        // Create usage record for 1 hour of storage
+        const usageRecord = await db
+          .insert(usageRecords)
+          .values({
+            id: generateKSUID("usage_record"),
+            userId: userId!,
+            podId: snapshot.podId,
+            tierId: "snapshot_storage", // Special tier for snapshots
+            recordType: "storage",
+            quantity: storageMb, // MB-hours (MB stored for 1 hour)
+            periodStart: hourAgo,
+            periodEnd: now,
+            reportedToStripe: false,
+            createdAt: new Date(),
+          })
+          .returning();
+
+        console.log(
+          `[UsageTracker]   ✓ Created storage record for snapshot ${snapshot.id} (${storageMb.toFixed(2)} MB)`,
+        );
+
+        // Report to Stripe immediately
+        await this.reportSnapshotUsageToStripe(usageRecord[0]);
+      } catch (error) {
+        console.error(
+          `[UsageTracker]   ✗ Failed to track storage for snapshot ${snapshot.id}:`,
+          error,
+        );
+      }
+    }
+
+    console.log("[UsageTracker] Completed hourly snapshot storage tracking");
+  }
+
+  /**
+   * Report snapshot storage usage to Stripe using Billing Meters
+   */
+  async reportSnapshotUsageToStripe(
+    usageRecord: typeof usageRecords.$inferSelect,
+  ): Promise<void> {
+    try {
+      // Get customer record
+      const customer = await db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, usageRecord.userId))
+        .limit(1);
+
+      if (customer.length === 0) {
+        console.log(
+          `[UsageTracker] No Stripe customer for user ${usageRecord.userId}`,
+        );
+        return;
+      }
+
+      const stripeCustomer = customer[0];
+
+      if (!stripeCustomer.stripeSubscriptionId) {
+        console.log(
+          `[UsageTracker] No subscription for user ${usageRecord.userId}`,
+        );
+        return;
+      }
+
+      // Report usage to Stripe using Billing Meters
+      const meterEvent = await stripe.billing.meterEvents.create({
+        event_name: "snapshot_storage",
+        timestamp: Math.floor(usageRecord.periodEnd.getTime() / 1000),
+        identifier: usageRecord.id, // For idempotency
+        payload: {
+          stripe_customer_id: stripeCustomer.stripeCustomerId,
+          mb_hours: usageRecord.quantity.toString(), // Send MB-hours as string
+        },
+      });
+
+      // Mark as reported
+      await db
+        .update(usageRecords)
+        .set({
+          reportedToStripe: true,
+          stripeUsageRecordId: meterEvent.identifier,
+        })
+        .where(eq(usageRecords.id, usageRecord.id));
+
+      console.log(
+        `[UsageTracker]   ✓ Reported ${usageRecord.quantity.toFixed(2)} MB-hours to Stripe meter for snapshot ${usageRecord.podId}`,
+      );
+    } catch (error) {
+      console.error(
+        `[UsageTracker]   ✗ Failed to report snapshot storage to Stripe:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Report usage to Stripe using Billing Meters (for pod runtime)
    */
   async reportUsageToStripe(
     usageRecord: typeof usageRecords.$inferSelect,

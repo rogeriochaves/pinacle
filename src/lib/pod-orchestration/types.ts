@@ -19,18 +19,6 @@ export type ResourceTier =
   | "dev.large"
   | "dev.xlarge";
 
-export interface ResourceConfig {
-  tier: ResourceTier;
-  cpuCores: number;
-  memoryMb: number;
-  storageMb: number;
-  // Runtime-specific limits for gVisor
-  cpuQuota?: number; // CPU quota in microseconds per period
-  cpuPeriod?: number; // CPU period in microseconds
-  memorySwap?: number; // Memory + swap limit
-  diskQuota?: number; // Disk quota in bytes
-}
-
 export interface PortMapping {
   name: string;
   internal: number;
@@ -99,8 +87,8 @@ export interface PodSpec
   templateId?: TemplateId;
   baseImage: string; // Base container image
 
-  // Resource allocation (expanded from tier)
-  resources: ResourceConfig;
+  // Resource tier (actual CPU/memory/storage come from RESOURCE_TIERS registry)
+  tier: ResourceTier;
 
   // Networking (runtime assigned)
   network: NetworkConfig;

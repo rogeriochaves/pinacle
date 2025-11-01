@@ -9,6 +9,7 @@ import {
   podMetrics,
   pods,
   servers,
+  stripeCustomers,
   teamMembers,
   userGithubInstallations,
 } from "../../db/schema";
@@ -100,7 +101,7 @@ const createPodSchema = z.object({
       appUrl: z.string().optional(),
     })
     .optional(),
-  
+
   // Flag to indicate if existing repo already has pinacle.yaml
   // When true, we won't inject a new pinacle.yaml file
   hasPinacleYaml: z.boolean().optional(),
@@ -135,6 +136,25 @@ export const podsRouter = createTRPCRouter({
         hasPinacleYaml,
       } = input;
       const userId = ctx.session.user.id;
+
+      // CRITICAL: Verify user has an active subscription before allowing pod creation
+      const subscription = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, userId))
+        .limit(1);
+
+      if (
+        subscription.length === 0 ||
+        !subscription[0].stripeSubscriptionId ||
+        subscription[0].status !== "active"
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Active subscription required to create pods. Please subscribe at /setup/configure",
+        });
+      }
 
       // Auto-generate pod name if not provided
       const podId = generateKSUID("pod");

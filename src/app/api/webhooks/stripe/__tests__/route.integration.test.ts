@@ -1,6 +1,6 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "../../../../../lib/db";
 import {
   invoices,
@@ -33,8 +33,8 @@ vi.mock("../../../../../lib/email", () => ({
   sendSubscriptionCancelledEmail: vi.fn().mockResolvedValue({ success: true }),
 }));
 
-import { stripe } from "../../../../../lib/stripe";
 import * as emailModule from "../../../../../lib/email";
+import { stripe } from "../../../../../lib/stripe";
 
 describe("Stripe Webhook Integration Tests", () => {
   let testUser: typeof users.$inferSelect;
@@ -111,7 +111,7 @@ describe("Stripe Webhook Integration Tests", () => {
     testCustomer = customer;
   });
 
-  const createMockRequest = (event: Stripe.Event): Request => {
+  const createMockRequest = (event: Stripe.Event) => {
     return {
       text: vi.fn().mockResolvedValue(JSON.stringify(event)),
       headers: {
@@ -120,7 +120,7 @@ describe("Stripe Webhook Integration Tests", () => {
           return null;
         }),
       },
-    } as unknown as Request;
+    } as any;
   };
 
   describe("customer.subscription.created", () => {
@@ -146,7 +146,7 @@ describe("Stripe Webhook Integration Tests", () => {
               object: "list",
               data: [],
             },
-          } as Stripe.Subscription,
+          } as unknown as Stripe.Subscription,
         },
       };
 
@@ -173,7 +173,10 @@ describe("Stripe Webhook Integration Tests", () => {
         .select()
         .from(stripeSubscriptions)
         .where(
-          eq(stripeSubscriptions.stripeSubscriptionId, TEST_STRIPE_SUBSCRIPTION_ID),
+          eq(
+            stripeSubscriptions.stripeSubscriptionId,
+            TEST_STRIPE_SUBSCRIPTION_ID,
+          ),
         )
         .limit(1);
 
@@ -230,7 +233,7 @@ describe("Stripe Webhook Integration Tests", () => {
               object: "list",
               data: [],
             },
-          } as Stripe.Subscription,
+          } as unknown as Stripe.Subscription,
         },
       };
 
@@ -256,7 +259,10 @@ describe("Stripe Webhook Integration Tests", () => {
         .select()
         .from(stripeSubscriptions)
         .where(
-          eq(stripeSubscriptions.stripeSubscriptionId, TEST_STRIPE_SUBSCRIPTION_ID),
+          eq(
+            stripeSubscriptions.stripeSubscriptionId,
+            TEST_STRIPE_SUBSCRIPTION_ID,
+          ),
         )
         .limit(1);
 
@@ -309,7 +315,7 @@ describe("Stripe Webhook Integration Tests", () => {
             period_end: Math.floor(Date.now() / 1000) + 2592000,
             hosted_invoice_url: "https://invoice.stripe.com/test",
             invoice_pdf: "https://invoice.stripe.com/test.pdf",
-          } as Stripe.Invoice,
+          } as unknown as Stripe.Invoice,
         },
       };
 
@@ -340,7 +346,7 @@ describe("Stripe Webhook Integration Tests", () => {
             period_end: Math.floor(Date.now() / 1000) + 2592000,
             hosted_invoice_url: "https://invoice.stripe.com/test",
             invoice_pdf: "https://invoice.stripe.com/test.pdf",
-          } as Stripe.Invoice,
+          } as unknown as Stripe.Invoice,
         },
       };
 
@@ -412,7 +418,7 @@ describe("Stripe Webhook Integration Tests", () => {
             period_end: Math.floor(Date.now() / 1000) + 2592000,
             hosted_invoice_url: "https://invoice.stripe.com/test",
             invoice_pdf: null,
-          } as Stripe.Invoice,
+          } as unknown as Stripe.Invoice,
         },
       };
 
@@ -442,7 +448,7 @@ describe("Stripe Webhook Integration Tests", () => {
             period_end: Math.floor(Date.now() / 1000) + 2592000,
             hosted_invoice_url: "https://invoice.stripe.com/test",
             invoice_pdf: null,
-          } as Stripe.Invoice,
+          } as unknown as Stripe.Invoice,
         },
       };
 
@@ -509,7 +515,7 @@ describe("Stripe Webhook Integration Tests", () => {
               object: "list",
               data: [],
             },
-          } as Stripe.Subscription,
+          } as unknown as Stripe.Subscription,
         },
       };
 
@@ -548,7 +554,7 @@ describe("Stripe Webhook Integration Tests", () => {
         headers: {
           get: vi.fn().mockReturnValue(null),
         },
-      } as unknown as Request;
+      } as any;
 
       const response = await POST(request);
 
@@ -571,4 +577,3 @@ describe("Stripe Webhook Integration Tests", () => {
     });
   });
 });
-

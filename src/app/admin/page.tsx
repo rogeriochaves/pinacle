@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
+import { CreditCard, Server } from "lucide-react";
 import { ServerCard } from "@/components/admin/server-card";
 import { api } from "@/lib/trpc/client";
 
@@ -45,6 +47,24 @@ export default function AdminPage() {
         <p className="mt-2 text-sm text-gray-500">
           Monitor servers and system resources
         </p>
+      </div>
+
+      {/* Navigation */}
+      <div className="mb-8 flex gap-4">
+        <Link
+          href="/admin"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors"
+        >
+          <Server className="w-4 h-4" />
+          Servers
+        </Link>
+        <Link
+          href="/admin/billing"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
+        >
+          <CreditCard className="w-4 h-4" />
+          Billing & Users
+        </Link>
       </div>
 
       {/* Platform Stats */}

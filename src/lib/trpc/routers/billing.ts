@@ -2,15 +2,15 @@ import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   invoices,
-  stripePrices,
   stripeCustomers,
+  stripePrices,
   usageRecords,
   users,
 } from "../../db/schema";
+import type { TierId } from "../../pod-orchestration/resource-tier-registry";
 import { stripe } from "../../stripe";
 import { generateKSUID } from "../../utils";
 import { createTRPCRouter, protectedProcedure } from "../server";
-import type { TierId } from "../../pod-orchestration/resource-tier-registry";
 
 export const billingRouter = createTRPCRouter({
   /**
@@ -61,7 +61,7 @@ export const billingRouter = createTRPCRouter({
       const { tierId, currency, successUrl, cancelUrl } = input;
 
       // Get or create Stripe customer
-      let customer = await ctx.db
+      const customer = await ctx.db
         .select()
         .from(stripeCustomers)
         .where(eq(stripeCustomers.userId, userId))
@@ -154,6 +154,109 @@ export const billingRouter = createTRPCRouter({
     }),
 
   /**
+   * Handle successful checkout - verify session and return subscription status
+   */
+  handleCheckoutSuccess: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { sessionId } = input;
+
+      // Retrieve the checkout session from Stripe
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["subscription", "customer"],
+      });
+
+      // Log for debugging
+      console.log(`[handleCheckoutSuccess] Session status:`, {
+        id: session.id,
+        payment_status: session.payment_status,
+        status: session.status,
+        subscription: !!session.subscription,
+        customer: session.customer,
+      });
+
+      // Check if session has a subscription (payment might still be processing)
+      if (!session.subscription) {
+        throw new Error("Subscription not created yet. Please wait a moment.");
+      }
+
+      // For usage-based subscriptions with no immediate charge, status might be:
+      // - "paid": Payment completed (one-time charge)
+      // - "unpaid": Payment pending or no immediate payment
+      // - "no_payment_required": No payment needed (common for metered billing)
+      // We accept all since webhook handles the actual subscription activation
+      const validStatuses = ["paid", "unpaid", "no_payment_required"];
+      if (!validStatuses.includes(session.payment_status)) {
+        console.error(
+          `[handleCheckoutSuccess] Invalid payment status: ${session.payment_status}`,
+        );
+        throw new Error(`Invalid payment status: ${session.payment_status}`);
+      }
+
+      // Extract customer ID from session (might be string or expanded object)
+      const sessionCustomerId =
+        typeof session.customer === "string"
+          ? session.customer
+          : session.customer?.id;
+
+      if (!sessionCustomerId) {
+        throw new Error("No customer associated with checkout session");
+      }
+
+      // Verify the session belongs to this user
+      // First check our database
+      const customer = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, userId))
+        .limit(1);
+
+      // If customer exists in DB, verify it matches the session
+      if (customer.length > 0) {
+        if (customer[0].stripeCustomerId !== sessionCustomerId) {
+          console.error(
+            `[handleCheckoutSuccess] Customer mismatch: DB=${customer[0].stripeCustomerId}, Session=${sessionCustomerId}`,
+          );
+          throw new Error("Session does not belong to current user");
+        }
+        return {
+          success: true,
+          subscriptionId:
+            typeof session.subscription === "string"
+              ? session.subscription
+              : session.subscription?.id,
+          status: customer[0].status,
+        };
+      }
+
+      // Customer not in DB yet (webhook race condition) - verify via Stripe customer metadata
+      const stripeCustomer = await stripe.customers.retrieve(sessionCustomerId);
+
+      if (
+        stripeCustomer.deleted ||
+        stripeCustomer.metadata?.userId !== userId
+      ) {
+        throw new Error("Session does not belong to current user");
+      }
+
+      // Customer is valid but not in DB yet - wait for webhook to process
+      // Return success so user can proceed
+      return {
+        success: true,
+        subscriptionId:
+          typeof session.subscription === "string"
+            ? session.subscription
+            : session.subscription?.id,
+        status: "active", // Assume active since payment was successful
+      };
+    }),
+
+  /**
    * Create Stripe Customer Portal session
    */
   createPortalSession: protectedProcedure
@@ -190,12 +293,13 @@ export const billingRouter = createTRPCRouter({
     }),
 
   /**
-   * Get current usage and estimated cost for current billing period
+   * Get current usage and cost from Stripe (source of truth)
+   * Fetches the upcoming invoice to show accurate billing data
    */
   getCurrentUsage: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
 
-    // Get customer to determine currency
+    // Get customer
     const customer = await ctx.db
       .select()
       .from(stripeCustomers)
@@ -204,68 +308,72 @@ export const billingRouter = createTRPCRouter({
 
     if (customer.length === 0) {
       return {
-        totalHours: 0,
-        estimatedCost: 0,
-        currency: "usd",
-        usageByTier: [],
+        upcomingInvoice: null,
+        message: "No active subscription",
       };
     }
 
     const stripeCustomer = customer[0];
-    const currency = stripeCustomer.currency;
 
-    // Get current billing period start (first day of current month)
-    const now = new Date();
-    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Need subscription ID for preview invoice API
+    if (!stripeCustomer.stripeSubscriptionId) {
+      return {
+        upcomingInvoice: null,
+        message: "No active subscription",
+      };
+    }
 
-    // Get all usage records for current period
-    const usage = await ctx.db
-      .select({
-        tierId: usageRecords.tierId,
-        totalHours: sql<number>`SUM(${usageRecords.quantity})`,
-      })
-      .from(usageRecords)
-      .where(
-        and(
-          eq(usageRecords.userId, userId),
-          gte(usageRecords.periodStart, periodStart),
-        ),
-      )
-      .groupBy(usageRecords.tierId);
+    try {
+      // Fetch upcoming invoice from Stripe (source of truth)
+      // Using new Create Preview Invoice API (replaces retrieveUpcoming)
+      const upcomingInvoice = await stripe.invoices.createPreview({
+        customer: stripeCustomer.stripeCustomerId,
+        subscription: stripeCustomer.stripeSubscriptionId,
+      });
 
-    // Get prices for each tier
-    const prices = await ctx.db
-      .select()
-      .from(stripePrices)
-      .where(and(eq(stripePrices.currency, currency), eq(stripePrices.active, true)));
-
-    const priceMap = new Map(
-      prices.map((p) => [p.tierId, parseFloat(p.unitAmountDecimal) / 100]),
-    );
-
-    // Calculate cost for each tier
-    const usageByTier = usage.map((u) => {
-      const hourlyRate = priceMap.get(u.tierId as TierId) || 0;
-      const cost = u.totalHours * hourlyRate;
+      // Extract line items with usage data
+      const lineItems = upcomingInvoice.lines.data.map((line: {
+        description: string | null;
+        amount: number;
+        currency: string;
+        quantity: number | null;
+        period: { start: number; end: number };
+        metadata: Record<string, string>;
+      }) => ({
+        description: line.description,
+        amount: line.amount,
+        currency: line.currency,
+        quantity: line.quantity,
+        period: {
+          start: line.period.start,
+          end: line.period.end,
+        },
+        // Extract tier info from metadata if available
+        metadata: line.metadata,
+      }));
 
       return {
-        tierId: u.tierId,
-        hours: u.totalHours,
-        hourlyRate,
-        cost,
+        upcomingInvoice: {
+          subtotal: upcomingInvoice.subtotal,
+          total: upcomingInvoice.total,
+          currency: upcomingInvoice.currency,
+          periodStart: upcomingInvoice.period_start,
+          periodEnd: upcomingInvoice.period_end,
+          lineItems,
+        },
+        message: null,
       };
-    });
-
-    const totalHours = usageByTier.reduce((sum, u) => sum + u.hours, 0);
-    const estimatedCost = usageByTier.reduce((sum, u) => sum + u.cost, 0);
-
-    return {
-      totalHours,
-      estimatedCost,
-      currency,
-      usageByTier,
-      periodStart,
-    };
+    } catch (error: unknown) {
+      // If no upcoming invoice (e.g., no active subscription), return gracefully
+      const stripeError = error as { code?: string };
+      if (stripeError.code === "invoice_upcoming_none") {
+        return {
+          upcomingInvoice: null,
+          message: "No upcoming invoice found",
+        };
+      }
+      throw error;
+    }
   }),
 
   /**
@@ -332,117 +440,4 @@ export const billingRouter = createTRPCRouter({
       };
     }),
 
-  /**
-   * Get detailed billing summary
-   */
-  getBillingSummary: protectedProcedure.query(async ({ ctx }) => {
-    const userId = ctx.session.user.id;
-
-    // Get customer and subscription info
-    const customer = await ctx.db
-      .select()
-      .from(stripeCustomers)
-      .where(eq(stripeCustomers.userId, userId))
-      .limit(1);
-
-    if (customer.length === 0) {
-      return {
-        hasSubscription: false,
-        status: null,
-        nextBillingDate: null,
-        currentUsage: null,
-        recentInvoices: [],
-      };
-    }
-
-    const stripeCustomer = customer[0];
-
-    // Get subscription details from Stripe
-    let subscriptionDetails = null;
-    if (stripeCustomer.stripeSubscriptionId) {
-      try {
-        const subscription = await stripe.subscriptions.retrieve(
-          stripeCustomer.stripeSubscriptionId,
-        );
-
-        subscriptionDetails = {
-          id: subscription.id,
-          status: subscription.status,
-          currentPeriodStart: new Date(subscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        };
-      } catch (error) {
-        console.error("Failed to fetch subscription from Stripe:", error);
-      }
-    }
-
-    // Get current usage
-    const now = new Date();
-    const periodStart = subscriptionDetails?.currentPeriodStart || new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const usage = await ctx.db
-      .select({
-        tierId: usageRecords.tierId,
-        totalHours: sql<number>`SUM(${usageRecords.quantity})`,
-      })
-      .from(usageRecords)
-      .where(
-        and(
-          eq(usageRecords.userId, userId),
-          gte(usageRecords.periodStart, periodStart),
-        ),
-      )
-      .groupBy(usageRecords.tierId);
-
-    // Get prices
-    const prices = await ctx.db
-      .select()
-      .from(stripePrices)
-      .where(
-        and(
-          eq(stripePrices.currency, stripeCustomer.currency),
-          eq(stripePrices.active, true),
-        ),
-      );
-
-    const priceMap = new Map(
-      prices.map((p) => [p.tierId, parseFloat(p.unitAmountDecimal) / 100]),
-    );
-
-    const usageByTier = usage.map((u) => ({
-      tierId: u.tierId,
-      hours: u.totalHours,
-      hourlyRate: priceMap.get(u.tierId as TierId) || 0,
-      cost: u.totalHours * (priceMap.get(u.tierId as TierId) || 0),
-    }));
-
-    const totalHours = usageByTier.reduce((sum, u) => sum + u.hours, 0);
-    const estimatedCost = usageByTier.reduce((sum, u) => sum + u.cost, 0);
-
-    // Get recent invoices
-    const recentInvoices = await ctx.db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.userId, userId))
-      .orderBy(desc(invoices.createdAt))
-      .limit(5);
-
-    return {
-      hasSubscription: !!stripeCustomer.stripeSubscriptionId,
-      status: stripeCustomer.status,
-      customerId: stripeCustomer.stripeCustomerId,
-      currency: stripeCustomer.currency,
-      gracePeriodStartedAt: stripeCustomer.gracePeriodStartedAt,
-      subscription: subscriptionDetails,
-      currentUsage: {
-        totalHours,
-        estimatedCost,
-        usageByTier,
-        periodStart,
-      },
-      recentInvoices,
-    };
-  }),
 });
-

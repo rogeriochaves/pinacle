@@ -1,7 +1,8 @@
-import { eq, and, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { pods } from "../db/schema";
 import { PodManager } from "../pod-orchestration/pod-manager";
+import { PodProvisioningService } from "../pod-orchestration/pod-provisioning-service";
 
 /**
  * Pod suspension logic for billing enforcement
@@ -22,11 +23,29 @@ export const suspendUserPods = async (userId: string): Promise<void> => {
 
   console.log(`[PodSuspension] Found ${runningPods.length} running pods to suspend`);
 
+  const provisioningService = new PodProvisioningService();
+
   for (const pod of runningPods) {
     try {
+      if (!pod.serverId) {
+        console.log(`[PodSuspension]   ⊘ Pod ${pod.id} has no server, skipping`);
+        continue;
+      }
+
+      // Get server connection details (handles Lima VMs automatically)
+      const serverConnection = await provisioningService.getServerConnectionDetails(
+        pod.serverId,
+      );
+
       // Stop the pod
-      const podManager = new PodManager(pod.id);
-      await podManager.stop();
+      const podManager = new PodManager(pod.id, serverConnection);
+      await podManager.stopPod();
+
+      // Update database status
+      await db
+        .update(pods)
+        .set({ status: "stopped", lastStoppedAt: new Date(), updatedAt: new Date() })
+        .where(eq(pods.id, pod.id));
 
       console.log(`[PodSuspension]   ✓ Suspended pod ${pod.id}`);
     } catch (error) {
@@ -57,11 +76,29 @@ export const resumeUserPods = async (userId: string): Promise<void> => {
 
   console.log(`[PodSuspension] Found ${stoppedPods.length} stopped pods to resume`);
 
+  const provisioningService = new PodProvisioningService();
+
   for (const pod of stoppedPods) {
     try {
+      if (!pod.serverId) {
+        console.log(`[PodSuspension]   ⊘ Pod ${pod.id} has no server, skipping`);
+        continue;
+      }
+
+      // Get server connection details (handles Lima VMs automatically)
+      const serverConnection = await provisioningService.getServerConnectionDetails(
+        pod.serverId,
+      );
+
       // Start the pod
-      const podManager = new PodManager(pod.id);
-      await podManager.start();
+      const podManager = new PodManager(pod.id, serverConnection);
+      await podManager.startPod();
+
+      // Update database status
+      await db
+        .update(pods)
+        .set({ status: "running", updatedAt: new Date() })
+        .where(eq(pods.id, pod.id));
 
       console.log(`[PodSuspension]   ✓ Resumed pod ${pod.id}`);
     } catch (error) {
@@ -86,8 +123,21 @@ export const deleteUserPods = async (userId: string): Promise<void> => {
 
   console.log(`[PodSuspension] Found ${userPods.length} pods to delete`);
 
+  const provisioningService = new PodProvisioningService();
+
   for (const pod of userPods) {
     try {
+      // If pod is running, stop it first
+      if (pod.status === "running" && pod.serverId) {
+        // Get server connection details (handles Lima VMs automatically)
+        const serverConnection = await provisioningService.getServerConnectionDetails(
+          pod.serverId,
+        );
+
+        const podManager = new PodManager(pod.id, serverConnection);
+        await podManager.stopPod();
+      }
+
       // Archive the pod (soft delete)
       await db
         .update(pods)
@@ -97,12 +147,6 @@ export const deleteUserPods = async (userId: string): Promise<void> => {
         })
         .where(eq(pods.id, pod.id));
 
-      // If pod is running, stop it first
-      if (pod.status === "running") {
-        const podManager = new PodManager(pod.id);
-        await podManager.stop();
-      }
-
       console.log(`[PodSuspension]   ✓ Archived pod ${pod.id}`);
     } catch (error) {
       console.error(`[PodSuspension]   ✗ Failed to archive pod ${pod.id}:`, error);
@@ -111,24 +155,3 @@ export const deleteUserPods = async (userId: string): Promise<void> => {
 
   console.log(`[PodSuspension] Completed pod deletion for user ${userId}`);
 };
-
-/**
- * Check and enforce grace period expiration
- * Run periodically by worker (daily)
- */
-export const enforceGracePeriod = async (): Promise<void> => {
-  console.log("[PodSuspension] Checking grace period expiration...");
-
-  // Grace period is 7 days
-  const GRACE_PERIOD_DAYS = 7;
-  const gracePeriodExpiry = new Date(
-    Date.now() - GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
-  );
-
-  // This would need to query stripeCustomers table
-  // For now, this is a placeholder
-  // TODO: Implement grace period enforcement query
-
-  console.log("[PodSuspension] Grace period enforcement complete");
-};
-

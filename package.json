@@ -23,7 +23,8 @@
     "server:provision:dev": "dotenv -c -- ./scripts/provision-server.sh --api-url http://localhost:3000 --host lima:gvisor-alpine --heartbeat-interval 5000",
     "server:provision": "dotenv -- ./scripts/provision-server.sh --api-url https://pinacle.dev --heartbeat-interval 5000",
     "email:preview": "email dev --dir src/emails --port 3001",
-    "stripe:setup": "dotenv -c -- tsx scripts/setup-stripe-products.ts"
+    "stripe:setup": "dotenv -c -- tsx scripts/setup-stripe-products.ts",
+    "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
   },
   "dependencies": {
     "@auth/core": "^0.40.0",

@@ -66,7 +66,7 @@ export const PaymentFailedEmail = ({
           </Text>
 
           <Text style={emailStyles.text}>
-            <strong>Your pods are still running</strong> for the next {graceDays} days.
+            <strong>Your pods are still running</strong> for the next 24 hours.
             After that, they'll be suspended until payment is received.
           </Text>
 
@@ -100,7 +100,7 @@ PaymentFailedEmail.PreviewProps = {
   amount: "24.00",
   currency: "usd",
   billingUrl: "http://localhost:3000/dashboard/billing",
-  graceDays: 7,
+  graceDays: 1,
 } as PaymentFailedEmailProps;
 
 export default PaymentFailedEmail;

@@ -30,7 +30,7 @@ export const FinalDeletionWarningEmail = ({
     <Html>
       <Head />
       <Preview>
-        Final warning: Your data will be deleted in {daysUntilDeletion} days
+        Final warning: Your data will be deleted in {String(daysUntilDeletion)} days
       </Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>

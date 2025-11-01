@@ -15,7 +15,7 @@ import { emailStyles } from "./styles";
 
 type GracePeriodWarningEmailProps = {
   name: string;
-  daysRemaining: number;
+  daysRemaining: number; // Now represents hours, not days (24 hour grace period)
   amount: string;
   currency: string;
   billingUrl: string;
@@ -34,7 +34,7 @@ export const GracePeriodWarningEmail = ({
     <Html>
       <Head />
       <Preview>
-        {daysRemaining} days until your pods are suspended - Action required
+        {String(daysRemaining)} hours until your pods are suspended - Action required
       </Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
@@ -60,7 +60,7 @@ export const GracePeriodWarningEmail = ({
 
           <Text style={emailStyles.text}>
             <strong>
-              You have {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} remaining
+              You have {daysRemaining} hour{daysRemaining !== 1 ? "s" : ""} remaining
             </strong>{" "}
             before your pods are suspended and you lose access to them.
           </Text>
@@ -102,7 +102,7 @@ export const GracePeriodWarningEmail = ({
 
 GracePeriodWarningEmail.PreviewProps = {
   name: "Alex",
-  daysRemaining: 3,
+  daysRemaining: 12, // 12 hours remaining
   amount: "24.00",
   currency: "usd",
   billingUrl: "http://localhost:3000/dashboard/billing",

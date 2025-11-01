@@ -118,5 +118,11 @@ export const emailStyles = {
     margin: "32px 0 0 0",
     padding: "0 32px 32px 32px",
   },
+
+  // Links
+  link: {
+    color: "#f97316",
+    textDecoration: "underline",
+  },
 };
 

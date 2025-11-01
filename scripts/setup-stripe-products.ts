@@ -55,11 +55,38 @@ const PRICING_TABLE: Record<TierId, Record<Currency, number>> = {
 };
 
 /**
+ * Snapshot storage pricing per GB per month
+ * Industry standard: ~$0.10/GB/month
+ * This will be converted to MB-hours for usage tracking
+ *
+ * Conversion: $0.10/GB/month = $0.000137/GB/hour = $0.000000137/MB/hour
+ */
+const SNAPSHOT_STORAGE_PRICING: Record<Currency, number> = {
+  usd: 0.10,  // $0.10/GB/month
+  eur: 0.09,  // €0.09/GB/month
+  brl: 0.50,  // R$0.50/GB/month
+};
+
+/**
  * Calculate hourly price from monthly price
  * Assumes 730 hours per month (365 days * 24 hours / 12 months)
  */
 const monthlyToHourly = (monthlyPrice: number): number => {
   return monthlyPrice / 730;
+};
+
+/**
+ * Calculate MB-hour price from GB/month price
+ * $0.10/GB/month = $0.000137/GB/hour = $0.000000137/MB/hour
+ *
+ * To track in MB-hours and bill in dollars, we multiply by 1000:
+ * $0.10/GB/month = $0.000137/MB-hour (for 1000 MB-hours)
+ */
+const gbMonthToMbHour = (gbMonthPrice: number): number => {
+  // Convert GB/month to GB/hour, then to MB/hour
+  const gbHour = gbMonthPrice / 730;  // GB per hour
+  const mbHour = gbHour / 1000;        // MB per hour
+  return mbHour;
 };
 
 /**
@@ -283,6 +310,203 @@ const savePriceToDb = async (
 };
 
 /**
+ * Create or update snapshot storage billing meter
+ */
+const createSnapshotStorageMeter = async () => {
+  const eventName = "snapshot_storage";
+
+  try {
+    // Check if meter already exists
+    const existingMeters = await stripe.billing.meters.list({
+      limit: 100,
+    });
+
+    let meter = existingMeters.data.find((m) => m.event_name === eventName);
+
+    if (meter) {
+      console.log(`  Meter already exists for snapshot storage: ${meter.id}`);
+      // Update meter if needed
+      meter = await stripe.billing.meters.update(meter.id, {
+        display_name: "Snapshot Storage",
+      });
+    } else {
+      // Create new meter
+      meter = await stripe.billing.meters.create({
+        display_name: "Snapshot Storage",
+        event_name: eventName,
+        default_aggregation: {
+          formula: "sum",
+        },
+        value_settings: {
+          event_payload_key: "mb_hours",
+        },
+      });
+      console.log(`  ✓ Created meter for snapshot storage: ${meter.id}`);
+    }
+
+    return meter;
+  } catch (error) {
+    console.error(`  ✗ Failed to create snapshot storage meter:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Create or update Stripe product for snapshot storage
+ */
+const createSnapshotStorageProduct = async () => {
+  try {
+    // Check if product already exists
+    const existingProducts = await stripe.products.list({
+      limit: 100,
+    });
+
+    let product = existingProducts.data.find(
+      (p) => p.metadata?.type === "snapshot_storage",
+    );
+
+    if (product) {
+      console.log(`  Product already exists for snapshot storage: ${product.id}`);
+      // Update product if needed
+      product = await stripe.products.update(product.id, {
+        name: "Snapshot Storage",
+        description: "Storage for pod snapshots, billed per MB-hour",
+      });
+    } else {
+      // Create new product
+      product = await stripe.products.create({
+        name: "Snapshot Storage",
+        description: "Storage for pod snapshots, billed per MB-hour",
+        unit_label: "MB-hour",
+        metadata: {
+          type: "snapshot_storage",
+        },
+      });
+      console.log(`  ✓ Created product for snapshot storage: ${product.id}`);
+    }
+
+    return product;
+  } catch (error) {
+    console.error(`  ✗ Failed to create snapshot storage product:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Create or update Stripe price for snapshot storage
+ */
+const createSnapshotStoragePrice = async (
+  productId: string,
+  meterId: string,
+  currency: Currency,
+) => {
+  try {
+    const monthlyGbPrice = SNAPSHOT_STORAGE_PRICING[currency];
+    const mbHourPrice = gbMonthToMbHour(monthlyGbPrice);
+
+    // Convert to cents/smallest unit
+    const unitAmountDecimal = (mbHourPrice * 100).toFixed(10);
+
+    // Check if price already exists
+    const existingPrices = await stripe.prices.list({
+      product: productId,
+      currency: currency,
+      limit: 100,
+    });
+
+    let price = existingPrices.data.find((p) => p?.active);
+
+    if (price) {
+      console.log(
+        `    Price already exists for snapshot storage (${currency}): ${price.id}`,
+      );
+      return price;
+    }
+
+    // Create new price
+    price = await stripe.prices.create({
+      product: productId,
+      currency: currency,
+      billing_scheme: "per_unit",
+      recurring: {
+        usage_type: "metered",
+        interval: "month",
+        meter: meterId,
+      },
+      unit_amount_decimal: unitAmountDecimal,
+      metadata: {
+        type: "snapshot_storage",
+        currency: currency,
+        meterId: meterId,
+        gb_month_price: monthlyGbPrice.toString(),
+      },
+    });
+
+    console.log(`    ✓ Created price for snapshot storage (${currency}): ${price.id}`);
+    return price;
+  } catch (error) {
+    console.error(
+      `    ✗ Failed to create price for snapshot storage (${currency}):`,
+      error,
+    );
+    throw error;
+  }
+};
+
+/**
+ * Save snapshot storage price to database
+ */
+const saveSnapshotStoragePriceToDb = async (
+  currency: Currency,
+  stripePriceId: string,
+  stripeProductId: string,
+  unitAmountDecimal: string,
+) => {
+  try {
+    // Check if price already exists in DB
+    const existingPrice = await db
+      .select()
+      .from(stripePrices)
+      .where(eq(stripePrices.stripePriceId, stripePriceId))
+      .limit(1);
+
+    if (existingPrice.length > 0) {
+      // Update existing price
+      await db
+        .update(stripePrices)
+        .set({
+          active: true,
+          unitAmountDecimal,
+          updatedAt: new Date(),
+        })
+        .where(eq(stripePrices.stripePriceId, stripePriceId));
+
+      console.log(`      ✓ Updated snapshot storage price in DB: ${stripePriceId}`);
+    } else {
+      // Insert new price
+      await db.insert(stripePrices).values({
+        id: generateKSUID("stripe_price"),
+        tierId: "snapshot_storage",  // Special tier ID for snapshots
+        currency: currency,
+        stripePriceId: stripePriceId,
+        stripeProductId: stripeProductId,
+        unitAmountDecimal,
+        interval: "month",
+        usageType: "metered",
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      console.log(`      ✓ Saved snapshot storage price to DB: ${stripePriceId}`);
+    }
+  } catch (error) {
+    console.error(`      ✗ Failed to save snapshot storage price to DB:`, error);
+    throw error;
+  }
+};
+
+/**
  * Main setup function
  */
 const setupStripeProducts = async () => {
@@ -326,6 +550,41 @@ const setupStripeProducts = async () => {
       console.error(`  ❌ Failed to process tier: ${tier.id}\n`);
       throw error;
     }
+  }
+
+  // Set up snapshot storage billing
+  console.log(`📦 Processing snapshot storage`);
+
+  try {
+    // Create or update billing meter
+    const snapshotMeter = await createSnapshotStorageMeter();
+
+    // Create or update product
+    const snapshotProduct = await createSnapshotStorageProduct();
+
+    // Create prices for all currencies
+    for (const currency of CURRENCIES) {
+      console.log(`  💰 Creating price for ${currency.toUpperCase()}`);
+
+      const price = await createSnapshotStoragePrice(
+        snapshotProduct.id,
+        snapshotMeter.id,
+        currency,
+      );
+
+      // Save to database
+      await saveSnapshotStoragePriceToDb(
+        currency,
+        price.id,
+        snapshotProduct.id,
+        price.unit_amount_decimal || "0",
+      );
+    }
+
+    console.log(`  ✅ Completed snapshot storage\n`);
+  } catch (error) {
+    console.error(`  ❌ Failed to process snapshot storage\n`);
+    throw error;
   }
 
   console.log("✅ All products and prices set up successfully!");

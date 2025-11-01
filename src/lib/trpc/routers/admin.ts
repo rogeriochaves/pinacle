@@ -3,17 +3,23 @@ import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   githubInstallations,
+  invoices,
   podLogs,
   podMetrics,
+  podSnapshots,
   pods,
   serverMetrics,
   servers,
+  stripeCustomers,
+  stripeEvents,
   teamMembers,
   teams,
+  usageRecords,
   userGithubInstallations,
   users,
 } from "../../db/schema";
 import { getAvailableServersCondition } from "../../servers";
+import { stripe } from "../../stripe";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
 // Helper to check if user is admin
@@ -574,5 +580,426 @@ export const adminRouter = createTRPCRouter({
       totalServers: Number(totalServers?.count ?? 0),
       onlineServers: Number(onlineServers?.count ?? 0),
     };
+  }),
+
+  // ===== BILLING ADMIN ENDPOINTS =====
+
+  /**
+   * Search users with billing information
+   */
+  searchUsersWithBilling: adminProcedure
+    .input(
+      z.object({
+        search: z.string().optional(),
+        status: z.enum(["all", "active", "past_due", "canceled", "no_subscription"]).optional().default("all"),
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { search, status, limit, offset } = input;
+
+      // Build query
+      let query = ctx.db
+        .select({
+          user: users,
+          stripeCustomer: stripeCustomers,
+          podCount: sql<number>`count(distinct ${pods.id})`,
+          snapshotCount: sql<number>`count(distinct ${podSnapshots.id})`,
+        })
+        .from(users)
+        .leftJoin(stripeCustomers, eq(users.id, stripeCustomers.userId))
+        .leftJoin(pods, and(eq(users.id, pods.ownerId), isNull(pods.archivedAt)))
+        .leftJoin(podSnapshots, eq(pods.id, podSnapshots.podId))
+        .groupBy(users.id, stripeCustomers.id)
+        .$dynamic();
+
+      // Add search filter
+      if (search?.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query = query.where(
+          or(
+            ilike(users.name, searchTerm),
+            ilike(users.email, searchTerm),
+            ilike(stripeCustomers.stripeCustomerId, searchTerm),
+          ),
+        );
+      }
+
+      // Add status filter
+      if (status !== "all") {
+        if (status === "no_subscription") {
+          query = query.where(isNull(stripeCustomers.id));
+        } else {
+          query = query.where(eq(stripeCustomers.status, status));
+        }
+      }
+
+      const results = await query.limit(limit).offset(offset);
+
+      return results;
+    }),
+
+  /**
+   * Get comprehensive billing details for a user
+   */
+  getUserBillingDetails: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const [user] = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1);
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Get Stripe customer info
+      const [stripeCustomer] = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, input.userId))
+        .limit(1);
+
+      if (!stripeCustomer) {
+        return {
+          user,
+          stripeCustomer: null,
+          subscription: null,
+          pods: [],
+          snapshots: [],
+          currentUsage: null,
+          recentInvoices: [],
+          recentWebhooks: [],
+        };
+      }
+
+      // Get subscription from Stripe
+      let subscriptionDetails = null;
+      if (stripeCustomer.stripeSubscriptionId) {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(
+            stripeCustomer.stripeSubscriptionId,
+          );
+
+          const firstItem = subscription.items?.data?.[0];
+          subscriptionDetails = {
+            id: subscription.id,
+            status: subscription.status,
+            currentPeriodStart: firstItem?.current_period_start
+              ? new Date(firstItem.current_period_start * 1000)
+              : null,
+            currentPeriodEnd: firstItem?.current_period_end
+              ? new Date(firstItem.current_period_end * 1000)
+              : null,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            canceledAt: subscription.canceled_at
+              ? new Date(subscription.canceled_at * 1000)
+              : null,
+          };
+        } catch (error) {
+          console.error("Failed to fetch subscription from Stripe:", error);
+        }
+      }
+
+      // Get pods
+      const userPods = await ctx.db
+        .select()
+        .from(pods)
+        .where(
+          and(
+            eq(pods.ownerId, input.userId),
+            isNull(pods.archivedAt),
+          ),
+        );
+
+      // Get snapshots
+      const userSnapshots = await ctx.db
+        .select()
+        .from(podSnapshots)
+        .where(
+          sql`${podSnapshots.podId} IN (
+            SELECT id FROM ${pods} WHERE ${pods.ownerId} = ${input.userId}
+          )`,
+        );
+
+      // Get current period usage
+      const periodStart = subscriptionDetails?.currentPeriodStart || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+      const usageByType = await ctx.db
+        .select({
+          tierId: usageRecords.tierId,
+          recordType: usageRecords.recordType,
+          totalQuantity: sql<number>`SUM(${usageRecords.quantity})`,
+          recordCount: sql<number>`COUNT(*)`,
+        })
+        .from(usageRecords)
+        .where(
+          and(
+            eq(usageRecords.userId, input.userId),
+            gte(usageRecords.periodStart, periodStart),
+          ),
+        )
+        .groupBy(usageRecords.tierId, usageRecords.recordType);
+
+      // Get recent invoices
+      const recentInvoices = await ctx.db
+        .select()
+        .from(invoices)
+        .where(eq(invoices.userId, input.userId))
+        .orderBy(desc(invoices.createdAt))
+        .limit(10);
+
+      // Get recent webhook events for this customer
+      const recentWebhooks = await ctx.db
+        .select()
+        .from(stripeEvents)
+        .where(
+          sql`${stripeEvents.data}::text LIKE ${`%${stripeCustomer.stripeCustomerId}%`}`,
+        )
+        .orderBy(desc(stripeEvents.createdAt))
+        .limit(20);
+
+      return {
+        user,
+        stripeCustomer,
+        subscription: subscriptionDetails,
+        pods: userPods,
+        snapshots: userSnapshots,
+        currentUsage: usageByType,
+        recentInvoices,
+        recentWebhooks,
+      };
+    }),
+
+  /**
+   * Manually clear grace period and resume user pods (support recovery)
+   */
+  manuallyActivateSubscription: adminProcedure
+    .input(z.object({ userId: z.string(), reason: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [stripeCustomer] = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, input.userId))
+        .limit(1);
+
+      if (!stripeCustomer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No Stripe customer found for this user",
+        });
+      }
+
+      // Clear grace period
+      await ctx.db
+        .update(stripeCustomers)
+        .set({
+          gracePeriodStartedAt: null,
+          status: "active",
+        })
+        .where(eq(stripeCustomers.userId, input.userId));
+
+      // Resume pods
+      const { resumeUserPods } = await import("../../billing/pod-suspension");
+      await resumeUserPods(input.userId);
+
+      console.log(
+        `[Admin] Manually activated subscription for user ${input.userId}: ${input.reason}`,
+      );
+
+      return { success: true };
+    }),
+
+  /**
+   * Extend grace period by X hours (support exception)
+   */
+  extendGracePeriod: adminProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        extensionHours: z.number().min(1).max(168), // Max 7 days
+        reason: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [stripeCustomer] = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, input.userId))
+        .limit(1);
+
+      if (!stripeCustomer || !stripeCustomer.gracePeriodStartedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "User is not in grace period",
+        });
+      }
+
+      // Calculate new grace period start (by moving it back by extension hours)
+      const currentStart = stripeCustomer.gracePeriodStartedAt;
+      const newStart = new Date(
+        currentStart.getTime() - input.extensionHours * 60 * 60 * 1000,
+      );
+
+      await ctx.db
+        .update(stripeCustomers)
+        .set({
+          gracePeriodStartedAt: newStart,
+        })
+        .where(eq(stripeCustomers.userId, input.userId));
+
+      console.log(
+        `[Admin] Extended grace period by ${input.extensionHours}h for user ${input.userId}: ${input.reason}`,
+      );
+
+      return { success: true, newGracePeriodStart: newStart };
+    }),
+
+  /**
+   * Manually trigger usage sync to Stripe for a user (debugging)
+   */
+  forceSyncUsageToStripe: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { UsageTracker } = await import("../../billing/usage-tracker");
+      const tracker = new UsageTracker();
+
+      console.log(
+        `[Admin] Manually syncing usage for user ${input.userId}`,
+      );
+
+      // Count unreported before
+      const unreportedBefore = await ctx.db
+        .select()
+        .from(usageRecords)
+        .where(
+          and(
+            eq(usageRecords.userId, input.userId),
+            eq(usageRecords.reportedToStripe, false),
+          ),
+        );
+
+      // Trigger retry
+      await tracker.retryUnreportedUsage();
+
+      // Count unreported after
+      const unreportedAfter = await ctx.db
+        .select()
+        .from(usageRecords)
+        .where(
+          and(
+            eq(usageRecords.userId, input.userId),
+            eq(usageRecords.reportedToStripe, false),
+          ),
+        );
+
+      const synced = unreportedBefore.length - unreportedAfter.length;
+
+      console.log(
+        `[Admin] Synced ${synced} usage records for user ${input.userId}`,
+      );
+
+      return { success: true, synced, total: unreportedBefore.length };
+    }),
+
+  /**
+   * Get overall billing metrics for dashboard
+   */
+  getBillingMetrics: adminProcedure.query(async ({ ctx }) => {
+    // Count active subscriptions by status
+    const subscriptionsByStatus = await ctx.db
+      .select({
+        status: stripeCustomers.status,
+        count: sql<number>`count(*)`,
+      })
+      .from(stripeCustomers)
+      .groupBy(stripeCustomers.status);
+
+    // Count users in grace period
+    const [gracePeriodCount] = await ctx.db
+      .select({ count: sql<number>`count(*)` })
+      .from(stripeCustomers)
+      .where(sql`${stripeCustomers.gracePeriodStartedAt} IS NOT NULL`);
+
+    // Count recent failed payments (last 7 days)
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [failedPayments] = await ctx.db
+      .select({ count: sql<number>`count(*)` })
+      .from(invoices)
+      .where(
+        and(
+          sql`${invoices.status} IN ('open', 'uncollectible')`,
+          gte(invoices.createdAt, sevenDaysAgo),
+        ),
+      );
+
+    // Count total usage records this month
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const [monthlyUsage] = await ctx.db
+      .select({ count: sql<number>`count(*)` })
+      .from(usageRecords)
+      .where(gte(usageRecords.createdAt, monthStart));
+
+    return {
+      subscriptionsByStatus: subscriptionsByStatus.map((s) => ({
+        status: s.status,
+        count: Number(s.count),
+      })),
+      gracePeriodCount: Number(gracePeriodCount?.count ?? 0),
+      failedPayments: Number(failedPayments?.count ?? 0),
+      monthlyUsageRecords: Number(monthlyUsage?.count ?? 0),
+    };
+  }),
+
+  /**
+   * Start impersonating a user (admin only)
+   */
+  startImpersonation: adminProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify target user exists
+      const [targetUser] = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.id, input.userId))
+        .limit(1);
+
+      if (!targetUser) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Log impersonation event
+      console.log(
+        `[SECURITY] Admin ${ctx.session.user.email} (${ctx.session.user.id}) started impersonating user ${targetUser.email} (${targetUser.id})`,
+      );
+
+      return {
+        success: true,
+        targetUser: {
+          id: targetUser.id,
+          email: targetUser.email,
+          name: targetUser.name,
+        },
+      };
+    }),
+
+  /**
+   * End impersonation and return to admin session
+   */
+  endImpersonation: adminProcedure.mutation(async ({ ctx }) => {
+    console.log(
+      `[SECURITY] Ending impersonation session for admin ${ctx.session.user.realAdminId || ctx.session.user.id}`,
+    );
+
+    return { success: true };
   }),
 });

@@ -853,6 +853,16 @@ const startServer = async (): Promise<void> => {
   });
 
   server.listen(port, () => {
+    // ASCII art banner
+    console.log("\n");
+    console.log("  ██████╗ ██╗███╗   ██╗ █████╗  ██████╗██╗     ███████╗");
+    console.log("  ██╔══██╗██║████╗  ██║██╔══██╗██╔════╝██║     ██╔════╝");
+    console.log("  ██████╔╝██║██╔██╗ ██║███████║██║     ██║     █████╗  ");
+    console.log("  ██╔═══╝ ██║██║╚██╗██║██╔══██║██║     ██║     ██╔══╝  ");
+    console.log("  ██║     ██║██║ ╚████║██║  ██║╚██████╗███████╗███████╗");
+    console.log("  ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚══════╝");
+    console.log("\n");
+
     logger.info({ port, hostname }, "Server ready");
     logger.info(`Next.js app: http://${hostname}:${port}`);
     logger.info(`Proxy: http://localhost-*.pod-*.${hostname}:${port}`);

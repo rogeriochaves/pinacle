@@ -300,7 +300,7 @@ export const podSnapshots = pgTable("pod_snapshot", {
   name: varchar("name", { length: 255 }).notNull(), // User-friendly name (e.g. "auto-2024-01-15" or "before-deployment")
   description: text("description"), // Optional user description
   storagePath: varchar("storage_path", { length: 500 }).notNull(), // Path/key in storage backend
-  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(), // Snapshot size in bytes
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(), // Snapshot size in bytes (convert to MB for billing: sizeBytes / 1024 / 1024)
   status: varchar("status", { length: 50 }).notNull().default("creating"), // creating, ready, failed, restoring
   isAuto: boolean("is_auto").notNull().default(false), // Auto-created on stop vs manual
   errorMessage: text("error_message"), // Error details if status is failed

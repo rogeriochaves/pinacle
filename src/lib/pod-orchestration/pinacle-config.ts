@@ -527,7 +527,6 @@ export const expandPinacleConfigToSpec = async (
   const podSpec: import("./types").PodSpec = {
     // PinacleConfig fields (preserved as-is)
     version: pinacleConfig.version,
-    tier: pinacleConfig.tier,
     template: pinacleConfig.template,
     tabs: pinacleConfig.tabs,
 
@@ -540,12 +539,7 @@ export const expandPinacleConfigToSpec = async (
     // Runtime expansion
     templateId: pinacleConfig.template,
     baseImage,
-    resources: {
-      tier: pinacleConfig.tier,
-      cpuCores: resources.cpuCores,
-      memoryMb: resources.memoryMb,
-      storageMb: resources.storageMb,
-    },
+    tier: pinacleConfig.tier,
     network: {
       ports: [],
       allowEgress: true,

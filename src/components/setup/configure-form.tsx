@@ -38,6 +38,7 @@ type ConfigureFormProps = {
   isLoadingRepositories: boolean;
   organizations: GitHubOrg[];
   installationUrl: string | null;
+  isRestoringFromCheckout?: boolean;
 };
 
 const DEFAULT_SERVICES: ServiceId[] = [
@@ -53,6 +54,7 @@ export const ConfigureForm = ({
   isLoadingRepositories,
   organizations,
   installationUrl,
+  isRestoringFromCheckout = false,
 }: ConfigureFormProps) => {
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showSecrets, setShowSecrets] = useState<Record<number, boolean>>({});
@@ -63,6 +65,27 @@ export const ConfigureForm = ({
     null,
   );
   const [hasPinacleYaml, setHasPinacleYaml] = useState(false);
+
+  // Track if we should skip applying pinacle.yaml once after checkout restoration
+  const skipNextPinacleApply = React.useRef<boolean>((window as any).__skipNextPinacleApply || false);
+
+  // Sync ref with window global on mount
+  React.useEffect(() => {
+    if ((window as any).__skipNextPinacleApply) {
+      skipNextPinacleApply.current = true;
+    }
+  }, []);
+
+  // Sync customServices state from form when restoring from checkout
+  React.useEffect(() => {
+    if (isRestoringFromCheckout) {
+      const formCustomServices = form.watch("customServices");
+      if (formCustomServices && Array.isArray(formCustomServices)) {
+        console.log("[ConfigureForm] Syncing customServices from form:", formCustomServices);
+        setCustomServices(formCustomServices as ServiceId[]);
+      }
+    }
+  }, [isRestoringFromCheckout, form]);
 
   const setupType = form.watch("setupType");
   const selectedRepo = form.watch("selectedRepo");
@@ -78,7 +101,7 @@ export const ConfigureForm = ({
   );
   const defaultBranch = selectedRepoData?.default_branch || "main";
 
-  // Fetch pinacle.yaml when a repository is selected
+  // Always fetch pinacle.yaml when a repository is selected (don't block the query)
   const { data: pinacleConfigData, isLoading: isLoadingPinacleConfig } =
     api.githubApp.getPinacleConfig.useQuery(
       {
@@ -127,6 +150,28 @@ export const ConfigureForm = ({
 
   // Parse and apply pinacle.yaml config when fetched
   React.useEffect(() => {
+    // Skip applying pinacle.yaml ONCE after checkout restoration to preserve custom selections
+    if (skipNextPinacleApply.current && pinacleConfigData?.found) {
+      console.log("[ConfigureForm] Skipping pinacle.yaml application after checkout restore");
+      skipNextPinacleApply.current = false;
+      (window as any).__skipNextPinacleApply = false;
+
+      // Still mark that pinacle.yaml exists and set the template, but don't apply values
+      setHasPinacleYaml(true);
+      form.setValue("bundle", "pinacle-yaml"); // Set template so validation passes
+      form.setValue("hasPinacleYaml", true);
+
+      if (pinacleConfigData.content) {
+        try {
+          const config = parsePinacleConfig(pinacleConfigData.content);
+          setPinacleConfig(config);
+        } catch (error) {
+          console.error("[ConfigureForm] Failed to parse pinacle.yaml:", error);
+        }
+      }
+      return;
+    }
+
     if (pinacleConfigData?.found && pinacleConfigData.content) {
       try {
         const config = parsePinacleConfig(pinacleConfigData.content);
@@ -204,6 +249,9 @@ export const ConfigureForm = ({
 
   // Initialize services with agent from URL before template is selected
   React.useEffect(() => {
+    // Skip during checkout restoration to preserve user's custom selections
+    if (isRestoringFromCheckout) return;
+
     const selectedCodingAssistant = agent
       ? getCodingAssistantByUrlParam(agent)
       : undefined;
@@ -215,7 +263,7 @@ export const ConfigureForm = ({
         return [selectedCodingAssistant, ...withoutCodingAssistant];
       });
     }
-  }, [agent, selectedTemplate]);
+  }, [agent, selectedTemplate, isRestoringFromCheckout]);
 
   // Clear template selection if switching to "repository" mode with non-blank template
   // But preserve pinacle-yaml if we have a config
@@ -236,6 +284,9 @@ export const ConfigureForm = ({
 
   // Initialize environment variables and services when bundle changes
   React.useEffect(() => {
+    // Skip during checkout restoration to preserve user's custom selections
+    if (isRestoringFromCheckout) return;
+
     if (selectedTemplate) {
       // Initialize environment variables
       const newEnvVars = selectedTemplate.requiredEnvVars.map((key) => {
@@ -308,7 +359,7 @@ export const ConfigureForm = ({
 
       form.setValue("bundle", selectedTemplate.id);
     }
-  }, [selectedTemplate, form, agent]);
+  }, [selectedTemplate, form, agent, isRestoringFromCheckout]);
 
   const addEnvVar = () => {
     setEnvVars([...envVars, { key: "", value: "", isSecret: false }]);

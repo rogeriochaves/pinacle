@@ -1,13 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import type Stripe from "stripe";
-import { db } from "../../../../lib/db";
-import {
-  invoices,
-  stripeCustomers,
-  stripeEvents,
-  users,
-} from "../../../../lib/db/schema";
 import {
   activateSubscription,
   cancelSubscription,
@@ -18,6 +11,13 @@ import {
   resumeSubscription,
   updateSubscription,
 } from "../../../../lib/billing/subscription-service";
+import { db } from "../../../../lib/db";
+import {
+  invoices,
+  stripeCustomers,
+  stripeEvents,
+  users,
+} from "../../../../lib/db/schema";
 import {
   sendPaymentFailedEmail,
   sendPaymentSuccessEmail,
@@ -101,9 +101,7 @@ const getUserFromCustomerId = async (stripeCustomerId: string) => {
 /**
  * Handle subscription events
  */
-const handleSubscriptionEvent = async (
-  event: Stripe.Event,
-): Promise<void> => {
+const handleSubscriptionEvent = async (event: Stripe.Event): Promise<void> => {
   const subscription = event.data.object as Stripe.Subscription;
 
   switch (event.type) {
@@ -123,9 +121,10 @@ const handleSubscriptionEvent = async (
 
       // Send cancellation email
       try {
-        const customerId = typeof subscription.customer === "string"
-          ? subscription.customer
-          : subscription.customer?.id;
+        const customerId =
+          typeof subscription.customer === "string"
+            ? subscription.customer
+            : subscription.customer?.id;
 
         if (customerId) {
           const userInfo = await getUserFromCustomerId(customerId);
@@ -155,12 +154,16 @@ const handleSubscriptionEvent = async (
       break;
 
     case "customer.subscription.pending_update_applied":
-      console.log(`[Webhook] Subscription pending update applied: ${subscription.id}`);
+      console.log(
+        `[Webhook] Subscription pending update applied: ${subscription.id}`,
+      );
       await updateSubscription(subscription);
       break;
 
     case "customer.subscription.pending_update_expired":
-      console.log(`[Webhook] Subscription pending update expired: ${subscription.id}`);
+      console.log(
+        `[Webhook] Subscription pending update expired: ${subscription.id}`,
+      );
       // Just log, no action needed
       break;
 
@@ -175,13 +178,19 @@ const handleSubscriptionEvent = async (
 const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
   const invoice = event.data.object as Stripe.Invoice;
 
-  const customerId = typeof invoice.customer === "string"
-    ? invoice.customer
-    : invoice.customer?.id;
+  const customerId =
+    typeof invoice.customer === "string"
+      ? invoice.customer
+      : invoice.customer?.id;
 
-  const subscriptionId = typeof invoice.subscription === "string"
-    ? invoice.subscription
-    : invoice.subscription?.id;
+  // Handle subscription field (may be string, object, or null)
+  let subscriptionId: string | null = null;
+  if ("subscription" in invoice && invoice.subscription) {
+    subscriptionId =
+      typeof invoice.subscription === "string"
+        ? invoice.subscription
+        : (invoice.subscription as { id: string }).id;
+  }
 
   switch (event.type) {
     case "invoice.created":
@@ -225,7 +234,9 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           periodStart: invoice.period_start
             ? new Date(invoice.period_start * 1000)
             : null,
-          periodEnd: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
+          periodEnd: invoice.period_end
+            ? new Date(invoice.period_end * 1000)
+            : null,
           hostedInvoiceUrl: invoice.hosted_invoice_url,
           invoicePdfUrl: invoice.invoice_pdf,
           updatedAt: new Date(),
@@ -249,6 +260,16 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
     case "invoice.payment_succeeded":
       console.log(`[Webhook] Payment succeeded for invoice: ${invoice.id}`);
       if (customerId) {
+        // Check if customer was in past_due status (recovering from failed payment)
+        const customerBefore = await db
+          .select()
+          .from(stripeCustomers)
+          .where(eq(stripeCustomers.stripeCustomerId, customerId))
+          .limit(1);
+
+        const wasInGracePeriod = customerBefore.length > 0 &&
+          customerBefore[0].gracePeriodStartedAt !== null;
+
         await handlePaymentSuccess(customerId);
 
         // Update invoice status
@@ -261,23 +282,33 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           })
           .where(eq(invoices.stripeInvoiceId, invoice.id));
 
-        // Send payment success email
-        try {
-          const userInfo = await getUserFromCustomerId(customerId);
-          if (userInfo) {
-            const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-            const amount = (invoice.amount_paid / 100).toFixed(2);
-            await sendPaymentSuccessEmail({
-              to: userInfo.email,
-              name: userInfo.name || "there",
-              amount,
-              currency: invoice.currency,
-              invoiceUrl: invoice.hosted_invoice_url || `${baseUrl}/dashboard/billing`,
-              billingUrl: `${baseUrl}/dashboard/billing`,
-            });
+        // Send payment success email ONLY if recovering from failed payment
+        // Don't spam users every month when their payment succeeds normally
+        if (wasInGracePeriod) {
+          try {
+            const userInfo = await getUserFromCustomerId(customerId);
+            if (userInfo) {
+              const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+              const amount = (invoice.amount_paid / 100).toFixed(2);
+              await sendPaymentSuccessEmail({
+                to: userInfo.email,
+                name: userInfo.name || "there",
+                amount,
+                currency: invoice.currency,
+                invoiceUrl:
+                  invoice.hosted_invoice_url || `${baseUrl}/dashboard/billing`,
+                billingUrl: `${baseUrl}/dashboard/billing`,
+              });
+              console.log(`[Webhook] Sent recovery email to ${userInfo.email}`);
+            }
+          } catch (error) {
+            console.error(
+              "[Webhook] Failed to send payment success email:",
+              error,
+            );
           }
-        } catch (error) {
-          console.error("[Webhook] Failed to send payment success email:", error);
+        } else {
+          console.log(`[Webhook] Skipping success email - normal monthly payment`);
         }
       }
       break;
@@ -296,23 +327,35 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           })
           .where(eq(invoices.stripeInvoiceId, invoice.id));
 
-        // Send payment failed email
-        try {
-          const userInfo = await getUserFromCustomerId(customerId);
-          if (userInfo) {
-            const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-            const amount = (invoice.amount_due / 100).toFixed(2);
-            await sendPaymentFailedEmail({
-              to: userInfo.email,
-              name: userInfo.name || "there",
-              amount,
-              currency: invoice.currency,
-              billingUrl: `${baseUrl}/dashboard/billing`,
-              graceDays: 7,
-            });
+        // Send payment failed email ONLY if it's not the first payment attempt
+        // Don't send during initial setup if card fails immediately
+        // billing_reason "subscription_create" = first invoice, "subscription_cycle" = recurring
+        const isInitialSetup = invoice.billing_reason === "subscription_create";
+
+        if (!isInitialSetup) {
+          try {
+            const userInfo = await getUserFromCustomerId(customerId);
+            if (userInfo) {
+              const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+              const amount = (invoice.amount_due / 100).toFixed(2);
+              await sendPaymentFailedEmail({
+                to: userInfo.email,
+                name: userInfo.name || "there",
+                amount,
+                currency: invoice.currency,
+                billingUrl: `${baseUrl}/dashboard/billing`,
+                graceDays: 1, // 24 hours grace period
+              });
+              console.log(`[Webhook] Sent payment failure email to ${userInfo.email}`);
+            }
+          } catch (error) {
+            console.error(
+              "[Webhook] Failed to send payment failed email:",
+              error,
+            );
           }
-        } catch (error) {
-          console.error("[Webhook] Failed to send payment failed email:", error);
+        } else {
+          console.log(`[Webhook] Skipping failure email - initial setup payment`);
         }
       }
       break;
@@ -345,9 +388,12 @@ export const POST = async (req: NextRequest) => {
     );
   } catch (err) {
     console.error("[Webhook] Signature verification failed:", err);
-    return new Response(`Webhook Error: ${err instanceof Error ? err.message : "Unknown error"}`, {
-      status: 400,
-    });
+    return new Response(
+      `Webhook Error: ${err instanceof Error ? err.message : "Unknown error"}`,
+      {
+        status: 400,
+      },
+    );
   }
 
   console.log(`[Webhook] Received event: ${event.type} (${event.id})`);
@@ -399,4 +445,3 @@ export const POST = async (req: NextRequest) => {
     );
   }
 };
-

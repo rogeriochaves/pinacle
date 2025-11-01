@@ -124,7 +124,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger, session }) {
+      // Handle impersonation updates from client
+      if (trigger === "update" && session?.impersonating !== undefined) {
+        if (session.impersonating) {
+          // Start impersonation
+          token.impersonatingUserId = session.impersonatingUserId;
+          token.realAdminId = token.id; // Save real admin ID
+          console.log(
+            `[Auth] Admin ${token.id} starting impersonation of user ${session.impersonatingUserId}`,
+          );
+        } else {
+          // End impersonation
+          console.log(
+            `[Auth] Admin ${token.realAdminId} ending impersonation of user ${token.impersonatingUserId}`,
+          );
+          token.impersonatingUserId = undefined;
+          token.realAdminId = undefined;
+        }
+      }
+
       // Initial sign in
       if (user) {
         token.id = user.id;
@@ -183,9 +202,32 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       if (token.id && session.user) {
-        session.user.id = token.id;
-        session.user.githubAccessToken = token.githubAccessToken;
-        session.user.githubId = token.githubId;
+        // Check if admin is impersonating another user
+        if (token.impersonatingUserId && token.realAdminId) {
+          // Fetch impersonated user's data
+          const [impersonatedUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, token.impersonatingUserId as string))
+            .limit(1);
+
+          if (impersonatedUser) {
+            // Replace session with impersonated user
+            session.user.id = impersonatedUser.id;
+            session.user.email = impersonatedUser.email;
+            session.user.name = impersonatedUser.name;
+            session.user.image = impersonatedUser.image;
+            // Store admin info for audit and exit
+            session.user.isImpersonating = true;
+            session.user.realAdminId = token.realAdminId as string;
+          }
+        } else {
+          // Normal session
+          session.user.id = token.id;
+          session.user.githubAccessToken = token.githubAccessToken;
+          session.user.githubId = token.githubId;
+          session.user.isImpersonating = false;
+        }
       }
       return session;
     },

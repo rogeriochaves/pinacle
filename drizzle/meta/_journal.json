@@ -148,6 +148,13 @@
       "when": 1761864409699,
       "tag": "0020_kind_shadowcat",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1761953854393,
+      "tag": "0021_flowery_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

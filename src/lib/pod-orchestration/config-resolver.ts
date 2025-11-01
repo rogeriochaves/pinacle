@@ -9,7 +9,6 @@ import {
 import type {
   ConfigResolver,
   PodSpec,
-  ResourceConfig,
   ResourceTier,
 } from "./types";
 
@@ -135,8 +134,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     const mergedConfig = this.mergeConfigs(baseConfig, userConfig || {});
 
     // Ensure required fields are present
-    const tierValue = (mergedConfig.resources?.tier ||
-      "dev.small") as ResourceTier;
+    const tierValue = (mergedConfig.tier || "dev.small") as ResourceTier;
     const finalSpec: PodSpec = {
       // PinacleConfig fields
       version: "1.0",
@@ -154,12 +152,6 @@ export class DefaultConfigResolver implements ConfigResolver {
       // Runtime expansion
       templateId: template?.id as TemplateId,
       baseImage: mergedConfig.baseImage || "alpine:3.22.1",
-      resources: {
-        tier: tierValue,
-        cpuCores: mergedConfig.resources?.cpuCores || 1,
-        memoryMb: mergedConfig.resources?.memoryMb || 1024,
-        storageMb: mergedConfig.resources?.storageMb || 10240,
-      },
       network: {
         ports: mergedConfig.network?.ports || [],
         podIp: mergedConfig.network?.podIp,
@@ -202,7 +194,6 @@ export class DefaultConfigResolver implements ConfigResolver {
 
     // Additional validation logic
     this.validatePortConflicts(spec, errors);
-    this.validateResourceLimits(spec, errors);
     this.validateServiceDependencies(spec, errors);
 
     return {
@@ -222,12 +213,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     // For now, return a basic detection based on common patterns
     const suggestions: Partial<PodSpec> = {
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small" as ResourceTier,
-        cpuCores: 1,
-        memoryMb: 1024,
-        storageMb: 10240,
-      },
+      tier: "dev.small" as ResourceTier,
     };
 
     // Mock detection logic
@@ -319,14 +305,9 @@ export class DefaultConfigResolver implements ConfigResolver {
     return {
       templateId: template.id,
       baseImage: template.baseImage,
+      tier: template.tier,
       services,
       environment: template.environment,
-      resources: {
-        tier: template.tier,
-        cpuCores: template.cpuCores,
-        memoryMb: template.memoryGb * 1024, // Convert GB to MB
-        storageMb: template.storageGb * 1024, // Convert GB to MB
-      },
       network: {
         ports: template.defaultPorts.map((port) => ({
           name: port.name,
@@ -342,38 +323,8 @@ export class DefaultConfigResolver implements ConfigResolver {
     base: Partial<PodSpec>,
     user: Partial<PodSpec>,
   ): Partial<PodSpec> {
-    // Merge resources separately to handle typing correctly
-    let mergedResources: ResourceConfig | undefined;
-    if (base.resources || user.resources) {
-      mergedResources = {
-        tier: (user.resources?.tier ??
-          base.resources?.tier ??
-          "dev.small") as ResourceTier,
-        cpuCores: user.resources?.cpuCores ?? base.resources?.cpuCores ?? 1,
-        memoryMb: user.resources?.memoryMb ?? base.resources?.memoryMb ?? 1024,
-        storageMb:
-          user.resources?.storageMb ?? base.resources?.storageMb ?? 10240,
-        ...(user.resources?.cpuQuota || base.resources?.cpuQuota
-          ? { cpuQuota: user.resources?.cpuQuota ?? base.resources?.cpuQuota }
-          : {}),
-        ...(user.resources?.cpuPeriod || base.resources?.cpuPeriod
-          ? {
-              cpuPeriod: user.resources?.cpuPeriod ?? base.resources?.cpuPeriod,
-            }
-          : {}),
-        ...(user.resources?.memorySwap || base.resources?.memorySwap
-          ? {
-              memorySwap:
-                user.resources?.memorySwap ?? base.resources?.memorySwap,
-            }
-          : {}),
-        ...(user.resources?.diskQuota || base.resources?.diskQuota
-          ? {
-              diskQuota: user.resources?.diskQuota ?? base.resources?.diskQuota,
-            }
-          : {}),
-      };
-    }
+    // Merge tier - user tier takes precedence, then base, then default
+    const mergedTier = (user.tier ?? base.tier ?? "dev.small") as ResourceTier;
 
     // Determine services: user services override base, but only if non-empty
     let mergedServices: typeof base.services;
@@ -388,7 +339,7 @@ export class DefaultConfigResolver implements ConfigResolver {
     return {
       ...base,
       ...user,
-      resources: mergedResources,
+      tier: mergedTier,
       network: {
         ...base.network,
         ...user.network,
@@ -428,31 +379,6 @@ export class DefaultConfigResolver implements ConfigResolver {
     }
   }
 
-  private validateResourceLimits(spec: PodSpec, errors: string[]): void {
-    const { resources } = spec;
-
-    // Validate tier-specific limits
-    const tierLimits = {
-      "dev.small": { maxCpu: 1, maxMemory: 1024 },
-      "dev.medium": { maxCpu: 2, maxMemory: 2048 },
-      "dev.large": { maxCpu: 4, maxMemory: 4096 },
-      "dev.xlarge": { maxCpu: 8, maxMemory: 8192 },
-    };
-
-    const limits = tierLimits[resources.tier];
-    if (limits) {
-      if (resources.cpuCores > limits.maxCpu) {
-        errors.push(
-          `CPU cores (${resources.cpuCores}) exceed tier limit (${limits.maxCpu}) for ${resources.tier}`,
-        );
-      }
-      if (resources.memoryMb > limits.maxMemory) {
-        errors.push(
-          `Memory (${resources.memoryMb}MB) exceeds tier limit (${limits.maxMemory}MB) for ${resources.tier}`,
-        );
-      }
-    }
-  }
 
   private validateServiceDependencies(spec: PodSpec, errors: string[]): void {
     const serviceNames = new Set(spec.services.map((s) => s.name));

@@ -1,3 +1,4 @@
+import { RESOURCE_TIERS } from "./resource-tier-registry";
 import type {
   ContainerCommand,
   ContainerInfo,
@@ -41,22 +42,16 @@ export class GVisorRuntime {
   }
 
   private parseResourceLimits(spec: PodSpec): string {
-    const { resources } = spec;
+    const tierConfig = RESOURCE_TIERS[spec.tier];
     const limits: string[] = [];
 
-    // Memory limit
-    limits.push(`--memory=${resources.memoryMb}m`);
+    // Memory limit (memory is in GB, convert to MB)
+    limits.push(`--memory=${tierConfig.memory * 1024}m`);
 
-    // CPU limits
-    if (resources.cpuQuota && resources.cpuPeriod) {
-      limits.push(`--cpu-quota=${resources.cpuQuota}`);
-      limits.push(`--cpu-period=${resources.cpuPeriod}`);
-    } else {
-      // Convert CPU cores to quota (1 core = 100000 microseconds per 100ms period)
-      const cpuQuota = Math.floor(resources.cpuCores * 100000);
-      limits.push(`--cpu-quota=${cpuQuota}`);
-      limits.push(`--cpu-period=100000`);
-    }
+    // CPU limits - Convert CPU cores to quota (1 core = 100000 microseconds per 100ms period)
+    const cpuQuota = Math.floor(tierConfig.cpu * 100000);
+    limits.push(`--cpu-quota=${cpuQuota}`);
+    limits.push(`--cpu-period=100000`);
 
     // Storage limit - skip for now as not supported in Lima environment
     // TODO: Implement storage limits using other methods in production
@@ -90,19 +85,19 @@ export class GVisorRuntime {
       { name: "workspace", path: "/workspace" },
       { name: "home", path: "/home" },
       { name: "root", path: "/root" },
-      
+
       // System configuration and packages
       { name: "etc", path: "/etc" },
       { name: "usr-local", path: "/usr/local" },
       { name: "opt", path: "/opt" },
-      
+
       // Variable data (logs, databases, caches, etc.)
       { name: "var", path: "/var" },
-      
+
       // Additional application data
       { name: "srv", path: "/srv" },
     ];
-    
+
     // NOT persisted (virtual or temporary):
     // - /tmp (temporary files)
     // - /proc (process information, virtual)
@@ -287,9 +282,7 @@ export class GVisorRuntime {
       const message = error instanceof Error ? error.message : String(error);
       // If container doesn't exist, that's fine
       if (message.includes("No such container")) {
-        console.log(
-          `[GVisorRuntime] Container ${containerId} already removed`,
-        );
+        console.log(`[GVisorRuntime] Container ${containerId} already removed`);
       } else {
         const errorMsg = `Failed to remove container: ${message}`;
         console.error(`[GVisorRuntime] ${errorMsg}`);
@@ -462,9 +455,7 @@ export class GVisorRuntime {
           ? String((error as Record<string, unknown>).code)
           : "unknown";
       if (code !== "unknown") {
-        new Error(
-          `Failed to execute command (exit code ${code}): ${message}`,
-        );
+        new Error(`Failed to execute command (exit code ${code}): ${message}`);
       }
       throw error;
     }
@@ -616,7 +607,8 @@ export class GVisorRuntime {
           await this.exec(`docker volume rm ${volumeName}`, true);
           console.log(`[GVisorRuntime] Removed volume: ${volumeName}`);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           console.warn(
             `[GVisorRuntime] Failed to remove volume ${volumeName}: ${message}`,
           );

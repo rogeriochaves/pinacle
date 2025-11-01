@@ -105,12 +105,6 @@ describe("Pinacle YAML Integration Tests", () => {
       name: "Test Pinacle YAML Pod",
       slug: "test-pinacle-yaml-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
@@ -197,12 +191,6 @@ describe("Pinacle YAML Integration Tests", () => {
       name: "Test Update Pod",
       slug: "test-update-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
@@ -282,12 +270,6 @@ describe("Pinacle YAML Integration Tests", () => {
       name: "Test Coding Assistant Pod",
       slug: "test-coding-assistant-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },

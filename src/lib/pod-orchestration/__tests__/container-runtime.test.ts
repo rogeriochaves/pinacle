@@ -54,12 +54,6 @@ describe("LimaGVisorRuntime", () => {
       name: "Test Pod",
       slug: "test-pod",
       baseImage: "ubuntu:22.04",
-      resources: {
-        tier: "dev.small" as ResourceTier,
-        cpuCores: 1,
-        memoryMb: 1024,
-        storageMb: 10240,
-      },
       network: {
         ports: [
           { name: "app", internal: 3000, external: 30000, protocol: "tcp" },

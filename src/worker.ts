@@ -66,6 +66,17 @@ const trackPodUsage = async () => {
   }
 };
 
+// Track snapshot storage for billing
+const trackSnapshotStorage = async () => {
+  try {
+    console.log("[Snapshot Storage] Starting hourly storage tracking...");
+    await usageTracker.trackSnapshotStorage();
+    console.log("[Snapshot Storage] ✅ Storage tracking completed");
+  } catch (error) {
+    console.error("[Snapshot Storage] ❌ Error:", error);
+  }
+};
+
 // Retry unreported usage records
 const retryUnreportedUsage = async () => {
   try {
@@ -102,6 +113,7 @@ const startWorker = async () => {
   setTimeout(() => {
     console.log("[Worker] Running initial usage tracking...");
     trackPodUsage();
+    trackSnapshotStorage();
   }, 30_000);
 
   // Schedule cleanup every hour
@@ -112,6 +124,7 @@ const startWorker = async () => {
   // Schedule usage tracking every hour
   setInterval(() => {
     trackPodUsage();
+    trackSnapshotStorage();
   }, ONE_HOUR_MS);
 
   // Schedule usage retry every 6 hours
@@ -133,6 +146,7 @@ const startWorker = async () => {
   console.log(`📋 Scheduled tasks:`);
   console.log(`   - Metrics cleanup: every hour`);
   console.log(`   - Pod usage tracking: every hour`);
+  console.log(`   - Snapshot storage tracking: every hour`);
   console.log(`   - Usage retry: every 6 hours`);
   console.log(`   - Grace period enforcement: every 6 hours`);
   console.log(`   - Retention period: 5 days`);

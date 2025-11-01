@@ -119,8 +119,8 @@ export default function AccountPage() {
             <p className="text-slate-600 font-mono text-sm mb-4">
               Manage your subscription and payment methods
             </p>
-            <Button variant="outline" className="font-mono" disabled>
-              Coming Soon
+            <Button variant="outline" className="font-mono" asChild>
+              <Link href="/dashboard/billing">View Billing</Link>
             </Button>
           </div>
 

@@ -10,6 +10,8 @@ declare module "next-auth" {
       image?: string | null;
       githubAccessToken?: string;
       githubId?: string;
+      isImpersonating?: boolean;
+      realAdminId?: string;
     };
   }
 
@@ -26,5 +28,7 @@ declare module "next-auth/jwt" {
     id?: string;
     githubAccessToken?: string;
     githubId?: string;
+    impersonatingUserId?: string;
+    realAdminId?: string;
   }
 }

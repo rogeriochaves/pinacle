@@ -46,12 +46,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       name: "Test Process Pod",
       slug: "test-process-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
@@ -89,12 +83,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       name: "Test Process Pod",
       slug: "test-process-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
@@ -138,12 +126,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       name: "Test Process Pod",
       slug: "test-process-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
@@ -172,12 +154,6 @@ describe("ProcessProvisioner Integration Tests", () => {
       name: "Test Process Pod",
       slug: "test-process-pod",
       baseImage: "alpine:3.22.1",
-      resources: {
-        tier: "dev.small",
-        cpuCores: 0.5,
-        memoryMb: 256,
-        storageMb: 1024,
-      },
       network: {
         ports: [],
       },
