@@ -348,7 +348,8 @@ const SetupForm = () => {
       // Check if user has an active subscription
       if (!subscriptionStatus?.hasSubscription || subscriptionStatus.status !== "active") {
         // Save form data to sessionStorage before redirecting to Stripe
-        sessionStorage.setItem("pendingPodConfig", JSON.stringify(data));
+        const formDataJson = JSON.stringify(data);
+        sessionStorage.setItem("pendingPodConfig", formDataJson);
 
         // Get tier for checkout
         const selectedTemplate = getTemplateUnsafe(data.bundle);
@@ -360,6 +361,7 @@ const SetupForm = () => {
           currency: "usd",
           successUrl: `${window.location.origin}/setup/configure?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/setup/configure?checkout=cancel`,
+          formData: formDataJson, // Save for recovery emails
         });
 
         // Redirect to Stripe Checkout

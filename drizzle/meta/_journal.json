@@ -155,6 +155,13 @@
       "when": 1761953854393,
       "tag": "0021_flowery_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1762001965774,
+      "tag": "0022_smooth_blue_blade",
+      "breakpoints": true
     }
   ]
 }

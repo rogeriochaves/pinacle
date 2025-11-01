@@ -391,3 +391,73 @@ export const sendFinalDeletionWarningEmail = async ({
     };
   }
 };
+
+// Checkout Recovery Email
+type SendCheckoutRecoveryEmailParams = {
+  to: string;
+  name: string;
+  tier: string;
+  checkoutUrl: string;
+  attemptNumber: 1 | 2 | 3;
+};
+
+export const sendCheckoutRecoveryEmail = async ({
+  to,
+  name,
+  tier,
+  checkoutUrl,
+  attemptNumber,
+}: SendCheckoutRecoveryEmailParams): Promise<{
+  success: boolean;
+  error?: string;
+}> => {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn(
+        "RESEND_API_KEY is not set. Skipping checkout recovery email sending.",
+      );
+      return { success: false, error: "Email service not configured" };
+    }
+
+    const CheckoutRecoveryEmail = (
+      await import("../emails/checkout-recovery")
+    ).default;
+    const emailHtml = await render(
+      CheckoutRecoveryEmail({ userName: name, tier, checkoutUrl, attemptNumber }),
+    );
+
+    const getSubjectLine = () => {
+      switch (attemptNumber) {
+        case 1:
+          return "Complete your Pinacle setup";
+        case 2:
+          return "Your dev environment is waiting";
+        case 3:
+          return "Last chance - Your Pinacle pod setup";
+        default:
+          return "Complete your Pinacle setup";
+      }
+    };
+
+    const { data, error } = await resend.emails.send({
+      from: "Pinacle <noreply@pinacle.dev>",
+      to,
+      subject: getSubjectLine(),
+      html: emailHtml,
+    });
+
+    if (error) {
+      console.error("Failed to send checkout recovery email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Checkout recovery email (attempt ${attemptNumber}) sent to ${to}:`, data?.id);
+    return { success: true };
+  } catch (error) {
+    console.error("Error sending checkout recovery email:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};

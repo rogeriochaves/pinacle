@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+  checkoutSessions,
   invoices,
   stripeCustomers,
   stripePrices,
@@ -54,11 +55,12 @@ export const billingRouter = createTRPCRouter({
         currency: z.enum(["usd", "eur", "brl"]).optional().default("usd"),
         successUrl: z.string().optional(),
         cancelUrl: z.string().optional(),
+        formData: z.string().optional(), // JSON stringified pod configuration for recovery emails
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
-      const { tierId, currency, successUrl, cancelUrl } = input;
+      const { tierId, currency, successUrl, cancelUrl, formData } = input;
 
       // Get or create Stripe customer
       const customer = await ctx.db
@@ -147,6 +149,21 @@ export const billingRouter = createTRPCRouter({
         },
       });
 
+      // Save checkout session for recovery emails (only if formData provided)
+      if (formData) {
+        await ctx.db.insert(checkoutSessions).values({
+          id: generateKSUID("checkout_session"),
+          userId: userId,
+          stripeSessionId: session.id,
+          status: "pending",
+          formData: formData,
+          tier: tierId,
+          emailsSent: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
       return {
         sessionId: session.id,
         url: session.url,
@@ -224,6 +241,17 @@ export const billingRouter = createTRPCRouter({
           );
           throw new Error("Session does not belong to current user");
         }
+
+        // Mark checkout session as completed
+        await ctx.db
+          .update(checkoutSessions)
+          .set({
+            status: "completed",
+            completedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(checkoutSessions.stripeSessionId, sessionId));
+
         return {
           success: true,
           subscriptionId:
@@ -243,6 +271,16 @@ export const billingRouter = createTRPCRouter({
       ) {
         throw new Error("Session does not belong to current user");
       }
+
+      // Mark checkout session as completed (even in race condition case)
+      await ctx.db
+        .update(checkoutSessions)
+        .set({
+          status: "completed",
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(checkoutSessions.stripeSessionId, sessionId));
 
       // Customer is valid but not in DB yet - wait for webhook to process
       // Return success so user can proceed

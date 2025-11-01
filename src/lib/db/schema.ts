@@ -504,6 +504,41 @@ export const invoices = pgTable(
   ],
 );
 
+// Abandoned checkout sessions (for recovery emails)
+export const checkoutSessions = pgTable(
+  "checkout_session",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("checkout_session")),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    stripeSessionId: varchar("stripe_session_id", { length: 255 })
+      .notNull()
+      .unique(),
+    status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, completed, expired, abandoned
+    formData: text("form_data").notNull(), // JSON with pod configuration
+    tier: varchar("tier", { length: 50 }).notNull(), // For easy querying
+    emailsSent: integer("emails_sent").notNull().default(0), // Count of recovery emails sent (0, 1, 2, 3)
+    lastEmailSentAt: timestamp("last_email_sent_at", { mode: "date" }),
+    completedAt: timestamp("completed_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("checkout_session_user_id_created_at_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+    index("checkout_session_status_emails_sent_idx").on(
+      table.status,
+      table.emailsSent,
+    ),
+  ],
+);
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   accounts: many(accounts),

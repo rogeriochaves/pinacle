@@ -218,7 +218,7 @@ describe("Pod Orchestration Integration Tests", () => {
     testPodId = `integration-test-${Date.now()}`;
   }, 60_000);
 
-  it.skip("should provision a pod from database through the full flow", async () => {
+  it("should provision a pod from database through the full flow", async () => {
     // 1. Create pod record in database
     console.log("📝 Creating pod record in database...");
 
@@ -321,7 +321,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Logs: ${logs.length} entries`);
   }, 90000); // 90 second timeout for integration test
 
-  it.skip("should handle pod lifecycle through database", async () => {
+  it("should handle pod lifecycle through database", async () => {
     const lifecycleTestId = `lifecycle-test-${Date.now()}`;
     const podManager = new PodManager(lifecycleTestId, serverConnection);
 
@@ -429,7 +429,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ Lifecycle test completed successfully!");
   }, 120000); // 2 minute timeout
 
-  it.skip("should list and filter pods from database", async () => {
+  it("should list and filter pods from database", async () => {
     const listTestId1 = `list-test-1-${Date.now()}`;
     const listTestId2 = `list-test-2-${Date.now()}`;
 
@@ -600,7 +600,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`   Logs: ${logs.length} entries`);
   }, 120000);
 
-  it.skip("should provision pod with hostname-based Nginx proxy from database", async () => {
+  it("should provision pod with hostname-based Nginx proxy from database", async () => {
     const proxyTestId = `proxy-test-${Date.now()}`;
 
     // 1. Create pod in database
@@ -752,7 +752,7 @@ describe("Pod Orchestration Integration Tests", () => {
     );
   }, 120000); // 2 minute timeout
 
-  it("should provision pod with GitHub repository from database", async () => {
+  it.only("should provision pod with GitHub repository from database", async () => {
     const githubTestId = `github-test-${Date.now()}`;
     const testRepo = "https://github.com/octocat/Hello-World.git";
 
@@ -1469,7 +1469,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ System package persistence test completed successfully!");
   }, 180000); // 3 minute timeout
 
-  it.skip("should initialize a new Vite project from template", async () => {
+  it("should initialize a new Vite project from template", async () => {
     const viteTestId = `vite-template-test-${Date.now()}`;
     const testRepo = `test-org/vite-test-${Date.now()}`;
 

@@ -99,6 +99,20 @@ const enforceGracePeriod = async () => {
   }
 };
 
+// Process abandoned checkouts and send recovery emails
+const processAbandonedCheckouts = async () => {
+  try {
+    console.log("[Checkout Recovery] Starting abandoned checkout processing...");
+    const { checkoutRecoveryService } = await import(
+      "./lib/billing/checkout-recovery"
+    );
+    await checkoutRecoveryService.processAbandonedCheckouts();
+    console.log("[Checkout Recovery] ✅ Processing completed");
+  } catch (error) {
+    console.error("[Checkout Recovery] ❌ Error:", error);
+  }
+};
+
 // Main worker function
 const startWorker = async () => {
   console.log("🚀 Background worker started");
@@ -143,12 +157,24 @@ const startWorker = async () => {
     enforceGracePeriod();
   }, SIX_HOURS_MS);
 
+  // Run initial checkout recovery after 5 minutes
+  setTimeout(() => {
+    console.log("[Worker] Running initial checkout recovery...");
+    processAbandonedCheckouts();
+  }, 5 * 60_000);
+
+  // Schedule checkout recovery every hour (checks 4h, 24h, and 72h windows)
+  setInterval(() => {
+    processAbandonedCheckouts();
+  }, ONE_HOUR_MS);
+
   console.log(`📋 Scheduled tasks:`);
   console.log(`   - Metrics cleanup: every hour`);
   console.log(`   - Pod usage tracking: every hour`);
   console.log(`   - Snapshot storage tracking: every hour`);
   console.log(`   - Usage retry: every 6 hours`);
   console.log(`   - Grace period enforcement: every 6 hours`);
+  console.log(`   - Checkout recovery emails: every hour (4h, 24h, 72h windows)`);
   console.log(`   - Retention period: 5 days`);
 
   // Keep process alive
