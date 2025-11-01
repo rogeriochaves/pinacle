@@ -77,15 +77,13 @@ export const ConfigureForm = ({
   }, []);
 
   // Sync customServices state from form when restoring from checkout
+  const formCustomServices = form.watch("customServices");
   React.useEffect(() => {
-    if (isRestoringFromCheckout) {
-      const formCustomServices = form.watch("customServices");
-      if (formCustomServices && Array.isArray(formCustomServices)) {
-        console.log("[ConfigureForm] Syncing customServices from form:", formCustomServices);
-        setCustomServices(formCustomServices as ServiceId[]);
-      }
+    if (isRestoringFromCheckout && formCustomServices && Array.isArray(formCustomServices)) {
+      console.log("[ConfigureForm] Syncing customServices from form:", formCustomServices);
+      setCustomServices(formCustomServices as ServiceId[]);
     }
-  }, [isRestoringFromCheckout, form]);
+  }, [isRestoringFromCheckout, formCustomServices]);
 
   const setupType = form.watch("setupType");
   const selectedRepo = form.watch("selectedRepo");

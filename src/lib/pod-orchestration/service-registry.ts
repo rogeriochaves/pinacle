@@ -220,6 +220,7 @@ EOF`,
     iconAlt: "Claude",
     installScript: [
       "pnpm add -g @anthropic-ai/claude-code@latest",
+      "mkdir -p ~/.claude",
       `cat <<EOF > ~/.claude/settings.json
 {
   "permissions": {
@@ -265,6 +266,7 @@ EOF`,
     iconAlt: "OpenAI",
     installScript: (spec: PodSpec) => [
       "pnpm add -g @openai/codex",
+      "mkdir -p ~/.codex",
       `cat <<EOF > ~/.codex/config.toml
 approval_policy = "never"
 sandbox_mode = "danger-full-access"

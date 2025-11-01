@@ -8,6 +8,55 @@ import {
 import { getGitHubApp, getInstallationRepositories } from "../../github-app";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
+// Simple in-memory cache for GitHub data (3 minutes TTL)
+type CachedData<T> = { data: T; timestamp: number };
+const githubCache = new Map<string, CachedData<unknown>>();
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+// Helper to clean up expired cache entries
+const cleanupExpiredCache = (): void => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, value] of githubCache.entries()) {
+    if (now - value.timestamp >= CACHE_TTL_MS) {
+      githubCache.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) {
+    console.log(
+      `[GitHub Cache] Cleaned up ${cleaned} expired entries, ${githubCache.size} remaining`,
+    );
+  }
+};
+
+// Helper to get or compute cached data
+const getCachedOrCompute = async <T>(
+  cacheKey: string,
+  compute: () => Promise<T>,
+): Promise<T> => {
+  // Clean up expired entries to keep memory low
+  cleanupExpiredCache();
+
+  // Check cache first
+  const cached = githubCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    console.log(`[GitHub Cache] Hit for ${cacheKey}`);
+    return cached.data as T;
+  }
+
+  // Compute fresh data
+  const data = await compute();
+
+  // Cache the result
+  githubCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+  });
+
+  return data;
+};
+
 export const githubAppRouter = createTRPCRouter({
   getInstallationUrl: protectedProcedure
     .input(
@@ -135,10 +184,69 @@ export const githubAppRouter = createTRPCRouter({
     }),
 
   // Get repositories from GitHub App installations
-  getRepositoriesFromInstallations: protectedProcedure.query(
-    async ({ ctx }) => {
+  getRepositoriesFromInstallations: protectedProcedure
+    .input(
+      z.object({
+        installationId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx }) => {
       const userId = (ctx.session.user as any).id;
+      const cacheKey = `repos:${userId}`;
 
+      return getCachedOrCompute(cacheKey, async () => {
+        try {
+          // Get user's installations
+          const userInstallations = await ctx.db
+            .select({
+              installationId: githubInstallations.installationId,
+              accountLogin: githubInstallations.accountLogin,
+              accountType: githubInstallations.accountType,
+            })
+            .from(userGithubInstallations)
+            .innerJoin(
+              githubInstallations,
+              eq(
+                userGithubInstallations.installationId,
+                githubInstallations.id,
+              ),
+            )
+            .where(eq(userGithubInstallations.userId, userId));
+
+          // Get repositories from all installations
+          const allRepositories = [];
+          for (const installation of userInstallations) {
+            const repos = await getInstallationRepositories(
+              installation.installationId,
+            );
+            allRepositories.push(...repos);
+          }
+          allRepositories.sort(
+            (a, b) =>
+              (b.pushed_at ? new Date(b.pushed_at).getTime() : 0) -
+              (a.pushed_at ? new Date(a.pushed_at).getTime() : 0),
+          );
+
+          console.log(
+            `[GitHub Cache] Cached ${allRepositories.length} repositories for ${cacheKey}`,
+          );
+          return allRepositories;
+        } catch (error) {
+          console.error(
+            "Failed to get repositories from installations:",
+            error,
+          );
+          return [];
+        }
+      });
+    }),
+
+  // Get all accounts (personal + organizations) from GitHub App installations
+  getAccountsFromInstallations: protectedProcedure.query(async ({ ctx }) => {
+    const userId = (ctx.session.user as any).id;
+    const cacheKey = `accounts:${userId}`;
+
+    return getCachedOrCompute(cacheKey, async () => {
       try {
         // Get user's installations
         const userInstallations = await ctx.db
@@ -154,60 +262,23 @@ export const githubAppRouter = createTRPCRouter({
           )
           .where(eq(userGithubInstallations.userId, userId));
 
-        // Get repositories from all installations
-        const allRepositories = [];
-        for (const installation of userInstallations) {
-          const repos = await getInstallationRepositories(
-            installation.installationId,
-          );
-          allRepositories.push(...repos);
-        }
-        allRepositories.sort(
-          (a, b) =>
-            (b.pushed_at ? new Date(b.pushed_at).getTime() : 0) -
-            (a.pushed_at ? new Date(a.pushed_at).getTime() : 0),
-        );
+        // Return all accounts where the app is installed
+        const accounts = userInstallations.map((installation) => ({
+          id: installation.installationId,
+          login: installation.accountLogin,
+          avatar_url: `https://github.com/${installation.accountLogin}.png`,
+          type: installation.accountType,
+        }));
 
-        return allRepositories;
+        console.log(
+          `[GitHub Cache] Cached ${accounts.length} accounts for ${cacheKey}`,
+        );
+        return accounts;
       } catch (error) {
-        console.error("Failed to get repositories from installations:", error);
+        console.error("Failed to get accounts from installations:", error);
         return [];
       }
-    },
-  ),
-
-  // Get all accounts (personal + organizations) from GitHub App installations
-  getAccountsFromInstallations: protectedProcedure.query(async ({ ctx }) => {
-    const userId = (ctx.session.user as any).id;
-
-    try {
-      // Get user's installations
-      const userInstallations = await ctx.db
-        .select({
-          installationId: githubInstallations.installationId,
-          accountLogin: githubInstallations.accountLogin,
-          accountType: githubInstallations.accountType,
-        })
-        .from(userGithubInstallations)
-        .innerJoin(
-          githubInstallations,
-          eq(userGithubInstallations.installationId, githubInstallations.id),
-        )
-        .where(eq(userGithubInstallations.userId, userId));
-
-      // Return all accounts where the app is installed
-      const accounts = userInstallations.map((installation) => ({
-        id: installation.installationId,
-        login: installation.accountLogin,
-        avatar_url: `https://github.com/${installation.accountLogin}.png`,
-        type: installation.accountType,
-      }));
-
-      return accounts;
-    } catch (error) {
-      console.error("Failed to get accounts from installations:", error);
-      return [];
-    }
+    });
   }),
 
   // Get user's GitHub installations for account page
@@ -304,7 +375,9 @@ export const githubAppRouter = createTRPCRouter({
 
           if ("content" in data && data.content) {
             // Decode base64 content
-            const content = Buffer.from(data.content, "base64").toString("utf-8");
+            const content = Buffer.from(data.content, "base64").toString(
+              "utf-8",
+            );
             return {
               found: true,
               content,

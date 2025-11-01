@@ -74,9 +74,12 @@ const SetupForm = () => {
     checkoutStatus === "success" || checkoutStatus === "cancel";
 
   const { data: appRepositories = [], isLoading: isLoadingRepositories } =
-    api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
-      enabled: installationData?.hasInstallations && !isReturningFromCheckout,
-    });
+    api.githubApp.getRepositoriesFromInstallations.useQuery(
+      { installationId: installationData?.installations[0].id },
+      {
+        enabled: installationData?.hasInstallations && !isReturningFromCheckout,
+      },
+    );
   const { data: appAccounts = [] } =
     api.githubApp.getAccountsFromInstallations.useQuery(undefined, {
       enabled: installationData?.hasInstallations,
@@ -100,6 +103,20 @@ const SetupForm = () => {
     const template = searchParams.get("template");
     const tier = searchParams.get("tier");
     const agent = searchParams.get("agent");
+
+    // If user comes with explicit query params, clear any saved form data
+    // (they want to start fresh with these params, not restore old data)
+    const hasSetupParams =
+      type || repo || org || name || bundle || template || tier || agent;
+    if (hasSetupParams) {
+      const savedData = sessionStorage.getItem("pendingPodConfig");
+      if (savedData) {
+        console.log(
+          "[SetupForm] Clearing saved form data - user came with fresh query params",
+        );
+        sessionStorage.removeItem("pendingPodConfig");
+      }
+    }
 
     if (type) {
       form.setValue("setupType", type);
@@ -268,8 +285,6 @@ const SetupForm = () => {
                 // Give UI a moment to update, then create pod
                 await new Promise((resolve) => setTimeout(resolve, 500));
 
-                sessionStorage.removeItem("pendingPodConfig");
-
                 console.log("[Checkout] Creating pod with restored data...");
                 toast.success("Payment successful! Creating your pod...");
 
@@ -339,6 +354,10 @@ const SetupForm = () => {
 
                 console.log("[Checkout] Pod created successfully!", pod);
                 console.log("[Checkout] Redirecting to provisioning...");
+
+                // Clear saved form data now that pod is created
+                sessionStorage.removeItem("pendingPodConfig");
+
                 router.push(`/pods/${pod.id}/provisioning`);
                 // Keep loading screen visible until redirect completes
               } catch (error) {
@@ -372,11 +391,72 @@ const SetupForm = () => {
         },
       );
     } else if (checkout === "cancel") {
-      // User cancelled checkout - clean up
+      // User cancelled checkout - restore form data
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("checkout");
       window.history.replaceState({}, "", newUrl.toString());
-      toast.info("Checkout cancelled");
+
+      // Try to restore form data from sessionStorage
+      const savedFormData = sessionStorage.getItem("pendingPodConfig");
+      if (savedFormData) {
+        try {
+          const formData = JSON.parse(savedFormData) as SetupFormValues;
+
+          console.log("[Checkout Cancel] Restoring form data:", formData);
+
+          // Set flag to disable auto-detection useEffects
+          setIsRestoringFromCheckout(true);
+
+          // If user had customized a repo with pinacle.yaml, skip applying it once after restore
+          if (formData.setupType === "repository" && formData.hasPinacleYaml) {
+            console.log(
+              "[Checkout Cancel] Setting flag to skip next pinacle.yaml application",
+            );
+            (window as any).__skipNextPinacleApply = true;
+          }
+
+          // Restore form visually
+          form.setValue("setupType", formData.setupType);
+          form.setValue("selectedRepo", formData.selectedRepo || "");
+          form.setValue("selectedOrg", formData.selectedOrg || "");
+          form.setValue("newRepoName", formData.newRepoName || "");
+          form.setValue("podName", formData.podName || "");
+          form.setValue("bundle", formData.bundle);
+          form.setValue("tier", formData.tier);
+          form.setValue("agent", formData.agent);
+          form.setValue("customServices", formData.customServices);
+          form.setValue("envVars", formData.envVars || {});
+          form.setValue(
+            "processInstallCommand",
+            formData.processInstallCommand || "",
+          );
+          form.setValue(
+            "processStartCommand",
+            formData.processStartCommand || "",
+          );
+          form.setValue("processAppUrl", formData.processAppUrl || "");
+          form.setValue("hasPinacleYaml", formData.hasPinacleYaml || false);
+          form.setValue("tabs", formData.tabs);
+          form.setValue("processes", formData.processes);
+
+          console.log(
+            "[Checkout Cancel] Form data restored successfully. You can continue editing.",
+          );
+          toast.info(
+            "Checkout cancelled. Your configuration has been restored.",
+          );
+
+          // Re-enable auto-detection useEffects after a delay
+          setTimeout(() => {
+            setIsRestoringFromCheckout(false);
+          }, 1000);
+        } catch (error) {
+          console.error("Failed to restore form data:", error);
+          toast.error("Checkout cancelled");
+        }
+      } else {
+        toast.info("Checkout cancelled");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]); // Only depend on searchParams to avoid infinite loop
@@ -461,6 +541,9 @@ const SetupForm = () => {
         // Pass flag to indicate if repo already has pinacle.yaml
         hasPinacleYaml: data.hasPinacleYaml,
       });
+
+      // Clear saved form data now that pod is created
+      sessionStorage.removeItem("pendingPodConfig");
 
       // Redirect to provisioning page to watch progress
       router.push(`/pods/${pod.id}/provisioning`);

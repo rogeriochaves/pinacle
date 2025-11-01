@@ -296,6 +296,31 @@ export const snapshotsRouter = createTRPCRouter({
           })
           .where(eq(pods.id, pod.id));
 
+        // Track initial 1-hour usage for this restore
+        try {
+          const { usageTracker } = await import("../../billing/usage-tracker");
+          const { podRecordToPinacleConfig } = await import(
+            "../../pod-orchestration/pinacle-config"
+          );
+          const config = podRecordToPinacleConfig({
+            config: pod.config,
+            name: pod.name,
+          });
+          await usageTracker.trackInitialPodUsage(
+            pod.id,
+            pod.ownerId,
+            config.tier,
+          );
+          console.log(
+            `[snapshots.restore] Tracked initial usage for pod ${pod.id}`,
+          );
+        } catch (error) {
+          console.error(
+            `[snapshots.restore] Failed to track initial usage for pod ${pod.id}:`,
+            error,
+          );
+        }
+
         return { success: true };
       } catch (error) {
         const errorMessage =

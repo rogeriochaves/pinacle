@@ -249,15 +249,12 @@ export default function BillingPage() {
                             Period: {formatDate(new Date(currentUsage.upcomingInvoice.periodStart * 1000))} - {formatDate(new Date(currentUsage.upcomingInvoice.periodEnd * 1000))}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-5 h-5 text-slate-400" />
-                          <p className="font-mono font-bold text-2xl text-slate-900">
-                            {formatCurrency(
-                              currentUsage.upcomingInvoice.total,
-                              currentUsage.upcomingInvoice.currency,
-                            )}
-                          </p>
-                        </div>
+                        <p className="font-mono font-bold text-2xl text-slate-900">
+                          {formatCurrency(
+                            currentUsage.upcomingInvoice.total,
+                            currentUsage.upcomingInvoice.currency,
+                          )}
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -808,6 +808,29 @@ export const podsRouter = createTRPCRouter({
             })
             .where(eq(pods.id, input.id));
 
+          // Track initial 1-hour usage for this restart
+          try {
+            const { usageTracker } = await import("../../billing/usage-tracker");
+            const { podRecordToPinacleConfig } = await import(
+              "../../pod-orchestration/pinacle-config"
+            );
+            const config = podRecordToPinacleConfig({
+              config: pod.config,
+              name: pod.name,
+            });
+            await usageTracker.trackInitialPodUsage(
+              input.id,
+              pod.ownerId,
+              config.tier,
+            );
+            console.log(`[pods.start] Tracked initial usage for pod ${input.id}`);
+          } catch (error) {
+            console.error(
+              `[pods.start] Failed to track initial usage for pod ${input.id}:`,
+              error,
+            );
+          }
+
           console.log(`[pods.start] Successfully started pod ${input.id}`);
         } catch (error) {
           const errorMessage =

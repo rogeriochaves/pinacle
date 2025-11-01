@@ -7,7 +7,22 @@ export const setupFormSchema = z
     setupType: z.enum(["repository", "new"]),
     selectedRepo: z.string().optional(),
     selectedOrg: z.string().optional(),
-    newRepoName: z.string().optional(),
+    newRepoName: z
+      .string()
+      .optional()
+      .refine(
+        (val) => {
+          if (!val) return true; // Optional field, only validate if provided
+          // GitHub repo name rules: alphanumeric, hyphens, underscores
+          // Cannot start/end with special chars, no spaces
+          const validPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+          return validPattern.test(val);
+        },
+        {
+          message:
+            "Repository name can only contain letters, numbers, hyphens and underscores. No spaces allowed.",
+        },
+      ),
     podName: z.string().optional(), // Auto-generated on backend
     bundle: z.string().min(1, "Template selection is required"),
     tier: z

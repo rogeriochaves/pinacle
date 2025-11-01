@@ -135,6 +135,7 @@ export default function PodProvisioningPage() {
     );
 
   const retryProvisioningMutation = api.pods.retryProvisioning.useMutation();
+  const secondScrollTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Accumulate logs as they come in
   useEffect(() => {
@@ -182,6 +183,10 @@ export default function PodProvisioningPage() {
     if (atBottom) {
       setHasNewLogs(false);
     }
+    // Clear any pending second scroll when user manually scrolls
+    if (secondScrollTimeoutRef.current) {
+      clearTimeout(secondScrollTimeoutRef.current);
+    }
   };
 
   // Auto-scroll to bottom when new logs arrive, but only if user is at bottom
@@ -190,6 +195,12 @@ export default function PodProvisioningPage() {
       if (isAtBottom) {
         // User is at bottom, scroll smoothly
         consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (secondScrollTimeoutRef.current) {
+          clearTimeout(secondScrollTimeoutRef.current);
+        }
+        secondScrollTimeoutRef.current = setTimeout(() => {
+          consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 500);
         setHasNewLogs(false);
       } else {
         // User has scrolled up, show indicator

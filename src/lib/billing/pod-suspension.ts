@@ -97,8 +97,31 @@ export const resumeUserPods = async (userId: string): Promise<void> => {
       // Update database status
       await db
         .update(pods)
-        .set({ status: "running", updatedAt: new Date() })
+        .set({ status: "running", lastStartedAt: new Date(), updatedAt: new Date() })
         .where(eq(pods.id, pod.id));
+
+      // Track initial 1-hour usage for this resume
+      try {
+        const { usageTracker } = await import("./usage-tracker");
+        const { podRecordToPinacleConfig } = await import(
+          "../pod-orchestration/pinacle-config"
+        );
+        const config = podRecordToPinacleConfig({
+          config: pod.config,
+          name: pod.name,
+        });
+        await usageTracker.trackInitialPodUsage(
+          pod.id,
+          pod.ownerId,
+          config.tier,
+        );
+        console.log(`[PodSuspension]   ✓ Tracked initial usage for pod ${pod.id}`);
+      } catch (error) {
+        console.error(
+          `[PodSuspension]   ✗ Failed to track initial usage for pod ${pod.id}:`,
+          error,
+        );
+      }
 
       console.log(`[PodSuspension]   ✓ Resumed pod ${pod.id}`);
     } catch (error) {

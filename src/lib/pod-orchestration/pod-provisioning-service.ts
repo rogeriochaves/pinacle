@@ -201,6 +201,25 @@ export class PodProvisioningService {
         })
         .where(eq(pods.id, podId));
 
+      // 10. Track initial 1-hour usage for billing (minimum billing unit)
+      try {
+        const { usageTracker } = await import("../billing/usage-tracker");
+        await usageTracker.trackInitialPodUsage(
+          podId,
+          podRecord.ownerId,
+          spec.tier,
+        );
+        console.log(
+          `[PodProvisioningService] Tracked initial usage for pod ${podId}`,
+        );
+      } catch (error) {
+        // Don't fail provisioning if usage tracking fails
+        console.error(
+          `[PodProvisioningService] Failed to track initial usage for pod ${podId}:`,
+          error,
+        );
+      }
+
       console.log(
         `[PodProvisioningService] Successfully provisioned pod ${podId}`,
       );
