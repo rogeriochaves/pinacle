@@ -47,18 +47,18 @@ const SetupForm = () => {
   });
 
   // Check GitHub token validity in parallel with repo loading
-  const { data: tokenValidation, isLoading: isCheckingToken } = api.github.checkTokenValidity.useQuery(
-    undefined,
-    {
+  const { data: tokenValidation, isLoading: isCheckingToken } =
+    api.github.checkTokenValidity.useQuery(undefined, {
       enabled: status === "authenticated" && !!session?.user?.githubAccessToken,
       retry: false,
-    },
-  );
+    });
 
   // Automatically redirect to re-auth if token is expired
   useEffect(() => {
     if (tokenValidation && !tokenValidation.valid) {
-      console.log("[SetupForm] Token expired, automatically triggering re-auth...");
+      console.log(
+        "[SetupForm] Token expired, automatically triggering re-auth...",
+      );
       reauthenticate();
     }
   }, [tokenValidation, reauthenticate]);
@@ -70,7 +70,8 @@ const SetupForm = () => {
     returnTo: `/setup/project?type=${form.watch("setupType")}`,
   });
   const checkoutStatus = searchParams.get("checkout");
-  const isReturningFromCheckout = checkoutStatus === "success" || checkoutStatus === "cancel";
+  const isReturningFromCheckout =
+    checkoutStatus === "success" || checkoutStatus === "cancel";
 
   const { data: appRepositories = [], isLoading: isLoadingRepositories } =
     api.githubApp.getRepositoriesFromInstallations.useQuery(undefined, {
@@ -82,7 +83,8 @@ const SetupForm = () => {
     });
 
   // tRPC mutations
-  const { data: teams, refetch: refetchTeams } = api.teams.getUserTeams.useQuery();
+  const { data: teams, refetch: refetchTeams } =
+    api.teams.getUserTeams.useQuery();
   const createPodMutation = api.pods.create.useMutation();
 
   // Initialize form from URL params
@@ -165,13 +167,16 @@ const SetupForm = () => {
   }, [session, status, form, router, installationData, installationsLoading]);
 
   // Query subscription status
-  const { data: subscriptionStatus, refetch: refetchSubscription } = api.billing.getSubscriptionStatus.useQuery();
+  const { data: subscriptionStatus, refetch: refetchSubscription } =
+    api.billing.getSubscriptionStatus.useQuery();
 
   // Mutation for creating checkout session
-  const createCheckoutMutation = api.billing.createCheckoutSession.useMutation();
+  const createCheckoutMutation =
+    api.billing.createCheckoutSession.useMutation();
 
   // Mutation for handling checkout success
-  const handleCheckoutSuccessMutation = api.billing.handleCheckoutSuccess.useMutation();
+  const handleCheckoutSuccessMutation =
+    api.billing.handleCheckoutSuccess.useMutation();
 
   // Handle checkout success/cancel from URL params
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only run on searchParams change to avoid infinite loops
@@ -180,7 +185,10 @@ const SetupForm = () => {
     const sessionId = searchParams.get("session_id");
 
     // Prevent multiple calls - check if mutation is already pending
-    if (handleCheckoutSuccessMutation.isPending || createPodMutation.isPending) {
+    if (
+      handleCheckoutSuccessMutation.isPending ||
+      createPodMutation.isPending
+    ) {
       return;
     }
 
@@ -203,7 +211,10 @@ const SetupForm = () => {
 
             // Refresh subscription status and WAIT for it to complete
             const { data: updatedSubscription } = await refetchSubscription();
-            console.log("[Checkout] Subscription updated:", updatedSubscription);
+            console.log(
+              "[Checkout] Subscription updated:",
+              updatedSubscription,
+            );
 
             // Try to restore form data and auto-create pod
             const savedFormData = sessionStorage.getItem("pendingPodConfig");
@@ -218,8 +229,13 @@ const SetupForm = () => {
                 console.log("[Checkout] Restoring form data:", formData);
 
                 // If user had customized a repo with pinacle.yaml, skip applying it once after restore
-                if (formData.setupType === "repository" && formData.hasPinacleYaml) {
-                  console.log("[Checkout] Setting flag to skip next pinacle.yaml application");
+                if (
+                  formData.setupType === "repository" &&
+                  formData.hasPinacleYaml
+                ) {
+                  console.log(
+                    "[Checkout] Setting flag to skip next pinacle.yaml application",
+                  );
                   (window as any).__skipNextPinacleApply = true;
                 }
 
@@ -233,15 +249,24 @@ const SetupForm = () => {
                 form.setValue("agent", formData.agent);
                 form.setValue("customServices", formData.customServices);
                 form.setValue("envVars", formData.envVars || {});
-                form.setValue("processInstallCommand", formData.processInstallCommand || "");
-                form.setValue("processStartCommand", formData.processStartCommand || "");
+                form.setValue(
+                  "processInstallCommand",
+                  formData.processInstallCommand || "",
+                );
+                form.setValue(
+                  "processStartCommand",
+                  formData.processStartCommand || "",
+                );
                 form.setValue("processAppUrl", formData.processAppUrl || "");
-                form.setValue("hasPinacleYaml", formData.hasPinacleYaml || false);
+                form.setValue(
+                  "hasPinacleYaml",
+                  formData.hasPinacleYaml || false,
+                );
                 form.setValue("tabs", formData.tabs);
                 form.setValue("processes", formData.processes);
 
                 // Give UI a moment to update, then create pod
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise((resolve) => setTimeout(resolve, 500));
 
                 sessionStorage.removeItem("pendingPodConfig");
 
@@ -253,7 +278,9 @@ const SetupForm = () => {
                 console.log("[Checkout] Teams available:", userTeams);
 
                 // Call create pod directly, bypassing subscription check since we just verified it
-                const personalTeam = userTeams?.find((team) => team.role === "owner");
+                const personalTeam = userTeams?.find(
+                  (team) => team.role === "owner",
+                );
                 console.log("[Checkout] Personal team:", personalTeam);
 
                 if (!personalTeam) {
@@ -265,7 +292,10 @@ const SetupForm = () => {
                 const selectedTemplate = getTemplateUnsafe(formData.bundle);
                 console.log("[Checkout] Selected template:", selectedTemplate);
                 if (!selectedTemplate) {
-                  console.error("[Checkout] Invalid template:", formData.bundle);
+                  console.error(
+                    "[Checkout] Invalid template:",
+                    formData.bundle,
+                  );
                   toast.error("Invalid template selection");
                   return;
                 }
@@ -277,14 +307,19 @@ const SetupForm = () => {
                 const pod = await createPodMutation.mutateAsync({
                   description: `Development environment for ${formData.setupType === "new" ? `${formData.selectedOrg}/${formData.newRepoName}` : formData.selectedRepo || "project"}`,
                   teamId: personalTeam.id,
-                  githubRepo: formData.setupType === "repository" ? formData.selectedRepo : undefined,
+                  githubRepo:
+                    formData.setupType === "repository"
+                      ? formData.selectedRepo
+                      : undefined,
                   githubBranch: undefined,
                   isNewProject: formData.setupType === "new",
                   newRepoName: formData.newRepoName,
                   selectedOrg: formData.selectedOrg,
                   template: selectedTemplate.id,
                   tier: tier,
-                  customServices: (formData.customServices as typeof selectedTemplate.services) || selectedTemplate.services,
+                  customServices:
+                    (formData.customServices as typeof selectedTemplate.services) ||
+                    selectedTemplate.services,
                   tabs: formData.tabs,
                   processes: formData.processes,
                   envVars: formData.envVars,
@@ -307,7 +342,10 @@ const SetupForm = () => {
                 router.push(`/pods/${pod.id}/provisioning`);
                 // Keep loading screen visible until redirect completes
               } catch (error) {
-                console.error("Failed to restore form data or create pod:", error);
+                console.error(
+                  "Failed to restore form data or create pod:",
+                  error,
+                );
                 const errorMessage =
                   error instanceof Error
                     ? error.message
@@ -346,7 +384,10 @@ const SetupForm = () => {
   const handleFinalSubmit = async (data: SetupFormValues) => {
     try {
       // Check if user has an active subscription
-      if (!subscriptionStatus?.hasSubscription || subscriptionStatus.status !== "active") {
+      if (
+        !subscriptionStatus?.hasSubscription ||
+        subscriptionStatus.status !== "active"
+      ) {
         // Save form data to sessionStorage before redirecting to Stripe
         const formDataJson = JSON.stringify(data);
         sessionStorage.setItem("pendingPodConfig", formDataJson);
@@ -399,7 +440,9 @@ const SetupForm = () => {
         selectedOrg: data.selectedOrg,
         template: selectedTemplate.id,
         tier: tier, // Use form's tier selection (or template default)
-        customServices: (data.customServices as typeof selectedTemplate.services) || selectedTemplate.services, // Use form's selected services
+        customServices:
+          (data.customServices as typeof selectedTemplate.services) ||
+          selectedTemplate.services, // Use form's selected services
         tabs: data.tabs, // Pass tabs from existing pinacle.yaml (if any)
         processes: data.processes, // Pass full processes from existing pinacle.yaml (preserves healthCheck)
         envVars: data.envVars,
@@ -438,7 +481,12 @@ const SetupForm = () => {
   // 4. Token is invalid (to prevent screen blink during redirect)
   // 5. Processing checkout flow (verification + form restore + pod creation + redirect)
   const isTokenInvalid = tokenValidation && !tokenValidation.valid;
-  const isLoading = status === "loading" || isCheckingToken || installationsLoading || isTokenInvalid || isProcessingCheckout;
+  const isLoading =
+    status === "loading" ||
+    isCheckingToken ||
+    installationsLoading ||
+    isTokenInvalid ||
+    isProcessingCheckout;
 
   if (isLoading) {
     const loadingMessage = isProcessingCheckout
@@ -453,7 +501,9 @@ const SetupForm = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
-          <h2 className="text-xl font-semibold text-white mb-2 font-mono">{loadingMessage}</h2>
+          <h2 className="text-xl font-semibold text-white mb-2 font-mono">
+            {loadingMessage}
+          </h2>
           <p className="text-slate-400 font-mono">Just a moment</p>
         </div>
       </div>

@@ -16,4 +16,3 @@ CREATE TABLE "checkout_session" (
 ALTER TABLE "checkout_session" ADD CONSTRAINT "checkout_session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "checkout_session_user_id_created_at_idx" ON "checkout_session" USING btree ("user_id","created_at");--> statement-breakpoint
 CREATE INDEX "checkout_session_status_emails_sent_idx" ON "checkout_session" USING btree ("status","emails_sent");--> statement-breakpoint
-ALTER TABLE "pod_snapshot" DROP COLUMN "storage_mb";

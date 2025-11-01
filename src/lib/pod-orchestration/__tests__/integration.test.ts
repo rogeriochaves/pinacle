@@ -771,7 +771,7 @@ describe("Pod Orchestration Integration Tests", () => {
     const pinacleConfig = generatePinacleConfigFromForm({
       template: "nodejs-blank",
       tier: "dev.small",
-      customServices: ["claude-code"],
+      customServices: [], // Skip services - testing storage limits, not service provisioning
     });
 
     // Create env set

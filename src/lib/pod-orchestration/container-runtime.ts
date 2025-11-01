@@ -53,11 +53,8 @@ export class GVisorRuntime {
     limits.push(`--cpu-quota=${cpuQuota}`);
     limits.push(`--cpu-period=100000`);
 
-    // Storage limit - skip for now as not supported in Lima environment
-    // TODO: Implement storage limits using other methods in production
-    // if (resources.storageMb) {
-    //   limits.push(`--storage-opt size=${resources.storageMb}m`);
-    // }
+    // Note: Storage limits are now implemented at the volume level, not container level
+    // See createVolume() method for volume-based storage quotas
 
     return limits.join(" ");
   }
@@ -78,24 +75,34 @@ export class GVisorRuntime {
   /**
    * Get universal volumes that should be persisted for all pods
    * This covers the entire filesystem except virtual/temporary directories
+   *
+   * Storage allocation per volume (as percentage of total tier storage):
+   * - workspace: 40% (main user code/projects)
+   * - var: 25% (databases, logs, caches)
+   * - home: 10% (user directories)
+   * - root: 5% (root home)
+   * - etc: 5% (system configs)
+   * - usr-local: 7.5% (locally installed software)
+   * - opt: 5% (optional packages)
+   * - srv: 2.5% (service data)
    */
-  private getUniversalVolumes(): Array<{ name: string; path: string }> {
+  private getUniversalVolumes(): Array<{ name: string; path: string; storagePercent: number }> {
     return [
       // User data and code
-      { name: "workspace", path: "/workspace" },
-      { name: "home", path: "/home" },
-      { name: "root", path: "/root" },
+      { name: "workspace", path: "/workspace", storagePercent: 0.40 },
+      { name: "home", path: "/home", storagePercent: 0.10 },
+      { name: "root", path: "/root", storagePercent: 0.05 },
 
       // System configuration and packages
-      { name: "etc", path: "/etc" },
-      { name: "usr-local", path: "/usr/local" },
-      { name: "opt", path: "/opt" },
+      { name: "etc", path: "/etc", storagePercent: 0.05 },
+      { name: "usr-local", path: "/usr/local", storagePercent: 0.075 },
+      { name: "opt", path: "/opt", storagePercent: 0.05 },
 
       // Variable data (logs, databases, caches, etc.)
-      { name: "var", path: "/var" },
+      { name: "var", path: "/var", storagePercent: 0.25 },
 
       // Additional application data
-      { name: "srv", path: "/srv" },
+      { name: "srv", path: "/srv", storagePercent: 0.025 },
     ];
 
     // NOT persisted (virtual or temporary):
@@ -137,9 +144,12 @@ export class GVisorRuntime {
     }
 
     // Create Docker volumes for persistent storage (universal for all pods)
+    const tierConfig = RESOURCE_TIERS[spec.tier];
     const volumes = this.getUniversalVolumes();
     for (const volume of volumes) {
-      await this.createVolume(spec.id, volume.name);
+      // Calculate size for this volume based on tier storage and allocation percentage
+      const volumeSizeGb = Math.ceil(tierConfig.storage * volume.storagePercent);
+      await this.createVolume(spec.id, volume.name, volumeSizeGb);
     }
 
     // Parse volume mounts
@@ -544,7 +554,17 @@ export class GVisorRuntime {
   }
 
   // Volume management methods
-  async createVolume(podId: string, volumeName: string): Promise<void> {
+  /**
+   * Create a Docker volume with optional size limit
+   * @param podId - Pod identifier
+   * @param volumeName - Volume name (e.g., "workspace", "var")
+   * @param sizeGb - Optional size limit in GB (requires storage driver support)
+   */
+  async createVolume(
+    podId: string,
+    volumeName: string,
+    sizeGb?: number,
+  ): Promise<void> {
     const fullVolumeName = this.generateVolumeName(podId, volumeName);
 
     try {
@@ -565,10 +585,62 @@ export class GVisorRuntime {
     }
 
     try {
-      await this.exec(`docker volume create ${fullVolumeName}`, true);
-      console.log(`[GVisorRuntime] Created volume: ${fullVolumeName}`);
+      // Build volume creation command with optional size limit
+      let createCommand = `docker volume create ${fullVolumeName}`;
+
+      if (sizeGb) {
+        // Add size option (requires storage driver support like overlay2 with quota or XFS)
+        // Format: --opt size=XG or --opt size=XGiB
+        createCommand += ` --opt size=${sizeGb}G`;
+        console.log(
+          `[GVisorRuntime] Creating volume ${fullVolumeName} with ${sizeGb}GB limit`,
+        );
+      }
+
+      await this.exec(createCommand, true);
+
+      if (sizeGb) {
+        console.log(
+          `[GVisorRuntime] Created volume with size limit: ${fullVolumeName} (${sizeGb}GB)`,
+        );
+      } else {
+        console.log(`[GVisorRuntime] Created volume: ${fullVolumeName}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
+      // Check if error is due to unsupported storage quotas
+      // Common error messages:
+      // - "quota size requested but no quota support" (overlay2 without quota)
+      // - "invalid option" (driver doesn't recognize --opt size)
+      // - "unknown flag" (older Docker versions)
+      const isQuotaNotSupported =
+        sizeGb &&
+        (message.includes("quota size requested but no quota support") ||
+          message.includes("invalid option") ||
+          message.includes("unknown flag") ||
+          message.includes("size option") ||
+          message.includes("quota support"));
+
+      if (isQuotaNotSupported) {
+        console.warn(
+          `[GVisorRuntime] Storage driver doesn't support size limits (this is normal in dev/Lima), creating volume without quota: ${fullVolumeName}`,
+        );
+        // Retry without size option (graceful fallback)
+        try {
+          await this.exec(`docker volume create ${fullVolumeName}`, true);
+          console.log(
+            `[GVisorRuntime] Created volume without size limit: ${fullVolumeName}`,
+          );
+          return;
+        } catch (retryError) {
+          const retryMessage =
+            retryError instanceof Error ? retryError.message : String(retryError);
+          console.error(`[GVisorRuntime] Failed to create volume: ${retryMessage}`);
+          throw new Error(`Volume creation failed: ${retryMessage}`);
+        }
+      }
+
       console.error(`[GVisorRuntime] Failed to create volume: ${message}`);
       throw new Error(`Volume creation failed: ${message}`);
     }

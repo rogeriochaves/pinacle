@@ -419,11 +419,15 @@ export const sendCheckoutRecoveryEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
-    const CheckoutRecoveryEmail = (
-      await import("../emails/checkout-recovery")
-    ).default;
+    const CheckoutRecoveryEmail = (await import("../emails/checkout-recovery"))
+      .default;
     const emailHtml = await render(
-      CheckoutRecoveryEmail({ userName: name, tier, checkoutUrl, attemptNumber }),
+      CheckoutRecoveryEmail({
+        userName: name,
+        tier,
+        checkoutUrl,
+        attemptNumber,
+      }),
     );
 
     const getSubjectLine = () => {
@@ -451,7 +455,10 @@ export const sendCheckoutRecoveryEmail = async ({
       return { success: false, error: error.message };
     }
 
-    console.log(`Checkout recovery email (attempt ${attemptNumber}) sent to ${to}:`, data?.id);
+    console.log(
+      `Checkout recovery email (attempt ${attemptNumber}) sent to ${to}:`,
+      data?.id,
+    );
     return { success: true };
   } catch (error) {
     console.error("Error sending checkout recovery email:", error);

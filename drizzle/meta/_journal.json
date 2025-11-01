@@ -132,7 +132,7 @@
       "idx": 18,
       "version": "7",
       "when": 1761471237526,
-      "tag": "0018_add_metrics_indexes",
+      "tag": "0018_add_ui_state",
       "breakpoints": true
     },
     {
@@ -152,15 +152,8 @@
     {
       "idx": 21,
       "version": "7",
-      "when": 1761953854393,
-      "tag": "0021_flowery_black_tarantula",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
       "when": 1762001965774,
-      "tag": "0022_smooth_blue_blade",
+      "tag": "0021_smooth_blue_blade",
       "breakpoints": true
     }
   ]

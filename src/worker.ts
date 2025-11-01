@@ -47,7 +47,9 @@ const cleanupOldMetrics = async () => {
       .returning();
 
     console.log("[Metrics Cleanup] ✅ Cleanup completed successfully");
-    console.log(`  - Server metrics deleted: ${serverMetricsDeleted.length || 0}`);
+    console.log(
+      `  - Server metrics deleted: ${serverMetricsDeleted.length || 0}`,
+    );
     console.log(`  - Pod metrics deleted: ${podMetricsDeleted.length || 0}`);
     console.log(`  - Pod logs deleted: ${podLogsDeleted.length || 0}`);
   } catch (error) {
@@ -102,7 +104,9 @@ const enforceGracePeriod = async () => {
 // Process abandoned checkouts and send recovery emails
 const processAbandonedCheckouts = async () => {
   try {
-    console.log("[Checkout Recovery] Starting abandoned checkout processing...");
+    console.log(
+      "[Checkout Recovery] Starting abandoned checkout processing...",
+    );
     const { checkoutRecoveryService } = await import(
       "./lib/billing/checkout-recovery"
     );
@@ -174,7 +178,9 @@ const startWorker = async () => {
   console.log(`   - Snapshot storage tracking: every hour`);
   console.log(`   - Usage retry: every 6 hours`);
   console.log(`   - Grace period enforcement: every 6 hours`);
-  console.log(`   - Checkout recovery emails: every hour (4h, 24h, 72h windows)`);
+  console.log(
+    `   - Checkout recovery emails: every hour (4h, 24h, 72h windows)`,
+  );
   console.log(`   - Retention period: 5 days`);
 
   // Keep process alive
@@ -194,4 +200,3 @@ startWorker().catch((error) => {
   console.error("❌ Worker failed to start:", error);
   process.exit(1);
 });
-

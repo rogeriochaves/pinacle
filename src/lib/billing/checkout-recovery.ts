@@ -1,4 +1,4 @@
-import { eq, and, lt, isNull } from "drizzle-orm";
+import { and, count, eq, lt } from "drizzle-orm";
 import { db } from "../db";
 import { checkoutSessions, users } from "../db/schema";
 import { sendCheckoutRecoveryEmail } from "../email";
@@ -127,7 +127,7 @@ export class CheckoutRecoveryService {
   private async markExpiredCheckouts(now: Date): Promise<void> {
     const expirationTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    const result = await db
+    const _result = await db
       .update(checkoutSessions)
       .set({
         status: "abandoned",
@@ -140,9 +140,7 @@ export class CheckoutRecoveryService {
         ),
       );
 
-    console.log(
-      `[CheckoutRecovery] Marked expired checkouts as abandoned`,
-    );
+    console.log(`[CheckoutRecovery] Marked expired checkouts as abandoned`);
   }
 
   /**
@@ -154,23 +152,23 @@ export class CheckoutRecoveryService {
     abandoned: number;
     emailsSent: { attempt1: number; attempt2: number; attempt3: number };
   }> {
-    const [pending] = await db
-      .select()
+    const [pendingResult] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(eq(checkoutSessions.status, "pending"));
 
-    const [completed] = await db
-      .select()
+    const [completedResult] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(eq(checkoutSessions.status, "completed"));
 
-    const [abandoned] = await db
-      .select()
+    const [abandonedResult] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(eq(checkoutSessions.status, "abandoned"));
 
-    const [emailAttempt1] = await db
-      .select()
+    const [emailAttempt1Result] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(
         and(
@@ -179,8 +177,8 @@ export class CheckoutRecoveryService {
         ),
       );
 
-    const [emailAttempt2] = await db
-      .select()
+    const [emailAttempt2Result] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(
         and(
@@ -189,8 +187,8 @@ export class CheckoutRecoveryService {
         ),
       );
 
-    const [emailAttempt3] = await db
-      .select()
+    const [emailAttempt3Result] = await db
+      .select({ count: count() })
       .from(checkoutSessions)
       .where(
         and(
@@ -200,17 +198,16 @@ export class CheckoutRecoveryService {
       );
 
     return {
-      pending: pending?.length || 0,
-      completed: completed?.length || 0,
-      abandoned: abandoned?.length || 0,
+      pending: pendingResult?.count || 0,
+      completed: completedResult?.count || 0,
+      abandoned: abandonedResult?.count || 0,
       emailsSent: {
-        attempt1: emailAttempt1?.length || 0,
-        attempt2: emailAttempt2?.length || 0,
-        attempt3: emailAttempt3?.length || 0,
+        attempt1: emailAttempt1Result?.count || 0,
+        attempt2: emailAttempt2Result?.count || 0,
+        attempt3: emailAttempt3Result?.count || 0,
       },
     };
   }
 }
 
 export const checkoutRecoveryService = new CheckoutRecoveryService();
-

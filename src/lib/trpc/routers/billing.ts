@@ -370,25 +370,27 @@ export const billingRouter = createTRPCRouter({
       });
 
       // Extract line items with usage data
-      const lineItems = upcomingInvoice.lines.data.map((line: {
-        description: string | null;
-        amount: number;
-        currency: string;
-        quantity: number | null;
-        period: { start: number; end: number };
-        metadata: Record<string, string>;
-      }) => ({
-        description: line.description,
-        amount: line.amount,
-        currency: line.currency,
-        quantity: line.quantity,
-        period: {
-          start: line.period.start,
-          end: line.period.end,
-        },
-        // Extract tier info from metadata if available
-        metadata: line.metadata,
-      }));
+      const lineItems = upcomingInvoice.lines.data.map(
+        (line: {
+          description: string | null;
+          amount: number;
+          currency: string;
+          quantity: number | null;
+          period: { start: number; end: number };
+          metadata: Record<string, string>;
+        }) => ({
+          description: line.description,
+          amount: line.amount,
+          currency: line.currency,
+          quantity: line.quantity,
+          period: {
+            start: line.period.start,
+            end: line.period.end,
+          },
+          // Extract tier info from metadata if available
+          metadata: line.metadata,
+        }),
+      );
 
       return {
         upcomingInvoice: {
@@ -477,5 +479,4 @@ export const billingRouter = createTRPCRouter({
         endDate,
       };
     }),
-
 });
