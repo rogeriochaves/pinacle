@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "noEmit": false,
+    "allowJs": true,
+    "isolatedModules": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["server.ts", "src/worker.ts", "src/lib/**/*.ts", "src/types/**/*.ts"],
+  "exclude": ["node_modules", ".next", "dist", "src/app/**/*", "src/components/**/*", "src/emails/**/*"]
+}
+

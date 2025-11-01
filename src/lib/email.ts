@@ -8,8 +8,14 @@ import ResetPasswordEmail from "../emails/reset-password";
 import SubscriptionCancelledEmail from "../emails/subscription-cancelled";
 import WelcomeEmail from "../emails/welcome";
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization of Resend client (only when needed at runtime)
+let resend: Resend | null = null;
+const getResendClient = (): Resend => {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+};
 
 type SendWelcomeEmailParams = {
   to: string;
@@ -43,7 +49,7 @@ export const sendWelcomeEmail = async ({
     const emailHtml = await render(WelcomeEmail({ name, dashboardUrl }));
 
     // Send the email
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <hello@pinacle.dev>",
       to: [to],
       subject: "Welcome to Pinacle - Create Your First Pod! 🚀",
@@ -92,7 +98,7 @@ export const sendResetPasswordEmail = async ({
     const emailHtml = await render(ResetPasswordEmail({ name, resetUrl }));
 
     // Send the email
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <hello@pinacle.dev>",
       to: [to],
       subject: "Reset your Pinacle password",
@@ -183,7 +189,7 @@ export const sendPaymentSuccessEmail = async ({
       PaymentSuccessEmail({ name, amount, currency, invoiceUrl, billingUrl }),
     );
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
       subject: `Payment Received - ${currency.toUpperCase()} ${amount}`,
@@ -229,7 +235,7 @@ export const sendPaymentFailedEmail = async ({
       PaymentFailedEmail({ name, amount, currency, billingUrl, graceDays }),
     );
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
       subject: "⚠️ Payment Failed - Action Required",
@@ -273,7 +279,7 @@ export const sendSubscriptionCancelledEmail = async ({
       SubscriptionCancelledEmail({ name, billingUrl, dataRetentionDays }),
     );
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
       subject: "Subscription Cancelled",
@@ -325,7 +331,7 @@ export const sendGracePeriodWarningEmail = async ({
       }),
     );
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
       subject: `⚠️ Payment Overdue - ${daysRemaining} Days Until Suspension`,
@@ -369,7 +375,7 @@ export const sendFinalDeletionWarningEmail = async ({
       FinalDeletionWarningEmail({ name, daysUntilDeletion, billingUrl }),
     );
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
       subject: `🚨 Final Warning - Data Deletion in ${daysUntilDeletion} Days`,
@@ -443,7 +449,7 @@ export const sendCheckoutRecoveryEmail = async ({
       }
     };
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <noreply@pinacle.dev>",
       to,
       subject: getSubjectLine(),

@@ -5,13 +5,22 @@ let appInstance: App | null = null;
 
 export const getGitHubApp = (): App => {
   if (!appInstance) {
+    // During build time, env vars might not be available
     if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY) {
       throw new Error("GitHub App credentials not configured");
     }
 
+    // Ensure values are strings and not empty
+    const appId = String(env.GITHUB_APP_ID || "").trim();
+    const privateKey = String(env.GITHUB_APP_PRIVATE_KEY || "").trim();
+
+    if (!appId || !privateKey) {
+      throw new Error("GitHub App credentials not configured");
+    }
+
     appInstance = new App({
-      appId: env.GITHUB_APP_ID,
-      privateKey: env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      appId,
+      privateKey: privateKey.replace(/\\n/g, "\n"),
     });
   }
 

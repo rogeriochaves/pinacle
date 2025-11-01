@@ -26,6 +26,9 @@ import {
 import { stripe } from "../../../../lib/stripe";
 import { generateKSUID } from "../../../../lib/utils";
 
+// Force dynamic rendering - don't try to collect data at build time
+export const dynamic = 'force-dynamic';
+
 /**
  * Stripe Webhook Handler
  * Handles all Stripe webhook events for billing

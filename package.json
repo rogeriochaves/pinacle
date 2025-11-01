@@ -6,6 +6,7 @@
     "dev": "concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"dotenv -c -- tsx server.ts\" \"pnpm worker\"",
     "build": "next build --turbopack",
     "start": "concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"dotenv -c -- node server.js\" \"pnpm worker\"",
+    "start:prod": "concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"node server.js\" \"node src/worker.js\"",
     "worker": "dotenv -c -- tsx src/worker.ts",
     "lint": "biome lint --write --unsafe",
     "format": "biome format --write",
@@ -68,6 +69,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "^1.1.1",
+    "concurrently": "^9.2.1",
     "dotenv": "^17.2.3",
     "dotenv-cli": "^10.0.0",
     "drizzle-kit": "0.31.4",
@@ -95,6 +97,7 @@
     "stripe": "^19.2.0",
     "superjson": "2.2.2",
     "tailwind-merge": "3.3.1",
+    "tsx": "^4.20.5",
     "zod": "4.1.9"
   },
   "devDependencies": {
@@ -107,9 +110,7 @@
     "@types/react": "19.1.13",
     "@types/react-dom": "19.1.9",
     "@vitest/ui": "^3.2.4",
-    "concurrently": "^9.2.1",
     "tailwindcss": "4.1.13",
-    "tsx": "^4.20.5",
     "typescript": "5.9.2",
     "vitest": "^3.2.4"
   }

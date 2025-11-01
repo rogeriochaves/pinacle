@@ -3,14 +3,28 @@ import { env } from "../env";
 
 /**
  * Stripe client singleton
- * Initialized with API key from environment variables
+ * Lazy-initialized with API key from environment variables
  */
-export const stripe = new Stripe(env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-10-29.clover",
-  typescript: true,
-  appInfo: {
-    name: "Pinacle",
-    version: "0.1.0",
+let stripeInstance: Stripe | null = null;
+
+export const getStripe = (): Stripe => {
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(env.STRIPE_SECRET_KEY || "", {
+      apiVersion: "2025-10-29.clover",
+      typescript: true,
+      appInfo: {
+        name: "Pinacle",
+        version: "0.1.0",
+      },
+    });
+  }
+  return stripeInstance;
+};
+
+// Export for backwards compatibility
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return getStripe()[prop as keyof Stripe];
   },
 });
 

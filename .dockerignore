@@ -1,0 +1,77 @@
+# Dependencies
+node_modules
+server-agent/node_modules
+server-agent/dist
+
+# Build outputs
+.next
+dist
+build
+*.tsbuildinfo
+
+# Development files
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Testing
+vitest.config.ts
+coverage
+.nyc_output
+qa
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+docker
+
+# Scripts
+scripts/*.sh
+scripts/test-*.ts
+scripts/seed.ts
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.swp
+*.swo
+*~
+.tmp
+temp
+
+# Worktrees
+worktrees
+
+# START_TESTING and other guides
+START_TESTING.md
+STRIPE_TESTING_GUIDE.md
+STORAGE_LIMITS_IMPLEMENTATION.md
+
