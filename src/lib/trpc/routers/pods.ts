@@ -1,6 +1,6 @@
 import { Octokit } from "@octokit/rest";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, gte, isNull, not } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, not, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   envSets,
@@ -1265,7 +1265,7 @@ export const podsRouter = createTRPCRouter({
     .input(
       z.object({
         podId: z.string(),
-        hoursAgo: z.number().min(1).max(168).default(6), // Default to 6 hours
+        hoursAgo: z.number().min(1).max(168).default(3), // Default to 3 hours
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -1286,13 +1286,17 @@ export const podsRouter = createTRPCRouter({
       const since = new Date(Date.now() - input.hoursAgo * 60 * 60 * 1000);
 
       // Determine aggregation interval based on time range
-      // <= 6 hours: 1 minute granularity (no aggregation)
-      // 6-24 hours: 5 minute buckets
-      // 24-72 hours: 15 minute buckets
+      // More aggressive aggregation for better frontend performance
+      // <= 1 hour: 1 minute granularity (60 points)
+      // 1-6 hours: 2 minute buckets (up to 180 points)
+      // 6-24 hours: 5 minute buckets (up to 288 points)
+      // 24-72 hours: 15 minute buckets (up to 288 points)
       // > 72 hours: 30 minute buckets
       let intervalMinutes: number;
-      if (input.hoursAgo <= 6) {
+      if (input.hoursAgo <= 1) {
         intervalMinutes = 1;
+      } else if (input.hoursAgo <= 6) {
+        intervalMinutes = 2;
       } else if (input.hoursAgo <= 24) {
         intervalMinutes = 5;
       } else if (input.hoursAgo <= 72) {
@@ -1301,7 +1305,7 @@ export const podsRouter = createTRPCRouter({
         intervalMinutes = 30;
       }
 
-      // For 1-minute intervals, just return raw data (no aggregation needed)
+      // For 1-minute intervals only (1 hour or less), return raw data
       if (intervalMinutes === 1) {
         const metrics = await ctx.db
           .select()

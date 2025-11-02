@@ -60,7 +60,6 @@ const TIME_RANGE_OPTIONS = [
   { label: "3h", value: 3 },
   { label: "6h", value: 6 },
   { label: "12h", value: 12 },
-  { label: "24h", value: 24 },
 ] as const;
 
 const formatBytes = (mb: number) => {
@@ -69,7 +68,7 @@ const formatBytes = (mb: number) => {
 
 export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("metrics");
-  const [timeRange, setTimeRange] = useState(6); // Default to 6 hours
+  const [timeRange, setTimeRange] = useState(3); // Default to 3 hours for better performance
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [snapshotName, setSnapshotName] = useState("");
   const [snapshotDescription, setSnapshotDescription] = useState("");

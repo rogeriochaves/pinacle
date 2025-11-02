@@ -1,7 +1,6 @@
 "use client";
 
 import { GithubIcon, Plus } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { Header } from "./header";

@@ -185,7 +185,7 @@ export class UsageTracker {
         identifier: usageRecord.id, // For idempotency
         payload: {
           stripe_customer_id: stripeCustomer.stripeCustomerId,
-          mb_hours: usageRecord.quantity.toString(), // Send MB-hours as string
+          mb_hours: Math.round(usageRecord.quantity).toString(), // Round to integer
         },
       });
 

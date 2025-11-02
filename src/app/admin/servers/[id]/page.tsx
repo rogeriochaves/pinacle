@@ -29,7 +29,7 @@ const TIME_RANGE_OPTIONS = [
 export default function ServerDetailPage() {
   const params = useParams();
   const serverId = params?.id as string;
-  const [timeRange, setTimeRange] = useState(6); // Default to 6 hours
+  const [timeRange, setTimeRange] = useState(3); // Default to 3 hours for better performance
 
   const {
     data: server,

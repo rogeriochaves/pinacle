@@ -67,7 +67,7 @@ export const JumpRightBack = () => {
                           src={pod.screenshot.url}
                           alt={`${pod.name} screenshot`}
                           fill
-                          className="object-cover object-top"
+                          className="object-cover object-top-left"
                         />
                         {/* Overlay on hover */}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">

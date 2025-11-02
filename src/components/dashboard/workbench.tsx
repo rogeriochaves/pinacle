@@ -649,11 +649,27 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       }
     };
 
-    // Listen for keyboard shortcuts forwarded from iframes
+    // Listen for keyboard shortcuts and port navigation from iframes
     const handleMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === "pinacle-keyboard-shortcut") {
         // Shortcut forwarded from iframe
         handleShortcut(e.data.key);
+      } else if (e.data && e.data.type === "pinacle-navigate-port") {
+        // Port navigation from 502 discovery page
+        const port = e.data.port;
+        if (typeof port === "number") {
+          // Find the active tab and navigate it to the new port
+          const currentTab = tabs.find((t) => t.id === activeTab);
+          if (currentTab) {
+            const authUrl = `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${port}`;
+            const iframe = document.getElementById(
+              `js-iframe-tab-${currentTab.id}`,
+            ) as HTMLIFrameElement;
+            if (iframe) {
+              iframe.src = authUrl;
+            }
+          }
+        }
       }
     };
 
@@ -663,7 +679,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("message", handleMessage);
     };
-  }, [tabs]);
+  }, [tabs, activeTab, pod.slug]);
 
   const getTabUrl = useCallback(
     (tabId: string, terminalSession?: string): string => {

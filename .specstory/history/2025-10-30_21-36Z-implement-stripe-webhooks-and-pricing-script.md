@@ -17385,3 +17385,129 @@ The unstaged changes are just the formatting fixes we made to the type inference
 
 ---
 
+_**User (2025-11-02 17:53Z)**_
+
+getting this for the snapshot usage tracking:
+
+
+
+[worker] [UsageTracker]   ✗ Failed to track storage for snapshot snapshot_34vvAup0COsSVcmLDA14MATPTcH: StripeInvalidRequestError: The value in the event payload must be an integer. Received "515.8264".
+
+[worker]     at generateV1Error (/Users/rchaves/Projects/pinacle/node_modules/.pnpm/stripe@19.2.0_@types+node@20.19.16/node_modules/stripe/cjs/Error.js:11:20)
+
+[worker]     at res.toJSON.then.Error_js_1.StripeAPIError.message (/Users/rchaves/Projects/pinacle/node_modules/.pnpm/stripe@19.2.0_@types+node@20.19.16/node_modules/stripe/cjs/RequestSender.js:114:62)
+
+[worker]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+
+[worker]   type: 'StripeInvalidRequestError',
+
+[worker]   raw: {
+
+[worker]     message: 'The value in the event payload must be an integer. Received "515.8264".',
+
+[worker]     request_log_url: 'https://dashboard.stripe.com/test/logs/req_fv5Q6DzYsoZ6Uw?t=1762110125',
+
+[worker]     type: 'invalid_request_error',
+
+[worker]     headers: {
+
+[worker]       server: 'nginx',
+
+[worker]       date: 'Sun, 02 Nov 2025 19:02:05 GMT',
+
+[worker]       'content-type': 'application/json',
+
+[worker]       'content-length': '246',
+
+[worker]       connection: 'keep-alive',
+
+[worker]       'access-control-allow-credentials': 'true',
+
+[worker]       'access-control-allow-methods': 'GET, HEAD, PUT, PATCH, POST, DELETE',
+
+---
+
+_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
+
+
+
+---
+
+<think><details><summary>Thought Process</summary>
+The user is getting an error when tracking snapshot storage usage. The error says:
+
+"The value in the event payload must be an integer. Received "515.8264"."
+
+This is happening when reporting snapshot storage to Stripe's billing meter. Stripe expects an integer value, but we're sending a float (515.8264).
+
+Looking at the summary, the snapshot storage tracking was implemented to track MB-hours. It seems we're calculating the MB-hours as a decimal value, but Stripe requires an integer.
+
+The solution is to round the value to an integer before sending it to Stripe. We should probably use `Math.round()` or `Math.floor()` to convert the decimal to an integer.
+
+Let me check the usage-tracker.ts file to see where this is happening.</details></think>
+
+---
+
+I need to check the snapshot storage tracking code to fix the decimal value issue:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/billing/usage-tracker.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I found the issue! On line 188, we're sending `usageRecord.quantity.toString()` for the `mb_hours` value, but `usageRecord.quantity` is a float (515.8264 MB). Stripe's billing meter expects an integer value.
+
+The issue is on line 126 where we set `quantity: storageMb` which is a decimal value calculated from `snapshot.sizeBytes / 1024 / 1024`.
+
+Stripe expects integers in the payload. We need to round this value before sending it to Stripe. We should use `Math.round()` to convert the decimal to the nearest integer.
+
+Actually, looking at line 188, we're converting it to a string. But Stripe is saying "The value in the event payload must be an integer. Received "515.8264"." So even though we're sending it as a string, Stripe is parsing it and expecting an integer value.
+
+The fix is to round the value to an integer before converting to string.</details></think>
+
+---
+
+I see the issue! Stripe's billing meter expects integer values, but we're sending decimal MB values. We need to round the value to an integer:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/billing/usage-tracker.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -186,5 +186,5 @@
+          payload: {
+            stripe_customer_id: stripeCustomer.stripeCustomerId,
+-           mb_hours: usageRecord.quantity.toString(), // Send MB-hours as string
++           mb_hours: Math.round(usageRecord.quantity).toString(), // Round to integer
+          },
+        });
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good! Now Stripe will receive an integer value instead of a decimal. The Math.round() will convert 515.8264 to 516, which is what Stripe expects.
+
+Let me check if there are any linter errors introduced by this change.</details></think>
+
+---
+
+Fixed! Stripe billing meters require integer values in the payload, so I've added `Math.round()` to convert the decimal MB value to an integer before sending it to Stripe. Now `515.8264` will be sent as `516`.
+
+---
+
