@@ -4,6 +4,7 @@ import { Check, Code, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { LoadingFallback } from "../../../components/loading-fallback";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -280,7 +281,7 @@ function ResetPasswordForm() {
 
 export default function ResetPassword() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<LoadingFallback />}>
       <ResetPasswordForm />
     </Suspense>
   );
