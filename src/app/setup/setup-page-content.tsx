@@ -72,6 +72,7 @@ const SetupPageContent = () => {
   }, [session, status, setupType, router, template, tier, agent]);
 
   const [initialRender, setInitialRender] = useState(true);
+  const [showManualConnect, setShowManualConnect] = useState(false);
 
   useEffect(() => {
     if (initialRender) {
@@ -80,6 +81,17 @@ const SetupPageContent = () => {
       }, 2000);
     }
   }, [initialRender]);
+
+  // If we haven't redirected after 5 seconds, something went wrong - show manual connect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (status !== "loading" && !isRedirecting) {
+        setShowManualConnect(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [status, isRedirecting]);
 
   if (status === "loading" || isRedirecting || initialRender) {
     return (
@@ -99,67 +111,84 @@ const SetupPageContent = () => {
     );
   }
 
-  // This should rarely be shown as we redirect above
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {setupType === "repository" ? "Open Repository" : "New Project"}
-          </h1>
-          <p className="text-gray-600">
-            {setupType === "repository"
-              ? "Connect your GitHub account to access your repositories"
-              : "Connect your GitHub account to create a new project"}
-          </p>
+  // If auto-redirect failed after timeout, show manual connect option
+  if (showManualConnect) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {setupType === "repository" ? "Open Repository" : "New Project"}
+            </h1>
+            <p className="text-gray-600">
+              {setupType === "repository"
+                ? "Connect your GitHub account to access your repositories"
+                : "Connect your GitHub account to create a new project"}
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader className="text-center">
+              <div className="mx-auto w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center mb-4">
+                <GithubIcon className="h-6 w-6 text-white" />
+              </div>
+              <CardTitle>Connect GitHub Account</CardTitle>
+              <CardDescription>
+                We need access to your GitHub repositories to set up your
+                development environment
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={() => {
+                  setIsRedirecting(true);
+                  const params = new URLSearchParams();
+                  params.set("type", setupType);
+                  if (template) params.set("template", template);
+                  if (tier) params.set("tier", tier);
+                  if (agent) params.set("agent", agent);
+                  signIn("github", {
+                    callbackUrl: `/setup?${params.toString()}`,
+                  });
+                }}
+                className="w-full"
+                disabled={isRedirecting}
+              >
+                {isRedirecting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <GithubIcon className="mr-2 h-4 w-4" />
+                )}
+                Connect GitHub Account
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <div className="mt-4 text-xs text-gray-500 text-center">
+                <p>We'll request access to:</p>
+                <ul className="mt-2 space-y-1">
+                  <li>• Read your repositories</li>
+                  <li>• Create deploy keys</li>
+                  <li>• Create new repositories (for new projects)</li>
+                </ul>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+      </div>
+    );
+  }
 
-        <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-gray-900 rounded-full flex items-center justify-center mb-4">
-              <GithubIcon className="h-6 w-6 text-white" />
-            </div>
-            <CardTitle>Connect GitHub Account</CardTitle>
-            <CardDescription>
-              We need access to your GitHub repositories to set up your
-              development environment
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => {
-                setIsRedirecting(true);
-                const params = new URLSearchParams();
-                params.set("type", setupType);
-                if (template) params.set("template", template);
-                if (tier) params.set("tier", tier);
-                if (agent) params.set("agent", agent);
-                signIn("github", {
-                  callbackUrl: `/setup?${params.toString()}`,
-                });
-              }}
-              className="w-full"
-              disabled={isRedirecting}
-            >
-              {isRedirecting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <GithubIcon className="mr-2 h-4 w-4" />
-              )}
-              Connect GitHub Account
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-
-            <div className="mt-4 text-xs text-gray-500 text-center">
-              <p>We'll request access to:</p>
-              <ul className="mt-2 space-y-1">
-                <li>• Read your repositories</li>
-                <li>• Create deploy keys</li>
-                <li>• Create new repositories (for new projects)</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+  // Default: show loading state (redirecting should happen automatically)
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
+        <h2 className="text-xl font-semibold text-white mb-2 font-mono">
+          Setting up your development environment...
+        </h2>
+        <p className="text-slate-400 font-mono">
+          Preparing to connect your GitHub account...
+        </p>
       </div>
     </div>
   );

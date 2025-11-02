@@ -99,6 +99,7 @@ export default function InstallPageContent() {
   };
 
   const [initialRender, setInitialRender] = useState(true);
+  const [showManualInstall, setShowManualInstall] = useState(false);
 
   useEffect(() => {
     if (initialRender) {
@@ -107,6 +108,17 @@ export default function InstallPageContent() {
       }, 2000);
     }
   }, [initialRender]);
+
+  // If we haven't redirected after 5 seconds, something went wrong - show manual install
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isRedirecting && installationUrl) {
+        setShowManualInstall(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [isRedirecting, installationUrl]);
 
   // If GitHub App is not configured, this is a development/deployment issue
   if (!urlLoading && !installationUrl) {
@@ -159,84 +171,101 @@ export default function InstallPageContent() {
     );
   }
 
-  // This should never be reached since we auto-redirect, but just in case
+  // If auto-redirect failed after timeout, show manual install option
+  if (showManualInstall) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
+              <Github className="h-8 w-8 text-blue-600" />
+            </div>
+            <CardTitle className="text-2xl">
+              Step 2: Install Pinacle in Your Organizations
+            </CardTitle>
+            <CardDescription className="text-base">
+              Install the Pinacle GitHub App in your organizations to enable
+              repository access and development environment creation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Users className="h-6 w-6 mx-auto mb-2 text-blue-600" />
+                <h3 className="font-medium text-sm">Organization Access</h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Access repositories in your organizations
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <GitBranch className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                <h3 className="font-medium text-sm">Create Repositories</h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Create new repos in any organization
+                </p>
+              </div>
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <Shield className="h-6 w-6 mx-auto mb-2 text-purple-600" />
+                <h3 className="font-medium text-sm">Secure Access</h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Granular permissions you control
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">
+                What happens next?
+              </h4>
+              <ol className="text-sm text-blue-800 space-y-1">
+                <li>1. You'll be redirected to GitHub</li>
+                <li>2. Choose which organizations to install Pinacle on</li>
+                <li>3. Select which repositories Pinacle can access</li>
+                <li>
+                  4. Return here to continue creating your development environment
+                </li>
+              </ol>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                onClick={handleInstallApp}
+                className="w-full"
+                size="lg"
+                disabled={!installationUrl}
+              >
+                <Github className="mr-2 h-5 w-5" />
+                Install Pinacle App
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
+
+            <div className="text-xs text-gray-500 text-center">
+              <p>The Pinacle GitHub App will request access to:</p>
+              <ul className="list-disc list-inside mt-1 space-y-0.5">
+                <li>Repository contents (to clone and manage your code)</li>
+                <li>Repository metadata (to display repo information)</li>
+                <li>Organization membership (to show available organizations)</li>
+              </ul>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Default: show loading state (redirecting should happen automatically)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 p-3 bg-blue-100 rounded-full w-fit">
-            <Github className="h-8 w-8 text-blue-600" />
-          </div>
-          <CardTitle className="text-2xl">
-            Step 2: Install Pinacle in Your Organizations
-          </CardTitle>
-          <CardDescription className="text-base">
-            Install the Pinacle GitHub App in your organizations to enable
-            repository access and development environment creation.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <Users className="h-6 w-6 mx-auto mb-2 text-blue-600" />
-              <h3 className="font-medium text-sm">Organization Access</h3>
-              <p className="text-xs text-gray-600 mt-1">
-                Access repositories in your organizations
-              </p>
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <GitBranch className="h-6 w-6 mx-auto mb-2 text-green-600" />
-              <h3 className="font-medium text-sm">Create Repositories</h3>
-              <p className="text-xs text-gray-600 mt-1">
-                Create new repos in any organization
-              </p>
-            </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <Shield className="h-6 w-6 mx-auto mb-2 text-purple-600" />
-              <h3 className="font-medium text-sm">Secure Access</h3>
-              <p className="text-xs text-gray-600 mt-1">
-                Granular permissions you control
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">
-              What happens next?
-            </h4>
-            <ol className="text-sm text-blue-800 space-y-1">
-              <li>1. You'll be redirected to GitHub</li>
-              <li>2. Choose which organizations to install Pinacle on</li>
-              <li>3. Select which repositories Pinacle can access</li>
-              <li>
-                4. Return here to continue creating your development environment
-              </li>
-            </ol>
-          </div>
-
-          <div className="space-y-3">
-            <Button
-              onClick={handleInstallApp}
-              className="w-full"
-              size="lg"
-              disabled={!installationUrl}
-            >
-              <Github className="mr-2 h-5 w-5" />
-              Install Pinacle App
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </div>
-
-          <div className="text-xs text-gray-500 text-center">
-            <p>The Pinacle GitHub App will request access to:</p>
-            <ul className="list-disc list-inside mt-1 space-y-0.5">
-              <li>Repository contents (to clone and manage your code)</li>
-              <li>Repository metadata (to display repo information)</li>
-              <li>Organization membership (to show available organizations)</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="text-center">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
+        <h2 className="text-xl font-semibold text-white mb-2 font-mono">
+          Preparing GitHub installation...
+        </h2>
+        <p className="text-slate-400 font-mono">
+          You'll be redirected to GitHub shortly
+        </p>
+      </div>
     </div>
   );
 }
