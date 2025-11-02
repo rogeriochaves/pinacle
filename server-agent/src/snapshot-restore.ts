@@ -328,7 +328,7 @@ const downloadFromS3 = async (
     },
   });
 
-  const key = `${config.snapshotId}.tar.gz`;
+  const key = `snapshots/${config.snapshotId}.tar.gz`;
   const response = await s3Client.send(
     new GetObjectCommand({
       Bucket: config.s3Bucket!,

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { GVisorRuntime } from "../container-runtime";
 import { getLimaServerConnection } from "../lima-utils";
-import type { PodSpec, ResourceTier } from "../types";
+import type { PodSpec, } from "../types";
 
 // Use vi.hoisted to ensure mockExec is available in the mock factory
 const { mockExec } = vi.hoisted(() => ({

@@ -206,7 +206,7 @@ describe("Usage Tracker Tests", () => {
       services: ["code-server"],
     };
 
-    const [pod] = await db
+    const [_pod] = await db
       .insert(pods)
       .values({
         name: "Test Stripe Reporting Pod",

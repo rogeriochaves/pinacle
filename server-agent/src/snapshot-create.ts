@@ -317,7 +317,7 @@ const createSnapshot = async (
       success: true,
       storagePath:
         config.storageType === "s3"
-          ? `s3://${config.s3Bucket}/${config.snapshotId}.tar.gz`
+          ? `snapshots/${config.snapshotId}.tar.gz`
           : finalPath,
       sizeBytes: finalStats.size,
     };
@@ -361,7 +361,7 @@ const uploadToS3 = async (
     `[SnapshotCreate] Compressed to ${(stats.size / 1024 / 1024).toFixed(2)} MB`,
   );
 
-  const key = `${config.snapshotId}.tar.gz`;
+  const key = `snapshots/${config.snapshotId}.tar.gz`;
   await s3Client.send(
     new PutObjectCommand({
       Bucket: config.s3Bucket!,

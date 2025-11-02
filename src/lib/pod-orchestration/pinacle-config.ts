@@ -480,7 +480,7 @@ export const expandPinacleConfigToSpec = async (
   const baseImage = template?.baseImage || "alpine:3.22.1";
 
   // Resources: derive from tier in PinacleConfig
-  const resources = getResourcesFromTier(pinacleConfig.tier);
+  const _resources = getResourcesFromTier(pinacleConfig.tier);
 
   // Services: convert service names to ServiceConfig objects
   const services = pinacleConfig.services.map((serviceName) => {

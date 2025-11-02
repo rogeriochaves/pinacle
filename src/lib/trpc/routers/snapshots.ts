@@ -109,9 +109,7 @@ export const snapshotsRouter = createTRPCRouter({
         "../../pod-orchestration/pod-provisioning-service"
       );
       const provisioningService = new PodProvisioningService();
-      const serverConnection = await provisioningService[
-        "getServerConnectionDetails"
-      ](pod.serverId);
+      const serverConnection = await provisioningService.getServerConnectionDetails(pod.serverId);
 
       // Create snapshot asynchronously
       const snapshotService = new SnapshotService();
@@ -185,9 +183,7 @@ export const snapshotsRouter = createTRPCRouter({
         "../../pod-orchestration/pod-provisioning-service"
       );
       const provisioningService = new PodProvisioningService();
-      const serverConnection = await provisioningService[
-        "getServerConnectionDetails"
-      ](snapshot.pod.serverId);
+      const serverConnection = await provisioningService.getServerConnectionDetails(snapshot.pod.serverId);
 
       try {
         const snapshotService = new SnapshotService();
@@ -259,9 +255,7 @@ export const snapshotsRouter = createTRPCRouter({
           "../../pod-orchestration/pod-provisioning-service"
         );
         const provisioningService = new PodProvisioningService();
-        const serverConnection = await provisioningService[
-          "getServerConnectionDetails"
-        ](pod.serverId);
+        const serverConnection = await provisioningService.getServerConnectionDetails(pod.serverId);
 
         // Stop the pod if it's running
         if (pod.status === "running") {

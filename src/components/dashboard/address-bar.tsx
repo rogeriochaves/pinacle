@@ -11,6 +11,7 @@ export type AddressBarProps = {
   initialPort: number;
   initialPath?: string;
   onNavigate: (url: string) => void;
+  onPathChange?: (path: string, port: number) => void;
 };
 
 /**
@@ -58,6 +59,7 @@ export const AddressBar = ({
   initialPort,
   initialPath = "/",
   onNavigate,
+  onPathChange,
 }: AddressBarProps) => {
   const [displayUrl, setDisplayUrl] = useState(
     `localhost:${initialPort}${initialPath}`,
@@ -75,8 +77,6 @@ export const AddressBar = ({
   const [backSteps, setBackSteps] = useState(-2);
   const [forwardSteps, setForwardSteps] = useState(0);
   const lastActionRef = useRef<"back" | "forward" | "navigate" | null>(null);
-
-  console.log("backSteps", backSteps);
 
   // Get iframe reference and reset state when iframe changes
   useEffect(() => {
@@ -116,10 +116,14 @@ export const AddressBar = ({
             const port = Number.parseInt(match[1], 10);
             setCurrentPort(port);
             const friendlyUrl = `localhost:${port}${pathname}${search}${hash}`;
+            const fullPath = `${pathname}${search}${hash}`;
             setDisplayUrl(friendlyUrl);
             if (!isEditing) {
               setInputUrl(friendlyUrl);
             }
+
+            // Notify parent component of path change (for screenshots)
+            onPathChange?.(fullPath, port);
 
             // Update navigation step counters based on the action
             const lastAction = lastActionRef.current;
@@ -149,7 +153,7 @@ export const AddressBar = ({
     return () => {
       window.removeEventListener("message", handleMessage);
     };
-  }, [isEditing]);
+  }, [isEditing, onPathChange]);
 
   const handleNavigate = (localhostUrl: string) => {
     try {

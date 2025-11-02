@@ -7,6 +7,7 @@ import {
   githubInstallations,
   podLogs,
   podMetrics,
+  podScreenshots,
   pods,
   servers,
   stripeCustomers,
@@ -1944,4 +1945,75 @@ export const podsRouter = createTRPCRouter({
         return { hasChanges: false, changedFiles: 0 };
       }
     }),
+
+  /**
+   * Get user's running pods with their latest screenshot (for landing page "jump right back")
+   */
+  getRunningPodsWithScreenshots: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    // Get running pods for the user
+    const runningPods = await ctx.db
+      .select({
+        id: pods.id,
+        name: pods.name,
+        slug: pods.slug,
+        publicUrl: pods.publicUrl,
+        lastStartedAt: pods.lastStartedAt,
+      })
+      .from(pods)
+      .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+      .where(
+        and(
+          eq(teamMembers.userId, userId),
+          eq(pods.status, "running"),
+          isNull(pods.archivedAt),
+        ),
+      )
+      .orderBy(desc(pods.lastStartedAt))
+      .limit(6); // Show max 6 pods
+
+    // Get screenshot storage for generating signed URLs
+    const { getScreenshotStorage } = await import("../../screenshots/screenshot-storage");
+    const storage = getScreenshotStorage();
+
+    // For each pod, get the latest screenshot and generate signed URL
+    const podsWithScreenshots = await Promise.all(
+      runningPods.map(async (pod) => {
+        const [latestScreenshot] = await ctx.db
+          .select()
+          .from(podScreenshots)
+          .where(eq(podScreenshots.podId, pod.id))
+          .orderBy(desc(podScreenshots.createdAt))
+          .limit(1);
+
+        if (!latestScreenshot) {
+          return {
+            ...pod,
+            screenshot: null,
+          };
+        }
+
+        // Extract screenshot ID from URL
+        // URL format: http://endpoint/bucket/screenshots/pod-123-456.png
+        const urlParts = latestScreenshot.url.split("/");
+        const filename = urlParts[urlParts.length - 1]; // pod-123-456.png
+        const screenshotId = filename.replace(".png", ""); // pod-123-456
+
+        // Generate signed URL (valid for 1 hour)
+        const signedUrl = await storage.getSignedUrl(screenshotId);
+
+        return {
+          ...pod,
+          screenshot: {
+            ...latestScreenshot,
+            url: signedUrl, // Replace with signed URL
+          },
+        };
+      }),
+    );
+
+    // Filter out pods without screenshots
+    return podsWithScreenshots.filter((pod) => pod.screenshot !== null);
+  }),
 });

@@ -5,7 +5,6 @@ import { AlertCircle, CreditCard, DollarSign, Eye, Loader2, Search, Server, User
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "../../../components/ui/button";
 import { api } from "../../../lib/trpc/client";
 
 export default function AdminBillingPage() {
@@ -407,7 +406,7 @@ export default function AdminBillingPage() {
                               if (hours && reason) {
                                 extendGracePeriod.mutate({
                                   userId: selectedUserId!,
-                                  extensionHours: parseInt(hours),
+                                  extensionHours: parseInt(hours, 10),
                                   reason,
                                 });
                               }

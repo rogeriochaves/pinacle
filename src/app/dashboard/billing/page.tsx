@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, CreditCard, DollarSign, FileText, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, CreditCard, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";

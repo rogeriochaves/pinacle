@@ -101,7 +101,7 @@ export const recreatePodWithSnapshot = async ({
   console.log(
     `[recreatePodWithSnapshot] Allocating external ports for pod ${pod.id}`,
   );
-  await podManager["allocateExternalPorts"](podSpec);
+  await podManager.allocateExternalPorts(podSpec);
 
   // Determine which snapshot to restore and load the image
   const { SnapshotService } = await import("../../snapshots/snapshot-service");

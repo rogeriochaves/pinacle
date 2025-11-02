@@ -309,6 +309,29 @@ export const podSnapshots = pgTable("pod_snapshot", {
   completedAt: timestamp("completed_at", { mode: "date" }), // When snapshot creation completed
 });
 
+// Pod screenshots for "jump right back" feature
+export const podScreenshots = pgTable(
+  "pod_screenshot",
+  {
+    id: text("id")
+      .primaryKey()
+      .notNull()
+      .$defaultFn(generateKsuidBuilder("screenshot")),
+    podId: text("pod_id")
+      .notNull()
+      .references(() => pods.id, { onDelete: "cascade" }),
+    url: text("url").notNull(), // URL of the screenshot in S3
+    port: integer("port").notNull(), // The port that was being viewed
+    path: text("path").notNull().default("/"), // The path that was being viewed
+    sizeBytes: integer("size_bytes"), // Size in bytes
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("pod_screenshot_pod_id_idx").on(table.podId),
+    index("pod_screenshot_created_at_idx").on(table.createdAt),
+  ],
+);
+
 // GitHub App installations
 export const githubInstallations = pgTable("github_installation", {
   id: text("id")
@@ -595,6 +618,14 @@ export const podsRelations = relations(pods, ({ one, many }) => ({
   }),
   usage: many(podUsage),
   metrics: many(podMetrics),
+  screenshots: many(podScreenshots),
+}));
+
+export const podScreenshotsRelations = relations(podScreenshots, ({ one }) => ({
+  pod: one(pods, {
+    fields: [podScreenshots.podId],
+    references: [pods.id],
+  }),
 }));
 
 export const podUsageRelations = relations(podUsage, ({ one }) => ({

@@ -61,6 +61,7 @@ import {
 } from "../ui/tooltip";
 import { AddTabPopover } from "./add-tab-popover";
 import { AddressBar } from "./address-bar";
+import { ScreenshotIframe } from "./screenshot-iframe";
 import { TerminalTabs } from "./terminal-tabs";
 
 type TabConfig = {
@@ -237,6 +238,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [existingServiceTabs, setExistingServiceTabs] = useState<string[]>([]);
   const [showCreateTabDialog, setShowCreateTabDialog] = useState(false);
   const [terminalFocusTrigger, setTerminalFocusTrigger] = useState<number>(0);
+  // Track current path for each tab (for screenshots)
+  const [tabPaths, setTabPaths] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Setup drag and drop sensors
   const sensors = useSensors(
@@ -1095,16 +1098,36 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                           onNavigate={(proxyUrl) =>
                             handleAddressBarNavigate(tab.id, proxyUrl)
                           }
+                          onPathChange={(path) => {
+                            setTabPaths((prev) => ({
+                              ...prev,
+                              [tab.id]: path,
+                            }));
+                          }}
                         />
                       )}
-                      <iframe
-                        key={tab.id}
-                        id={`js-iframe-tab-${tab.id}`}
-                        src={getTabUrl(tab.id)}
-                        className="w-full h-full border-0 flex-1"
-                        title={tab.label}
-                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
-                      />
+                      {/* Use ScreenshotIframe for process tabs to auto-capture screenshots */}
+                      {isProcessTab ? (
+                        <ScreenshotIframe
+                          iframeId={`js-iframe-tab-${tab.id}`}
+                          podId={pod.id}
+                          port={tab.port}
+                          path={tabPaths[tab.id] || "/"}
+                          isActive={isActive}
+                          src={getTabUrl(tab.id)}
+                          title={tab.label}
+                          className="w-full h-full border-0 flex-1"
+                        />
+                      ) : (
+                        <iframe
+                          key={tab.id}
+                          id={`js-iframe-tab-${tab.id}`}
+                          src={getTabUrl(tab.id)}
+                          className="w-full h-full border-0 flex-1"
+                          title={tab.label}
+                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                        />
+                      )}
                     </div>
                   )}
                 </React.Fragment>

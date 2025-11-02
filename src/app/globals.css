@@ -144,6 +144,7 @@
 
   .\!\[\&\>svg\]\:text-foreground {
     & > svg {
+      /* biome-ignore lint/complexity/noImportantStyles: meh */
       color: var(--foreground)!important;
     }
   }

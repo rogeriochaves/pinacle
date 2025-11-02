@@ -115,7 +115,7 @@ export class PodManager extends EventEmitter {
         );
         const pinacleConfig = podConfigToPinacleConfig(spec);
         await this.setupGitHubRepository(spec, pinacleConfig);
-        
+
         // Inject pinacle.yaml for existing repos (whether they had one or not)
         // This ensures reconciled changes (patched tabs, updated services) are reflected
         // For new repos, it's already included in the initial commit
@@ -273,7 +273,7 @@ export class PodManager extends EventEmitter {
    * Clean up pod resources using container ID from database
    * This doesn't require the pod to be loaded in memory - works with just the container ID
    * Set removeVolumes=true for permanent deletion, false for temporary stop
-   * 
+   *
    * This method is resilient to missing containers - if the container is already gone,
    * it will still clean up volumes and networks.
    */
@@ -506,7 +506,7 @@ export class PodManager extends EventEmitter {
     this.emit("pod-event", event);
   }
 
-  private async allocateExternalPorts(spec: PodSpec): Promise<void> {
+  async allocateExternalPorts(spec: PodSpec): Promise<void> {
     // With the Nginx proxy approach, we only need to expose ONE port (80)
     // All internal services are accessed via hostname-based routing
 
