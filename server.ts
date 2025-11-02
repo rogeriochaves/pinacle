@@ -422,6 +422,53 @@ const createPodProxy = async (
             const focusScript = `
 <script nonce="${nonce}">
 (function() {
+  // Track and report navigation changes to parent
+  function reportNavigation() {
+    try {
+      window.parent.postMessage({
+        type: 'pinacle-navigation',
+        url: window.location.href,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hash: window.location.hash
+      }, '*');
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  // Report initial navigation
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', reportNavigation);
+  } else {
+    // DOM already loaded
+    reportNavigation();
+  }
+
+  // Listen for popstate events (back/forward navigation)
+  window.addEventListener('popstate', function() {
+    reportNavigation();
+  });
+
+  // Listen for pushState/replaceState (React Router, etc.)
+  const originalPushState = history.pushState;
+  const originalReplaceState = history.replaceState;
+
+  history.pushState = function() {
+    originalPushState.apply(history, arguments);
+    reportNavigation();
+  };
+
+  history.replaceState = function() {
+    originalReplaceState.apply(history, arguments);
+    reportNavigation();
+  };
+
+  // Also listen for hashchange events
+  window.addEventListener('hashchange', function() {
+    reportNavigation();
+  });
+
   // Forward keyboard shortcuts from iframe to parent
   window.addEventListener('keydown', function(event) {
     // Only forward Cmd/Ctrl + number shortcuts
@@ -446,9 +493,16 @@ const createPodProxy = async (
     }
   });
 
-  // Listen for focus messages from parent window
+  // Listen for messages from parent window
   window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'pinacle-focus') {
+    console.log('pinacle event', event.data);
+    if (event.data && event.data.type === 'pinacle-navigation-back') {
+      // Handle back navigation request
+      window.history.back();
+    } else if (event.data && event.data.type === 'pinacle-navigation-forward') {
+      // Handle forward navigation request
+      window.history.forward();
+    } else if (event.data && event.data.type === 'pinacle-focus') {
       // Try multiple methods to ensure focus works
       window.focus();
       document.body.focus();

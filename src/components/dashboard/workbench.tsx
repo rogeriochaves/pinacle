@@ -60,6 +60,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { AddTabPopover } from "./add-tab-popover";
+import { AddressBar } from "./address-bar";
 import { TerminalTabs } from "./terminal-tabs";
 
 type TabConfig = {
@@ -688,6 +689,41 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     [pod.slug, tabs],
   );
 
+  // Handle navigation from address bar
+  const handleAddressBarNavigate = useCallback(
+    (tabId: string, proxyUrl: string) => {
+      // Extract the path and port from the proxy URL and navigate
+      try {
+        const url = new URL(proxyUrl);
+        const path = url.pathname + url.search + url.hash;
+
+        // Extract port from hostname: localhost-3000.pod-myslug.localhost
+        const match = url.hostname.match(/^localhost-(\d+)\./);
+        if (!match) {
+          console.error("Could not extract port from proxy URL");
+          return;
+        }
+
+        const port = Number.parseInt(match[1], 10);
+
+        // Build the auth URL with the new port and path
+        const returnUrlParam = path ? `&return_url=${encodeURIComponent(path)}` : "";
+        const authUrl = `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${port}${returnUrlParam}`;
+
+        // Update the iframe src
+        const iframe = document.getElementById(
+          `js-iframe-tab-${tabId}`,
+        ) as HTMLIFrameElement;
+        if (iframe) {
+          iframe.src = authUrl;
+        }
+      } catch (error) {
+        console.error("Failed to parse proxy URL:", error);
+      }
+    },
+    [pod.slug],
+  );
+
   const getStatusColor = () => {
     switch (pod.status) {
       case "running":
@@ -1004,6 +1040,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             tabs.map((tab) => {
               const isTerminal = tab.serviceRef === "web-terminal";
               const isActive = activeTab === tab.id;
+              // Show address bar for custom URL tabs (process tabs) - not for service tabs
+              const isProcessTab = !tab.serviceRef && tab.customUrl;
 
               return (
                 <React.Fragment key={tab.id}>
@@ -1031,13 +1069,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                     </div>
                   ) : (
                     /* Regular iframe for non-terminal tabs */
-                    <iframe
-                      key={tab.id}
-                      id={`js-iframe-tab-${tab.id}`}
-                      src={getTabUrl(tab.id)}
-                      className="w-full h-full border-0"
-                      title={tab.label}
-                      sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                    <div
+                      className="absolute inset-0 w-full h-full flex flex-col"
                       style={
                         tab.keepRendered
                           ? isActive
@@ -1049,10 +1082,30 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                                 zIndex: -1,
                               }
                           : activeTab === tab.id
-                            ? { display: "block" }
+                            ? { display: "flex" }
                             : { display: "none" }
                       }
-                    />
+                    >
+                      {/* Address bar for process tabs only */}
+                      {isProcessTab && (
+                        <AddressBar
+                          iframeId={`js-iframe-tab-${tab.id}`}
+                          podSlug={pod.slug}
+                          initialPort={tab.port}
+                          onNavigate={(proxyUrl) =>
+                            handleAddressBarNavigate(tab.id, proxyUrl)
+                          }
+                        />
+                      )}
+                      <iframe
+                        key={tab.id}
+                        id={`js-iframe-tab-${tab.id}`}
+                        src={getTabUrl(tab.id)}
+                        className="w-full h-full border-0 flex-1"
+                        title={tab.label}
+                        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                      />
+                    </div>
                   )}
                 </React.Fragment>
               );
