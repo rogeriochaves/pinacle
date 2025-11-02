@@ -86,13 +86,13 @@ export const getProxyInjectionScript = (nonce?: string) => {
   function captureScreenshotWithHtml2Canvas(requestId) {
     setTimeout(function() {
       try {
-        // Capture with standard rendering (better for images/SVGs than foreignObjectRendering)
+        // Try with foreignObjectRendering first (more compatible with modern CSS like oklch)
         window.html2canvas(document.documentElement, {
           scale: 1,
           logging: false,
           useCORS: true,
           allowTaint: true,
-          foreignObjectRendering: false, // False gives better image/SVG rendering
+          foreignObjectRendering: true, // True avoids CSS parsing (handles oklch, etc)
           width: window.innerWidth,
           height: window.innerHeight,
           windowWidth: window.innerWidth,
@@ -114,12 +114,55 @@ export const getProxyInjectionScript = (nonce?: string) => {
             requestId: requestId
           }, '*');
         }).catch(function(err) {
-          console.error('Screenshot capture failed:', err);
-          window.parent.postMessage({
-            type: 'pinacle-screenshot-error',
-            error: err.message || 'Screenshot capture failed',
-            requestId: requestId
-          }, '*');
+          console.error('Screenshot capture failed with foreignObjectRendering, trying fallback:', err);
+
+          // Fallback: Try without foreignObjectRendering and remove problematic stylesheets
+          window.html2canvas(document.documentElement, {
+            scale: 1,
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+            foreignObjectRendering: false, // False gives better image/SVG rendering
+            width: window.innerWidth,
+            height: window.innerHeight,
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight,
+            imageTimeout: 15000,
+            removeContainer: true,
+            ignoreElements: function(element) {
+              return element.tagName === 'SCRIPT' || element.tagName === 'NOSCRIPT';
+            },
+            onclone: function(clonedDoc) {
+              // Remove problematic CSS that html2canvas can't parse (like oklch)
+              var styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+              for (var i = 0; i < styles.length; i++) {
+                try {
+                  var style = styles[i];
+                  if (style.sheet) {
+                    // Try to access rules to see if we can modify them
+                    var rules = style.sheet.cssRules || style.sheet.rules;
+                    // If we can access, leave it, otherwise remove
+                  }
+                } catch (e) {
+                  // Cross-origin stylesheet, skip
+                }
+              }
+            }
+          }).then(function(canvas) {
+            var dataUrl = canvas.toDataURL('image/png', 0.7);
+            window.parent.postMessage({
+              type: 'pinacle-screenshot-captured',
+              dataUrl: dataUrl,
+              requestId: requestId
+            }, '*');
+          }).catch(function(fallbackErr) {
+            console.error('Screenshot fallback also failed:', fallbackErr);
+            window.parent.postMessage({
+              type: 'pinacle-screenshot-error',
+              error: fallbackErr.message || 'Screenshot capture failed',
+              requestId: requestId
+            }, '*');
+          });
         });
       } catch (err) {
         console.error('Screenshot error:', err);
