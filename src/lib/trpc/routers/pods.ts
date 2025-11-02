@@ -1159,6 +1159,54 @@ export const podsRouter = createTRPCRouter({
             );
           }
 
+          // Clean up all screenshots for this pod from S3
+          try {
+            console.log(
+              `[pods.delete] Cleaning up screenshots for pod ${input.id}`,
+            );
+            const { getScreenshotStorage } = await import(
+              "../../screenshots/screenshot-storage"
+            );
+
+            // Get all screenshots for this pod
+            const screenshots = await ctx.db
+              .select()
+              .from(podScreenshots)
+              .where(eq(podScreenshots.podId, input.id));
+
+            if (screenshots.length > 0) {
+              const storage = getScreenshotStorage();
+
+              for (const screenshot of screenshots) {
+                try {
+                  // Extract screenshot ID from URL
+                  const urlParts = screenshot.url.split("/");
+                  const filename = urlParts[urlParts.length - 1]; // pod-123-456.png
+                  const screenshotId = filename.replace(".png", ""); // pod-123-456
+
+                  await storage.deleteScreenshot(screenshotId);
+                  console.log(
+                    `[pods.delete] Deleted screenshot ${screenshot.id} from S3`,
+                  );
+                } catch (screenshotError) {
+                  // Log but don't fail pod deletion if screenshot cleanup fails
+                  console.warn(
+                    `[pods.delete] Failed to delete screenshot ${screenshot.id}:`,
+                    screenshotError,
+                  );
+                }
+              }
+            }
+            console.log(
+              `[pods.delete] Cleaned up ${screenshots.length} screenshot(s) for pod ${input.id}`,
+            );
+          } catch (error) {
+            // Log but don't fail the deletion if screenshot cleanup fails
+            console.warn(
+              `[pods.delete] Could not clean up screenshots: ${error}`,
+            );
+          }
+
           // Soft delete by setting archivedAt timestamp
           await ctx.db
             .update(pods)

@@ -117,6 +117,22 @@ const processAbandonedCheckouts = async () => {
   }
 };
 
+// Clean up orphan snapshots from S3
+const cleanupOrphanSnapshots = async () => {
+  try {
+    console.log("[Orphan Snapshots] Starting cleanup...");
+    const { cleanupOrphanS3Snapshots } = await import(
+      "./lib/snapshots/orphan-cleanup"
+    );
+    const result = await cleanupOrphanS3Snapshots();
+    console.log(
+      `[Orphan Snapshots] ✅ Cleanup completed - deleted ${result.deletedCount} orphan snapshots`,
+    );
+  } catch (error) {
+    console.error("[Orphan Snapshots] ❌ Error:", error);
+  }
+};
+
 // Main worker function
 const startWorker = async () => {
   console.log("🚀 Background worker started");
@@ -172,6 +188,17 @@ const startWorker = async () => {
     processAbandonedCheckouts();
   }, ONE_HOUR_MS);
 
+  // Run initial orphan snapshot cleanup after 10 minutes
+  setTimeout(() => {
+    console.log("[Worker] Running initial orphan snapshot cleanup...");
+    cleanupOrphanSnapshots();
+  }, 10 * 60_000);
+
+  // Schedule orphan snapshot cleanup every hour
+  setInterval(() => {
+    cleanupOrphanSnapshots();
+  }, ONE_HOUR_MS);
+
   console.log(`📋 Scheduled tasks:`);
   console.log(`   - Metrics cleanup: every hour`);
   console.log(`   - Pod usage tracking: every hour`);
@@ -181,6 +208,7 @@ const startWorker = async () => {
   console.log(
     `   - Checkout recovery emails: every hour (4h, 24h, 72h windows)`,
   );
+  console.log(`   - Orphan snapshot cleanup: every hour (>1h old)`);
   console.log(`   - Retention period: 5 days`);
 
   // Keep process alive

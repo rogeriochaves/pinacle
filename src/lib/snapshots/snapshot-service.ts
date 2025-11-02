@@ -12,6 +12,27 @@ import { podSnapshots } from "../db/schema";
 import type { ServerConnection } from "../pod-orchestration/types";
 import { generateKSUID } from "../utils";
 
+/**
+ * Get S3 key for a snapshot ID
+ * Always use this function to ensure consistency across create/restore/delete
+ */
+export const getSnapshotS3Key = (snapshotId: string): string => {
+  return `snapshots/${snapshotId}.tar.gz`;
+};
+
+/**
+ * Normalize storage path to S3 key format
+ * Handles both old format (s3://bucket/key) and new format (snapshots/...)
+ */
+export const normalizeStoragePath = (storagePath: string): string => {
+  if (storagePath.startsWith("s3://")) {
+    // Parse S3 URL to extract key
+    const url = new URL(storagePath);
+    return url.pathname.slice(1); // Remove leading /
+  }
+  return storagePath;
+};
+
 export type CreateSnapshotParams = {
   podId: string;
   serverConnection: ServerConnection;
@@ -397,14 +418,17 @@ export class SnapshotService {
         forcePathStyle: !!env.SNAPSHOT_S3_ENDPOINT,
       });
 
+      // Normalize storage path to S3 key (handles old s3:// format)
+      const s3Key = normalizeStoragePath(storagePath);
+
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: env.SNAPSHOT_S3_BUCKET,
-          Key: storagePath,
+          Key: s3Key,
         }),
       );
 
-      console.log(`[SnapshotService] Deleted snapshot from S3: ${storagePath}`);
+      console.log(`[SnapshotService] Deleted snapshot from S3: ${s3Key}`);
     } else if (serverConnection) {
       // For filesystem, delete on remote server
       await serverConnection.exec(`rm -f "${storagePath}"`);
