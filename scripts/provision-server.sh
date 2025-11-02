@@ -146,22 +146,28 @@ else
   echo "⚠️  Docker not found. Skipping (should already be set up for pod hosting)"
 fi
 
-echo "📁 Step 3: Creating agent directory..."
+echo "📁 Step 3: Creating agent directory and log file..."
 if [[ $HOST == lima:* ]]; then
   limactl shell "$LIMA_VM" -- sudo mkdir -p "$AGENT_PATH"
   limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '$AGENT_PATH'"
   limactl shell "$LIMA_VM" -- sudo mkdir -p "/var/lib/pinacle/snapshots"
   limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
+  limactl shell "$LIMA_VM" -- sudo touch /var/log/pinacle-agent.log
+  limactl shell "$LIMA_VM" -- sudo chmod 666 /var/log/pinacle-agent.log
 elif [[ $HOST == ssh:* ]]; then
   ssh "$SSH_HOST" "sudo mkdir -p '$AGENT_PATH' && sudo chown -R \$USER '$AGENT_PATH'"
   ssh "$SSH_HOST" "sudo mkdir -p '/var/lib/pinacle/snapshots' && sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
+  ssh "$SSH_HOST" "sudo touch /var/log/pinacle-agent.log && sudo chmod 666 /var/log/pinacle-agent.log"
 else
   sudo mkdir -p "$AGENT_PATH"
   sudo chown -R "$USER" "$AGENT_PATH"
   sudo mkdir -p "/var/lib/pinacle/snapshots"
   sudo chown -R "$USER" "/var/lib/pinacle/snapshots"
+  sudo touch /var/log/pinacle-agent.log
+  sudo chmod 666 /var/log/pinacle-agent.log
 fi
 echo "✅ Directory created: $AGENT_PATH"
+echo "✅ Log file created: /var/log/pinacle-agent.log (writable by all)"
 
 echo "📋 Step 4: Building and copying agent..."
 cd "$(dirname "$0")/.."

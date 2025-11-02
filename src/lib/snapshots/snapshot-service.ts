@@ -310,6 +310,7 @@ export class SnapshotService {
   ): string {
     const scriptPath =
       "/usr/local/pinacle/server-agent/dist/snapshot-create.js";
+    const logFile = "/var/log/pinacle-agent.log";
     const parts = [
       `node ${scriptPath}`,
       `--container-id ${containerId}`,
@@ -331,7 +332,8 @@ export class SnapshotService {
       parts.push(`--storage-path "${env.SNAPSHOT_STORAGE_PATH}"`);
     }
 
-    return parts.join(" ");
+    // Capture both stdout and stderr to log file using tee (JSON output still available on stdout)
+    return `${parts.join(" ")} 2>&1 | tee -a ${logFile}`;
   }
 
   /**
@@ -344,6 +346,7 @@ export class SnapshotService {
   ): string {
     const scriptPath =
       "/usr/local/pinacle/server-agent/dist/snapshot-restore.js";
+    const logFile = "/var/log/pinacle-agent.log";
     const parts = [
       `node ${scriptPath}`,
       `--snapshot-id ${snapshotId}`,
@@ -365,7 +368,8 @@ export class SnapshotService {
       parts.push(`--storage-path "${env.SNAPSHOT_STORAGE_PATH}"`);
     }
 
-    return parts.join(" ");
+    // Capture both stdout and stderr to log file using tee (JSON output still available on stdout)
+    return `${parts.join(" ")} 2>&1 | tee -a ${logFile}`;
   }
 
   /**
