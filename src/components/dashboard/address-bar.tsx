@@ -188,6 +188,7 @@ export const AddressBar = ({
     } catch (error) {
       toast.error("Invalid URL", {
         description: error instanceof Error ? error.message : "Unknown error",
+        duration: 3000,
       });
       // Reset to default URL on error
       const resetUrl = `localhost:${currentPort}/`;

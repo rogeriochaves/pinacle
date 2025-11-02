@@ -165,9 +165,63 @@
     @apply border-2 border-border-contrast bg-card p-6 text-card-foreground relative;
   }
 
-  .card-8bit::after {
+  /* .card-8bit::after {
     content: "";
     @apply absolute -bottom-2 -right-2 left-2 top-2 -z-10;
     background-image: var(--bg-dotted);
+  } */
+
+  /* 8-bit toast shadow */
+  .shadow-toast {
+    box-shadow:
+      inset 1px 1px 0 hsla(0, 0%, 100%, 0.2),
+      inset -1px -1px 0 rgba(0, 0, 0, 0.2),
+      2px 2px 0 rgba(0, 0, 0, 0.15);
+  }
+
+  [data-sonner-toast]{
+    transform-style: preserve-3d;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    border-radius: 0!important;
+  }
+
+  /* Close button positioning */
+  [data-sonner-toast] [data-close-button] {
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    left: auto!important;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    right: 8px!important;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    top: 8px!important;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    transform: none!important;
+  }
+
+  /* Toast with dotted shadow effect */
+  [data-sonner-toast]::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    left: 8px;
+    top: 8px;
+    transform: translateZ(-1px);
+    background-image: var(--bg-dotted);
+    pointer-events: none;
+    opacity: 0;
+    animation: showShadow 0.1s ease 0.4s forwards;
+  }
+
+  [data-sonner-toast][data-expanded=true]::after {
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    left: 8px!important;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    bottom: -8px!important;
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    height: auto!important;
+  }
+
+  @keyframes showShadow {
+    to { opacity: 1; }
   }
 }
