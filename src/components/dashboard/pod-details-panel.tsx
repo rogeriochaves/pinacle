@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getResourcesFromTier,
@@ -55,12 +55,21 @@ type PodDetailsPanelProps = {
 
 type TabType = "metrics" | "logs" | "snapshots" | "settings";
 
+const TIME_RANGE_OPTIONS = [
+  { label: "1h", value: 1 },
+  { label: "3h", value: 3 },
+  { label: "6h", value: 6 },
+  { label: "12h", value: 12 },
+  { label: "24h", value: 24 },
+] as const;
+
 const formatBytes = (mb: number) => {
   return `${mb.toFixed(0)} MB`;
 };
 
 export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("metrics");
+  const [timeRange, setTimeRange] = useState(6); // Default to 6 hours
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [snapshotName, setSnapshotName] = useState("");
   const [snapshotDescription, setSnapshotDescription] = useState("");
@@ -79,12 +88,16 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   // For now, using the pod.getUserPodMetrics query
   const { data: metrics } = api.pods.getMetrics.useQuery(
     { podId: pod.id },
-    { enabled: pod.status === "running", refetchInterval: 5000 },
+    { enabled: pod.status === "running", refetchInterval: 10000 }, // Reduced from 5s to 10s
   );
 
-  const { data: metricsHistory } = api.pods.getMetricsHistory.useQuery(
-    { podId: pod.id, hoursAgo: 6 },
-    { enabled: activeTab === "metrics" && pod.status === "running" },
+  // biome-ignore lint/suspicious/noExplicitAny: tRPC types will update on server restart
+  const { data: metricsHistory } = (api.pods as any).getMetricsAggregated.useQuery(
+    { podId: pod.id, hoursAgo: timeRange },
+    {
+      enabled: activeTab === "metrics" && pod.status === "running",
+      refetchInterval: 30000, // Refresh every 30 seconds
+    },
   );
 
   const { data: logs } = api.pods.getLogs.useQuery(
@@ -181,35 +194,86 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
     }).format(new Date(date));
   };
 
-  const cpuData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.cpuUsagePercent,
-    })) || [];
+  // Memoize chart data transformations to prevent unnecessary recalculations
+  const cpuData = useMemo(
+    () =>
+      metricsHistory?.map((m: {
+        timestamp: Date;
+        cpuUsagePercent: number;
+        memoryUsageMb: number;
+        diskUsageMb: number;
+        networkRxBytes: number;
+        networkTxBytes: number;
+      }) => ({
+        timestamp: m.timestamp,
+        value: m.cpuUsagePercent,
+      })) || [],
+    [metricsHistory],
+  );
 
-  const memoryData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.memoryUsageMb,
-    })) || [];
+  const memoryData = useMemo(
+    () =>
+      metricsHistory?.map((m: {
+        timestamp: Date;
+        cpuUsagePercent: number;
+        memoryUsageMb: number;
+        diskUsageMb: number;
+        networkRxBytes: number;
+        networkTxBytes: number;
+      }) => ({
+        timestamp: m.timestamp,
+        value: m.memoryUsageMb,
+      })) || [],
+    [metricsHistory],
+  );
 
-  const diskData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.diskUsageMb,
-    })) || [];
+  const diskData = useMemo(
+    () =>
+      metricsHistory?.map((m: {
+        timestamp: Date;
+        cpuUsagePercent: number;
+        memoryUsageMb: number;
+        diskUsageMb: number;
+        networkRxBytes: number;
+        networkTxBytes: number;
+      }) => ({
+        timestamp: m.timestamp,
+        value: m.diskUsageMb,
+      })) || [],
+    [metricsHistory],
+  );
 
-  const networkRxData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.networkRxBytes / 1024 / 1024,
-    })) || [];
+  const networkRxData = useMemo(
+    () =>
+      metricsHistory?.map((m: {
+        timestamp: Date;
+        cpuUsagePercent: number;
+        memoryUsageMb: number;
+        diskUsageMb: number;
+        networkRxBytes: number;
+        networkTxBytes: number;
+      }) => ({
+        timestamp: m.timestamp,
+        value: m.networkRxBytes / 1024 / 1024,
+      })) || [],
+    [metricsHistory],
+  );
 
-  const networkTxData =
-    metricsHistory?.map((m) => ({
-      timestamp: m.timestamp,
-      value: m.networkTxBytes / 1024 / 1024,
-    })) || [];
+  const networkTxData = useMemo(
+    () =>
+      metricsHistory?.map((m: {
+        timestamp: Date;
+        cpuUsagePercent: number;
+        memoryUsageMb: number;
+        diskUsageMb: number;
+        networkRxBytes: number;
+        networkTxBytes: number;
+      }) => ({
+        timestamp: m.timestamp,
+        value: m.networkTxBytes / 1024 / 1024,
+      })) || [],
+    [metricsHistory],
+  );
 
   return (
     <>
@@ -347,9 +411,28 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
               {/* Historical Charts */}
               {metricsHistory && metricsHistory.length > 0 ? (
                 <div className="space-y-4">
-                  <h3 className="font-mono font-bold text-slate-900 text-sm">
-                    Last 6 Hours
-                  </h3>
+                  {/* Time Range Selector */}
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-mono font-bold text-slate-900 text-sm">
+                      Historical Metrics
+                    </h3>
+                    <div className="flex gap-1">
+                      {TIME_RANGE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setTimeRange(option.value)}
+                          className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                            timeRange === option.value
+                              ? "bg-orange-500 text-white"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 gap-4">
                     <MetricsChart
                       data={cpuData}
@@ -563,55 +646,6 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
 
           {activeTab === "settings" && (
             <div className="space-y-6">
-              <div>
-                <h3 className="font-mono font-bold text-slate-900 text-sm mb-2">
-                  Pod Information
-                </h3>
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2 font-mono text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Pod ID:</span>
-                    <span className="text-slate-900 font-bold">{pod.id}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Status:</span>
-                    <span className="text-slate-900 font-bold">
-                      {pod.status}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">CPU:</span>
-                    <span className="text-slate-900 font-bold">
-                      {resources.cpuCores} vCPU
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Memory:</span>
-                    <span className="text-slate-900 font-bold">
-                      {Math.round(resources.memoryMb / 1024)}GB
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Storage:</span>
-                    <span className="text-slate-900 font-bold">
-                      {Math.round(resources.storageMb / 1024)}GB
-                    </span>
-                  </div>
-                  {pod.publicUrl && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">URL:</span>
-                      <a
-                        href={pod.publicUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-orange-600 hover:text-orange-700 font-bold truncate max-w-[200px]"
-                      >
-                        {pod.publicUrl}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               <div>
                 <h3 className="font-mono font-bold text-slate-900 text-sm mb-2">
                   Danger Zone

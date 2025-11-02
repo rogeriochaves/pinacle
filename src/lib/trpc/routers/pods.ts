@@ -1260,6 +1260,91 @@ export const podsRouter = createTRPCRouter({
       return metrics;
     }),
 
+  // Get aggregated pod metrics history with smart granularity
+  getMetricsAggregated: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        hoursAgo: z.number().min(1).max(168).default(6), // Default to 6 hours
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify user has access to this pod
+      const [pod] = await ctx.db
+        .select()
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!pod) {
+        throw new Error("Pod not found or access denied");
+      }
+
+      const since = new Date(Date.now() - input.hoursAgo * 60 * 60 * 1000);
+
+      // Determine aggregation interval based on time range
+      // <= 6 hours: 1 minute granularity (no aggregation)
+      // 6-24 hours: 5 minute buckets
+      // 24-72 hours: 15 minute buckets
+      // > 72 hours: 30 minute buckets
+      let intervalMinutes: number;
+      if (input.hoursAgo <= 6) {
+        intervalMinutes = 1;
+      } else if (input.hoursAgo <= 24) {
+        intervalMinutes = 5;
+      } else if (input.hoursAgo <= 72) {
+        intervalMinutes = 15;
+      } else {
+        intervalMinutes = 30;
+      }
+
+      // For 1-minute intervals, just return raw data (no aggregation needed)
+      if (intervalMinutes === 1) {
+        const metrics = await ctx.db
+          .select()
+          .from(podMetrics)
+          .where(
+            and(
+              eq(podMetrics.podId, input.podId),
+              gte(podMetrics.timestamp, since),
+            ),
+          )
+          .orderBy(podMetrics.timestamp);
+
+        return metrics;
+      }
+
+      // Aggregate using time buckets for larger intervals
+      const intervalSeconds = intervalMinutes * 60;
+      const metrics = await ctx.db
+        .select({
+          timestamp: sql<Date>`
+            to_timestamp(
+              floor(extract(epoch from ${podMetrics.timestamp}) / ${intervalSeconds}) * ${intervalSeconds}
+            )
+          `,
+          cpuUsagePercent: sql<number>`avg(${podMetrics.cpuUsagePercent})`,
+          memoryUsageMb: sql<number>`avg(${podMetrics.memoryUsageMb})`,
+          diskUsageMb: sql<number>`avg(${podMetrics.diskUsageMb})`,
+          networkRxBytes: sql<number>`avg(${podMetrics.networkRxBytes})`,
+          networkTxBytes: sql<number>`avg(${podMetrics.networkTxBytes})`,
+        })
+        .from(podMetrics)
+        .where(
+          and(
+            eq(podMetrics.podId, input.podId),
+            gte(podMetrics.timestamp, since),
+          ),
+        )
+        .groupBy(sql`1`)
+        .orderBy(sql`1`);
+
+      return metrics;
+    }),
+
   // Get pod provisioning logs
   getLogs: protectedProcedure
     .input(

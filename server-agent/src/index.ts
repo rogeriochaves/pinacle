@@ -142,16 +142,6 @@ export class ServerAgent {
       // Collect metrics
       const metrics = await this.metricsCollector.collect();
 
-      const json = {
-        serverId: this.serverId,
-        cpuUsagePercent: metrics.cpuUsagePercent,
-        memoryUsageMb: metrics.memoryUsageMb,
-        diskUsageGb: metrics.diskUsageGb,
-        activePodsCount: metrics.activePodsCount,
-        podMetrics: metrics.podMetrics,
-      };
-      console.log("json", json);
-
       // Send metrics
       const metricsResponse = await fetch(
         `${this.config.apiUrl}/api/trpc/servers.reportMetrics`,
@@ -190,12 +180,6 @@ export class ServerAgent {
       console.log(
         `💓 Heartbeat sent | CPU: ${metrics.cpuUsagePercent}% | Memory: ${metrics.memoryUsageMb}MB | Pods: ${metrics.activePodsCount}`,
       );
-
-      if (metrics.podMetrics.length > 0) {
-        console.log(
-          `📊 Pod metrics: ${metrics.podMetrics.map((pm) => `${pm.podId.substring(0, 8)}:${pm.cpuUsagePercent}%`).join(", ")}`,
-        );
-      }
     } catch (error) {
       console.error("❌ Failed to send heartbeat/metrics:", error);
     }
