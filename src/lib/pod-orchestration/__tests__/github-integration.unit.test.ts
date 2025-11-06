@@ -176,43 +176,6 @@ describe("GitHub Integration Tests", () => {
     });
   });
 
-  describe("GitHub API Mocking Strategy", () => {
-    it("should demonstrate how to mock Octokit for tests", () => {
-      // Example mock structure for future integration tests
-      const mockOctokit = {
-        rest: {
-          repos: {
-            createDeployKey: vi.fn().mockResolvedValue({
-              data: {
-                id: 12345,
-                key: "ssh-ed25519 AAAA... mock-key",
-                title: "Pinacle Pod test-pod",
-                read_only: false,
-              },
-            }),
-            deleteDeployKey: vi.fn().mockResolvedValue({ status: 204 }),
-            createForAuthenticatedUser: vi.fn().mockResolvedValue({
-              data: {
-                id: 67890,
-                name: "test-repo",
-                full_name: "test-user/test-repo",
-                html_url: "https://github.com/test-user/test-repo",
-                private: true,
-              },
-            }),
-          },
-        },
-      };
-
-      // Verify mock structure
-      expect(mockOctokit.rest.repos.createDeployKey).toBeDefined();
-      expect(mockOctokit.rest.repos.deleteDeployKey).toBeDefined();
-      expect(mockOctokit.rest.repos.createForAuthenticatedUser).toBeDefined();
-
-      console.log("✅ GitHub API mock structure validated");
-    });
-  });
-
   describe("Security Validation", () => {
     it("should verify SSH keys are not logged", async () => {
       const consoleSpy = vi.spyOn(console, "log");

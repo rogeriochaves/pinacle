@@ -2,10 +2,15 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
-import type { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
+import { formatCurrency } from "../../lib/currency-utils";
+import {
+  PRICING_TABLE,
+  type RESOURCE_TIERS,
+} from "../../lib/pod-orchestration/resource-tier-registry";
 import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry";
 import type { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
+import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
 
 type ConfigurationSummaryProps = {
@@ -32,6 +37,15 @@ export const ConfigurationSummary = ({
   isCreating,
   selectedServices,
 }: ConfigurationSummaryProps) => {
+  // Detect currency from IP using tRPC
+  const { data: currencyData, isLoading: isCurrencyLoading } = api.currency.detectCurrency.useQuery();
+  const currency = currencyData?.currency || "usd";
+
+  // Get pricing for the selected tier in the detected currency
+  const tierPrice =
+    PRICING_TABLE[tierData.id as keyof typeof PRICING_TABLE]?.[currency] ||
+    tierData.price;
+
   // Use selectedServices if provided, otherwise fall back to template's default services
   const allServices: ServiceId[] = (selectedServices ||
     selectedTemplate?.services ||
@@ -46,6 +60,7 @@ export const ConfigurationSummary = ({
     if (!aIsCodingAssistant && bIsCodingAssistant) return 1;
     return 0; // Keep original order for non-coding assistants
   });
+
   return (
     <div className="flex-3 bg-slate-900 border-l border-slate-800 flex justify-start overflow-y-auto">
       <div className="w-full max-w-md p-8 pt-34 space-y-8">
@@ -216,9 +231,15 @@ export const ConfigurationSummary = ({
                 Estimated cost
               </p>
               <div className="flex items-baseline gap-2">
-                <span className="text-white font-mono text-3xl font-bold">
-                  ${tierData?.price || 0}
-                </span>
+                {isCurrencyLoading ? (
+                  <span className="text-white font-mono text-3xl font-bold">
+                    ...
+                  </span>
+                ) : (
+                  <span className="text-white font-mono text-3xl font-bold">
+                    {formatCurrency(tierPrice, currency, { showDecimals: false })}
+                  </span>
+                )}
                 <span className="text-slate-400 font-mono text-sm">/month</span>
               </div>
               <p className="text-slate-500 font-mono text-xs mt-1">

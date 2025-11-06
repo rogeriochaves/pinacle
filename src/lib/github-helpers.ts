@@ -147,7 +147,6 @@ export const addDeployKeyToRepo = async (
   repository: string,
   title: string,
   publicKey: string,
-  readOnly: boolean,
 ): Promise<number> => {
   const [owner, repo] = repository.split("/");
 
@@ -159,7 +158,7 @@ export const addDeployKeyToRepo = async (
       repo,
       title,
       key: publicKey,
-      read_only: readOnly,
+      read_only: false,
     });
 
     console.log(
@@ -254,7 +253,6 @@ export const setupGitHubRepoForPod = async (params: {
     repository,
     `Pinacle Pod ${podName} (${podId.slice(-8)})`,
     sshKeyPair.publicKey,
-    !isNewProject, // Allow write access for new projects to push initial commit
   );
 
   return {

@@ -7,52 +7,23 @@
  * Supports multiple currencies (USD, EUR, BRL) with marketable pricing
  * Saves price IDs to database for fast lookup
  *
- * To update pricing, edit the PRICING_TABLE constant below
+ * To update pricing, edit the PRICING_TABLE constant in resource-tier-registry.ts
  */
 
 import { eq } from "drizzle-orm";
 import { db } from "../src/lib/db";
 import { stripePrices } from "../src/lib/db/schema";
 import {
+  type Currency,
   getAllResourceTiers,
+  PRICING_TABLE,
   RESOURCE_TIERS,
   type TierId,
 } from "../src/lib/pod-orchestration/resource-tier-registry";
 import { stripe } from "../src/lib/stripe";
 import { generateKSUID } from "../src/lib/utils";
 
-// Currency configuration
-type Currency = "usd" | "eur" | "brl";
-
 const CURRENCIES: Currency[] = ["usd", "eur", "brl"];
-
-/**
- * Pricing table with clean, marketable prices per tier and currency
- * Update this table directly to change pricing
- * Prices are monthly, will be converted to hourly automatically
- */
-const PRICING_TABLE: Record<TierId, Record<Currency, number>> = {
-  "dev.small": {
-    usd: 7,
-    eur: 6,
-    brl: 30,
-  },
-  "dev.medium": {
-    usd: 14,
-    eur: 12,
-    brl: 60,
-  },
-  "dev.large": {
-    usd: 28,
-    eur: 24,
-    brl: 120,
-  },
-  "dev.xlarge": {
-    usd: 56,
-    eur: 48,
-    brl: 240,
-  },
-};
 
 /**
  * Snapshot storage pricing per GB per month
@@ -62,9 +33,9 @@ const PRICING_TABLE: Record<TierId, Record<Currency, number>> = {
  * Conversion: $0.10/GB/month = $0.000137/GB/hour = $0.000000137/MB/hour
  */
 const SNAPSHOT_STORAGE_PRICING: Record<Currency, number> = {
-  usd: 0.10,  // $0.10/GB/month
-  eur: 0.09,  // €0.09/GB/month
-  brl: 0.50,  // R$0.50/GB/month
+  usd: 0.1, // $0.10/GB/month
+  eur: 0.09, // €0.09/GB/month
+  brl: 0.5, // R$0.50/GB/month
 };
 
 /**
@@ -84,8 +55,8 @@ const monthlyToHourly = (monthlyPrice: number): number => {
  */
 const gbMonthToMbHour = (gbMonthPrice: number): number => {
   // Convert GB/month to GB/hour, then to MB/hour
-  const gbHour = gbMonthPrice / 730;  // GB per hour
-  const mbHour = gbHour / 1000;        // MB per hour
+  const gbHour = gbMonthPrice / 730; // GB per hour
+  const mbHour = gbHour / 1000; // MB per hour
   return mbHour;
 };
 
@@ -102,9 +73,7 @@ const createOrUpdateMeter = async (tierId: TierId) => {
       limit: 100,
     });
 
-    let meter = existingMeters.data.find(
-      (m) => m.event_name === eventName,
-    );
+    let meter = existingMeters.data.find((m) => m.event_name === eventName);
 
     if (meter) {
       console.log(`  Meter already exists for ${tierId}: ${meter.id}`);
@@ -366,7 +335,9 @@ const createSnapshotStorageProduct = async () => {
     );
 
     if (product) {
-      console.log(`  Product already exists for snapshot storage: ${product.id}`);
+      console.log(
+        `  Product already exists for snapshot storage: ${product.id}`,
+      );
       // Update product if needed
       product = await stripe.products.update(product.id, {
         name: "Snapshot Storage",
@@ -442,7 +413,9 @@ const createSnapshotStoragePrice = async (
       },
     });
 
-    console.log(`    ✓ Created price for snapshot storage (${currency}): ${price.id}`);
+    console.log(
+      `    ✓ Created price for snapshot storage (${currency}): ${price.id}`,
+    );
     return price;
   } catch (error) {
     console.error(
@@ -481,12 +454,14 @@ const saveSnapshotStoragePriceToDb = async (
         })
         .where(eq(stripePrices.stripePriceId, stripePriceId));
 
-      console.log(`      ✓ Updated snapshot storage price in DB: ${stripePriceId}`);
+      console.log(
+        `      ✓ Updated snapshot storage price in DB: ${stripePriceId}`,
+      );
     } else {
       // Insert new price
       await db.insert(stripePrices).values({
         id: generateKSUID("stripe_price"),
-        tierId: "snapshot_storage",  // Special tier ID for snapshots
+        tierId: "snapshot_storage", // Special tier ID for snapshots
         currency: currency,
         stripePriceId: stripePriceId,
         stripeProductId: stripeProductId,
@@ -498,10 +473,15 @@ const saveSnapshotStoragePriceToDb = async (
         updatedAt: new Date(),
       });
 
-      console.log(`      ✓ Saved snapshot storage price to DB: ${stripePriceId}`);
+      console.log(
+        `      ✓ Saved snapshot storage price to DB: ${stripePriceId}`,
+      );
     }
   } catch (error) {
-    console.error(`      ✗ Failed to save snapshot storage price to DB:`, error);
+    console.error(
+      `      ✗ Failed to save snapshot storage price to DB:`,
+      error,
+    );
     throw error;
   }
 };

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SERVICE_TEMPLATES } from "@/lib/pod-orchestration/service-registry";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
+import { api } from "@/lib/trpc/client";
 import { TierSelector } from "../shared/tier-selector";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -55,9 +56,11 @@ const CODING_AGENTS: CodingAgent[] = [
 
 type TemplateCardProps = {
   template: ReturnType<typeof getPublicTemplates>[number];
+  currency: "usd" | "eur" | "brl";
+  isCurrencyLoading: boolean;
 };
 
-const TemplateCard = ({ template }: TemplateCardProps) => {
+const TemplateCard = ({ template, currency, isCurrencyLoading }: TemplateCardProps) => {
   const [selectedAgent, setSelectedAgent] = useState<string>("claude");
   const [selectedTier, setSelectedTier] = useState<string>("dev.small");
 
@@ -167,6 +170,8 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
             value={selectedTier}
             onChange={setSelectedTier}
             compact
+            currency={currency}
+            isLoading={isCurrencyLoading}
           />
           <Link
             href={`/setup?type=new&template=${template.id}&tier=${selectedTier}&agent=${selectedAgent}`}
@@ -184,6 +189,10 @@ const TemplateCard = ({ template }: TemplateCardProps) => {
 export const Templates = () => {
   const templates = getPublicTemplates().slice(0, 6);
 
+  // Detect currency from IP using tRPC
+  const { data: currencyData, isLoading: isCurrencyLoading } = api.currency.detectCurrency.useQuery();
+  const currency = currencyData?.currency || "usd";
+
   return (
     <section className="bg-slate-100 py-12 sm:py-12">
       <div className="mx-auto max-w-7xl">
@@ -199,7 +208,12 @@ export const Templates = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} />
+            <TemplateCard
+              key={template.id}
+              template={template}
+              currency={currency}
+              isCurrencyLoading={isCurrencyLoading}
+            />
           ))}
         </div>
         <div className="mt-10 flex justify-end">

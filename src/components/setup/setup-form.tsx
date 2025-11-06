@@ -46,6 +46,10 @@ const SetupForm = () => {
     },
   });
 
+  // Detect user's currency from IP using tRPC
+  const { data: currencyData } = api.currency.detectCurrency.useQuery();
+  const detectedCurrency = currencyData?.currency || "usd";
+
   // Check GitHub token validity in parallel with repo loading
   const { data: tokenValidation, isLoading: isCheckingToken } =
     api.github.checkTokenValidity.useQuery(undefined, {
@@ -476,10 +480,10 @@ const SetupForm = () => {
         const selectedTemplate = getTemplateUnsafe(data.bundle);
         const tier = data.tier || selectedTemplate?.tier || "dev.small";
 
-        // Redirect to Stripe checkout
+        // Redirect to Stripe checkout with detected currency
         const checkout = await createCheckoutMutation.mutateAsync({
           tierId: tier,
-          currency: "usd",
+          currency: detectedCurrency,
           successUrl: `${window.location.origin}/setup/configure?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/setup/configure?checkout=cancel`,
           formData: formDataJson, // Save for recovery emails

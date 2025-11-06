@@ -1,4 +1,9 @@
 /**
+ * Supported currencies
+ */
+export type Currency = "usd" | "eur" | "brl";
+
+/**
  * Resource tier definition
  * Defines compute, memory, and storage resources for pods
  */
@@ -81,5 +86,33 @@ export const getAllResourceTiers = (): ResourceTier[] => {
  */
 export const getResourceTierByName = (name: string): ResourceTier | undefined => {
   return getAllResourceTiers().find((tier) => tier.name === name);
+};
+
+/**
+ * Pricing table with all currencies
+ * Single source of truth for all pricing across the application
+ * Used by: frontend (pricing pages), backend (billing), scripts (Stripe setup)
+ */
+export const PRICING_TABLE: Record<TierId, Record<Currency, number>> = {
+  "dev.small": {
+    usd: 7,
+    eur: 6,
+    brl: 30,
+  },
+  "dev.medium": {
+    usd: 14,
+    eur: 12,
+    brl: 60,
+  },
+  "dev.large": {
+    usd: 28,
+    eur: 24,
+    brl: 120,
+  },
+  "dev.xlarge": {
+    usd: 56,
+    eur: 48,
+    brl: 240,
+  },
 };
 
