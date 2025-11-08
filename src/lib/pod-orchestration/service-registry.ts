@@ -209,6 +209,7 @@ EOF`,
       PORT: "5262",
       HOST: "0.0.0.0",
       GITHUB_CLIENT_ID: "Iv23li8mWSwG4NGXTA3y",
+      IS_SANDBOX: "1",
     },
   },
 

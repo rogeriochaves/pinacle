@@ -1,6 +1,7 @@
 import { Footer } from "../components/landing/footer";
 import { Hero } from "../components/landing/hero";
 import { JumpRightBack } from "../components/landing/jump-right-back";
+import { SneakPeek } from "../components/landing/sneak-peek";
 import { Templates } from "../components/landing/templates";
 
 export default function Home() {
@@ -9,6 +10,7 @@ export default function Home() {
       <Hero />
       <JumpRightBack />
       <Templates />
+      <SneakPeek />
       <Footer />
     </div>
   );
