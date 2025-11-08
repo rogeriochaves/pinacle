@@ -1,0 +1,63 @@
+---
+title: "Why we built Pinacle"
+description: "More people are vibe coding than ever, but they hit a wall when they need real dev tools. Here's how we made those tools one-click accessible without the false promises."
+date: "2025-11-06"
+author: "Pinacle Team"
+---
+
+There are more people coding today than ever before. Tools like Lovable, v0, and Bolt made it easy for anyone to generate a working prototype in minutes.
+
+But very soon everyone gets frustrated and hit a wall: the AI coding tool is just not delivering on expectations anymore. Moving beyond the prototype requires real development tools. If you're not already a developer, the tooling is unfamiliar, the path forward isn't clear.
+
+## The vibe coding wall
+
+Lovable and similar tools work great for demos. They generate code, spin up a temporary container, show you the result, and that's it.
+
+But when you need to:
+- Build a backend service in another language, like Python
+- Install a local component that's not in their template, like Redis or a PDF parser
+- Debug why something isn't working
+- Actually need a full blown IDE to work on specific code parts
+- Customize your agent rules and keep it working continuously
+
+You can't. These tools create a super temporary container, execute one task, and it dies. You can't control what's installed. You can't SSH in and run commands. You can't view multiple running localhosts in a normal browser. You can only access it through their proprietary, limited interface.
+
+If you're not already a developer who knows how to set up Node, Python, databases and so on you're done. The prototype is as far as you get.
+
+## We don't make false promises
+
+Pinacle doesn't pretend you can build production software without real tools. You can't.
+
+Instead, we leverage the best open source tools developers already use, and make them one-click accessible.
+
+When you spin up a Pinacle pod, you get:
+- A real Linux VM with root access
+- VS Code Server (the actual VS Code, not a toy version)
+- A terminal you can SSH into
+- The ability to install anything via `apk add`
+- Your app running in a browser you can refresh and debug normally
+- Persistent storage so nothing disappears
+- Coding assistants pre-configured
+
+It's the real development environment. Not a sandbox. Not a limited playground. The actual tools.
+
+## For developers: the multi-project problem
+
+If you're already an experienced developer with everything set up locally, that's fine. Keep doing that.
+
+But here's the thing: building is faster than ever now. You're not working on one project anymore, you're working on five. Or you could.
+
+Having all of those projects on your local machine gets heavy and messy fast. Each one has its own dependencies, its own database, its own development environment.
+
+With Pinacle, you have one clean environment per project. Everything for that project is configured and ready. The agent can keep building there while you work on something else locally. All your projects run in parallel without cluttering your machine.
+
+When you need to jump back into project #3 from two weeks ago, it's still there, exactly how you left it, dependencies installed, agent ready to continue.
+
+**The comfort of local, but remote**
+
+## Try it
+
+We're running in production. You can spin up a pod and try it right now.
+
+If you run into issues or have questions, open an issue on GitHub or email us. Every bit of feedback helps.
+
