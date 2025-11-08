@@ -128,6 +128,12 @@ export const serializePinacleConfig = (config: PinacleConfig): string => {
     delete cleanConfig.tabs;
   }
 
+  // Sort services alphabetically for stable YAML output
+  // This prevents unnecessary diffs when services are retrieved from database
+  if (cleanConfig.services && cleanConfig.services.length > 0) {
+    cleanConfig.services = [...cleanConfig.services].sort();
+  }
+
   // Serialize using js-yaml for proper YAML formatting
   const yamlContent = yaml.dump(cleanConfig, {
     indent: 2,
