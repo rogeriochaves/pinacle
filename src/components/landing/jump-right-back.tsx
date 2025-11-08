@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "../ui/card";
 
@@ -27,13 +28,18 @@ const formatRelativeTime = (date: Date): string => {
 };
 
 export const JumpRightBack = () => {
-  const { data: podsWithScreenshots, isLoading } =
-    api.pods.getRunningPodsWithScreenshots.useQuery();
+  const { data: session } = useSession();
 
-  // Don't show the section if no pods with screenshots
+  // Only fetch pods if user is authenticated
+  const { data: podsWithScreenshots, isLoading } =
+    api.pods.getRunningPodsWithScreenshots.useQuery(undefined, {
+      enabled: !!session,
+    });
+
+  // Don't show the section if user is not authenticated or no pods with screenshots
   if (
-    !isLoading &&
-    (!podsWithScreenshots || podsWithScreenshots.length === 0)
+    !session ||
+    (!isLoading && (!podsWithScreenshots || podsWithScreenshots.length === 0))
   ) {
     return null;
   }
