@@ -345,7 +345,7 @@ export const podsRouter = createTRPCRouter({
       const monthlyPrice = resourceTier.price * 100; // in cents
 
       // Generate slug from name
-      const slug = name.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      const slug = name.replace(/[^a-z0-9]+/gi, "-").replace(/(^-|-$)/gi, "").toLowerCase();
 
       // Update: Generate PinacleConfig with slug so tabs can be generated
       const pinacleConfig = generatePinacleConfigFromForm({
