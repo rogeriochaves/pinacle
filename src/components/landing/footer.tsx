@@ -16,14 +16,11 @@ const navigation = {
   support: [
     { name: "Pricing", href: "/pricing" },
     { name: "Documentation", href: "/docs" },
-    { name: "Guides", href: "/guides" },
-    { name: "API Status", href: "/status" },
+    { name: "Status Page", href: "https://status.pinacle.dev/" },
   ],
   company: [
-    { name: "About", href: "/about" },
+    { name: "About", href: "/blog/why-we-built-pinacle" },
     { name: "Blog", href: "/blog" },
-    { name: "Jobs", href: "/jobs" },
-    { name: "Press", href: "/press" },
   ],
   legal: [
     { name: "Privacy", href: "/privacy" },
@@ -63,6 +60,7 @@ export const Footer = () => {
                       <Link
                         href={item.href}
                         className="text-sm leading-6 text-gray-300 hover:text-white"
+                        target={item.href === "/docs" || item.href.startsWith("http") ? "_blank" : undefined}
                       >
                         {item.name}
                       </Link>

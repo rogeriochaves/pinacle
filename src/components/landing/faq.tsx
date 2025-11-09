@@ -15,27 +15,9 @@ const faqs: FAQItem[] = [
         start coding within seconds.
         <br />
         <br />
-        Each environment includes your choice of tools like VS Code, Claude Code or Cursor CLI,
-        a terminal, and more, all pre-configured and ready to use.
-      </>
-    ),
-  },
-  {
-    question: "Is it for me?",
-    answer: (
-      <>
-        If you're using tools like Lovable, v0, or Bolt and hitting their
-        limitations, Pinacle gives you real development tools without the setup
-        hassle.
-        <br />
-        <br />
-        Already a developer? Pinacle helps you work on multiple projects
-        simultaneously without cluttering your local machine. Each project gets
-        its own clean environment with everything configured and ready.
-        <br />
-        <br />
-        When you need to jump back into a project from two weeks ago, it's still
-        there, running and ready, exactly how you left it.
+        Each environment includes your choice of tools like VS Code, Claude Code
+        or Cursor CLI, a terminal, and more, all pre-configured and ready to
+        use.
       </>
     ),
   },
@@ -52,8 +34,24 @@ const faqs: FAQItem[] = [
         completely isolated and sandboxed container.
         <br />
         <br />
-        We use industry-standard encryption for data in transit and at rest. Your
-        GitHub credentials are securely stored and never shared.
+        We use industry-standard encryption for data in transit and at rest.
+        Your GitHub credentials are securely stored and never shared.
+      </>
+    ),
+  },
+  {
+    question: "Is it for me?",
+    answer: (
+      <>
+        If you're using tools like Lovable, v0, or Bolt but stuck in a
+        prototype, Pinacle is for you. Pinacle gives you real development tools
+        without the setup hassle and easy for you to use.
+        <br />
+        <br />
+        Already a developer? Pinacle helps you work on multiple projects
+        simultaneously without cluttering your local machine. When you need to
+        jump back into a project from two weeks ago, it's still there, running
+        and ready, exactly how you left it.
       </>
     ),
   },
@@ -79,17 +77,19 @@ const faqs: FAQItem[] = [
   {
     question: "Can I install any dependencies?",
     answer:
-      "Yes! You have full root access in your pod. Install any packages, dependencies, or tools you need using apk, pnpm, npm, uv, or any other package manager. Your install commands can be saved in your pinacle.yaml for automatic setup on new pods.",
+      "Yes! You have full root access in your pod. Install any packages, dependencies, or tools you need using apk, pnpm, uv, or any other package manager. Your install commands can be saved in your pinacle.yaml for automatic setup on new pods.",
   },
   {
     question: "What happens to my work when I stop a pod?",
     answer: (
       <>
-        We create automatic snapshots of your pod's state once you stop it, so you can
-        restore it later. Snapshots incur a small storage cost, but you can delete them at any time.
+        We create automatic snapshots of your pod's state once you stop it, so
+        you can restore it later. Snapshots incur a small storage cost, but you
+        can delete them at any time.
         <br />
         <br />
-        Should you delete the pod and snapshot, committed changes remain of course safely stored on GitHub, along with a pinacle.yaml file that
+        Should you delete the pod and snapshot, committed changes remain of
+        course safely stored on GitHub, along with a pinacle.yaml file that
         allows you to recreate your pod's environment later.
       </>
     ),
@@ -103,8 +103,7 @@ const faqs: FAQItem[] = [
     question: "Do I need to configure anything?",
     answer: (
       <>
-        Not for most projects! Pinacle automatically detects your project type
-        and configures everything for you.
+        Not for most projects! Pinacle automatically configures everything for you.
         <br />
         <br />
         For advanced customization, you can use pinacle.yaml to define services,
@@ -152,4 +151,3 @@ export const FAQ = () => {
     </section>
   );
 };
-
