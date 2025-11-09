@@ -116,3 +116,14 @@ export const PRICING_TABLE: Record<TierId, Record<Currency, number>> = {
   },
 };
 
+/**
+ * Snapshot storage pricing per GB per month
+ * Industry standard: ~$0.10/GB/month
+ * Single source of truth for snapshot storage pricing
+ */
+export const SNAPSHOT_STORAGE_PRICING: Record<Currency, number> = {
+  usd: 0.1, // $0.10/GB/month
+  eur: 0.09, // €0.09/GB/month
+  brl: 0.5, // R$0.50/GB/month
+};
+

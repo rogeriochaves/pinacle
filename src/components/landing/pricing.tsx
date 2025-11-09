@@ -2,13 +2,11 @@
 
 import { Check } from "lucide-react";
 import Link from "next/link";
-import {
-  formatCurrency,
-  formatHourlyPrice,
-} from "@/lib/currency-utils";
+import { formatCurrency, formatHourlyPrice } from "@/lib/currency-utils";
 import {
   getAllResourceTiers,
   PRICING_TABLE,
+  SNAPSHOT_STORAGE_PRICING,
 } from "@/lib/pod-orchestration/resource-tier-registry";
 import { api } from "@/lib/trpc/client";
 import { Button } from "../ui/button";
@@ -18,7 +16,8 @@ export const Pricing = () => {
   const tiers = getAllResourceTiers();
 
   // Detect currency from IP using tRPC
-  const { data: currencyData, isLoading } = api.currency.detectCurrency.useQuery();
+  const { data: currencyData, isLoading } =
+    api.currency.detectCurrency.useQuery();
   const currency = currencyData?.currency || "usd";
 
   return (
@@ -35,7 +34,9 @@ export const Pricing = () => {
                 Your machine. Your rules.
               </h1>
               <p className="text-lg text-gray-300 mb-2">
-                Pick your hardware specs and install anything you need for your AI-powered development work. You only pay when your machine is running.
+                Pick your hardware specs and install anything you need for your
+                AI-powered development work. You only pay when your machine is
+                running.
               </p>
             </div>
           </div>
@@ -114,8 +115,9 @@ export const Pricing = () => {
                               </span>
                             </div>
                             <div className="text-xs text-gray-500 font-mono mt-1">
-                              {isLoading ? "(....... per hour)" :
-                                `(${formatHourlyPrice(monthlyPrice, currency)} per hour)`}
+                              {isLoading
+                                ? "(....... per hour)"
+                                : `(${formatHourlyPrice(monthlyPrice, currency)} per hour)`}
                             </div>
                           </td>
                           <td className="py-5 px-6">
@@ -125,11 +127,7 @@ export const Pricing = () => {
                               asChild
                               className="w-full"
                             >
-                              <Link
-                                href={"/setup?type=new"}
-                              >
-                                Get Started
-                              </Link>
+                              <Link href={"/setup?type=new"}>Get Started</Link>
                             </Button>
                           </td>
                         </tr>
@@ -189,13 +187,120 @@ export const Pricing = () => {
                       </div>
 
                       <Button variant="accent" asChild className="w-full">
-                        <Link href={"/setup?type=new"}>
-                          Get Started
-                        </Link>
+                        <Link href={"/setup?type=new"}>Get Started</Link>
                       </Button>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+
+          {/* Snapshot Storage Pricing */}
+          <div className="mt-8 mx-auto w-full max-w-5xl">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                    <tr className="border-b-2 border-gray-300">
+                      <th className="text-left py-4 px-6 font-mono font-bold text-sm text-gray-700">
+                        SNAPSHOTS
+                      </th>
+                      <th className="text-right py-4 px-6 font-mono font-bold text-sm text-gray-700">
+                        PRICE
+                      </th>
+                      <th className="w-40 py-4 px-6"></th>
+                    </tr>
+                  </thead>
+                <tbody>
+                  <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <td className="py-5 px-6">
+                      <div className="font-mono font-bold text-gray-900 flex items-center gap-2">
+                        Snapshot Storage
+                        <span
+                          className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 text-xs cursor-help"
+                          title="Automatic snapshots preserve your work when you stop a pod. Billed per GB per month. Delete anytime."
+                        >
+                          i
+                        </span>
+                      </div>
+                    </td>
+                      <td className="text-right py-5 px-6">
+                        <div className="font-mono font-bold text-gray-900">
+                          {isLoading
+                            ? "..."
+                            : formatCurrency(
+                                SNAPSHOT_STORAGE_PRICING[currency],
+                                currency,
+                                { showDecimals: true },
+                              )}
+                          <span className="text-sm text-gray-600 font-normal">
+                            /GB-month
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 font-mono mt-1">
+                          {isLoading
+                            ? "(....... per hour)"
+                            : `(${formatHourlyPrice(
+                                SNAPSHOT_STORAGE_PRICING[currency],
+                                currency,
+                              )} per GB per hour)`}
+                        </div>
+                      </td>
+                      <td className="py-5 px-6 text-center">
+                        <Link
+                          href="/docs/snapshots"
+                          className="text-sm underline font-mono"
+                          target="_blank"
+                        >
+                          View Docs
+                        </Link>
+                      </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card */}
+            <div className="md:hidden">
+              <div className="border-2 border-gray-300 rounded-sm bg-slate-100 p-6 hover:border-gray-400 transition-colors shadow-sm">
+                <div className="flex flex-col items-start gap-4 mb-4">
+                  <h3 className="font-mono font-bold text-xl text-gray-900 flex items-center gap-2">
+                    Snapshot Storage
+                    <span
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 text-xs"
+                      title="Automatic snapshots preserve your work when you stop a pod. Billed per GB per month. Delete anytime."
+                    >
+                      i
+                    </span>
+                  </h3>
+                  <div>
+                    <div className="font-mono font-bold text-gray-900 text-xl">
+                      {isLoading
+                        ? "..."
+                        : formatCurrency(
+                            SNAPSHOT_STORAGE_PRICING[currency],
+                            currency,
+                            { showDecimals: true },
+                          )}
+                      <span className="text-sm text-gray-600 font-normal">
+                        /GB-month
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 font-mono text-right mt-1">
+                      {!isLoading &&
+                        `${formatHourlyPrice(
+                          SNAPSHOT_STORAGE_PRICING[currency],
+                          currency,
+                        )} per GB per hour`}
+                    </div>
+                  </div>
+                </div>
+                <Button variant="outline" asChild className="w-full">
+                  <Link href="/docs/snapshots" target="_blank">
+                    View Docs
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>
@@ -215,9 +320,7 @@ export const Pricing = () => {
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">
-                    VS Code integration
-                  </span>
+                  <span className="text-gray-700">VS Code integration</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
