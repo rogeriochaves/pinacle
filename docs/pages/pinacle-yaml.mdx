@@ -1,0 +1,281 @@
+# pinacle.yaml Reference [Pod configuration file]
+
+## Overview
+
+When you create a pod, a `pinacle.yaml` file is automatically generated in your repository's root directory. This file serves as the source of truth for your pod configuration.
+
+Purpose:
+- **Version control your dev environment** - Commit it to your repository
+- **Share configuration with your team** - Everyone gets the same setup
+- **Recreate pods** - Pinacle detects this file and pre-populates settings
+- **Customize services** - Define which tools and assistants you want
+
+## How It Works
+
+1. **Pod Creation**: Pinacle generates `pinacle.yaml` based on your selections
+2. **File Injection**: Written to your pod's root directory
+3. **Version Control**: Commit this file to your repository
+4. **Automatic Detection**: When opening an existing repository with `pinacle.yaml`, Pinacle pre-fills the configuration form
+5. **Updates**: Modify services through the UI, then commit changes
+
+## File Location
+
+```
+repository-root/
+├── pinacle.yaml
+├── src/
+└── package.json
+```
+
+## Basic Example
+
+```yaml
+version: "1.0"
+tier: dev.small
+services:
+  - claude-code
+  - vibe-kanban
+  - code-server
+```
+
+## Full Example
+
+```yaml
+version: "1.0"
+name: "my-project"
+template: "nextjs"
+tier: dev.medium
+services:
+  - openai-codex
+  - vibe-kanban
+  - code-server
+install: pnpm install
+processes:
+  - name: app
+    displayName: App
+    startCommand: pnpm dev
+    url: http://localhost:3000
+    healthCheck: curl -f http://localhost:3000
+```
+
+## Fields
+
+### `version` (required)
+
+Schema version.
+
+```yaml
+version: "1.0"
+```
+
+### `name` (optional)
+
+Pod display name. Defaults to repository name.
+
+```yaml
+name: "my-project"
+```
+
+### `template` (optional)
+
+Template ID for UI reference only.
+
+Available: `nextjs`, `vite`, `langflow`, `agno`, `mastra-ai`, `nodejs-blank`, `python-blank`
+
+```yaml
+template: "nextjs"
+```
+
+### `tier` (required)
+
+Resource allocation.
+
+Options: `dev.small`, `dev.medium`, `dev.large`, `dev.xlarge`
+
+```yaml
+tier: dev.medium
+```
+
+See [Resource Tiers](/resource-tiers) for specifications.
+
+### `services` (required)
+
+List of services to run.
+
+```yaml
+services:
+  - claude-code
+  - vibe-kanban
+  - code-server
+```
+
+See [Services](/services) for available options.
+
+**Limitation**: Only one AI coding assistant per pod.
+
+### `install` (optional)
+
+Commands to run during provisioning.
+
+Single command:
+```yaml
+install: pnpm install
+```
+
+Multiline:
+```yaml
+install: |
+  apk add postgresql-dev
+  pnpm install
+```
+
+Array:
+```yaml
+install:
+  - pnpm install
+  - pnpm build:deps
+```
+
+### `processes` (optional)
+
+Application processes. Each creates a dashboard tab.
+
+```yaml
+processes:
+  - name: app
+    displayName: App
+    startCommand: pnpm dev
+    url: http://localhost:3000
+    healthCheck: curl -f http://localhost:3000
+```
+
+**Fields**:
+- `name` (required): Unique identifier
+- `displayName` (optional): UI display name
+- `startCommand` (required): Command to start process
+- `url` (optional): Creates browser preview tab
+- `healthCheck` (optional): Verification command (new repositories only)
+
+**Multiple processes**:
+```yaml
+processes:
+  - name: frontend
+    displayName: Frontend
+    startCommand: pnpm dev:frontend
+    url: http://localhost:3000
+
+  - name: backend
+    displayName: API
+    startCommand: pnpm dev:backend
+    url: http://localhost:8000
+
+  - name: workers
+    displayName: Workers
+    startCommand: pnpm dev:workers
+```
+
+**Multiline commands**:
+```yaml
+processes:
+  - name: app
+    startCommand: |
+      cd frontend
+      pnpm dev
+    url: http://localhost:3000
+```
+
+## Available Services
+
+### AI Coding Assistants
+
+Only one allowed per pod.
+
+- `claude-code`
+- `openai-codex`
+- `cursor-cli`
+- `gemini-cli`
+- `amp-code`
+- `qwen-code`
+
+### Development Tools
+
+- `vibe-kanban` - Port 5262
+- `code-server` - Port 8726
+- `web-terminal` - Port 7681
+
+### Backend Services
+
+- `postgres` - Port 5432
+- `redis` - Port 6379
+- `jupyter` - Port 8888
+
+## Examples
+
+### Minimal Next.js
+
+```yaml
+version: "1.0"
+template: "nextjs"
+tier: dev.small
+services:
+  - claude-code
+  - code-server
+```
+
+### Python Data Science
+
+```yaml
+version: "1.0"
+template: "python-blank"
+tier: dev.large
+services:
+  - gemini-cli
+  - jupyter
+  - code-server
+```
+
+### Full-Stack with Database
+
+```yaml
+version: "1.0"
+name: "fullstack-app"
+tier: dev.medium
+services:
+  - claude-code
+  - code-server
+  - postgres
+install: pnpm install
+processes:
+  - name: app
+    startCommand: pnpm dev
+    url: http://localhost:3000
+```
+
+### Monorepo
+
+```yaml
+version: "1.0"
+tier: dev.large
+services:
+  - cursor-cli
+  - vibe-kanban
+  - code-server
+install:
+  - pnpm install
+  - pnpm build:shared
+processes:
+  - name: web
+    displayName: Web App
+    startCommand: pnpm dev:web
+    url: http://localhost:3000
+
+  - name: api
+    displayName: API Server
+    startCommand: pnpm dev:api
+    url: http://localhost:4000
+
+  - name: admin
+    displayName: Admin Panel
+    startCommand: pnpm dev:admin
+    url: http://localhost:5000
+```

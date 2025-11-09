@@ -1,0 +1,224 @@
+# Services [AI assistants, dev tools, and backends]
+
+## AI Coding Assistants
+
+**Limitation**: Only one coding assistant can run per pod.
+
+### Claude Code
+
+**Port**: 2528
+
+Terminal-based AI assistant powered by Anthropic's Claude:
+
+```bash
+# Usage in terminal
+claude "add user authentication"
+```
+
+### OpenAI Codex
+
+**Port**: 2528
+
+OpenAI-powered coding assistant similar to Copilot:
+
+```bash
+# Usage in terminal
+codex "refactor this function"
+```
+
+### Cursor CLI
+
+**Port**: 2528
+
+Cursor AI assistant in terminal mode.
+
+### Gemini CLI
+
+**Port**: 2528
+
+Google Gemini-powered coding assistant.
+
+### AMP Code
+
+**Port**: 2528
+
+Alternative AI coding assistant.
+
+### Qwen Code
+
+**Port**: 2528
+
+Qwen-based coding assistant.
+
+## Development Tools
+
+### VS Code Server (code-server)
+
+**Port**: 8726
+
+Full VS Code running in your browser:
+
+- File explorer
+- Extensions support (Supermaven pre-installed)
+- Integrated terminal
+- Git integration
+
+Access via the "VS Code" tab in dashboard.
+
+### Vibe Kanban
+
+**Port**: 5262 \
+
+Lightweight kanban board:
+
+- Create custom columns
+- Drag-and-drop cards
+- Markdown support in cards
+- Persists to pod filesystem
+
+Access via the "Vibe Kanban" tab in dashboard.
+
+### Web Terminal
+
+**Port**: 7681
+
+Browser-based terminal with tmux integration:
+
+- Multiple terminal sessions
+- Copy/paste support
+- Keyboard shortcuts
+- Reconnects to existing tmux sessions
+
+Access via the "Terminal" tab in dashboard.
+
+## Backend Services
+
+### PostgreSQL
+
+**Port**: 5432 \
+**Default credentials**: `postgres` / `postgres`
+
+PostgreSQL database server:
+
+- Pre-configured for local development
+- Data stored in pod volume
+- Access via `postgresql://postgres:postgres@localhost:5432/postgres`
+
+### Redis
+
+**Port**: 6379
+
+In-memory data store:
+
+- No authentication by default
+- Access via `redis-cli` or libraries
+
+### Jupyter Lab
+
+**Port**: 8888
+
+Interactive notebook environment:
+
+- Pre-installed: pandas, numpy, matplotlib
+- No authentication
+- Access via dedicated tab
+
+## Service Configuration
+
+### In pinacle.yaml
+
+```yaml
+services:
+  - claude-code
+  - vibe-kanban
+  - code-server
+  - postgres
+```
+
+### Custom Service Ports
+
+Services listen on fixed internal ports. External access is proxied through nginx with subdomain routing:
+
+- Internal: `localhost:8726`
+- External: `localhost-{port}.pod-{slug}.pinacle.dev`
+
+### Service Management
+
+Services run as tmux sessions. To manually manage:
+
+```bash
+# List sessions
+tmux ls
+
+# Attach to service
+tmux attach -t service-code-server
+
+# Detach: Ctrl+B, then D
+```
+
+## Service Health Checks
+
+Each service includes health checks:
+
+```bash
+# VS Code
+curl -fsSL http://localhost:8726
+
+# Vibe Kanban
+curl -fsSL http://localhost:5262
+
+# PostgreSQL
+pg_isready -h localhost -p 5432
+```
+
+Health checks run during provisioning to ensure services start correctly.
+
+## Adding Custom Services
+
+Install additional tools manually:
+
+```bash
+# Install Redis
+apk add redis
+redis-server --bind 0.0.0.0 &
+```
+
+Custom services don't appear in dashboard tabs automatically but are accessible via their ports.
+
+## Service Logs
+
+View service logs:
+
+```bash
+# View service log file
+cat /var/log/<service-name>.log
+
+# Tail recent logs
+tail -f /var/log/<service-name>.log
+
+# Or attach to tmux session for live view
+tmux attach -t service-<service-name>
+```
+
+## Troubleshooting
+
+### Service Won't Start
+
+1. Check required environment variables are set
+2. Review service logs: `cat /var/log/<service-name>.log`
+3. Check rc-service status: `rc-service <service-name> status`
+4. Verify port isn't already in use: `netstat -tulpn | grep <port>`
+5. Restart pod to reset services
+
+### Can't Access Service
+
+1. Verify service is running: `tmux ls`
+2. Check health: `curl -fsSL http://localhost:<port>`
+3. Ensure correct subdomain URL
+4. Clear browser cache
+5. Check proxy authentication (cookie may have expired)
+
+### Multiple Coding Assistants
+
+Templates include one AI coding assistant by default. Multiple assistants can be installed manually after provisioning.
+

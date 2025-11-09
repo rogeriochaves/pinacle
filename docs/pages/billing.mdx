@@ -1,0 +1,121 @@
+# Billing [Usage-based pricing via Stripe]
+
+## Pricing Model
+
+### Runtime Billing
+
+Billing starts when pod status changes to "running". \
+Billing stops when pod status changes to "stopped" or "terminating".
+
+Charged time = Sum of all running hours in billing period
+
+### Snapshot Storage Billing
+
+Snapshots are charged per MB stored, tracked hourly.
+
+Calculation: Total MB across all snapshots × hours stored
+
+Example: 500MB snapshot stored for 720 hours (30 days) = 360,000 MB-hours
+
+## Billing Cycle
+
+- **Period**: Calendar month
+- **Cutoff**: Last day of month at midnight UTC
+- **Invoice**: Generated within 24 hours after period ends
+- **Payment**: Automatic via Stripe
+
+## Payment Methods
+
+Accepted through Stripe:
+- Credit cards (Visa, Mastercard, Amex)
+- Debit cards
+- Regional payment methods (depending on location)
+
+### Managing Payment Methods
+
+1. Click profile icon (top right in workbench)
+2. Click "Account"
+3. Click "View Billing"
+4. Click "Manage Subscription" button
+5. Opens Stripe Customer Portal where you can add/change payment methods
+
+## Subscriptions
+
+Pinacle uses metered billing, not fixed subscriptions.
+
+No monthly subscription fee. Only usage charges.
+
+## Usage Tracking
+
+View usage in dashboard:
+- Current month runtime hours per pod
+- Storage allocation per pod
+- Estimated charges (updated hourly)
+
+## Invoices
+
+### Viewing Invoices
+
+1. Click profile icon (top right in workbench)
+2. Click "Account"
+3. Click "View Billing"
+4. Scroll to invoices section
+
+### Invoice Contents
+
+Each invoice includes:
+- Runtime hours per pod (with hourly rate)
+- Storage GB per pod
+- Total charges
+- Payment status
+- Stripe invoice ID
+
+### Downloading Invoices
+
+Click "Download" on any invoice to get PDF.
+
+## Failed Payments
+
+If payment fails:
+1. Grace period of 7 days
+2. After 7 days, pods are stopped
+3. Update payment method to resume
+
+## Refunds
+
+Refunds are handled case-by-case. Contact hello@pinacle.dev with:
+- Invoice ID
+- Reason for refund request
+- Account email
+
+## Stripe Customer Portal
+
+Manage billing through Stripe:
+
+1. Click profile icon (top right in workbench)
+2. Click "Account"
+3. Click "View Billing"
+4. Click "Manage Subscription"
+5. Opens Stripe Customer Portal
+
+Available actions:
+- Update payment methods
+- Download invoices
+- View payment history
+- Update billing email
+
+## Cancellation
+
+No subscription to cancel. Simply stop or delete pods to stop charges.
+
+Deleting a pod stops all billing for that pod (compute and storage).
+
+## Support
+
+Billing questions: hello@pinacle.dev
+
+Include:
+- Account email
+- Invoice ID (if applicable)
+- Specific question or issue
+

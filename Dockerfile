@@ -20,6 +20,7 @@ COPY .next ./.next
 COPY public ./public
 COPY server.js ./
 COPY src/worker.js ./src/
+COPY docs/dist ./docs/dist
 
 # Copy necessary config files
 COPY next.config.ts ./

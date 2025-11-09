@@ -1,0 +1,51 @@
+# Snapshots [Save and restore pod state]
+
+## What Gets Saved
+
+- All files in `/workspace`
+- Installed packages and dependencies
+- Database data
+- Service configurations
+- User files and modifications
+
+**Not included**:
+- Running processes (stopped during snapshot)
+- In-memory data
+- Temporary files in `/tmp`
+
+## Creating Snapshots
+
+### Via Dashboard
+
+1. Click pod name dropdown (top left in workbench)
+2. Click Settings icon (gear) next to your pod
+3. Click "Snapshots" tab
+4. Click "Create Snapshot"
+5. Enter name and optional description
+6. Wait for snapshot creation (~30-120 seconds depending on data size)
+
+### Automatic Snapshots
+
+Automatic snapshots are created when you stop a pod. They're named `auto-YYYY-MM-DD`.
+
+## Restoring Snapshots
+
+1. Click pod name dropdown (top left in workbench)
+2. Click Settings icon (gear) next to your pod
+3. Click "Snapshots" tab
+4. Find snapshot to restore
+5. Click "Restore"
+6. Confirm action
+
+**Warning**: Restoring overwrites current pod state. Current data is lost unless you create a snapshot first.
+
+## Deleting Snapshots
+
+1. Click pod name dropdown (top left in workbench)
+2. Click Settings icon (gear) next to your pod
+3. Click "Snapshots" tab
+4. Find snapshot to delete
+5. Click "Delete"
+6. Confirm action
+
+Deletion is permanent and cannot be undone.

@@ -22,6 +22,7 @@ import next from "next";
 import { env } from "@/env";
 import { db } from "./src/lib/db";
 import { pods, servers } from "./src/lib/db/schema";
+import { serveDocsFile } from "./src/lib/docs-server";
 import { logger, proxyLogger } from "./src/lib/logger";
 import { generatePortDiscoveryPage } from "./src/lib/proxy-discovery";
 import { getProxyInjectionScript } from "./src/lib/proxy-injection-script";
@@ -676,6 +677,13 @@ const startServer = async (): Promise<void> => {
         // Handle proxy request
         await handleProxy(req, res, requestHostname);
       } else {
+        // Check if this is a docs request
+        const url = req.url || "/";
+        if (url.startsWith("/docs")) {
+          const served = await serveDocsFile(req, res, url);
+          if (served) return;
+        }
+
         // Not a proxy request - pass to Next.js
         const parsedUrl = parse(req.url || "/", true);
         const listenersBefore = server.listenerCount("upgrade");

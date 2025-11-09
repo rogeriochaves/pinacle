@@ -1,0 +1,48 @@
+.vocs_Sidebar_sectionTitle, .vocs_Sidebar_logoWrapper {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.vocs_DocsLayout_sidebar, .vocs_DocsLayout_gutterLeft, .vocs_Sidebar_logoWrapper, .vocs_Sidebar_footer, .vocs_Sidebar_footerCurtain {
+    background: #101828;
+}
+
+.vocs_ThemeToggle_themeToggleButton[data-active="true"], .vocs_ThemeToggle_themeToggleButton:hover {
+    color: #FFF;
+}
+
+.vocs_ThemeToggle_themeToggleButton[data-active="false"] {
+    color: #777;
+}
+
+.vocs_Sidebar_sectionTitle, .vocs_Sidebar_item.vocs_Link:hover, .vocs_Sidebar_logo {
+    color: #FFF;
+}
+
+.vocs_Sidebar_item.vocs_Link {
+    color: #BBB;
+}
+
+.vocs_Sidebar_navigation > .vocs_Sidebar_group > .vocs_Sidebar_section + .vocs_Sidebar_section {
+    border-top: 1px solid #303848;
+}
+
+.vocs_Sidebar_divider {
+    background-color: #303848;
+}
+
+:root.dark {
+    /* --vocs-color_background: #121218; */
+    --vocs-color_background: #2b2b2b;
+}
+
+.dark .vocs_DocsLayout_sidebar, .dark .vocs_DocsLayout_gutterLeft, .dark .vocs_Sidebar_logoWrapper, .dark .vocs_Sidebar_footer, .dark .vocs_Sidebar_footerCurtain {
+    background: #171717;
+}
+
+.dark .vocs_Sidebar_navigation > .vocs_Sidebar_group > .vocs_Sidebar_section + .vocs_Sidebar_section {
+    border-top: 1px solid #101828;
+}
+
+.dark .vocs_Sidebar_divider {
+    background-color: #101828;
+}

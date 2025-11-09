@@ -1,0 +1,139 @@
+# GitHub Integration [Repository cloning and deploy keys]
+
+## Authorization
+
+### First-Time Setup
+
+1. Click "Open Repository" on homepage
+2. Authorize Pinacle GitHub App
+3. Select repositories to grant access
+4. Pinacle can now access selected repositories
+
+### Repository Access
+
+Pinacle requires read access to:
+- Repository code
+- Deploy keys (for SSH cloning)
+
+## Creating Pods from Repositories
+
+### Selection
+
+1. Navigate to setup page
+2. Choose "Open Repository"
+3. Select repository from list
+4. Pinacle clones repository to `/workspace`
+
+### Private Repositories
+
+Private repositories are supported. Pinacle creates a deploy key automatically.
+
+## Deploy Keys
+
+### Automatic Creation
+
+When creating a pod from a private repository:
+1. Pinacle generates an SSH key pair
+2. Public key is added to repository as deploy key
+3. Private key is stored in pod configuration
+4. Repository is cloned using SSH
+
+### Key Permissions
+
+Deploy keys have read-only access by default.
+
+### Key Lifecycle
+
+- Created: During pod provisioning
+- Used: For git operations (clone, pull, fetch)
+- Deleted: When pod is deleted
+
+### Manual Git Operations
+
+SSH key is available in pod at `/root/.ssh/id_rsa`.
+
+```bash
+# Clone another private repo
+git clone git@github.com:user/repo.git
+
+# Pull updates
+cd /workspace
+git pull
+
+# Push changes
+git push
+```
+
+## pinacle.yaml detection
+
+If repository contains `pinacle.yaml`, configuration is pre-populated in setup form.
+
+## GitHub App Permissions
+
+Pinacle GitHub App requires:
+- Repository contents: Read
+- Deploy keys: Read & Write
+- Metadata: Read
+
+No access to:
+- Issues, PRs, or other repository data
+- Organization settings
+- User data beyond email
+
+## Revoking Access
+
+### Repository Level
+
+1. Go to repository Settings → Deploy keys
+2. Find Pinacle deploy key
+3. Click Delete
+
+### App Level
+
+1. Go to GitHub Settings → Applications
+2. Find Pinacle
+3. Click Revoke or adjust repository access
+
+## Troubleshooting
+
+### Clone Failures
+
+Common causes:
+- Missing GitHub authorization
+- Repository access revoked
+- Deploy key removed manually
+- Network connectivity issues
+
+### SSH Key Issues
+
+If git operations fail:
+
+```bash
+# Verify key exists
+ls -la /root/.ssh/id_rsa
+
+# Test GitHub connection
+ssh -T git@github.com
+
+# Check key permissions
+chmod 600 /root/.ssh/id_rsa
+```
+
+### Repository Not Listed
+
+Possible reasons:
+- Repository access not granted during authorization
+- Need to re-authorize with updated permissions
+- Organization restrictions blocking third-party apps
+
+## Multiple Repositories
+
+Each pod can clone one repository during creation. To work with multiple repositories:
+
+```bash
+# Clone additional repos manually
+cd /workspace
+git clone git@github.com:user/another-repo.git
+```
+
+Use the same deploy key or add multiple keys to different repositories.

@@ -1,0 +1,81 @@
+# Environment Variables [API keys and configuration]
+
+## Adding Variables
+
+Environment variables are set during pod creation only.
+
+1. During pod setup, enter variables in "Environment Variables" section
+2. Format: `KEY=value`
+3. One variable per line
+
+Currently, environment variables cannot be edited after pod creation through the UI after pod creation.
+
+## Variable Scope
+
+Environment variables are available to:
+- All services in the pod
+- User processes
+- Shell sessions
+
+Variables are loaded when:
+- Pod starts
+- Services start
+- Terminal sessions open
+
+## Viewing Variables
+
+In terminal:
+
+```bash
+# List all variables
+env
+
+# Check specific variable
+echo $API_KEY
+
+# View in process
+cat /proc/1/environ
+```
+
+## Security
+
+**Do not commit secrets to `pinacle.yaml`**. Environment variables are stored securely to be injected into the pod during runtime.
+
+## Overriding Variables
+
+Variables can be overridden at multiple levels:
+
+1. System defaults (lowest priority)
+2. Environment set
+3. Pod-specific variables
+4. Inline in process command (highest priority)
+
+Example:
+
+```bash
+# Override for single command
+NODE_ENV=production npm start
+```
+
+## Variable Expansion
+
+Shell variable expansion works in process commands:
+
+```yaml
+processes:
+  - name: app
+    startCommand: npm start -- --port $PORT
+```
+
+## Multiline Variables
+
+## Modifying Variables
+
+To change environment variables after pod creation, you must:
+
+1. Stop the pod
+2. Create a snapshot (to preserve data)
+3. Delete the pod
+4. Create a new pod from the snapshot with updated variables
+
+Or manually edit via terminal and restart services.

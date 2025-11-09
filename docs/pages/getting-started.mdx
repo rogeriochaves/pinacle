@@ -1,0 +1,157 @@
+# Getting Started [Create your first pod]
+
+## Prerequisites
+
+- GitHub account (for repository access)
+- An account for the AI assistant (OpenAI, Claude, Cursor, etc, optional, but recommended)
+
+## Create a Pod
+
+### From a GitHub Repository
+
+1. Navigate to [pinacle.dev/setup?type=repository](https://pinacle.dev/setup?type=repository)
+2. Authorize Pinacle to access your repositories
+3. Select a repository
+4. Pinacle detects project type and suggests a template
+5. Choose services and resource tier
+6. Add environment variables if needed
+7. Click "Create Pod"
+
+### From a Template
+
+1. Navigate to [pinacle.dev](https://pinacle.dev)
+2. Choose a template (Vite, Next.js, Python, etc.)
+3. Select AI coding assistant
+4. Pick resource tier
+5. Click "Start Building"
+
+### Blank Pod
+
+1. Navigate to [pinacle.dev/setup?type=new](https://pinacle.dev/setup?type=new)
+2. Choose "Custom Setup"
+3. Select base image and services manually
+4. Configure resources
+5. Create pod
+
+## Pod Provisioning
+
+After clicking create, Pinacle:
+
+1. Allocates resources on a server
+2. Installs selected services
+3. Clones your repository (if provided)
+4. Runs app install commands
+5. Starts services and processes
+
+Typical provisioning time: 30-90 seconds
+
+## Access Your Pod
+
+Once provisioned, you get a dashboard with tabs for each service, for example:
+
+- **App**: Your running application
+- **Cursor CLI**: AI coding assistant terminal
+- **VS Code**: Full IDE in browser
+- **Terminal**: Shell access
+- **Vibe Kanban**: Task board
+
+## First Steps
+
+### Use AI Assistant
+
+Open the coding assistant tab and start coding:
+
+```
+Create a new React component for user profiles
+```
+
+### Add a new dependency
+
+Open the Terminal tab and run:
+
+```bash
+pnpm add <dependency>
+```
+
+Or a new server dependency:
+
+```bash
+apk add <dependency>
+```
+
+### Commmit Changes
+
+Click on top-left commit icon to open VS Code Git pane.
+
+Alternatively, commit changes via terminal:
+
+```bash
+git add .
+git commit -m "feat: add user profiles"
+git push
+```
+
+## Configuration
+
+### pinacle.yaml
+
+After pod creation, a `pinacle.yaml` file is added to your workspace:
+
+```yaml
+version: "1.0"
+tier: dev.small
+services:
+  - claude-code
+  - vibe-kanban
+  - code-server
+```
+
+Commit this file to version control. See [pinacle.yaml reference](/pinacle-yaml) for details.
+
+### Environment Variables
+
+Add environment variables through the dashboard:
+
+1. Go to pod settings
+2. Click "Environment Variables"
+3. Add key-value pairs
+4. Restart pod to apply changes
+
+## Pod Lifecycle
+
+### Stop Pod
+
+Stops all processes but keeps storage:
+
+```
+Dashboard → Stop Pod
+```
+
+Pod billing pauses when stopped. Storage costs continue (~$0.01/GB/month).
+
+### Restart Pod
+
+Resume from stopped state:
+
+```
+Dashboard → Start Pod
+```
+
+All files and configuration remain intact.
+
+### Delete Pod
+
+Permanently removes pod and storage:
+
+```
+Dashboard → Settings → Delete Pod
+```
+
+**Warning**: This cannot be undone. Create a snapshot first if you want to preserve state.
+
+## Next Steps
+
+- [Templates](/templates) - Explore available templates
+- [Services](/services) - Learn about service options
+- [Snapshots](/snapshots) - Save and restore pod state
+- [pinacle.yaml](/pinacle-yaml) - Configure your environment

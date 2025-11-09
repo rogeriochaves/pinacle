@@ -47,7 +47,12 @@ export const Header = () => {
         <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
           {navigation.map((item) => (
             <Button variant="ghost" asChild key={item.name}>
-              <Link href={item.href}>{item.name}</Link>
+              <Link
+                href={item.href}
+                target={item.href === "/docs" ? "_blank" : undefined}
+              >
+                {item.name}
+              </Link>
             </Button>
           ))}
           {session ? (

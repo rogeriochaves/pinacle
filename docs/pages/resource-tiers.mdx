@@ -1,0 +1,104 @@
+# Resource Tiers [CPU, memory, and storage specs]
+
+## Available Tiers
+
+### dev.small
+
+- **CPU**: 1 vCPU
+- **Memory**: 2GB RAM
+- **Storage**: 20GB
+
+### dev.medium
+
+- **CPU**: 2 vCPU
+- **Memory**: 4GB RAM
+- **Storage**: 40GB
+
+### dev.large
+
+- **CPU**: 4 vCPU
+- **Memory**: 8GB RAM
+- **Storage**: 80GB
+
+### dev.xlarge
+
+- **CPU**: 8 vCPU
+- **Memory**: 16GB RAM
+- **Storage**: 160GB
+
+## Pricing
+
+See current pricing at [pinacle.dev/pricing](https://pinacle.dev/pricing).
+
+## Storage
+
+Pod storage (volumes) is included in the tier. No separate storage charges for pod data.
+
+Storage persists when pod is stopped. It's destroyed only when pod is deleted.
+
+Storage includes:
+- Application code
+- Dependencies (`node_modules`, etc.)
+- Database data
+- User files
+- Service configurations
+
+Snapshots are charged separately per MB. See [Billing](/billing) for details.
+
+## Changing Tiers
+
+To upgrade or downgrade:
+
+1. Stop the pod
+2. Edit `pinacle.yaml`:
+   ```yaml
+   tier: dev.medium
+   ```
+3. Recreate the pod
+
+**Note**: You will need to commit your changes and reinstall dependencies, as it's currently not possible to move the same storage to a different tier.
+
+## Resource Limits
+
+### CPU
+
+CPU is shared but guaranteed:
+- 1 vCPU = 1 full core
+- Bursting allowed for short periods
+- Throttling occurs under sustained high load
+
+### Memory
+
+Memory is hard-limited:
+- Exceeding limit causes OOM (Out of Memory)
+- Process may be killed
+- Increase tier if hitting memory limits frequently
+
+### Storage
+
+Storage is hard-limited:
+- Exceeding limit prevents writes
+- No automatic expansion
+- Clean up files or upgrade tier
+
+## Monitoring
+
+Resource usage is visible in the pod details panel:
+
+1. Click pod name dropdown (top left in workbench)
+2. Click Settings icon (gear) next to your pod
+3. Click "Metrics" tab
+
+Command-line alternatives:
+
+```bash
+# CPU usage
+top
+
+# Memory usage
+free -h
+
+# Disk usage
+df -h /workspace
+```
+
