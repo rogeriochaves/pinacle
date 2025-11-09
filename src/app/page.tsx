@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FAQ } from "../components/landing/faq";
 import { Footer } from "../components/landing/footer";
 import { Hero } from "../components/landing/hero";
 import { JumpRightBack } from "../components/landing/jump-right-back";
@@ -28,6 +29,7 @@ export default function Home() {
         </div>
       </section>
 
+      <FAQ />
       <Footer />
     </div>
   );

@@ -37,7 +37,7 @@ const navigation = {
     },
     {
       name: "Twitter",
-      href: "#",
+      href: "https://x.com/pinacledev",
       icon: Twitter,
     },
   ],
@@ -123,6 +123,7 @@ export const Footer = () => {
                     key={item.name}
                     href={item.href}
                     className="text-gray-400 hover:text-gray-300"
+                    target="_blank"
                   >
                     <span className="sr-only">{item.name}</span>
                     <Icon className="h-6 w-6" />

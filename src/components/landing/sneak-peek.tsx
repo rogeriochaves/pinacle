@@ -77,7 +77,7 @@ export const SneakPeek = () => {
             This is how it looks like
           </h2>
           <p className="mt-4 text-md leading-8 text-muted-foreground font-mono">
-            Everything you need to build, code, and ship—right in your browser
+            Everything you need to build, code, and ship — right in your browser
           </p>
         </div>
 
