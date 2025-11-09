@@ -28,6 +28,7 @@ build
 *.md
 !README.md
 docs
+!docs/dist
 
 # Testing
 vitest.config.ts

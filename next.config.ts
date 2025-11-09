@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
   },
   // Externalize geoip-country to allow it to load database files
   serverExternalPackages: ["geoip-country"],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;

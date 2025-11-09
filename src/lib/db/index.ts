@@ -98,19 +98,22 @@ function stripQuery(msg: string): string {
 function wrapBuilder<T>(builder: T, format = formatDrizzleError): T {
   if (!builder || typeof builder !== "object") return builder;
 
-  return new Proxy(builder as any, {
+  return new Proxy(builder, {
     get(target, prop, receiver) {
       const val = Reflect.get(target, prop, receiver);
 
       // Intercept awaiting (`await qb`) by patching the thenable
       if (prop === "then" && typeof val === "function") {
         const origThen = val.bind(target);
+        // biome-ignore lint/suspicious/noExplicitAny: meh
         return (onFulfilled?: any, onRejected?: any) =>
           origThen(
             onFulfilled,
+            // biome-ignore lint/suspicious/noExplicitAny: meh
             (e: any) => {
               const msg = format(e);
               const wrapped = new Error(msg, { cause: e });
+              // biome-ignore lint/suspicious/noExplicitAny: meh
               if (e?.cause?.code) (wrapped as any).code = e.cause.code; // keep pg code if present
               return onRejected ? onRejected(wrapped) : Promise.reject(wrapped);
             },
@@ -132,6 +135,7 @@ function wrapBuilder<T>(builder: T, format = formatDrizzleError): T {
           method === "all" ||     // (sqlite)
           method === "get";       // (sqlite)
 
+        // biome-ignore lint/suspicious/noExplicitAny: meh
         return (...args: any[]) => {
           const res = val.apply(target, args);
           return shouldWrap ? wrapBuilder(res, format) : res;
@@ -144,15 +148,19 @@ function wrapBuilder<T>(builder: T, format = formatDrizzleError): T {
 }
 
 // Patch ONLY .insert on a drizzle db instance
+// biome-ignore lint/suspicious/noExplicitAny: meh
 export function improveInsertErrors<TDb extends { insert: (...a: any[]) => any }>(
   db: TDb,
   format = formatDrizzleError,
 ): TDb {
+  // biome-ignore lint/suspicious/noExplicitAny: meh
   const origInsert = (db as any).insert.bind(db);
 
+  // biome-ignore lint/suspicious/noExplicitAny: meh
   return new Proxy(db as any, {
     get(target, prop, receiver) {
       if (prop === "insert") {
+        // biome-ignore lint/suspicious/noExplicitAny: meh
         return (...args: any[]) => {
           const builder = origInsert(...args);
           return wrapBuilder(builder, format);

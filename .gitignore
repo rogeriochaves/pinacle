@@ -22,6 +22,9 @@
 build
 dist
 
+# docs workaround
+/docs/pages/docs/
+
 # misc
 .DS_Store
 *.pem

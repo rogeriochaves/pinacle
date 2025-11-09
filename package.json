@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"dotenv -c -- tsx server.ts\" \"pnpm worker\"",
-    "build": "pnpm docs:build && pnpm build:server && next build --turbopack",
+    "build": "echo 'Checking types...' && pnpm tsgo && pnpm docs:build && pnpm build:server && next build --turbopack",
     "build:server": "esbuild server.ts --bundle --outfile=server.js --platform=node --target=node22 --format=cjs --external:./src/app --external:./src/components --external:next --external:pino-pretty && esbuild src/worker.ts --bundle --outfile=src/worker.js --platform=node --target=node22 --format=cjs --external:pino-pretty",
     "start": "concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"dotenv -c -- node server.js\" \"pnpm worker\"",
     "start:prod": "NODE_ENV=production concurrently --restart-tries -1 -n \"app,worker\" -c \"cyan,green\" \"node server.js\" \"node src/worker.js\"",
@@ -28,7 +28,7 @@
     "stripe:setup": "dotenv -c -- tsx scripts/setup-stripe-products.ts",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
     "docs:dev": "vocs dev",
-    "docs:build": "echo 'Building docs...' && vocs build",
+    "docs:build": "tsx scripts/build-docs-if-changed.ts",
     "docs:preview": "vocs preview"
   },
   "dependencies": {

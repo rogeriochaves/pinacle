@@ -18,25 +18,13 @@ import {
   getAllResourceTiers,
   PRICING_TABLE,
   RESOURCE_TIERS,
+  SNAPSHOT_STORAGE_PRICING,
   type TierId,
 } from "../src/lib/pod-orchestration/resource-tier-registry";
 import { stripe } from "../src/lib/stripe";
 import { generateKSUID } from "../src/lib/utils";
 
 const CURRENCIES: Currency[] = ["usd", "eur", "brl"];
-
-/**
- * Snapshot storage pricing per GB per month
- * Industry standard: ~$0.10/GB/month
- * This will be converted to MB-hours for usage tracking
- *
- * Conversion: $0.10/GB/month = $0.000137/GB/hour = $0.000000137/MB/hour
- */
-const SNAPSHOT_STORAGE_PRICING: Record<Currency, number> = {
-  usd: 0.1, // $0.10/GB/month
-  eur: 0.09, // €0.09/GB/month
-  brl: 0.5, // R$0.50/GB/month
-};
 
 /**
  * Calculate hourly price from monthly price
