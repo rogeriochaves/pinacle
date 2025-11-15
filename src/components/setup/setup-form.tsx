@@ -8,6 +8,11 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useGitHubReauth } from "../../hooks/use-github-reauth";
+import { trackBeginCheckout, trackPurchase } from "../../lib/analytics/gtag";
+import {
+  type Currency,
+  PRICING_TABLE,
+} from "../../lib/pod-orchestration/resource-tier-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { api } from "../../lib/trpc/client";
 import {
@@ -237,8 +242,41 @@ const SetupForm = () => {
               updatedSubscription,
             );
 
-            // Try to restore form data and auto-create pod
+            // Track successful purchase in Google Analytics
             const savedFormData = sessionStorage.getItem("pendingPodConfig");
+            if (savedFormData) {
+              try {
+                const formData = JSON.parse(savedFormData) as SetupFormValues;
+                const selectedTemplate = getTemplateUnsafe(formData.bundle);
+                const tier =
+                  formData.tier || selectedTemplate?.tier || "dev.small";
+                const currency = (updatedSubscription?.currency ||
+                  "usd") as Currency;
+                const tierPrice =
+                  PRICING_TABLE[tier]?.[currency] ||
+                  PRICING_TABLE[tier]?.usd ||
+                  0;
+
+                trackPurchase({
+                  transaction_id: sessionId,
+                  currency: currency.toUpperCase(),
+                  value: tierPrice,
+                  items: [
+                    {
+                      item_id: tier,
+                      item_name: `Pinacle ${tier}`,
+                      item_category: "subscription",
+                      price: tierPrice,
+                      quantity: 1,
+                    },
+                  ],
+                });
+              } catch (error) {
+                console.error("[Checkout] Error tracking purchase:", error);
+              }
+            }
+
+            // Try to restore form data and auto-create pod
             if (savedFormData) {
               try {
                 const formData = JSON.parse(savedFormData) as SetupFormValues;
@@ -257,6 +295,7 @@ const SetupForm = () => {
                   console.log(
                     "[Checkout] Setting flag to skip next pinacle.yaml application",
                   );
+                  // biome-ignore lint/suspicious/noExplicitAny: meh
                   (window as any).__skipNextPinacleApply = true;
                 }
 
@@ -416,6 +455,7 @@ const SetupForm = () => {
             console.log(
               "[Checkout Cancel] Setting flag to skip next pinacle.yaml application",
             );
+            // biome-ignore lint/suspicious/noExplicitAny: meh
             (window as any).__skipNextPinacleApply = true;
           }
 
@@ -479,6 +519,25 @@ const SetupForm = () => {
         // Get tier for checkout
         const selectedTemplate = getTemplateUnsafe(data.bundle);
         const tier = data.tier || selectedTemplate?.tier || "dev.small";
+
+        // Track checkout initiation in Google Analytics
+        const tierPrice =
+          PRICING_TABLE[tier]?.[detectedCurrency] ||
+          PRICING_TABLE[tier]?.usd ||
+          0;
+        trackBeginCheckout({
+          currency: detectedCurrency.toUpperCase(),
+          value: tierPrice,
+          items: [
+            {
+              item_id: tier,
+              item_name: `Pinacle ${tier}`,
+              item_category: "subscription",
+              price: tierPrice,
+              quantity: 1,
+            },
+          ],
+        });
 
         // Redirect to Stripe checkout with detected currency
         const checkout = await createCheckoutMutation.mutateAsync({
