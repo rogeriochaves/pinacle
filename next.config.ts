@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withPostHogConfig } from "@posthog/nextjs-config";
 
 const nextConfig: NextConfig = {
   logging: {
@@ -40,4 +41,16 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-export default nextConfig;
+export default withPostHogConfig(nextConfig, {
+  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY || "",
+  envId: process.env.POSTHOG_ENV_ID || "",
+  host: "https://eu.i.posthog.com",
+  sourcemaps: {
+    enabled:
+      process.env.NODE_ENV === "production" &&
+      !!process.env.POSTHOG_PERSONAL_API_KEY &&
+      !!process.env.POSTHOG_ENV_ID,
+    project: "pinacle",
+    deleteAfterUpload: true,
+  },
+});

@@ -29,10 +29,14 @@ const server = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   RESEND_API_KEY: z.string().min(1).optional(), // Already used but not in schema
+
+  // PostHog configuration (server-side)
+  POSTHOG_PERSONAL_API_KEY: z.string().min(1).optional(), // For sourcemap uploads
+  POSTHOG_ENV_ID: z.string().min(1).optional(), // Project ID for sourcemaps
 });
 
 const client = z.object({
-  // Add client-side environment variables here
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1).optional(),
 });
 
 const processEnv = {
@@ -60,6 +64,9 @@ const processEnv = {
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
   STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
+  POSTHOG_PERSONAL_API_KEY: process.env.POSTHOG_PERSONAL_API_KEY,
+  POSTHOG_ENV_ID: process.env.POSTHOG_ENV_ID,
+  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
 };
 
 const merged = server.merge(client);

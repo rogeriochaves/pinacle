@@ -8,7 +8,14 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useGitHubReauth } from "../../hooks/use-github-reauth";
-import { trackBeginCheckout, trackPurchase } from "../../lib/analytics/gtag";
+import {
+  trackBeginCheckout as trackGABeginCheckout,
+  trackPurchase as trackGAPurchase,
+} from "../../lib/analytics/gtag";
+import {
+  trackBeginCheckout as trackPHBeginCheckout,
+  trackPurchase as trackPHPurchase,
+} from "../../lib/analytics/posthog";
 import {
   type Currency,
   PRICING_TABLE,
@@ -257,7 +264,8 @@ const SetupForm = () => {
                   PRICING_TABLE[tier]?.usd ||
                   0;
 
-                trackPurchase({
+                // Google Analytics tracking
+                trackGAPurchase({
                   transaction_id: sessionId,
                   currency: currency.toUpperCase(),
                   value: tierPrice,
@@ -270,6 +278,15 @@ const SetupForm = () => {
                       quantity: 1,
                     },
                   ],
+                });
+
+                // PostHog tracking
+                trackPHPurchase({
+                  transactionId: sessionId,
+                  currency: currency.toUpperCase(),
+                  value: tierPrice,
+                  tierId: tier,
+                  tierName: `Pinacle ${tier}`,
                 });
               } catch (error) {
                 console.error("[Checkout] Error tracking purchase:", error);
@@ -520,12 +537,14 @@ const SetupForm = () => {
         const selectedTemplate = getTemplateUnsafe(data.bundle);
         const tier = data.tier || selectedTemplate?.tier || "dev.small";
 
-        // Track checkout initiation in Google Analytics
+        // Track checkout initiation in Google Analytics & PostHog
         const tierPrice =
           PRICING_TABLE[tier]?.[detectedCurrency] ||
           PRICING_TABLE[tier]?.usd ||
           0;
-        trackBeginCheckout({
+
+        // Google Analytics tracking
+        trackGABeginCheckout({
           currency: detectedCurrency.toUpperCase(),
           value: tierPrice,
           items: [
@@ -537,6 +556,14 @@ const SetupForm = () => {
               quantity: 1,
             },
           ],
+        });
+
+        // PostHog tracking
+        trackPHBeginCheckout({
+          currency: detectedCurrency.toUpperCase(),
+          value: tierPrice,
+          tierId: tier,
+          tierName: `Pinacle ${tier}`,
         });
 
         // Redirect to Stripe checkout with detected currency

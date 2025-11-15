@@ -6,6 +6,7 @@ import { httpBatchLink } from "@trpc/client";
 import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 import superjson from "superjson";
+import { PostHogIdentifier } from "../components/analytics/posthog-identifier";
 import { api } from "./trpc/client";
 
 const createQueryClient = () =>
@@ -48,6 +49,7 @@ export const Providers = ({ children }: ProvidersProps) => {
 
   return (
     <SessionProvider>
+      <PostHogIdentifier />
       <api.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           {children}
