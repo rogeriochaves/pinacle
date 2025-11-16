@@ -3,6 +3,9 @@
 FROM node:22-alpine
 WORKDIR /app
 
+# Install system dependencies
+RUN apk add --no-cache openssh
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
