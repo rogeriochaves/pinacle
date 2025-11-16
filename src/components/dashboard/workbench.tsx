@@ -716,8 +716,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         const url = new URL(proxyUrl);
         const path = url.pathname + url.search + url.hash;
 
-        // Extract port from hostname: localhost-3000.pod-myslug.localhost
-        const match = url.hostname.match(/^localhost-(\d+)\./);
+        // Extract port from hostname: localhost-3000-pod-myslug.localhost
+        const match = url.hostname.match(/^localhost-(\d+)-pod-/);
         if (!match) {
           console.error("Could not extract port from proxy URL");
           return;

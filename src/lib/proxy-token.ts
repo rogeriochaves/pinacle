@@ -106,11 +106,14 @@ export const buildProxyCallbackUrl = ({
 }): string => {
   const baseDomain =
     domain || process.env.NEXTAUTH_URL?.split("://")[1] || "undefined";
+  const baseScheme =
+    process.env.NEXTAUTH_URL?.split("://")[0] ||
+    (process.env.NODE_ENV === "production" ? "https" : "http");
 
-  // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}/pinacle-proxy-callback?token={TOKEN}&embed=true
+  // Format: http://localhost-{PORT}-pod-{SLUG}.{DOMAIN}/pinacle-proxy-callback?token={TOKEN}&embed=true
   const embedParam = embed ? "&embed=true" : "";
   const returnUrlParam = returnUrl
     ? `&return_url=${encodeURIComponent(returnUrl)}`
     : "";
-  return `http://localhost-${port}.pod-${podSlug}.${baseDomain}/pinacle-proxy-callback?token=${token}${embedParam}${returnUrlParam}`;
+  return `${baseScheme}://localhost-${port}-pod-${podSlug}.${baseDomain}/pinacle-proxy-callback?token=${token}${embedParam}${returnUrlParam}`;
 };

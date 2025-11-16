@@ -309,7 +309,7 @@ describe("Proxy Integration Tests", () => {
     // This simulates what the Next.js proxy does:
     // - Makes request to pod's external port
     // - Sets Host header to trigger hostname-based routing
-    const curlCmd = `curl -s -H "Host: localhost-3000.pod-${testPodSlug}.pinacle.dev" http://localhost:${proxyPort}`;
+    const curlCmd = `curl -s -H "Host: localhost-3000-pod-${testPodSlug}.pinacle.dev" http://localhost:${proxyPort}`;
     const { stdout: directResponse } = await execAsync(curlCmd);
     console.log("Direct response:", directResponse.trim());
     expect(directResponse.trim()).toBe("Hello from proxy test!");

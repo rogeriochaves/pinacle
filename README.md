@@ -189,9 +189,9 @@ Each pod runs an internal Nginx proxy that routes requests based on the hostname
 Example:
 ```bash
 # Access different services in the same pod (assuming exposed on port 30000)
-curl http://localhost-3000.pod-test-pod.localhost:30000  # App on port 3000
-curl http://localhost-8726.pod-test-pod.localhost:30000  # Code server on port 8726
-curl http://localhost-5262.pod-test-pod.localhost:30000  # Vibe Kanban on port 5262
+curl http://localhost-3000-pod-test-pod.localhost:30000  # App on port 3000
+curl http://localhost-8726-pod-test-pod.localhost:30000  # Code server on port 8726
+curl http://localhost-5262-pod-test-pod.localhost:30000  # Vibe Kanban on port 5262
 ```
 
 ### Production Environment (Linux)

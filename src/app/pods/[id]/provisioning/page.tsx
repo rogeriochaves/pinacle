@@ -121,6 +121,7 @@ export default function PodProvisioningPage() {
   const [shouldRefetchLogs, setShouldRefetchLogs] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewLogs, setHasNewLogs] = useState(false);
+  const [scrolledManually, setScrolledManually] = useState(false);
 
   // Poll status and logs every 500ms for faster updates
   const { data, isLoading, error, refetch } =
@@ -178,6 +179,7 @@ export default function PodProvisioningPage() {
 
   // Handle scroll events to detect manual scrolling
   const handleScroll = () => {
+    setScrolledManually(true);
     const atBottom = checkIfAtBottom();
     setIsAtBottom(atBottom);
     if (atBottom) {
@@ -192,7 +194,7 @@ export default function PodProvisioningPage() {
   // Auto-scroll to bottom when new logs arrive, but only if user is at bottom
   useEffect(() => {
     if (allLogs.length > 0) {
-      if (isAtBottom) {
+      if (isAtBottom || !scrolledManually) {
         // User is at bottom, scroll smoothly
         consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
         if (secondScrollTimeoutRef.current) {
@@ -207,7 +209,7 @@ export default function PodProvisioningPage() {
         setHasNewLogs(true);
       }
     }
-  }, [allLogs, isAtBottom]);
+  }, [allLogs, isAtBottom, scrolledManually]);
 
   // Handler to scroll to bottom and restore auto-scroll
   const scrollToBottom = () => {

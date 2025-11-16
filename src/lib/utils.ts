@@ -36,8 +36,8 @@ export const buildProxyUrl = ({
   const baseDomain =
     domain || process.env.NEXTAUTH_URL?.split("://")[1] || "undefined";
 
-  // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}
-  return `http://localhost-${port}.pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
+  // Format: http://localhost-{PORT}-pod-{SLUG}.{DOMAIN}
+  return `http://localhost-${port}-pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
 };
 
 /**

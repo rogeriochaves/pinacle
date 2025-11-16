@@ -174,7 +174,7 @@ pnpm dev
 
 # Test proxy manually:
 curl -v \
-  -H "Host: localhost-3000.pod-test.localhost" \
+  -H "Host: localhost-3000-pod-test.localhost" \
   -H "Cookie: pinacle-proxy-token=YOUR_TOKEN" \
   http://localhost:3001/
 

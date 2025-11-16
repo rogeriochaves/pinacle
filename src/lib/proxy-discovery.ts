@@ -126,7 +126,7 @@ export const generatePortDiscoveryPage = async (
       }
 
       // Build full proxy URL (works in new tab, will be intercepted in iframe)
-      const proxyUrl = `http://localhost-${portInfo.port}.pod-${pod.slug}.${baseDomain}`;
+      const proxyUrl = `http://localhost-${portInfo.port}-pod-${pod.slug}.${baseDomain}`;
 
       return {
         port: portInfo.port,

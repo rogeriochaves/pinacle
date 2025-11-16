@@ -214,14 +214,14 @@ describe("Proxy Authentication Tests", () => {
         token,
       });
 
-      expect(url).toContain("localhost-8726.pod-test-pod");
+      expect(url).toContain("localhost-8726-pod-test-pod");
       expect(url).toContain("/pinacle-proxy-callback?token=test-token-123");
     });
   });
 
   describe("Hostname Parsing", () => {
     it("should parse valid proxy hostnames", () => {
-      const result = parseProxyHostname("localhost-8726.pod-test.pinacle.dev");
+      const result = parseProxyHostname("localhost-8726-pod-test.pinacle.dev");
 
       expect(result.isValid).toBe(true);
       expect(result.port).toBe(8726);
@@ -231,7 +231,7 @@ describe("Proxy Authentication Tests", () => {
 
     it("should parse hostnames with port numbers", () => {
       const result = parseProxyHostname(
-        "localhost-3000.pod-myslug.localhost:3001",
+        "localhost-3000-pod-myslug.localhost:3001",
       );
 
       expect(result.isValid).toBe(true);
@@ -247,14 +247,14 @@ describe("Proxy Authentication Tests", () => {
     });
 
     it("should reject invalid port numbers", () => {
-      const result = parseProxyHostname("localhost-99999.pod-test.pinacle.dev");
+      const result = parseProxyHostname("localhost-99999-pod-test.pinacle.dev");
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("Invalid port");
     });
 
     it("should reject missing pod slug", () => {
-      const result = parseProxyHostname("localhost-8726.pod-.pinacle.dev");
+      const result = parseProxyHostname("localhost-8726-pod-.pinacle.dev");
 
       expect(result.isValid).toBe(false);
     });

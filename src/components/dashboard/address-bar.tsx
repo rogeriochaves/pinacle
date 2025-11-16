@@ -16,7 +16,7 @@ export type AddressBarProps = {
 
 /**
  * Convert a user-friendly localhost URL to a proxy URL
- * E.g., localhost:3000/path -> http://localhost-3000.pod-myslug.localhost:3000/path
+ * E.g., localhost:3000/path -> http://localhost-3000-pod-myslug.localhost:3000/path
  */
 const localhostToProxyUrl = (localhostUrl: string, podSlug: string): string => {
   try {
@@ -44,8 +44,8 @@ const localhostToProxyUrl = (localhostUrl: string, podSlug: string): string => {
         window.location.hostname === "127.0.0.1");
     const baseDomain = isDevelopment ? "localhost:3000" : "pinacle.dev";
 
-    // Build proxy URL: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}/path
-    return `http://localhost-${port}.pod-${podSlug}.${baseDomain}${url.pathname}${url.search}${url.hash}`;
+    // Build proxy URL: http://localhost-{PORT}-pod-{SLUG}.{DOMAIN}/path
+    return `http://localhost-${port}-pod-${podSlug}.${baseDomain}${url.pathname}${url.search}${url.hash}`;
   } catch (error) {
     throw new Error(
       `Invalid URL format.\n${error instanceof Error ? error.message : ""}`,
@@ -111,7 +111,7 @@ export const AddressBar = ({
         // Extract port from the URL
         try {
           const url = new URL(iframeUrl);
-          const match = url.hostname.match(/^localhost-(\d+)\./);
+          const match = url.hostname.match(/^localhost-(\d+)-pod-/);
           if (match) {
             const port = Number.parseInt(match[1], 10);
             setCurrentPort(port);

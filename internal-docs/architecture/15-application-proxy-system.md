@@ -11,7 +11,7 @@ The application proxy system provides authenticated, subdomain-based routing fro
 ```
 ┌──────────────────────────────────────────────────────┐
 │  Browser                                              │
-│  localhost-8080.pod-myslug.pinacle.dev/api/proxy    │
+│  localhost-8080-pod-myslug.pinacle.dev/api/proxy    │
 └──────────────┬───────────────────────────────────────┘
                │ [1] Request with session cookie
                ▼
@@ -41,20 +41,20 @@ The application proxy system provides authenticated, subdomain-based routing fro
 
 ### Production
 ```
-https://localhost-{PORT}.pod-{SLUG}.pinacle.dev/api/proxy
+https://localhost-{PORT}-pod-{SLUG}.pinacle.dev/api/proxy
 ```
 
 ### Development
 ```
-http://localhost-{PORT}.pod-{SLUG}.localhost:3000/api/proxy
+http://localhost-{PORT}-pod-{SLUG}.localhost:3000/api/proxy
 ```
 
 ### Examples
 ```
-http://localhost-8726.pod-my-project.localhost:3000/api/proxy  → VS Code
-http://localhost-5262.pod-my-project.localhost:3000/api/proxy  → Kanban
-http://localhost-3000.pod-my-project.localhost:3000/api/proxy  → User app
-http://localhost-2528.pod-my-project.localhost:3000/api/proxy  → Claude Code
+http://localhost-8726-pod-my-project.localhost:3000/api/proxy  → VS Code
+http://localhost-5262-pod-my-project.localhost:3000/api/proxy  → Kanban
+http://localhost-3000-pod-my-project.localhost:3000/api/proxy  → User app
+http://localhost-2528-pod-my-project.localhost:3000/api/proxy  → Claude Code
 ```
 
 ## Request Flow
@@ -64,7 +64,7 @@ http://localhost-2528.pod-my-project.localhost:3000/api/proxy  → Claude Code
 The proxy extracts the target port and pod slug from the hostname:
 
 ```typescript
-// Input: "localhost-8080.pod-myslug.pinacle.dev"
+// Input: "localhost-8080-pod-myslug.pinacle.dev"
 // Output: { port: 8080, podSlug: "myslug" }
 
 const parsed = parseProxyHostname(hostname);
@@ -305,8 +305,8 @@ For local development with subdomain-based routing:
 1. **Add to `/etc/hosts`:**
    ```
    127.0.0.1 localhost
-   127.0.0.1 localhost-8726.pod-test.localhost
-   127.0.0.1 localhost-3000.pod-test.localhost
+   127.0.0.1 localhost-8726-pod-test.localhost
+   127.0.0.1 localhost-3000-pod-test.localhost
    # Add more as needed
    ```
 
@@ -421,7 +421,7 @@ export SESSION_COOKIE="next-auth.session-token=..."
 
 # Make authenticated request
 curl -v \
-  -H "Host: localhost-3000.pod-myslug.localhost" \
+  -H "Host: localhost-3000-pod-myslug.localhost" \
   -H "Cookie: $SESSION_COOKIE" \
   http://localhost:3000/api/proxy
 ```

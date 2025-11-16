@@ -367,7 +367,7 @@ const createPodProxy = async (
     proxy.on("proxyReq", (proxyReq) => {
       proxyReq.setHeader(
         "Host",
-        `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+        `localhost-${payload.targetPort}-pod-${payload.podSlug}.pinacle.dev`,
       );
 
       // Remove accept-encoding to get uncompressed responses we can modify
@@ -378,7 +378,7 @@ const createPodProxy = async (
     proxy.on("proxyReqWs", (proxyReq) => {
       proxyReq.setHeader(
         "Host",
-        `localhost-${payload.targetPort}.pod-${payload.podSlug}.pinacle.dev`,
+        `localhost-${payload.targetPort}-pod-${payload.podSlug}.pinacle.dev`,
       );
     });
 
@@ -585,7 +585,8 @@ const handleProxy = async (
 
     if (!token) {
       // No token - redirect to auth endpoint to get one
-      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
+      const baseUrl = env.NEXTAUTH_URL || `http://localhost:${port}`;
+      const authUrl = `${baseUrl}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,
         "Content-Type": "text/html",
@@ -598,7 +599,8 @@ const handleProxy = async (
     const payload = verifyProxyToken(token);
     if (!payload) {
       // Invalid/expired token - redirect to auth to get a new one
-      const authUrl = `http://localhost:${port}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
+      const baseUrl = env.NEXTAUTH_URL || `http://localhost:${port}`;
+      const authUrl = `${baseUrl}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,
         "Content-Type": "text/html",
@@ -668,7 +670,18 @@ const startServer = async (): Promise<void> => {
         // This is a proxy request - handle it
         logger.debug({ hostname: requestHostname }, "Detected proxy request");
 
-        const url = new URL(req.url || "/", `http://${requestHostname}`);
+        // Detect the actual scheme (http/https) from the request
+        // Check X-Forwarded-Proto header (common with proxies/load balancers)
+        // Fall back to checking if socket is a TLSSocket (encrypted)
+        const scheme =
+          req.headers["x-forwarded-proto"] ||
+          (req.socket && "encrypted" in req.socket && req.socket.encrypted
+            ? "https"
+            : process.env.NODE_ENV === "production"
+              ? "https"
+              : "http");
+
+        const url = new URL(req.url || "/", `${scheme}://${requestHostname}`);
 
         // Handle callback endpoint
         const isCallback = await handleCallback(req, res, requestHostname, url);

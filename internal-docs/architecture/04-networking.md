@@ -105,9 +105,9 @@ http://localhost-<PORT>.pod-<POD-SLUG>.localhost:<EXTERNAL-PORT>
 
 **Examples:**
 ```
-http://localhost-3000.pod-test.localhost:30000  → App on :3000
-http://localhost-8726.pod-test.localhost:30000  → VS Code on :8726
-http://localhost-3001.pod-test.localhost:30000  → Kanban on :3001
+http://localhost-3000-pod-test.localhost:30000  → App on :3000
+http://localhost-8726-pod-test.localhost:30000  → VS Code on :8726
+http://localhost-3001-pod-test.localhost:30000  → Kanban on :3001
 ```
 
 **Nginx configuration:**

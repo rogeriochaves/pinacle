@@ -1,10 +1,10 @@
 /**
  * Proxy utilities for authenticated subdomain-based routing
  *
- * URL format: localhost-{PORT}.pod-{SLUG}.{DOMAIN}
+ * URL format: localhost-{PORT}-pod-{SLUG}.{DOMAIN}
  * Examples:
- *   - localhost-8080.pod-myslug.pinacle.dev
- *   - localhost-3000.pod-test-pod.localhost:3000 (dev mode)
+ *   - localhost-8080-pod-myslug.pinacle.dev
+ *   - localhost-3000-pod-test-pod.localhost:3000 (dev mode)
  */
 
 import { and, eq } from "drizzle-orm";
@@ -22,18 +22,18 @@ export type ParsedProxyHostname = {
 /**
  * Parse a proxy hostname to extract target port and pod slug
  *
- * @param hostname - The hostname from the request (e.g., "localhost-8080.pod-myslug.pinacle.dev")
+ * @param hostname - The hostname from the request (e.g., "localhost-8080-pod-myslug.pinacle.dev")
  * @returns Parsed components or error
  */
 export const parseProxyHostname = (hostname: string): ParsedProxyHostname => {
-  // Remove port number if present (e.g., "localhost-8080.pod-myslug.localhost:3000" -> "localhost-8080.pod-myslug.localhost")
+  // Remove port number if present (e.g., "localhost-8080-pod-myslug.localhost:3000" -> "localhost-8080-pod-myslug.localhost")
   const hostWithoutPort = hostname.split(":")[0];
 
-  // Pattern: localhost-{PORT}.pod-{SLUG}.{DOMAIN}
+  // Pattern: localhost-{PORT}-pod-{SLUG}.{DOMAIN}
   // Examples:
-  //   - localhost-8080.pod-myslug.pinacle.dev
-  //   - localhost-3000.pod-test-pod.localhost
-  const pattern = /^localhost-(\d+)\.pod-([^.]+)\./;
+  //   - localhost-8080-pod-myslug.pinacle.dev
+  //   - localhost-3000-pod-test-pod.localhost
+  const pattern = /^localhost-(\d+)-pod-([^.]+)\./;
   const match = hostWithoutPort.match(pattern);
 
   if (!match) {
@@ -41,7 +41,7 @@ export const parseProxyHostname = (hostname: string): ParsedProxyHostname => {
       port: 0,
       podSlug: "",
       isValid: false,
-      error: `Invalid proxy hostname format: ${hostname}. Expected: localhost-{PORT}.pod-{SLUG}.{DOMAIN}`,
+      error: `Invalid proxy hostname format: ${hostname}. Expected: localhost-{PORT}-pod-{SLUG}.{DOMAIN}`,
     };
   }
 

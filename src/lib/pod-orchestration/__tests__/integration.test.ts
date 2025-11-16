@@ -711,7 +711,7 @@ describe("Pod Orchestration Integration Tests", () => {
       "wget",
       "-O-",
       "-q",
-      "--header=Host: localhost-3000.pod-proxy-test-pod.pinacle.dev",
+      "--header=Host: localhost-3000-pod-proxy-test-pod.pinacle.dev",
       "http://localhost:80",
     ]);
     console.log("Port 3000 response (from container):", test3000.stdout);
@@ -722,7 +722,7 @@ describe("Pod Orchestration Integration Tests", () => {
       "wget",
       "-O-",
       "-q",
-      "--header=Host: localhost-8080.pod-proxy-test-pod.pinacle.dev",
+      "--header=Host: localhost-8080-pod-proxy-test-pod.pinacle.dev",
       "http://localhost:80",
     ]);
     console.log("Port 8080 response (from container):", test8080.stdout);
@@ -731,13 +731,13 @@ describe("Pod Orchestration Integration Tests", () => {
     // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
     console.log("Testing from Mac via curl...");
     const curlTest3000 = await execAsync(
-      `curl -s -H "Host: localhost-3000.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
+      `curl -s -H "Host: localhost-3000-pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
     );
     console.log("Port 3000 response (from Mac):", curlTest3000.stdout.trim());
     expect(curlTest3000.stdout.trim()).toBe("Hello from port 3000!");
 
     const curlTest8080 = await execAsync(
-      `curl -s -H "Host: localhost-8080.pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
+      `curl -s -H "Host: localhost-8080-pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
     );
     console.log("Port 8080 response (from Mac):", curlTest8080.stdout.trim());
     expect(curlTest8080.stdout.trim()).toBe("Hello from port 8080!");
@@ -745,10 +745,10 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("✅ Hostname-based routing test completed successfully!");
     console.log(`📝 Access these services from your Mac/browser at:`);
     console.log(
-      `   http://localhost-3000.pod-${provisionedPod.slug}.localhost:${proxyPort}`,
+      `   http://localhost-3000-pod-${provisionedPod.slug}.localhost:${proxyPort}`,
     );
     console.log(
-      `   http://localhost-8080.pod-${provisionedPod.slug}.localhost:${proxyPort}`,
+      `   http://localhost-8080-pod-${provisionedPod.slug}.localhost:${proxyPort}`,
     );
   }, 120000); // 2 minute timeout
 

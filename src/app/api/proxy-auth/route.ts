@@ -6,7 +6,7 @@
  * 2. Validate NextAuth session
  * 3. Check user has access to pod
  * 4. Generate scoped JWT token
- * 5. Redirect to subdomain with token: http://localhost-8726.pod-slug.localhost:3000/pinacle-proxy-callback?token=xxx
+ * 5. Redirect to subdomain with token: http://localhost-8726-pod-slug.localhost:3000/pinacle-proxy-callback?token=xxx
  */
 
 import type { NextRequest } from "next/server";

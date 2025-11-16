@@ -390,36 +390,118 @@ I'll update the sneak-peek component to have a cleaner mobile experience with th
 
 ---
 
-<tool-use data-tool-type="unknown" data-tool-name="search_replace">
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/landing/sneak-peek.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -131,8 +131,8 @@
+                    /&gt;
+  
+-                   {/* Interactive Navigation Hotspot */}
++                   {/* Interactive Navigation Hotspot - Desktop Only */}
+                    {currentStep.hotspot &amp;&amp; (
+                      &lt;div
+-                       className=&quot;absolute pointer-events-none z-20&quot;
++                       className=&quot;absolute pointer-events-none z-20 hidden lg:block&quot;
+                        style={{
+                          left: &#96;${currentStep.hotspot.x}%&#96;,
+```
+
+**Chunk 2**
+Lines added: 21, lines removed: undefined
+
+```diff
+@@ -185,4 +185,25 @@
+                &lt;/AnimatePresence&gt;
+              &lt;/div&gt;
++ 
++             {/* Mobile Description Below Image */}
++             &lt;div className=&quot;lg:hidden bg-orange-500 px-4 py-3&quot;&gt;
++               &lt;AnimatePresence mode=&quot;wait&quot;&gt;
++                 &lt;motion.div
++                   key={currentStep.id}
++                   initial={{ opacity: 0, y: -10 }}
++                   animate={{ opacity: 1, y: 0 }}
++                   exit={{ opacity: 0, y: 10 }}
++                   transition={{ duration: 0.3 }}
++                   className=&quot;flex flex-col items-center gap-2&quot;
++                 &gt;
++                   &lt;div className=&quot;text-sm font-mono font-bold text-white text-center&quot;&gt;
++                     {currentStep.label}
++                   &lt;/div&gt;
++                   &lt;div className=&quot;text-xs font-mono text-orange-100&quot;&gt;
++                     Tap to continue →
++                   &lt;/div&gt;
++                 &lt;/motion.div&gt;
++               &lt;/AnimatePresence&gt;
++             &lt;/div&gt;
+            &lt;/div&gt;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good! I've made the changes. Now let me check for any linter errors.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
 <details>
-<summary>Tool use: **search_replace**</summary>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/components/landing/sneak-peek.tsx`
+
+Lint results
 
 
-Parameters:
-
-```json
-{
-  &quot;relativeWorkspacePath&quot;: &quot;/Users/rchaves/Projects/pinacle/src/components/landing/sneak-peek.tsx&quot;
-}
-```
-Additional data:
-
-```json
-{
-  &quot;codeblockId&quot;: &quot;f615c039-7ae4-4df2-8e31-1d5720714f1e&quot;
-}
-```
-User decision: **accepted**
-
-Status: **loading**
-
-
+**No lint errors found**
 </details>
 </tool-use>
 
 ---
 
+<think><details><summary>Thought Process</summary>
+Perfect! No linter errors. The changes I made:
 
+1. Added `hidden lg:block` to the hotspot div so it only shows on large screens (desktop)
+2. Added a new mobile-only section below the image with `lg:hidden` that shows:
+   - The orange background (bg-orange-500)
+   - The label text in white
+   - "Tap to continue →" text in orange-100
+   - Animated transitions that match the style of the hotspot
+
+This gives a clean mobile experience where users can clearly see the explanation below the image without the cluttered hotspot overlay.</details></think>
+
+---
+
+Perfect! I've updated the sneak-peek component with a mobile-optimized view. Here's what changed:
+
+## Changes Made:
+
+1. **Desktop (lg screens and up)**: 
+   - Keeps the existing hotspot with pulsing dot overlay on the image
+   - Shows the tooltip with "Click to continue →"
+
+2. **Mobile (smaller than lg)**: 
+   - **Hides the hotspot overlay** entirely (added `hidden lg:block` to the hotspot div)
+   - **Shows a clean description bar below the image** with:
+     - Orange background (`bg-orange-500`)
+     - White, centered text showing the step label
+     - "Tap to continue →" text in light orange
+     - Smooth fade animations when switching between steps
+
+The mobile version is much cleaner without the hotspot cluttering the small screen, and the orange background bar below the image provides clear visual guidance. The click-to-continue functionality works on both versions - users can tap anywhere on the image or the description bar to advance.
 
 ---
 
