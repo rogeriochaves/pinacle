@@ -13,6 +13,7 @@ import {
   isCodingAssistant,
 } from "../../lib/pod-orchestration/service-registry";
 import { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
+import { getServerDisplayStatus } from "../../lib/server-status";
 import { api } from "../../lib/trpc/client";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
 import { Button } from "../ui/button";
@@ -693,11 +694,17 @@ export const ConfigureForm = ({
                   className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
                   <option value="">Auto-assign (default)</option>
-                  {servers.map((server) => (
-                    <option key={server.id} value={server.id}>
-                      {server.hostname} ({server.ipAddress}) - {server.status}
-                    </option>
-                  ))}
+                  {servers.map((server) => {
+                    const displayStatus = getServerDisplayStatus(
+                      server.status,
+                      server.lastHeartbeatAt,
+                    );
+                    return (
+                      <option key={server.id} value={server.id}>
+                        {server.hostname} ({server.ipAddress}) - {displayStatus}
+                      </option>
+                    );
+                  })}
                 </select>
                 <p className="text-xs font-mono text-slate-500 mt-2">
                   Leave as "Auto-assign" for production. Specify server only for
