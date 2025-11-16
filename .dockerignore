@@ -41,11 +41,12 @@ qa
 .gitlab-ci.yml
 .travis.yml
 
-# Docker
+# Docker (exclude build scripts and Dockerfiles, but keep config)
 Dockerfile*
 docker-compose*.yml
 .dockerignore
-docker
+docker/*.sh
+docker/Dockerfile*
 
 # Scripts
 scripts/*.sh

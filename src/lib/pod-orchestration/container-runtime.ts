@@ -371,8 +371,8 @@ export class GVisorRuntime {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (
-        message.includes("No such container") ||
-        message.includes("No such object")
+        message.toLowerCase().includes("no such container") ||
+        message.toLowerCase().includes("no such object")
       ) {
         return null;
       }
@@ -623,6 +623,23 @@ export class GVisorRuntime {
           message.includes("quota support"));
 
       if (isQuotaNotSupported) {
+        // In production, quotas are REQUIRED for security and resource isolation
+        if (process.env.NODE_ENV === "production") {
+          console.error(
+            `[GVisorRuntime] CRITICAL: Storage quotas are not supported but required in production!`,
+          );
+          console.error(
+            `[GVisorRuntime] Ensure XFS with project quotas is configured on the Docker host.`,
+          );
+          console.error(`[GVisorRuntime] See provisioning script for setup instructions.`);
+          throw new Error(
+            `Storage quota enforcement is required in production but not available. ` +
+            `Docker storage driver does not support quotas. ` +
+            `Please configure XFS with project quotas on the server.`,
+          );
+        }
+
+        // In development/test, allow fallback without quotas
         console.warn(
           `[GVisorRuntime] Storage driver doesn't support size limits (this is normal in dev/Lima), creating volume without quota: ${fullVolumeName}`,
         );
