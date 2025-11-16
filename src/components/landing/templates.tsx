@@ -194,7 +194,7 @@ export const Templates = () => {
   const currency = currencyData?.currency || "usd";
 
   return (
-    <section className="bg-slate-100 py-12 sm:py-12">
+    <section className="bg-slate-100 py-12 sm:py-12 px-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">

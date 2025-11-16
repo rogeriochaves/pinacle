@@ -70,7 +70,7 @@ export const SneakPeek = () => {
 
   return (
     <section className="bg-gradient-to-b from-white to-gray-50 py-16 sm:py-24 border-b border-gray-200">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8" id="features">
         {/* Header */}
         <div className="mb-12 text-center">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">
@@ -130,10 +130,10 @@ export const SneakPeek = () => {
                     priority={activeStep === 0}
                   />
 
-                  {/* Interactive Navigation Hotspot */}
+                  {/* Interactive Navigation Hotspot - Desktop Only */}
                   {currentStep.hotspot && (
                     <div
-                      className="absolute pointer-events-none z-20"
+                      className="absolute pointer-events-none z-20 hidden lg:block"
                       style={{
                         left: `${currentStep.hotspot.x}%`,
                         top: `${currentStep.hotspot.y}%`,
@@ -181,6 +181,27 @@ export const SneakPeek = () => {
                       </div>
                     </div>
                   )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Mobile Description Below Image */}
+            <div className="lg:hidden bg-orange-500 px-4 py-3">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col items-center gap-2"
+                >
+                  <div className="text-sm font-mono font-bold text-white text-center">
+                    {currentStep.label}
+                  </div>
+                  <div className="text-xs font-mono text-orange-100">
+                    Tap to continue →
+                  </div>
                 </motion.div>
               </AnimatePresence>
             </div>

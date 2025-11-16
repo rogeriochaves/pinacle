@@ -13,7 +13,7 @@ const renderTerminalScreen = (
   const lines = terminalString.split("\n");
 
   return (
-    <pre className="text-xs pr-10 leading-[1.25]">
+    <pre className="text-xs pr-10 leading-[1.25] lg:block hidden">
       {lines.map((line, index) => {
         const lineKey = `terminal-line-${index}-${line.slice(0, 10)}`;
 
