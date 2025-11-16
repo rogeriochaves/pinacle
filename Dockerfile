@@ -20,6 +20,7 @@ RUN pnpm install --prod --frozen-lockfile
 
 # Copy pre-built artifacts from local build
 COPY .next ./.next
+COPY .git-commit-hash ./
 COPY public ./public
 COPY server.js ./
 COPY src/worker.js ./src/

@@ -1,5 +1,5 @@
+import { readFileSync } from "node:fs";
 import { withPostHogConfig } from "@posthog/nextjs-config";
-import { execSync } from "child_process";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -42,17 +42,10 @@ const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
 };
 
-const GIT_COMMIT_HASH = execSync("git rev-parse HEAD").toString().trim();
-
-// Check if git working directory is dirty
-// git diff --quiet exits with 1 if there are changes, 0 if clean
-let IS_DIRTY = false;
-try {
-  execSync("git diff --quiet", { stdio: "ignore" });
-  IS_DIRTY = false; // Exit code 0 = clean
-} catch {
-  IS_DIRTY = true; // Exit code 1 = dirty
-}
+const GIT_COMMIT_HASH =
+  process.env.NODE_ENV === "production"
+    ? readFileSync(".git-commit-hash", "utf-8").trim()
+    : "dev";
 
 export default withPostHogConfig(nextConfig, {
   personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY || "",
@@ -66,6 +59,6 @@ export default withPostHogConfig(nextConfig, {
       !!process.env.POSTHOG_ENV_ID,
     project: "pinacle",
     deleteAfterUpload: true,
-    version: `${GIT_COMMIT_HASH}${IS_DIRTY ? "-dirty" : ""}`,
+    version: GIT_COMMIT_HASH,
   },
 });
