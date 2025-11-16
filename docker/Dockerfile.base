@@ -49,9 +49,9 @@ RUN mkdir -p /workspace && \
 
 # PNPM global setup
 ENV PNPM_HOME="/root/.local/share/pnpm" \
-    PATH="/root/.local/share/pnpm:$PATH" \
+    PATH="/root/.local/share/pnpm:/workspace/.local/bin:$PATH" \
     SHELL="bash"
-RUN echo 'export PATH="/root/.local/share/pnpm:$PATH"' >> /etc/profile
+RUN echo 'export PATH="/root/.local/share/pnpm:/workspace/.local/bin:$PATH"' >> /etc/profile
 RUN pnpm add -g @anthropic-ai/claude-code
 RUN pnpm add -g vibe-kanban
 

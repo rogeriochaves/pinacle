@@ -204,8 +204,12 @@ EOF"
     echo "❌ Unsupported OS. Please install Docker manually."
     exit 1
   fi
+
   echo "✅ Docker installed"
 fi
+
+echo "🔄 Pulling pinacle-base image..."
+run_remote "docker image pull pinacledev/pinacle-base:latest"
 
 echo "💾 Step 2.5: Setting up XFS storage with quotas for Docker volumes..."
 # Check if XFS volume already exists

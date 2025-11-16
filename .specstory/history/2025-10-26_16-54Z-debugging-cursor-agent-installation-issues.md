@@ -2706,3 +2706,110 @@ Both services will now install and run cleanly in your Alpine-based containers! 
 
 ---
 
+_**User (2025-11-16 04:27Z)**_
+
+awesome ok, so all our hacks worked, but for alpine arm64. Can we detect if we are actually inside an amd64 on the script and adjust accordingly?
+
+---
+
+_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to make the scripts architecture-aware so they work on both arm64 and amd64 (x64). Currently, the scripts are hardcoded for arm64:
+
+1. For cursor-cli:
+   - Downloads `sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz`
+   - The Node.js binary replacement should work on both (symlink to system node)
+   - The merkle-tree patch should work on both (it's just JS code)
+
+2. For the architecture detection, we need to:
+   - Use `uname -m` or `arch` to detect the architecture
+   - Map it to the right binary names (arm64/aarch64 vs x64/amd64/x86_64)
+   - Adjust the download URLs accordingly
+
+Let me update both scripts to be architecture-aware.</details></think>
+
+---
+
+Absolutely! Let me update both scripts to detect the architecture and use the correct binaries:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/service-registry.ts</summary>
+
+**Chunk 1**
+Lines added: 9, lines removed: undefined
+
+```diff
+@@ -312,4 +312,13 @@
+        // Alpine Linux compatibility fixes
+        &#96;
++       # Detect architecture
++       ARCH=$(uname -m)
++       case &quot;$ARCH&quot; in
++         x86_64|amd64) ARCH_NAME=&quot;x64&quot; ;;
++         aarch64|arm64) ARCH_NAME=&quot;arm64&quot; ;;
++         *) echo &quot;✗ Unsupported architecture: $ARCH&quot;; exit 1 ;;
++       esac
++       echo &quot;Detected architecture: $ARCH_NAME&quot;
++ 
+        # Find the cursor-agent version directory
+        CURSOR_VERSION_DIR=$(ls -t /workspace/.local/share/cursor-agent/versions/ | head -1)
+```
+
+**Chunk 2**
+Lines added: 7, lines removed: 6
+
+```diff
+@@ -326,17 +335,18 @@
+        if [ -f &quot;$CURSOR_PATH/index.js&quot; ]; then
+          cp &quot;$CURSOR_PATH/index.js&quot; &quot;$CURSOR_PATH/index.js.backup&quot;
+-         sed -i &#39;s/nativeBinding = __webpack_require__(&quot;..\\/merkle-tree\\/merkle-tree-napi.linux-arm64-gnu.node&quot;);/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: &quot;\\/&quot; };/&#39; &quot;$CURSOR_PATH/index.js&quot;
+-         echo &quot;✓ Patched merkle-tree module&quot;
++         # Patch for the detected architecture
++         sed -i &quot;s/nativeBinding = __webpack_require__(\&quot;..\/merkle-tree\/merkle-tree-napi.linux-$ARCH_NAME-gnu.node\&quot;);/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: \&quot;\/\&quot; };/&quot; &quot;$CURSOR_PATH/index.js&quot;
++         echo &quot;✓ Patched merkle-tree module for $ARCH_NAME&quot;
+        fi
+  
+        # 3. Download and replace sqlite3 with musl-compatible version
+        if [ -f &quot;$CURSOR_PATH/node_sqlite3.node&quot; ]; then
+          cd /tmp
+-         wget -q https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
+-         tar -xzf sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
++         wget -q https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz
++         tar -xzf sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz
+          mv &quot;$CURSOR_PATH/node_sqlite3.node&quot; &quot;$CURSOR_PATH/node_sqlite3.node.glibc&quot;
+          cp build/Release/node_sqlite3.node &quot;$CURSOR_PATH/node_sqlite3.node&quot;
+-         rm -rf /tmp/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz /tmp/build
+-         echo &quot;✓ Replaced sqlite3 with musl-compatible version&quot;
++         rm -rf /tmp/sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz /tmp/build
++         echo &quot;✓ Replaced sqlite3 with musl-compatible version ($ARCH_NAME)&quot;
+        fi
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good! Now I need to check for linter errors and make sure the script is correct. The gemini-cli doesn't need architecture detection since it's just patching JS code, but let me verify that.</details></think>
+
+---
+
+_**User (2025-11-16 04:27Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
+
+
+
+---
+

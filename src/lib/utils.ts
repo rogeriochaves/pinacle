@@ -33,11 +33,8 @@ export const buildProxyUrl = ({
   returnUrl?: string;
   domain?: string;
 }): string => {
-  const isDevelopment = process.env.NODE_ENV === "development";
   const baseDomain =
-    domain ||
-    process.env.NEXT_PUBLIC_APP_DOMAIN ||
-    (isDevelopment ? "localhost:3000" : "pinacle.dev");
+    domain || process.env.NEXTAUTH_URL?.split("://")[1] || "undefined";
 
   // Format: http://localhost-{PORT}.pod-{SLUG}.{DOMAIN}
   return `http://localhost-${port}.pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
