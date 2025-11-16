@@ -111,7 +111,8 @@ export const SERVICE_TEMPLATES = {
   "editor.minimap.enabled": false,
   "workbench.startupEditor": "none",
   "diffEditor.renderSideBySide": false,
-  "diffEditor.hideUnchangedRegions.enabled": true
+  "diffEditor.hideUnchangedRegions.enabled": true,
+  "update.showReleaseNotes": false
 }
 EOF`,
       "mkdir -p ~/.local/share/code-server/extensions",

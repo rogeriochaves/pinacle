@@ -67,6 +67,10 @@ export default defineConfig({
           text: "Environment Variables",
           link: "/environment-variables",
         },
+        {
+          text: "Supermaven",
+          link: "/supermaven",
+        },
       ],
     },
     {
