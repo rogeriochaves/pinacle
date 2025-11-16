@@ -29,6 +29,7 @@ export const setupFormSchema = z
       .enum(["dev.small", "dev.medium", "dev.large", "dev.xlarge"])
       .optional(),
     agent: z.string().optional(),
+    serverId: z.string().optional(), // Admin-only: specify server for testing
     envVars: z.record(z.string(), z.string()),
     customServices: z.array(z.string()).optional(), // Custom service selection
     // Tabs configuration (from existing pinacle.yaml)

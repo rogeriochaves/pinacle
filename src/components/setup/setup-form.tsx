@@ -50,6 +50,7 @@ const SetupForm = () => {
       bundle: "",
       tier: undefined,
       agent: undefined,
+      serverId: undefined,
       envVars: {},
       processInstallCommand: "",
       processStartCommand: "",
@@ -382,6 +383,7 @@ const SetupForm = () => {
                 const pod = await createPodMutation.mutateAsync({
                   description: `Development environment for ${formData.setupType === "new" ? `${formData.selectedOrg}/${formData.newRepoName}` : formData.selectedRepo || "project"}`,
                   teamId: personalTeam.id,
+                  serverId: formData.serverId, // Admin-only: specify server for testing
                   githubRepo:
                     formData.setupType === "repository"
                       ? formData.selectedRepo
@@ -602,6 +604,7 @@ const SetupForm = () => {
       const pod = await createPodMutation.mutateAsync({
         description: `Development environment for ${data.setupType === "new" ? `${data.selectedOrg}/${data.newRepoName}` : data.selectedRepo || "project"}`,
         teamId: personalTeam.id,
+        serverId: data.serverId, // Admin-only: specify server for testing
         githubRepo:
           data.setupType === "repository" ? data.selectedRepo : undefined,
         githubBranch: undefined,

@@ -92,6 +92,16 @@ export const ConfigureForm = ({
   const bundle = form.watch("bundle");
   const tier = form.watch("tier");
   const agent = form.watch("agent");
+  const serverId = form.watch("serverId");
+
+  // Check if user is admin (server-side check)
+  const { data: adminCheck } = api.admin.isAdmin.useQuery();
+  const isAdmin = adminCheck?.isAdmin || false;
+
+  // Fetch available servers for admin
+  const { data: servers } = api.admin.getAllServers.useQuery(undefined, {
+    enabled: isAdmin,
+  });
 
   // Get the default branch for the selected repo
   const selectedRepoData = repositories.find(
@@ -668,6 +678,33 @@ export const ConfigureForm = ({
                 }
               />
             </div>
+
+            {/* Server Selection (Admin Only) */}
+            {isAdmin && servers && servers.length > 0 && (
+              <div>
+                <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
+                  SERVER (ADMIN ONLY)
+                </Label>
+                <select
+                  value={serverId || ""}
+                  onChange={(e) =>
+                    form.setValue("serverId", e.target.value || undefined)
+                  }
+                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="">Auto-assign (default)</option>
+                  {servers.map((server) => (
+                    <option key={server.id} value={server.id}>
+                      {server.hostname} ({server.ipAddress}) - {server.status}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs font-mono text-slate-500 mt-2">
+                  Leave as "Auto-assign" for production. Specify server only for
+                  testing.
+                </p>
+              </div>
+            )}
 
             {/* Environment Variables */}
             <div>

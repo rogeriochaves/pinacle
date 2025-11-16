@@ -46,6 +46,9 @@ const createPodSchema = z.object({
     .optional(),
   teamId: z.string(),
 
+  // Server assignment (optional, admin-only feature for testing)
+  serverId: z.string().optional(),
+
   // GitHub repository information
   githubRepo: z.string().optional(), // owner/repo format
   githubBranch: z.string().optional(),
@@ -123,6 +126,7 @@ export const podsRouter = createTRPCRouter({
         description,
         template,
         teamId,
+        serverId,
         githubRepo,
         githubBranch,
         isNewProject,
@@ -389,6 +393,7 @@ export const podsRouter = createTRPCRouter({
             template,
             teamId,
             ownerId: userId,
+            serverId: serverId || null, // Admin can specify server for testing
             githubRepo: finalGithubRepo,
             githubBranch,
             isNewProject,
