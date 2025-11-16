@@ -162,6 +162,20 @@
       "when": 1762088278400,
       "tag": "0022_deep_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1763330368245,
+      "tag": "0023_condemned_vin_gonzales",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1763330461518,
+      "tag": "0024_oval_sauron",
+      "breakpoints": true
     }
   ]
 }

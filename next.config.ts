@@ -54,6 +54,7 @@ export default withPostHogConfig(nextConfig, {
   logLevel: "error",
   sourcemaps: {
     enabled:
+    false && // disable for now
       process.env.NODE_ENV === "production" &&
       !!process.env.POSTHOG_PERSONAL_API_KEY &&
       !!process.env.POSTHOG_ENV_ID,

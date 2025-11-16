@@ -70,6 +70,17 @@ export default function Dashboard() {
     };
   }, [pods, refetch]);
 
+  // Check for team invitation success message
+  useEffect(() => {
+    const teamInvitationSuccess = sessionStorage.getItem("teamInvitationSuccess");
+    if (teamInvitationSuccess) {
+      toast.success("Welcome to the team! 🎉", {
+        description: "You've successfully joined the team and can now access all shared pods.",
+      });
+      sessionStorage.removeItem("teamInvitationSuccess");
+    }
+  }, []);
+
   // Get the first running pod, or the first pod if none are running
   // Note: pods are now ordered by createdAt DESC, so pods[0] is the newest
   const runningPod = pods?.find((pod) => pod.status === "running");

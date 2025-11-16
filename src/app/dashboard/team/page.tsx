@@ -2,34 +2,42 @@
 
 import { ArrowLeft, Mail } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { api } from "../../../lib/trpc/client";
 
 export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [isInviting, setIsInviting] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string>("");
 
   const { data: teams } = api.teams.getUserTeams.useQuery();
   const inviteMutation = api.teams.inviteMember.useMutation();
 
-  // Get the first team (for now, we'll assume single team per user)
-  const team = teams?.[0];
+  // Set default selected team to first team when teams load
+  useEffect(() => {
+    if (teams && teams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(teams[0].id);
+    }
+  }, [teams, selectedTeamId]);
+
+  const selectedTeam = teams?.find(team => team.id === selectedTeamId) || teams?.[0];
 
   const { data: members, refetch: refetchMembers } = api.teams.getMembers.useQuery(
-    { teamId: team?.id || "" },
-    { enabled: !!team }
+    { teamId: selectedTeam?.id || "" },
+    { enabled: !!selectedTeam }
   );
 
   const handleInvite = async () => {
-    if (!team || !inviteEmail) return;
+    if (!selectedTeam || !inviteEmail) return;
 
     setIsInviting(true);
     try {
       await inviteMutation.mutateAsync({
-        teamId: team.id,
+        teamId: selectedTeam.id,
         email: inviteEmail,
         role: "member",
       });
@@ -68,7 +76,7 @@ export default function TeamPage() {
           </p>
         </div>
 
-        {!team ? (
+        {!selectedTeam ? (
           <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
             <p className="text-slate-600 font-mono mb-4">No team found</p>
             <p className="text-sm text-slate-500 font-mono">
@@ -77,21 +85,43 @@ export default function TeamPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Team Selector */}
+            {teams && teams.length > 1 && (
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <label htmlFor="team-selector" className="block text-sm font-mono font-medium text-slate-700 mb-2">
+                  Select Team
+                </label>
+                <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                  <SelectTrigger id="team-selector" className="w-full font-mono">
+                    <SelectValue placeholder="Choose a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Team Info */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <h2 className="font-mono font-bold text-xl text-slate-900 mb-1">
-                {team.name}
+                {selectedTeam.name}
               </h2>
-              {team.description && (
-                <p className="text-slate-600 text-sm">{team.description}</p>
+              {selectedTeam.description && (
+                <p className="text-slate-600 text-sm">{selectedTeam.description}</p>
               )}
             </div>
 
-            {/* Invite Section */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="font-mono font-bold text-lg text-slate-900 mb-4">
-                Invite Team Members
-              </h2>
+            {/* Invite Section - Only show for owners/admins */}
+            {(selectedTeam.role === "owner" || selectedTeam.role === "admin") && (
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 className="font-mono font-bold text-lg text-slate-900 mb-4">
+                  Invite Team Members
+                </h2>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <Input
@@ -118,6 +148,7 @@ export default function TeamPage() {
                 They'll receive an email invitation to join your team
               </p>
             </div>
+            )}
 
             {/* Team Members */}
             <div className="bg-white rounded-xl border border-slate-200 p-6">

@@ -6,6 +6,7 @@ import PaymentFailedEmail from "../emails/payment-failed";
 import PaymentSuccessEmail from "../emails/payment-success";
 import ResetPasswordEmail from "../emails/reset-password";
 import SubscriptionCancelledEmail from "../emails/subscription-cancelled";
+import TeamInviteEmail from "../emails/team-invite";
 import WelcomeEmail from "../emails/welcome";
 
 // Lazy initialization of Resend client (only when needed at runtime)
@@ -391,6 +392,58 @@ export const sendFinalDeletionWarningEmail = async ({
     return { success: true };
   } catch (error) {
     console.error("Error sending final deletion warning email:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+};
+
+// Team Invite Email
+type SendTeamInviteEmailParams = {
+  to: string;
+  invitedByName: string;
+  teamName: string;
+  acceptUrl: string;
+};
+
+export const sendTeamInviteEmail = async ({
+  to,
+  invitedByName,
+  teamName,
+  acceptUrl,
+}: SendTeamInviteEmailParams): Promise<{
+  success: boolean;
+  error?: string;
+}> => {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn(
+        "RESEND_API_KEY is not set. Skipping team invite email sending.",
+      );
+      return { success: false, error: "Email service not configured" };
+    }
+
+    const emailHtml = await render(
+      TeamInviteEmail({ invitedByName, teamName, acceptUrl }),
+    );
+
+    const { data, error } = await getResendClient().emails.send({
+      from: "Pinacle <hello@pinacle.dev>",
+      to: [to],
+      subject: `You've been invited to join ${teamName} on Pinacle`,
+      html: emailHtml,
+    });
+
+    if (error) {
+      console.error("Failed to send team invite email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log(`Team invite email sent successfully to ${to}:`, data?.id);
+    return { success: true };
+  } catch (error) {
+    console.error("Error sending team invite email:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",

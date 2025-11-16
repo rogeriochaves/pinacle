@@ -107,12 +107,13 @@ export const teamMembers = pgTable("team_member", {
     .notNull()
     .references(() => teams.id, { onDelete: "cascade" }),
   userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "cascade" }), // Nullable for pending invitations
+  email: varchar("email", { length: 255 }), // Store email for pending invitations
+  invitationToken: text("invitation_token"), // Token for pending invitations
   role: varchar("role", { length: 50 }).notNull().default("member"), // owner, admin, member
   invitedBy: text("invited_by").references(() => users.id),
   invitedAt: timestamp("invited_at", { mode: "date" }),
-  joinedAt: timestamp("joined_at", { mode: "date" }).defaultNow().notNull(),
+  joinedAt: timestamp("joined_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

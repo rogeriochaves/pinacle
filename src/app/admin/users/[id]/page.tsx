@@ -202,7 +202,10 @@ export default function UserDetailPage() {
                     </div>
                   </div>
                   <div className="text-xs text-gray-500">
-                    Joined {new Date(membership.joinedAt).toLocaleDateString()}
+                    {membership.joinedAt
+                      ? `Joined ${new Date(membership.joinedAt).toLocaleDateString()}`
+                      : "Invitation pending"
+                    }
                   </div>
                 </div>
               </Link>

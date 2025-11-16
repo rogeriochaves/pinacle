@@ -1,6 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { teamMembers, teams } from "../../db/schema";
+import { teamMembers, teams, users } from "../../db/schema";
+import { sendTeamInviteEmail } from "../../email";
+import { generateKSUID } from "../../utils";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
 const createTeamSchema = z.object({
@@ -12,6 +14,10 @@ const inviteMemberSchema = z.object({
   teamId: z.string(),
   email: z.string().email(),
   role: z.enum(["admin", "member"]).default("member"),
+});
+
+const acceptInvitationSchema = z.object({
+  token: z.string(),
 });
 
 export const teamsRouter = createTRPCRouter({
@@ -121,12 +127,13 @@ export const teamsRouter = createTRPCRouter({
           role: teamMembers.role,
           joinedAt: teamMembers.joinedAt,
           user: {
-            id: teamMembers.userId,
-            name: teamMembers.userId, // We'll need to join with users table
-            email: teamMembers.userId, // We'll need to join with users table
+            id: users.id,
+            name: users.name,
+            email: users.email,
           },
         })
         .from(teamMembers)
+        .innerJoin(users, eq(teamMembers.userId, users.id))
         .where(eq(teamMembers.teamId, input.teamId));
 
       return members;
@@ -135,7 +142,7 @@ export const teamsRouter = createTRPCRouter({
   inviteMember: protectedProcedure
     .input(inviteMemberSchema)
     .mutation(async ({ ctx, input }) => {
-      const { teamId } = input;
+      const { teamId, email, role } = input;
       const userId = (ctx.session.user as any).id;
 
       // Check if user is admin/owner of this team
@@ -154,8 +161,148 @@ export const teamsRouter = createTRPCRouter({
         throw new Error("Permission denied");
       }
 
-      // TODO: Implement actual invitation system
-      // For now, we'll just return success
-      return { success: true, message: "Invitation sent" };
+      // Check if there's already a pending invitation or membership for this email
+      const existingInvitation = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(eq(teamMembers.teamId, teamId), eq(teamMembers.email, email)),
+        )
+        .limit(1);
+
+      if (existingInvitation.length > 0) {
+        throw new Error(
+          "An invitation has already been sent to this email address",
+        );
+      }
+
+      // Get team and inviter info
+      const [team] = await ctx.db
+        .select({ name: teams.name })
+        .from(teams)
+        .where(eq(teams.id, teamId));
+
+      const [inviter] = await ctx.db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, userId));
+
+      // Check if user with this email already exists
+      const existingUser = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        // Existing user - add them directly to the team
+        const invitedUserId = existingUser[0].id;
+
+        // Check if user is already a member
+        const existingMembership = await ctx.db
+          .select()
+          .from(teamMembers)
+          .where(
+            and(
+              eq(teamMembers.teamId, teamId),
+              eq(teamMembers.userId, invitedUserId),
+            ),
+          )
+          .limit(1);
+
+        if (existingMembership.length > 0) {
+          throw new Error("User is already a member of this team");
+        }
+
+        // Add existing user directly to team
+        await ctx.db.insert(teamMembers).values({
+          teamId,
+          userId: invitedUserId,
+          email,
+          role,
+          invitedBy: userId,
+          invitedAt: new Date(),
+          joinedAt: new Date(),
+        });
+
+        // Send notification email
+        const acceptUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/dashboard/team`;
+        await sendTeamInviteEmail({
+          to: email,
+          invitedByName: inviter?.name || "Someone",
+          teamName: team?.name || "Unknown Team",
+          acceptUrl,
+        });
+
+        return { success: true, message: "User added to team successfully" };
+      } else {
+        // New user - create pending invitation
+        const invitationToken = generateKSUID("invitation");
+
+        await ctx.db.insert(teamMembers).values({
+          teamId,
+          email,
+          invitationToken,
+          role,
+          invitedBy: userId,
+          invitedAt: new Date(),
+          // joinedAt remains null for pending invitations
+        });
+
+        // Send invitation email
+        const acceptUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/team/accept-invitation?token=${invitationToken}`;
+        await sendTeamInviteEmail({
+          to: email,
+          invitedByName: inviter?.name || "Someone",
+          teamName: team?.name || "Unknown Team",
+          acceptUrl,
+        });
+
+        return { success: true, message: "Invitation sent successfully" };
+      }
+    }),
+
+  acceptInvitation: protectedProcedure
+    .input(acceptInvitationSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { token } = input;
+      const userId = (ctx.session.user as any).id;
+      const userEmail = (ctx.session.user as any).email;
+
+      // Find the pending invitation by token
+      const [invitation] = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.invitationToken, token),
+            isNull(teamMembers.joinedAt), // Must be pending
+          ),
+        )
+        .limit(1);
+
+      if (!invitation) {
+        throw new Error("Invalid or expired invitation token");
+      }
+
+      // Check if the invitation email matches the current user's email
+      if (invitation.email !== userEmail) {
+        throw new Error(
+          "This invitation was sent to a different email address",
+        );
+      }
+
+      // Update the invitation to mark it as accepted
+      await ctx.db
+        .update(teamMembers)
+        .set({
+          userId,
+          joinedAt: new Date(),
+          invitationToken: null, // Clear the token
+          updatedAt: new Date(),
+        })
+        .where(eq(teamMembers.id, invitation.id));
+
+      return { success: true, message: "Successfully joined the team" };
     }),
 });

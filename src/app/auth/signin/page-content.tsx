@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -17,7 +17,7 @@ import {
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 
-export default function SignIn() {
+function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -77,6 +77,8 @@ export default function SignIn() {
     setError("");
 
     try {
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
       const result = await signIn("credentials", {
         email,
         password,
@@ -89,7 +91,7 @@ export default function SignIn() {
         // Check if session was created successfully
         const session = await getSession();
         if (session) {
-          router.push("/dashboard");
+          router.push(callbackUrl);
         }
       }
     } catch {
@@ -100,7 +102,8 @@ export default function SignIn() {
   };
 
   const handleGithubSignIn = () => {
-    signIn("github", { callbackUrl: "/dashboard" });
+    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    signIn("github", { callbackUrl });
   };
 
   return (
@@ -249,5 +252,20 @@ export default function SignIn() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-2 text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   );
 }

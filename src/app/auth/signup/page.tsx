@@ -3,9 +3,9 @@
 import { Check, Eye, EyeOff, Github } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -18,7 +18,7 @@ import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
 import { api } from "../../../lib/trpc/client";
 
-export default function SignUp() {
+function SignUpForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +27,7 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const signUpMutation = api.auth.signUp.useMutation();
 
@@ -65,6 +66,8 @@ export default function SignUp() {
       });
 
       // Auto sign in after successful registration
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
       const result = await signIn("credentials", {
         email,
         password,
@@ -76,7 +79,7 @@ export default function SignUp() {
           "Account created but sign in failed. Please try signing in manually.",
         );
       } else {
-        router.push("/dashboard");
+        router.push(callbackUrl);
       }
     } catch (error) {
       setError(
@@ -86,7 +89,8 @@ export default function SignUp() {
   };
 
   const handleGithubSignIn = () => {
-    signIn("github", { callbackUrl: "/dashboard" });
+    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    signIn("github", { callbackUrl });
   };
 
   return (
@@ -307,5 +311,20 @@ export default function SignUp() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function SignUp() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-2 text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   );
 }

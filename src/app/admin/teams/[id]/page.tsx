@@ -148,7 +148,12 @@ export default function TeamDetailPage() {
                     )}
                   </div>
                   <div className="text-right text-xs text-gray-500">
-                    <div>Joined {new Date(membership.joinedAt).toLocaleDateString()}</div>
+                    <div>
+                      {membership.joinedAt
+                        ? `Joined ${new Date(membership.joinedAt).toLocaleDateString()}`
+                        : "Invitation pending"
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
