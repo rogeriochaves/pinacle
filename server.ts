@@ -409,16 +409,16 @@ const createPodProxy = async (
             );
 
             if (discoveryPage) {
-              res.writeHead(502, { "Content-Type": "text/html" });
+              res.writeHead(418, { "Content-Type": "text/html" });
               res.end(discoveryPage);
             } else {
               // Fallback to forwarding the nginx 502
-              res.writeHead(502, proxyRes.headers);
+              res.writeHead(418, proxyRes.headers);
               proxyRes.pipe(res);
             }
           } catch {
             // Fallback to forwarding the nginx 502
-            res.writeHead(502, proxyRes.headers);
+            res.writeHead(418, proxyRes.headers);
             proxyRes.pipe(res);
           }
         })();

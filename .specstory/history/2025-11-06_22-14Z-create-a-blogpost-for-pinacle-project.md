@@ -12121,3 +12121,51 @@ Perfect! Much cleaner. Now the docs page focuses on the key message: "Pinacle pr
 
 ---
 
+_**User (2025-11-16 08:00Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking me to commit the changes. Let me commit the Supermaven documentation page that was added.</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add docs/pages/supermaven.mdx vocs.config.tsx && git commit -m "docs: add Supermaven code completion documentation"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add docs/pages/supermaven.mdx vocs.config.tsx && git commit -m "docs: add Supermaven code completion documentation"
+```
+
+```
+[main 3698303] docs: add Supermaven code completion documentation
+ 7 files changed, 28 insertions(+), 2 deletions(-)
+ create mode 100644 docs/pages/supermaven.mdx
+ create mode 100644 public/docs/supermaven.png
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Great! I committed the Supermaven documentation page. The commit includes:
+</details></think>
+
+---
+
+Perfect! Committed the Supermaven documentation page with the conventional commit message "docs: add Supermaven code completion documentation". The commit includes:
+
+- New Supermaven docs page (`docs/pages/supermaven.mdx`)
+- Updated sidebar configuration (`vocs.config.tsx`) 
+- The Supermaven activation screenshot (`public/docs/supermaven.png`)
+
+The docs now explain that Pinacle provides excellent AI-powered code completion with Supermaven and guides users through the activation process.
+
+---
+
