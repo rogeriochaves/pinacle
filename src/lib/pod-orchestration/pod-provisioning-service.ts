@@ -8,6 +8,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { envSets, podLogs, pods, servers } from "../db/schema";
+import { getPostHogServer } from "../posthog-server";
 import { getNextAvailableServer } from "../servers";
 import type { GitHubRepoSetup } from "./github-integration";
 import {
@@ -109,6 +110,13 @@ export class PodProvisioningService {
       `[PodProvisioningService] Provisioning pod ${podId} on server ${serverId}`,
     );
 
+    // Parse pinacle config early for error tracking
+    const pinacleConfig = podRecordToPinacleConfig({
+      config: podRecord.config,
+      name: podRecord.name,
+    });
+    const tier = pinacleConfig.tier;
+
     let podManager: PodManager | null = null;
     try {
       // 3. Update pod status to "provisioning"
@@ -124,16 +132,7 @@ export class PodProvisioningService {
       // 5. Create PodManager with server connection
       podManager = new PodManager(podId, serverConnection);
 
-      // 6. Parse PinacleConfig from database and expand to PodSpec
-      console.log(
-        `[PodProvisioningService] Parsing pinacle config for pod ${podId}`,
-      );
-
-      const pinacleConfig = podRecordToPinacleConfig({
-        config: podRecord.config,
-        name: podRecord.name,
-      });
-
+      // 6. Expand PinacleConfig to PodSpec
       console.log(
         `[PodProvisioningService] Expanding config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
       );
@@ -230,6 +229,29 @@ export class PodProvisioningService {
         `[PodProvisioningService] Failed to provision pod ${podId}:`,
         errorMessage,
       );
+
+      // Capture error in PostHog for tracking
+      try {
+        const posthog = getPostHogServer();
+        await posthog.captureException(error as Error, podRecord.ownerId, {
+          pod_id: podId,
+          pod_name: podRecord.name,
+          pod_slug: podRecord.slug,
+          tier: tier,
+          server_id: serverId,
+          github_repo: podRecord.githubRepo || undefined,
+          github_branch: podRecord.githubBranch || undefined,
+          template: podRecord.template || undefined,
+          error_phase: "provisioning",
+          cleanup_on_error: cleanupOnError,
+        });
+      } catch (phError) {
+        // Don't fail provisioning if PostHog capture fails
+        console.error(
+          `[PodProvisioningService] Failed to capture error in PostHog:`,
+          phError,
+        );
+      }
 
       // Clean up container if it exists (remove volumes on error)
       if (cleanupOnError) {
