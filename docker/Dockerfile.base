@@ -1,5 +1,5 @@
 # Build stage for code-server
-FROM pinacledev/code-server-alpine:4.104.2-arm64 AS code-server-builder
+FROM pinacledev/code-server-alpine:4.104.2 AS code-server-builder
 
 # Runtime stage
 FROM node:22-alpine
