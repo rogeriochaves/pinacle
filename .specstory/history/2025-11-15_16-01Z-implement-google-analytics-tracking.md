@@ -3909,3 +3909,122 @@ Then watch your browser console when you log in/out - you'll see the PostHog ide
 
 ---
 
+_**User (2025-11-15 16:11Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit the changes following the commit.md rules. Let me check what files I've changed in this session:
+
+1. `instrumentation-client.ts` - Added `person_profiles: "identified_only"`
+2. `src/components/analytics/posthog-identifier.tsx` - New file for user identification
+3. `src/lib/providers.tsx` - Added PostHogIdentifier component
+4. `src/lib/analytics/posthog.ts` - Added user identification functions
+5. `next.config.ts` - Added PostHog sourcemap config
+6. `src/env.ts` - Added PostHog environment variables
+7. `src/lib/posthog-server.ts` - New file for server-side PostHog
+8. `instrumentation.ts` - New file for server-side error capture
+9. `src/app/global-error.tsx` - New file for global error boundary
+10. `src/app/error.tsx` - New file for component error boundary
+11. `ANALYTICS_SETUP.md` - Documentation
+
+I should commit only the files I changed, using conventional commit format.</details></think>
+
+---
+
+I'll commit the PostHog changes with a conventional commit message.
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/analytics/posthog.ts src/components/analytics/posthog-identifier.tsx src/lib/providers.tsx instrumentation-client.ts src/lib/posthog-server.ts instrumentation.ts src/app/global-error.tsx src/app/error.tsx next.config.ts src/env.ts ANALYTICS_SETUP.md</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/lib/analytics/posthog.ts src/components/analytics/posthog-identifier.tsx src/lib/providers.tsx instrumentation-client.ts src/lib/posthog-server.ts instrumentation.ts src/app/global-error.tsx src/app/error.tsx next.config.ts src/env.ts ANALYTICS_SETUP.md
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I'll commit with a good conventional commit message describing what was added.</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat: add PostHog user identification and error tracking
+
+- Add PostHog user identification with NextAuth integration
+- Configure person_profiles as 'identified_only' for logged-in users
+- Create PostHogIdentifier component to sync NextAuth session with PostHog
+- Add server-side PostHog client for error tracking
+- Implement server-side error capture via instrumentation.ts
+- Add global-error.tsx and error.tsx boundaries for exception capture
+- Configure sourcemap upload with @posthog/nextjs-config
+- Add user identification, reset, and group tracking utilities
+- Update env schema with PostHog configuration variables
+- Document complete analytics setup in ANALYTICS_SETUP.md"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git commit -m "feat: add PostHog user identification and error tracking
+
+- Add PostHog user identification with NextAuth integration
+- Configure person_profiles as 'identified_only' for logged-in users
+- Create PostHogIdentifier component to sync NextAuth session with PostHog
+- Add server-side PostHog client for error tracking
+- Implement server-side error capture via instrumentation.ts
+- Add global-error.tsx and error.tsx boundaries for exception capture
+- Configure sourcemap upload with @posthog/nextjs-config
+- Add user identification, reset, and group tracking utilities
+- Update env schema with PostHog configuration variables
+- Document complete analytics setup in ANALYTICS_SETUP.md"
+```
+
+```
+[main 9010520] feat: add PostHog user identification and error tracking
+ 11 files changed, 465 insertions(+), 2 deletions(-)
+ create mode 100644 ANALYTICS_SETUP.md
+ create mode 100644 instrumentation.ts
+ create mode 100644 src/app/error.tsx
+ create mode 100644 src/app/global-error.tsx
+ create mode 100644 src/components/analytics/posthog-identifier.tsx
+ create mode 100644 src/lib/analytics/posthog.ts
+ create mode 100644 src/lib/posthog-server.ts
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've committed all the PostHog changes. The commit message is clear and follows conventional commit format (feat:) with detailed bullet points explaining all the changes.</details></think>
+
+---
+
+✅ Done! I've committed all the PostHog changes with a detailed conventional commit message:
+
+**Commit:** `feat: add PostHog user identification and error tracking`
+
+**Files committed (11 files, 465 insertions):**
+- ✨ `src/components/analytics/posthog-identifier.tsx` (new)
+- ✨ `src/lib/posthog-server.ts` (new)
+- ✨ `instrumentation.ts` (new)
+- ✨ `src/app/global-error.tsx` (new)
+- ✨ `src/app/error.tsx` (new)
+- ✨ `ANALYTICS_SETUP.md` (new)
+- 📝 `src/lib/analytics/posthog.ts` (modified)
+- 📝 `src/lib/providers.tsx` (modified)
+- 📝 `instrumentation-client.ts` (modified)
+- 📝 `next.config.ts` (modified)
+- 📝 `src/env.ts` (modified)
+
+The commit includes user identification, error tracking, sourcemap upload configuration, and complete documentation! 🚀
+
+---
+
