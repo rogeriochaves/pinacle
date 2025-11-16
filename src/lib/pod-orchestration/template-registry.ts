@@ -308,6 +308,7 @@ EOF`,
     initScript: [
       // 1. Clone the Next.js SaaS Starter
       "git clone https://github.com/nextjs/saas-starter.git temp-saas-starter",
+      "rm -rf temp-saas-starter/.git",
       "mv temp-saas-starter/* .",
       "mv temp-saas-starter/.* . 2>/dev/null || true",
       "rm -rf temp-saas-starter",

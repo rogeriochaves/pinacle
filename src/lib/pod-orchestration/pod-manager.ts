@@ -108,6 +108,14 @@ export class PodManager extends EventEmitter {
         }
       }
 
+      // Provision services
+      console.log(`[PodManager] Provisioning services for pod ${spec.id}`);
+      await this.provisionServices(spec, this.serviceProvisioner);
+
+      // Start services
+      console.log(`[PodManager] Starting services for pod ${spec.id}`);
+      await this.startServices(spec, this.serviceProvisioner);
+
       // Setup GitHub repository if configured
       if (spec.githubRepo && spec.githubRepoSetup) {
         console.log(
@@ -166,14 +174,6 @@ export class PodManager extends EventEmitter {
           }
         }
       }
-
-      // Provision services
-      console.log(`[PodManager] Provisioning services for pod ${spec.id}`);
-      await this.provisionServices(spec, this.serviceProvisioner);
-
-      // Start services
-      console.log(`[PodManager] Starting services for pod ${spec.id}`);
-      await this.startServices(spec, this.serviceProvisioner);
 
       // Update status to running
       this.emitEvent("started");

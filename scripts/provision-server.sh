@@ -126,11 +126,11 @@ else
     # Debian/Ubuntu
     run_remote sudo apt-get update
     run_remote sudo apt-get install -y curl
-    run_remote curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+    run_remote "curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
     run_remote sudo apt-get install -y nodejs
   elif run_remote which yum > /dev/null 2>&1; then
     # CentOS/RHEL
-    run_remote curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+    run_remote "curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -"
     run_remote sudo yum install -y nodejs
   else
     echo "❌ Unsupported OS. Please install Node.js manually."
@@ -139,14 +139,165 @@ else
   echo "✅ Node.js installed"
 fi
 
-echo "🐳 Step 2: Checking Docker..."
+echo "🐳 Step 2: Installing Docker..."
 if run_remote which docker > /dev/null 2>&1; then
   echo "✅ Docker already installed"
 else
-  echo "⚠️  Docker not found. Skipping (should already be set up for pod hosting)"
+  # Detect OS and install Docker
+  if run_remote which apk > /dev/null 2>&1; then
+    # Alpine Linux (Lima VM)
+    run_remote sudo apk add --no-cache docker docker-cli-compose
+    run_remote sudo rc-update add docker boot
+    run_remote sudo service docker start || true
+  elif run_remote which apt-get > /dev/null 2>&1; then
+    # Debian/Ubuntu - Install Docker from official repository
+    echo "   Installing Docker on Debian/Ubuntu..."
+    run_remote "sudo apt-get update"
+    run_remote "sudo apt-get install -y ca-certificates curl"
+    run_remote "sudo install -m 0755 -d /etc/apt/keyrings"
+
+    # Detect if Debian or Ubuntu and use correct URL
+    OS_ID=$(run_remote "grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '\"'" 2>/dev/null || echo "debian")
+    if [[ "$OS_ID" == "ubuntu" ]]; then
+      DOCKER_URL="https://download.docker.com/linux/ubuntu"
+    else
+      DOCKER_URL="https://download.docker.com/linux/debian"
+    fi
+
+    echo "   Detected OS: $OS_ID, using $DOCKER_URL"
+
+    # Add Docker's official GPG key
+    run_remote "sudo curl -fsSL $DOCKER_URL/gpg -o /etc/apt/keyrings/docker.asc"
+    run_remote "sudo chmod a+r /etc/apt/keyrings/docker.asc"
+
+    VERSION_CODENAME=$(run_remote ". /etc/os-release && echo \"\$VERSION_CODENAME\"")
+
+    echo "   Detected VERSION_CODENAME: $VERSION_CODENAME"
+
+    # Add the repository to Apt sources using modern .sources format
+    run_remote "sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+Types: deb
+URIs: $DOCKER_URL
+Suites: $VERSION_CODENAME
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF"
+
+    # Install Docker
+    run_remote "sudo apt-get update"
+    run_remote "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+
+    # Start and enable Docker
+    run_remote "sudo systemctl start docker"
+    run_remote "sudo systemctl enable docker"
+  elif run_remote which yum > /dev/null 2>&1; then
+    # CentOS/RHEL - Install Docker from official repository
+    echo "   Installing Docker on CentOS/RHEL..."
+    run_remote "sudo yum install -y yum-utils"
+    run_remote "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
+    run_remote "sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+
+    # Start and enable Docker
+    run_remote "sudo systemctl start docker"
+    run_remote "sudo systemctl enable docker"
+  else
+    echo "❌ Unsupported OS. Please install Docker manually."
+    exit 1
+  fi
+  echo "✅ Docker installed"
 fi
 
-echo "📁 Step 3: Creating agent directory and log file..."
+echo "🔒 Step 3: Installing gVisor..."
+GVISOR_NEEDS_CONFIG=false
+if run_remote which runsc > /dev/null 2>&1; then
+  echo "✅ gVisor already installed"
+  RUNSC_PATH=$(run_remote which runsc)
+
+  # Check if Docker already knows about runsc runtime
+  if run_remote "docker info 2>/dev/null | grep -q 'runsc'"; then
+    echo "   Docker already configured with gVisor runtime"
+  else
+    echo "   Docker needs gVisor runtime configuration"
+    GVISOR_NEEDS_CONFIG=true
+  fi
+else
+  GVISOR_NEEDS_CONFIG=true
+  # Detect OS and install gVisor
+  if run_remote which apk > /dev/null 2>&1; then
+    # Alpine Linux - Manual installation
+    echo "   Installing gVisor manually on Alpine..."
+    run_remote "cd /tmp && wget https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc.sha512 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1.sha512"
+    run_remote "cd /tmp && sha512sum -c runsc.sha512 && sha512sum -c containerd-shim-runsc-v1.sha512"
+    run_remote "cd /tmp && chmod a+rx runsc containerd-shim-runsc-v1"
+    run_remote "sudo mv /tmp/runsc /tmp/containerd-shim-runsc-v1 /usr/local/bin/"
+    run_remote "cd /tmp && rm -f *.sha512"
+  elif run_remote which apt-get > /dev/null 2>&1; then
+    # Debian/Ubuntu - Use APT repository
+    echo "   Installing gVisor from APT repository..."
+    run_remote "sudo apt-get update"
+    run_remote "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg"
+    run_remote "curl -fsSL https://gvisor.dev/archive.key | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg"
+    run_remote "echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main\" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null"
+    run_remote "sudo apt-get update"
+    run_remote "sudo apt-get install -y runsc"
+    echo "   gVisor installed via APT"
+  elif run_remote which yum > /dev/null 2>&1; then
+    # CentOS/RHEL - Manual installation
+    echo "   Installing gVisor manually on CentOS/RHEL..."
+    run_remote "cd /tmp && wget https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc.sha512 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1.sha512"
+    run_remote "cd /tmp && sha512sum -c runsc.sha512 && sha512sum -c containerd-shim-runsc-v1.sha512"
+    run_remote "cd /tmp && chmod a+rx runsc containerd-shim-runsc-v1"
+    run_remote "sudo mv /tmp/runsc /tmp/containerd-shim-runsc-v1 /usr/local/bin/"
+    run_remote "cd /tmp && rm -f *.sha512"
+  else
+    echo "❌ Unsupported OS for gVisor installation."
+    exit 1
+  fi
+
+  echo "✅ gVisor binary installed"
+fi
+
+# Configure Docker to use gVisor runtime only if needed
+if [ "$GVISOR_NEEDS_CONFIG" = true ]; then
+  echo "   Configuring Docker to use gVisor runtime..."
+
+  # Find the runsc binary (APT installs to /usr/bin, manual to /usr/local/bin)
+  if [ -z "$RUNSC_PATH" ]; then
+    RUNSC_PATH=$(run_remote which runsc 2>/dev/null || echo "")
+  fi
+
+  if [ -z "$RUNSC_PATH" ]; then
+    echo "❌ runsc binary not found in PATH"
+    exit 1
+  fi
+
+  run_remote "$RUNSC_PATH install"
+
+  # Restart Docker to pick up the new runtime
+  echo "   Restarting Docker to apply gVisor configuration..."
+  if run_remote which systemctl > /dev/null 2>&1; then
+    run_remote "sudo systemctl restart docker"
+  elif run_remote which rc-service > /dev/null 2>&1; then
+    run_remote "sudo rc-service docker restart"
+  fi
+
+  echo "✅ gVisor configured with Docker"
+else
+  echo "✅ gVisor already configured with Docker"
+fi
+
+# Verify gVisor works with Docker (CRITICAL - must succeed)
+echo "   Verifying gVisor with Docker..."
+if run_remote "docker run --rm --runtime=runsc hello-world" 2>&1 | tee /tmp/gvisor-test.log; then
+  echo "✅ gVisor runtime verified successfully"
+else
+  echo "❌ gVisor verification FAILED - this is critical for security!"
+  echo "   Please check Docker configuration and ensure gVisor is properly installed."
+  run_remote "docker info | grep -i runtime" || true
+  exit 1
+fi
+
+echo "📁 Step 4: Creating agent directory and log file..."
 if [[ $HOST == lima:* ]]; then
   limactl shell "$LIMA_VM" -- sudo mkdir -p "$AGENT_PATH"
   limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '$AGENT_PATH'"
@@ -169,7 +320,7 @@ fi
 echo "✅ Directory created: $AGENT_PATH"
 echo "✅ Log file created: /var/log/pinacle-agent.log (writable by all)"
 
-echo "📋 Step 4: Building and copying agent..."
+echo "📋 Step 5: Building and copying agent..."
 cd "$(dirname "$0")/.."
 cd server-agent
 
@@ -195,8 +346,8 @@ fi
 
 echo "✅ Agent copied"
 
-echo "📦 Step 5: Installing dependencies..."
-run_remote sh -c "cd $AGENT_PATH && npm install --production"
+echo "📦 Step 6: Installing dependencies..."
+run_remote "cd $AGENT_PATH && npm install --production"
 echo "✅ Dependencies installed"
 
 echo "🔑 Step 6: Installing SSH public key..."
