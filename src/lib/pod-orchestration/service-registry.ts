@@ -311,6 +311,15 @@ EOF`,
       "curl https://cursor.com/install -fsS | bash",
       // Alpine Linux compatibility fixes
       `
+      # Detect architecture
+      ARCH=$(uname -m)
+      case "$ARCH" in
+        x86_64|amd64) ARCH_NAME="x64" ;;
+        aarch64|arm64) ARCH_NAME="arm64" ;;
+        *) echo "✗ Unsupported architecture: $ARCH"; exit 1 ;;
+      esac
+      echo "Detected architecture: $ARCH_NAME"
+
       # Find the cursor-agent version directory
       CURSOR_VERSION_DIR=$(ls -t /workspace/.local/share/cursor-agent/versions/ | head -1)
       CURSOR_PATH=/workspace/.local/share/cursor-agent/versions/$CURSOR_VERSION_DIR
@@ -325,19 +334,23 @@ EOF`,
       # 2. Patch index.js to stub out merkle-tree native module (glibc-only)
       if [ -f "$CURSOR_PATH/index.js" ]; then
         cp "$CURSOR_PATH/index.js" "$CURSOR_PATH/index.js.backup"
-        sed -i 's/nativeBinding = __webpack_require__("..\\/merkle-tree\\/merkle-tree-napi.linux-arm64-gnu.node");/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: "\\/" };/' "$CURSOR_PATH/index.js"
+        if [ "$ARCH_NAME" = "arm64" ]; then
+          sed -i 's/nativeBinding = __webpack_require__("..\\/merkle-tree\\/merkle-tree-napi.linux-arm64-gnu.node");/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: "\\/" };/' "$CURSOR_PATH/index.js"
+        else
+          sed -i 's/nativeBinding = __webpack_require__("..\\/merkle-tree\\/merkle-tree-napi.linux-x64-gnu.node");/nativeBinding = { MerkleClient: class { constructor() {} }, MULTI_ROOT_ABSOLUTE_PATH: "\\/" };/' "$CURSOR_PATH/index.js"
+        fi
         echo "✓ Patched merkle-tree module"
       fi
 
       # 3. Download and replace sqlite3 with musl-compatible version
       if [ -f "$CURSOR_PATH/node_sqlite3.node" ]; then
         cd /tmp
-        wget -q https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
-        tar -xzf sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz
+        wget -q https://github.com/TryGhost/node-sqlite3/releases/download/v5.1.7/sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz
+        tar -xzf sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz
         mv "$CURSOR_PATH/node_sqlite3.node" "$CURSOR_PATH/node_sqlite3.node.glibc"
         cp build/Release/node_sqlite3.node "$CURSOR_PATH/node_sqlite3.node"
-        rm -rf /tmp/sqlite3-v5.1.7-napi-v6-linuxmusl-arm64.tar.gz /tmp/build
-        echo "✓ Replaced sqlite3 with musl-compatible version"
+        rm -rf /tmp/sqlite3-v5.1.7-napi-v6-linuxmusl-$ARCH_NAME.tar.gz /tmp/build
+        echo "✓ Replaced sqlite3 with musl-compatible version ($ARCH_NAME)"
       fi
 
       echo "export NO_OPEN_BROWSER=1" >> /etc/profile
