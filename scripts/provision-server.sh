@@ -207,6 +207,85 @@ EOF"
   echo "✅ Docker installed"
 fi
 
+echo "💾 Step 2.5: Setting up XFS storage with quotas for Docker volumes..."
+# Check if XFS volume already exists
+if run_remote "mount | grep -q '/var/lib/docker/volumes.*xfs'"; then
+  echo "✅ XFS storage already configured"
+else
+  # Get available space on root filesystem (in GB, use 85% of available)
+  AVAILABLE_KB=$(run_remote "df / | tail -1 | awk '{print \$4}'")
+  AVAILABLE_GB=$((AVAILABLE_KB / 1024 / 1024))
+  VOLUME_SIZE_GB=$((AVAILABLE_GB * 85 / 100))
+
+  echo "   Available space: ${AVAILABLE_GB}GB, using ${VOLUME_SIZE_GB}GB for Docker volumes"
+
+  # Stop Docker temporarily
+  if run_remote which systemctl > /dev/null 2>&1; then
+    run_remote "sudo systemctl stop docker" || true
+  elif run_remote which rc-service > /dev/null 2>&1; then
+    run_remote "sudo rc-service docker stop" || true
+  fi
+
+  # Create loopback XFS file
+  echo "   Creating ${VOLUME_SIZE_GB}GB XFS loopback file..."
+  run_remote "sudo fallocate -l ${VOLUME_SIZE_GB}G /var/lib/docker-volumes.xfs"
+
+  # Format as XFS with project quota support
+  echo "   Formatting as XFS with project quota support..."
+  run_remote "sudo mkfs.xfs -n ftype=1 -m crc=1 /var/lib/docker-volumes.xfs"
+
+  # Create mount point and mount with pquota
+  run_remote "sudo mkdir -p /var/lib/docker/volumes"
+  run_remote "sudo mount -o loop,pquota /var/lib/docker-volumes.xfs /var/lib/docker/volumes"
+
+  # Add to /etc/fstab for persistence
+  echo "   Adding to /etc/fstab for automatic mounting..."
+  run_remote "echo '/var/lib/docker-volumes.xfs /var/lib/docker/volumes xfs loop,pquota 0 0' | sudo tee -a /etc/fstab"
+
+  # Update Docker daemon configuration to enable storage driver options
+  echo "   Configuring Docker daemon for XFS quotas..."
+  run_remote "sudo mkdir -p /etc/docker"
+
+  # Update daemon.json preserving existing config
+  EXISTING_CONFIG=$(run_remote "cat /etc/docker/daemon.json 2>/dev/null || echo '{}'")
+
+  # Use jq if available, otherwise do simple merge
+  if run_remote which jq > /dev/null 2>&1; then
+    run_remote "echo '$EXISTING_CONFIG' | jq '. + {\"data-root\": \"/var/lib/docker\", \"storage-driver\": \"overlay2\"}' | sudo tee /etc/docker/daemon.json > /dev/null"
+  else
+    # Fallback: reconstruct config (preserving runtimes)
+    if [[ "$EXISTING_CONFIG" == *"runsc"* ]]; then
+      run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+{
+  \"data-root\": \"/var/lib/docker\",
+  \"storage-driver\": \"overlay2\",
+  \"runtimes\": {
+    \"runsc\": {
+      \"path\": \"/usr/bin/runsc\"
+    }
+  }
+}
+EOF"
+    else
+      run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+{
+  \"data-root\": \"/var/lib/docker\",
+  \"storage-driver\": \"overlay2\"
+}
+EOF"
+    fi
+  fi
+
+  # Start Docker
+  if run_remote which systemctl > /dev/null 2>&1; then
+    run_remote "sudo systemctl start docker"
+  elif run_remote which rc-service > /dev/null 2>&1; then
+    run_remote "sudo rc-service docker start"
+  fi
+
+  echo "✅ XFS storage configured with quota support (${VOLUME_SIZE_GB}GB)"
+fi
+
 echo "🔒 Step 3: Installing gVisor..."
 GVISOR_NEEDS_CONFIG=false
 if run_remote which runsc > /dev/null 2>&1; then
