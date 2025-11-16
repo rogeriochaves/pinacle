@@ -20,6 +20,11 @@ const acceptInvitationSchema = z.object({
   token: z.string(),
 });
 
+const removeMemberSchema = z.object({
+  teamId: z.string(),
+  memberId: z.string(),
+});
+
 export const teamsRouter = createTRPCRouter({
   create: protectedProcedure
     .input(createTeamSchema)
@@ -304,5 +309,54 @@ export const teamsRouter = createTRPCRouter({
         .where(eq(teamMembers.id, invitation.id));
 
       return { success: true, message: "Successfully joined the team" };
+    }),
+
+  removeMember: protectedProcedure
+    .input(removeMemberSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { teamId, memberId } = input;
+      const userId = (ctx.session.user as any).id;
+
+      // Check if user is admin/owner of this team
+      const membership = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(
+          and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)),
+        )
+        .limit(1);
+
+      if (
+        membership.length === 0 ||
+        !["owner", "admin"].includes(membership[0].role)
+      ) {
+        throw new Error("Permission denied");
+      }
+
+      // Get the member being removed to check if they're the owner
+      const memberToRemove = await ctx.db
+        .select()
+        .from(teamMembers)
+        .where(eq(teamMembers.id, memberId))
+        .limit(1);
+
+      if (memberToRemove.length === 0) {
+        throw new Error("Member not found");
+      }
+
+      if (memberToRemove[0].role === "owner") {
+        throw new Error("Cannot remove the team owner");
+      }
+
+      if (memberToRemove[0].teamId !== teamId) {
+        throw new Error("Member is not part of this team");
+      }
+
+      // Remove the member
+      await ctx.db
+        .delete(teamMembers)
+        .where(eq(teamMembers.id, memberId));
+
+      return { success: true, message: "Member removed from team successfully" };
     }),
 });

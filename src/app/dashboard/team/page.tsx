@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "../../../components/ui/badge";
@@ -16,6 +16,7 @@ export default function TeamPage() {
 
   const { data: teams } = api.teams.getUserTeams.useQuery();
   const inviteMutation = api.teams.inviteMember.useMutation();
+  const removeMemberMutation = api.teams.removeMember.useMutation();
 
   // Set default selected team to first team when teams load
   useEffect(() => {
@@ -51,48 +52,44 @@ export default function TeamPage() {
     }
   };
 
+  const handleRemoveMember = async (memberId: string) => {
+    if (!selectedTeam) return;
+
+    if (!confirm("Are you sure you want to remove this team member?")) {
+      return;
+    }
+
+    try {
+      await removeMemberMutation.mutateAsync({
+        teamId: selectedTeam.id,
+        memberId,
+      });
+      refetchMembers();
+    } catch (error) {
+      console.error("Failed to remove member:", error);
+      alert("Failed to remove member. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Bar */}
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-4">
-          <Button variant="ghost" asChild className="-ml-2">
-            <Link href="/dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              <span className="font-mono text-sm">Back to Workbench</span>
-            </Link>
-          </Button>
-        </div>
-      </div>
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" asChild className="-ml-2">
+              <Link href="/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                <span className="font-mono text-sm">Back to Workbench</span>
+              </Link>
+            </Button>
 
-      {/* Content */}
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <div className="mb-8">
-          <h1 className="text-3xl font-mono font-bold text-slate-900 mb-2">
-            Team
-          </h1>
-          <p className="text-slate-600 font-mono text-sm">
-            Collaborate with your team members
-          </p>
-        </div>
-
-        {!selectedTeam ? (
-          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-            <p className="text-slate-600 font-mono mb-4">No team found</p>
-            <p className="text-sm text-slate-500 font-mono">
-              Teams are automatically created when you sign up
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Team Selector */}
+            {/* Team Selector - Top Right */}
             {teams && teams.length > 1 && (
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
-                <label htmlFor="team-selector" className="block text-sm font-mono font-medium text-slate-700 mb-2">
-                  Select Team
-                </label>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-mono text-slate-600">Team:</span>
                 <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                  <SelectTrigger id="team-selector" className="w-full font-mono">
+                  <SelectTrigger className="w-48 font-mono border-slate-300">
                     <SelectValue placeholder="Choose a team" />
                   </SelectTrigger>
                   <SelectContent>
@@ -105,16 +102,30 @@ export default function TeamPage() {
                 </Select>
               </div>
             )}
+          </div>
+        </div>
+      </div>
 
-            {/* Team Info */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <h2 className="font-mono font-bold text-xl text-slate-900 mb-1">
-                {selectedTeam.name}
-              </h2>
-              {selectedTeam.description && (
-                <p className="text-slate-600 text-sm">{selectedTeam.description}</p>
-              )}
-            </div>
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl font-mono font-bold text-slate-900 mb-2">
+            {selectedTeam ? selectedTeam.name : 'Team'}
+          </h1>
+          <p className="text-slate-600 font-mono text-sm">
+            {selectedTeam?.description || 'Collaborate with your team members'}
+          </p>
+        </div>
+
+        {!selectedTeam ? (
+          <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <p className="text-slate-600 font-mono mb-4">No team found</p>
+            <p className="text-sm text-slate-500 font-mono">
+              Teams are automatically created when you sign up
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-6">
 
             {/* Invite Section - Only show for owners/admins */}
             {(selectedTeam.role === "owner" || selectedTeam.role === "admin") && (
@@ -191,6 +202,21 @@ export default function TeamPage() {
                       >
                         {member.role}
                       </Badge>
+
+                      {/* Remove button - only show for owners/admins, not for owner role, not for self */}
+                      {(selectedTeam.role === "owner" || selectedTeam.role === "admin") &&
+                       member.role !== "owner" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member.id)}
+                          disabled={removeMemberMutation.isPending}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2"
+                          title="Remove member"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
