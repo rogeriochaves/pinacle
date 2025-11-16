@@ -1,20 +1,32 @@
 "use client";
 
-import { RESOURCE_TIERS } from "@/lib/pod-orchestration/resource-tier-registry";
+import { formatCurrency } from "@/lib/currency-utils";
+import {
+  type Currency,
+  PRICING_TABLE,
+  RESOURCE_TIERS,
+} from "@/lib/pod-orchestration/resource-tier-registry";
 
 type TierSelectorSetupProps = {
   value?: string;
   onChange: (tierId: string) => void;
+  currency?: Currency;
+  isCurrencyLoading?: boolean;
 };
 
 export const TierSelectorSetup = ({
   value = "dev.small",
   onChange,
+  currency = "usd",
+  isCurrencyLoading = false,
 }: TierSelectorSetupProps) => {
   return (
     <div className="flex flex-col gap-2">
       {Object.values(RESOURCE_TIERS).map((tier) => {
         const isSelected = value === tier.id;
+        const tierPrice =
+          PRICING_TABLE[tier.id as keyof typeof PRICING_TABLE][currency];
+
         return (
           <button
             key={tier.id}
@@ -44,7 +56,12 @@ export const TierSelectorSetup = ({
             {/* Price and Radio */}
             <div className="flex items-center gap-3 shrink-0">
               <span className="font-mono font-bold text-sm text-slate-900">
-                ${tier.price}/mo
+                {isCurrencyLoading
+                  ? "..."
+                  : formatCurrency(tierPrice, currency, {
+                      showDecimals: false,
+                    })}
+                /mo
               </span>
               <div
                 className={`

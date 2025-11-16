@@ -704,6 +704,8 @@ const SetupForm = () => {
         }))}
         installationUrl={installationUrl ?? null}
         isRestoringFromCheckout={isRestoringFromCheckout}
+        currency={detectedCurrency}
+        isCurrencyLoading={false}
       />
     </div>
   );

@@ -40,6 +40,8 @@ type ConfigureFormProps = {
   organizations: GitHubOrg[];
   installationUrl: string | null;
   isRestoringFromCheckout?: boolean;
+  currency?: "usd" | "eur" | "brl";
+  isCurrencyLoading?: boolean;
 };
 
 const DEFAULT_SERVICES: ServiceId[] = [
@@ -56,6 +58,8 @@ export const ConfigureForm = ({
   organizations,
   installationUrl,
   isRestoringFromCheckout = false,
+  currency = "usd",
+  isCurrencyLoading = false,
 }: ConfigureFormProps) => {
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showSecrets, setShowSecrets] = useState<Record<number, boolean>>({});
@@ -677,6 +681,8 @@ export const ConfigureForm = ({
                       | "dev.xlarge",
                   )
                 }
+                currency={currency}
+                isCurrencyLoading={isCurrencyLoading}
               />
             </div>
 
