@@ -289,10 +289,11 @@ EOF`,
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: ["NEXTAUTH_SECRET", "DATABASE_URL"],
+    requiredEnvVars: ["NEXTAUTH_SECRET", "POSTGRES_URL", "STRIPE_SECRET_KEY"],
     envVarDefaults: {
       NEXTAUTH_SECRET: () => generateRandomSecret(32),
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
+      POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
+      STRIPE_SECRET_KEY: () => `sk_test_${generateRandomSecret(32)}`,
     },
 
     installCommand: "pnpm install",

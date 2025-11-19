@@ -4872,3 +4872,772 @@ No more flashing from USD to their actual currency! 🎉
 
 ---
 
+_**User (2025-11-16 22:46Z)**_
+
+hey there, I've realized the prices for Compute Resources section of the @setup-form.tsx  are still in dollars $ even though I'm supposed to see it in eur or brl, like we do on the landing page and everywhere elsewhere
+
+please fix it to be like everywhere else
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+Looking at the setup-form.tsx file, I need to find where the Compute Resources section is and update it to use the detected currency. Let me search for where prices are displayed in the setup form.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "Compute Resources" in "/Users/rchaves/Projects/pinacle/src" • 0 matches</summary>
+
+Output mode: files_with_matches
+
+
+_No matches found_
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me search for "Compute Resources" or similar patterns in the setup form.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "Compute" in "/Users/rchaves/Projects/pinacle/src" • 6 matches</summary>
+
+Output mode: files_with_matches
+
+
+| File |
+|------|
+| `src/components/dashboard/workbench.tsx` |
+| `src/lib/trpc/routers/pods.ts` |
+| `src/lib/trpc/routers/github-app.ts` |
+| `src/components/admin/pod-row.tsx` |
+| `src/app/admin/pods/[id]/page.tsx` |
+| `src/lib/server-status.ts` |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me search for "$" or price-related strings in the setup form to find where the prices are displayed.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "\$" in "/Users/rchaves/Projects/pinacle/src/components/setup" • 33 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/setup/configure-form.tsx` | `: `$\{selectedOrg \|\| ""\}/$\{newRepoName \|\| ""\}`;` | L136 |
+| `src/components/setup/configure-form.tsx` | `message: `Please fill in all required environment variables: $\{missingVars.join(", ")\}`,` | L416 |
+| `src/components/setup/configure-form.tsx` | `const element = document.getElementById(`env-var-$\{firstMissingKey\}`);` | L422 |
+| `src/components/setup/setup-form.tsx` | `returnTo: `/setup/project?type=$\{form.watch("setupType")\}`,` | L87 |
+| `src/components/setup/setup-form.tsx` | `router.push(`/setup?type=$\{form.watch("setupType")\}`);` | L193 |
+| `src/components/setup/setup-form.tsx` | `router.push(`/setup/install?type=$\{form.watch("setupType")\}`);` | L198 |
+| `src/components/setup/setup-form.tsx` | `item_name: `Pinacle $\{tier\}`,` | L276 |
+| `src/components/setup/setup-form.tsx` | `tierName: `Pinacle $\{tier\}`,` | L290 |
+| `src/components/setup/setup-form.tsx` | `description: `Development environment for $\{formData.setupType === "new" ? `$\{formData.selectedOrg\}/$\{formData.newRepoName\}` : formData.selectedRepo \|\| "project"\}`,` | L384 |
+| `src/components/setup/setup-form.tsx` | `router.push(`/pods/$\{pod.id\}/provisioning`);` | L423 |
+| `src/components/setup/setup-form.tsx` | `item_name: `Pinacle $\{tier\}`,` | L555 |
+| `src/components/setup/setup-form.tsx` | `tierName: `Pinacle $\{tier\}`,` | L568 |
+| `src/components/setup/setup-form.tsx` | `successUrl: `$\{window.location.origin\}/setup/configure?checkout=success&session_id=\{CHECKOUT_SESSION_ID\}`,` | L575 |
+| `src/components/setup/setup-form.tsx` | `cancelUrl: `$\{window.location.origin\}/setup/configure?checkout=cancel`,` | L576 |
+| `src/components/setup/setup-form.tsx` | `description: `Development environment for $\{data.setupType === "new" ? `$\{data.selectedOrg\}/$\{data.newRepoName\}` : data.selectedRepo \|\| "project"\}`,` | L605 |
+| `src/components/setup/setup-form.tsx` | `router.push(`/pods/$\{pod.id\}/provisioning`);` | L642 |
+| `src/components/setup/template-selector.tsx` | `$\{` | L49 |
+| `src/components/setup/template-selector.tsx` | `\{pinacleConfig.template ? `Template: $\{pinacleConfig.template\}` : "Using config from repo"\}` | L72 |
+| `src/components/setup/template-selector.tsx` | `$\{isPinacleTemplate ? "border-orange-500" : "border-gray-300"\}` | L80 |
+| `src/components/setup/template-selector.tsx` | `$\{` | L101 |
+| `src/components/setup/template-selector.tsx` | `$\{isSelected ? "border-orange-500" : "border-gray-300"\}` | L141 |
+| `src/components/setup/template-selector.tsx` | `$\{` | L169 |
+| `src/components/setup/tier-selector-setup.tsx` | `$\{` | L25 |
+| `src/components/setup/tier-selector-setup.tsx` | `$\{tier.price\}/mo` | L47 |
+| `src/components/setup/tier-selector-setup.tsx` | `$\{isSelected ? "border-orange-500" : "border-gray-300"\}` | L52 |
+| `src/components/setup/environment-variables.tsx` | `key=\{`env-$\{index\}`\}` | L61 |
+| `src/components/setup/environment-variables.tsx` | `id=\{`env-var-$\{envVar.key\}`\}` | L82 |
+| `src/components/setup/environment-variables.tsx` | `className=\{`font-mono text-xs h-8 pr-8 $\{` | L91 |
+| `src/components/setup/setup-progress.tsx` | `className=\{`w-10 h-10 rounded-full flex items-center justify-center font-mono font-bold text-sm transition-all $\{` | L21 |
+| `src/components/setup/setup-progress.tsx` | `className=\{`font-mono text-sm font-medium $\{` | L31 |
+| `src/components/setup/setup-progress.tsx` | `className=\{`w-10 h-10 rounded-full flex items-center justify-center font-mono font-bold text-sm transition-all $\{` | L46 |
+| `src/components/setup/setup-progress.tsx` | `className=\{`font-mono text-sm font-medium $\{` | L56 |
+| `src/components/setup/setup-progress.tsx` | `? `Setting up development environment for $\{projectName\}`` | L80 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Found it! The prices are in `tier-selector-setup.tsx`. Let me examine this file and update it to use the detected currency.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/tier-selector-setup.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the `TierSelectorSetup` component to accept a currency prop and use the PRICING_TABLE to display the correct currency pricing, just like the other components. Let me update it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/tier-selector-setup.tsx</summary>
+
+**Chunk 1**
+Lines added: 12, lines removed: 1
+
+```diff
+@@ -1,19 +1,30 @@
+  &quot;use client&quot;;
+  
+- import { RESOURCE_TIERS } from &quot;@/lib/pod-orchestration/resource-tier-registry&quot;;
++ import {
++   PRICING_TABLE,
++   RESOURCE_TIERS,
++   type Currency,
++ } from &quot;@/lib/pod-orchestration/resource-tier-registry&quot;;
++ import { formatCurrency } from &quot;@/lib/currency-utils&quot;;
+  
+  type TierSelectorSetupProps = {
+    value?: string;
+    onChange: (tierId: string) =&gt; void;
++   currency?: Currency;
++   isCurrencyLoading?: boolean;
+  };
+  
+  export const TierSelectorSetup = ({
+    value = &quot;dev.small&quot;,
+    onChange,
++   currency = &quot;usd&quot;,
++   isCurrencyLoading = false,
+  }: TierSelectorSetupProps) =&gt; {
+    return (
+      &lt;div className=&quot;flex flex-col gap-2&quot;&gt;
+        {Object.values(RESOURCE_TIERS).map((tier) =&gt; {
+          const isSelected = value === tier.id;
++         const tierPrice = PRICING_TABLE[tier.id as keyof typeof PRICING_TABLE][currency];
++ 
+          return (
+            &lt;button
+```
+
+**Chunk 2**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -45,5 +56,10 @@
+              &lt;div className=&quot;flex items-center gap-3 shrink-0&quot;&gt;
+                &lt;span className=&quot;font-mono font-bold text-sm text-slate-900&quot;&gt;
+-                 ${tier.price}/mo
++                 {isCurrencyLoading ? (
++                   &quot;...&quot;
++                 ) : (
++                   formatCurrency(tierPrice, currency, { showDecimals: false })
++                 )}
++                 /mo
+                &lt;/span&gt;
+                &lt;div
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to find where this `TierSelectorSetup` component is used and pass the currency props to it. Let me check where it's used.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "TierSelectorSetup" in "/Users/rchaves/Projects/pinacle/src" • 2 matches</summary>
+
+Output mode: files_with_matches
+
+
+| File |
+|------|
+| `src/components/setup/tier-selector-setup.tsx` |
+| `src/components/setup/configure-form.tsx` |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check the configure-form.tsx to see how TierSelectorSetup is used and update it to pass the currency props.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "TierSelectorSetup" in "/Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/setup/configure-form.tsx` | `import \{ TierSelectorSetup \} from "./tier-selector-setup";` | L26 |
+| `src/components/setup/configure-form.tsx` | `<TierSelectorSetup` | L668 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me look at the configure-form.tsx around line 668 to see how TierSelectorSetup is used.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to check the ConfigureForm component props to see if it has access to currency and isCurrencyLoading, and if not, I need to add them. Let me check the component definition.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add currency and isCurrencyLoading props to the ConfigureFormProps and then pass them down to TierSelectorSetup. Let me update the props and the component.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -41,4 +41,6 @@
+    installationUrl: string | null;
+    isRestoringFromCheckout?: boolean;
++   currency?: &quot;usd&quot; | &quot;eur&quot; | &quot;brl&quot;;
++   isCurrencyLoading?: boolean;
+  };
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the TierSelectorSetup usage to pass the currency props.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -680,4 +680,6 @@
+                    )
+                  }
++                 currency={props.currency}
++                 isCurrencyLoading={props.isCurrencyLoading}
+                /&gt;
+              &lt;/div&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the setup-form.tsx where ConfigureForm is called to pass the currency props.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "ConfigureForm"" in "/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx" • 0 matches</summary>
+
+Output mode: content
+
+
+_No matches found_
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me search for ConfigureForm without quotes.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "ConfigureForm" in "/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/setup/setup-form.tsx` | `import \{ ConfigureForm \} from "./configure-form";` | L31 |
+| `src/components/setup/setup-form.tsx` | `<ConfigureForm` | L696 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me look at the ConfigureForm usage around line 696.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the currency props to the ConfigureForm call. I can see that `detectedCurrency` is available in the setup-form.tsx component, so I need to pass it down.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -705,4 +705,6 @@
+          installationUrl={installationUrl ?? null}
+          isRestoringFromCheckout={isRestoringFromCheckout}
++         currency={detectedCurrency}
++         isCurrencyLoading={false}
+        /&gt;
+      &lt;/div&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check if there are any linter errors now.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/components/setup/tier-selector-setup.tsx`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx`
+
+Lint results
+
+Lint errors for `src/components/setup/setup-form.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Type '\{ form: UseFormReturn<\{ setupType: "repository" \| "new"; bundle: string; envVars: Record<string, string>; selectedRepo?: string \| undefined; selectedOrg?: string \| undefined; newRepoName?: string \| undefined; ... 10 more ...; hasPinacleYaml?: boolean \| undefined; \}, any, \{ ...; \}>; ... 7 more ...; isCurrencyLoading:...' is not assignable to type 'IntrinsicAttributes & ConfigureFormProps'.<br/>  Property 'currency' does not exist on type 'IntrinsicAttributes & ConfigureFormProps'. | 707:9-707:17 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+Lint errors for `src/components/setup/tier-selector-setup.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| The imports and exports are not sorted. | 3:1-7:57 | DIAGNOSTIC_SEVERITY_INFORMATION |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update the ConfigureFormProps type to include the currency props. Let me check if I already added them but there might be a type mismatch.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The types look correct. Let me check if the ConfigureForm function parameter declaration includes the new props. Let me find the ConfigureForm function signature.</details></think>
+
+---
+
+<tool-use data-tool-type="grep" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "const ConfigureForm" in "/Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/setup/configure-form.tsx` | `export const ConfigureForm = (\{` | L53 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check the function parameters to see if I need to update them.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add the currency props to the function parameters. Let me update that.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -59,4 +59,6 @@
+    installationUrl,
+    isRestoringFromCheckout = false,
++   currency = &quot;usd&quot;,
++   isCurrencyLoading = false,
+  }: ConfigureFormProps) =&gt; {
+    const [envVars, setEnvVars] = useState&lt;EnvVar[]&gt;([]);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check for any linter errors to make sure everything is working correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/components/setup/tier-selector-setup.tsx`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx`
+
+Lint results
+
+Lint errors for `src/components/setup/setup-form.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Type '\{ form: UseFormReturn<\{ setupType: "repository" \| "new"; bundle: string; envVars: Record<string, string>; selectedRepo?: string \| undefined; selectedOrg?: string \| undefined; newRepoName?: string \| undefined; ... 10 more ...; hasPinacleYaml?: boolean \| undefined; \}, any, \{ ...; \}>; ... 7 more ...; isCurrencyLoading:...' is not assignable to type 'IntrinsicAttributes & ConfigureFormProps'.<br/>  Property 'currency' does not exist on type 'IntrinsicAttributes & ConfigureFormProps'. | 707:9-707:17 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+Lint errors for `src/components/setup/tier-selector-setup.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| The imports and exports are not sorted. | 3:1-7:57 | DIAGNOSTIC_SEVERITY_INFORMATION |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It seems like the TypeScript is still not recognizing the updated ConfigureFormProps. Let me check if I need to rebuild or if there's a cache issue. Let me run a type check to see what's happening.</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && rm -rf .next && pnpm exec tsc --noEmit</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && rm -rf .next && pnpm exec tsc --noEmit
+```
+
+```
+src/components/setup/configure-form.tsx(684,27): error TS2304: Cannot find name &#39;props&#39;.
+src/components/setup/configure-form.tsx(685,36): error TS2304: Cannot find name &#39;props&#39;.
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue! I'm using `props.currency` and `props.isCurrencyLoading` in the ConfigureForm component, but the parameters are destructured. I need to use the destructured variables `currency` and `isCurrencyLoading` instead of `props.currency` and `props.isCurrencyLoading`.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -682,6 +682,6 @@
+                    )
+                  }
+-                 currency={props.currency}
+-                 isCurrencyLoading={props.isCurrencyLoading}
++                 currency={currency}
++                 isCurrencyLoading={isCurrencyLoading}
+                /&gt;
+              &lt;/div&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me run the TypeScript check again to make sure everything is working.</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pnpm exec tsc --noEmit</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && pnpm exec tsc --noEmit
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! ✅ All TypeScript errors are resolved. Let me summarize what I fixed:
+
+
+## Addressing TypeScript Errors
+
+- All TypeScript errors in the codebase have been resolved successfully.
+- The focus was on fixing issues in the TierSelectorSetup component located in `src/components/setup/tier-selector-setup.tsx`.
+
+## Updating Currency Handling
+
+- Added `currency` and `isCurrencyLoading` props to `TierSelectorSetup`, `ConfigureForm`, and `SetupForm` for consistent pricing display.
+- `TierSelectorSetup` now uses `PRICING_TABLE` for dynamic pricing and shows a loading state (`...`) during currency fetch, formatting prices with `formatCurrency()`.
+
+## Enhancing ConfigureForm
+
+- Updated `ConfigureFormProps` to include `currency` and `isCurrencyLoading`, with defaults in function parameters.
+- Ensures `TierSelectorSetup` receives currency props for seamless integration.
+
+## Improving Setup Form
+
+- `SetupForm` passes `detectedCurrency` and `isCurrencyLoading` (set to `false` for fast detection) to `ConfigureForm`.
+- Ensures the **Compute Resources** section displays localized pricing (EUR/BRL/USD) consistently.
+
+## Enhancing Currency Localization
+
+- All pricing displays across the application now use detected currency, replacing hardcoded USD.
+- Specific updates include landing page templates, pricing page, setup configuration, Stripe checkout, and setup summary, all showing localized prices like €6/month for Europe and R$30/month for Brazil.</details></think>
+
+---
+
+_**User (2025-11-16 22:50Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking me to follow the commit.md instructions. Let me read what it says:
+
+
+## Reviewing user request  
+- The user wants to follow commit.md instructions for committing changes.</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status --porcelain</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git status --porcelain
+```
+
+```
+ M .specstory/history/2025-11-02_22-13Z-create-pricing-page-with-tier-table.md
+ M .specstory/history/2025-11-16_21-55Z-implement-invitation-system-and-team-visibility.md
+ M src/components/setup/configure-form.tsx
+ M src/components/setup/setup-form.tsx
+ M src/components/setup/tier-selector-setup.tsx
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the modified files. Let me add only the relevant ones (not the .specstory files as those are AI conversation logs):
+</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/setup/configure-form.tsx src/components/setup/setup-form.tsx src/components/setup/tier-selector-setup.tsx</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/components/setup/configure-form.tsx src/components/setup/setup-form.tsx src/components/setup/tier-selector-setup.tsx
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me create a conventional commit message. Based on the changes I made:
+</details></think>
+
+---
+
+<tool-use data-tool-type="bash" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: display localized currency in setup form Compute Resources section
+
+- Update TierSelectorSetup to accept currency props and show localized pricing
+- Pass detected currency from setup form to configure form components  
+- Fix hardcoded USD display in Compute Resources section to show EUR/BRL/USD based on user location"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git commit -m "fix: display localized currency in setup form Compute Resources section
+
+- Update TierSelectorSetup to accept currency props and show localized pricing
+- Pass detected currency from setup form to configure form components  
+- Fix hardcoded USD display in Compute Resources section to show EUR/BRL/USD based on user location"
+```
+
+```
+[main 7a4abea] fix: display localized currency in setup form Compute Resources section
+ 3 files changed, 27 insertions(+), 2 deletions(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've successfully committed the changes. The commit message follows conventional commit format:
+</details></think>
+
+---
+
+✅ **Committed!** 
+
+**Conventional commit message:**
+```
+fix: display localized currency in setup form Compute Resources section
+
+- Update TierSelectorSetup to accept currency props and show localized pricing
+- Pass detected currency from setup form to configure form components  
+- Fix hardcoded USD display in Compute Resources section to show EUR/BRL/USD based on user location
+```
+
+**Files committed:**
+- `src/components/setup/configure-form.tsx`
+- `src/components/setup/setup-form.tsx`
+- `src/components/setup/tier-selector-setup.tsx`
+
+The setup form's Compute Resources section now correctly displays localized currency (EUR/BRL/USD) instead of hardcoded USD prices, consistent with the rest of the application! 🎉
+
+(I excluded the `.specstory` conversation log files as instructed)
+
+---
+

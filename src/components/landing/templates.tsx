@@ -4,7 +4,12 @@ import { LucideLayers } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { SERVICE_TEMPLATES } from "@/lib/pod-orchestration/service-registry";
+import {
+  SERVICE_TEMPLATES,
+  getCodingAssistantIds,
+  CODING_ASSISTANTS,
+  type CodingAssistantId,
+} from "@/lib/pod-orchestration/service-registry";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
 import { api } from "@/lib/trpc/client";
 import { TierSelector } from "../shared/tier-selector";
@@ -27,32 +32,19 @@ type CodingAgent = {
   alt: string;
 };
 
-const CODING_AGENTS: CodingAgent[] = [
-  {
-    id: "claude",
-    icon: "/logos/claude.svg",
-    name: "Claude Code",
-    alt: "Claude",
-  },
-  {
-    id: "openai",
-    icon: "/logos/openai.svg",
-    name: "OpenAI Codex",
-    alt: "OpenAI",
-  },
-  {
-    id: "cursor",
-    icon: "/logos/cursor.svg",
-    name: "Cursor CLI",
-    alt: "Cursor",
-  },
-  {
-    id: "gemini",
-    icon: "/logos/gemini.svg",
-    name: "Gemini CLI",
-    alt: "Gemini",
-  },
-];
+// Get coding agents dynamically from service registry
+const CODING_AGENTS: CodingAgent[] = getCodingAssistantIds()
+  .map((assistantId: CodingAssistantId) => {
+    const service = SERVICE_TEMPLATES[assistantId];
+    const assistant = CODING_ASSISTANTS[assistantId];
+    return {
+      id: assistant.urlParamName,
+      icon: service.icon || "",
+      name: service.displayName,
+      alt: service.iconAlt || service.displayName,
+    };
+  })
+  .filter((agent) => agent.icon); // Only include agents with icons
 
 type TemplateCardProps = {
   template: ReturnType<typeof getPublicTemplates>[number];

@@ -489,7 +489,7 @@ export const podsRouter = createTRPCRouter({
               serverId: availableServer.id,
               githubRepoSetup,
               hasPinacleYaml,
-            }),
+            }, process.env.NODE_ENV === "production"),
             timeoutPromise,
           ]);
 
@@ -1666,7 +1666,7 @@ export const podsRouter = createTRPCRouter({
               podId: input.podId,
               serverId: availableServer.id,
               githubRepoSetup,
-            }),
+            }, process.env.NODE_ENV === "production"),
             timeoutPromise,
           ]);
 
