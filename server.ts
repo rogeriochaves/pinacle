@@ -340,9 +340,8 @@ const createPodProxy = async (
       return null;
     }
 
-    // Determine target host
-    const isLimaVm = !!server.limaVmName;
-    const targetHost = isLimaVm ? "127.0.0.1" : server.ipAddress;
+    // Target host (always use server IP since we no longer use Lima VMs)
+    const targetHost = server.ipAddress;
     const targetPort = nginxProxy.external;
 
     proxyLogger.info(

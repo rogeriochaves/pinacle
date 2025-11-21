@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { GitHubIntegration } from "../github-integration";
-import { getLimaServerConnection } from "../lima-utils";
 import { PodManager } from "../pod-manager";
+import { SSHServerConnection } from "../server-connection";
 import type { PodSpec } from "../types";
 
 describe("GitHub Integration Tests", () => {
@@ -11,7 +11,13 @@ describe("GitHub Integration Tests", () => {
 
   beforeAll(async () => {
     // Initialize managers
-    podManager = new PodManager(podId, await getLimaServerConnection());
+    const serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: 22,
+      user: "root",
+      privateKey: "mock-key",
+    });
+    podManager = new PodManager(podId, serverConnection);
     githubIntegration = new GitHubIntegration(podManager);
   });
 

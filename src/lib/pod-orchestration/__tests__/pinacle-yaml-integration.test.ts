@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
 import { KataRuntime } from "../container-runtime";
 import { GitHubIntegration } from "../github-integration";
-import { getLimaServerConnection } from "../lima-utils";
+import { SSHServerConnection } from "../server-connection";
 import { NetworkManager } from "../network-manager";
 import {
   generatePinacleConfigFromForm,
@@ -51,7 +51,12 @@ describe("Pinacle YAML Integration Tests", () => {
     }
 
     // Clean up any existing test containers
-    const serverConnection = await getLimaServerConnection();
+    const serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: 22,
+      user: "root",
+      privateKey: "mock-key",
+    });
     containerRuntime = new KataRuntime(serverConnection);
     networkManager = new NetworkManager(serverConnection);
     podManager = new PodManager(testPodId, serverConnection);

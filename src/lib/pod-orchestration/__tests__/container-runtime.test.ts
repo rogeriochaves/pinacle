@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { KataRuntime } from "../container-runtime";
-import { getLimaServerConnection } from "../lima-utils";
+import { SSHServerConnection } from "../server-connection";
 import type { PodSpec, } from "../types";
 
 // Use vi.hoisted to ensure mockExec is available in the mock factory
@@ -44,7 +44,12 @@ describe("KataRuntime", () => {
       },
     );
 
-    runtime = new KataRuntime(await getLimaServerConnection());
+    runtime = new KataRuntime(new SSHServerConnection({
+      host: "127.0.0.1",
+      port: 22,
+      user: "root",
+      privateKey: "mock-key",
+    }));
 
     testConfig = {
       version: "1.0",

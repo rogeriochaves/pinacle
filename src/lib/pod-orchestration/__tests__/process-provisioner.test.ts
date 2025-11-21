@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateKSUID } from "../../utils";
-import { getLimaServerConnection } from "../lima-utils";
+import { SSHServerConnection } from "../server-connection";
 import { NetworkManager } from "../network-manager";
 import { PodManager } from "../pod-manager";
 import { ProcessProvisioner } from "../process-provisioner";
@@ -14,7 +14,12 @@ describe("ProcessProvisioner Integration Tests", () => {
 
   beforeAll(async () => {
     testPodId = generateKSUID("pod");
-    const serverConnection = await getLimaServerConnection();
+    const serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: 22,
+      user: "root",
+      privateKey: "mock-key",
+    });
     podManager = new PodManager(testPodId, serverConnection);
     networkManager = new NetworkManager(serverConnection);
     processProvisioner = new ProcessProvisioner(testPodId, serverConnection);

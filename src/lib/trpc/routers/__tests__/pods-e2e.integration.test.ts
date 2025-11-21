@@ -18,7 +18,7 @@ import {
   teams,
   users,
 } from "@/lib/db/schema";
-import { getLimaSshPort, isLimaVmRunning } from "@/lib/pod-orchestration/lima-utils";
+// Removed Lima imports - now using direct server connections
 import { appRouter } from "../../root";
 
 // Helper to create tRPC context
@@ -51,17 +51,9 @@ describe("Pod E2E Integration Tests", () => {
       throw error;
     }
 
-    // 2. Check if Lima VM is running and get SSH port
-    const vmName = "gvisor-alpine";
-    const running = await isLimaVmRunning(vmName);
-    if (!running) {
-      throw new Error(
-        `Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}`,
-      );
-    }
-
-    const sshPort = await getLimaSshPort(vmName);
-    console.log(`✅ Lima VM ${vmName} is running on port ${sshPort}`);
+    // 2. Set up test server connection (assumes test server is available)
+    const sshPort = 22; // Default SSH port for test server
+    console.log(`✅ Using test server connection on port ${sshPort}`);
 
     // 3. Clean up existing test data
     console.log("🧹 Cleaning up test data from database...");
@@ -178,14 +170,14 @@ describe("Pod E2E Integration Tests", () => {
     if (existingServer) {
       await db
         .update(servers)
-        .set({ sshPort, limaVmName: vmName, status: "online" })
+        .set({ sshPort, status: "online" })
         .where(eq(servers.id, existingServer.id));
       testServerId = existingServer.id;
     } else {
       const [testServer] = await db
         .insert(servers)
         .values({
-          hostname: "lima-gvisor-alpine-e2e",
+          hostname: "test-server-e2e",
           ipAddress: "127.0.0.1",
           cpuCores: 4,
           memoryMb: 8192,
@@ -193,7 +185,6 @@ describe("Pod E2E Integration Tests", () => {
           sshHost: "127.0.0.1",
           sshPort,
           sshUser: process.env.USER || "root",
-          limaVmName: vmName,
           status: "online",
           lastHeartbeatAt: new Date(),
         })

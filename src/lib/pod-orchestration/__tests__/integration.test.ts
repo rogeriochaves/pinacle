@@ -16,7 +16,6 @@ import {
 } from "@/lib/db/schema";
 import { generateKSUID } from "@/lib/utils";
 import { KataRuntime } from "../container-runtime";
-import { getLimaServerConnection } from "../lima-utils";
 import { NetworkManager } from "../network-manager";
 import {
   generatePinacleConfigFromForm,
@@ -24,11 +23,12 @@ import {
 } from "../pinacle-config";
 import { PodManager } from "../pod-manager";
 import { PodProvisioningService } from "../pod-provisioning-service";
+import { SSHServerConnection } from "../server-connection";
 import type { ServerConnection } from "../types";
 
 const execAsync = promisify(exec);
 
-// Integration tests that run against actual Lima VM and database
+// Integration tests that run against actual test server and database
 describe("Pod Orchestration Integration Tests", () => {
   let provisioningService: PodProvisioningService;
   let serverConnection: ServerConnection;
@@ -38,40 +38,14 @@ describe("Pod Orchestration Integration Tests", () => {
   let testServerId: string;
 
   beforeAll(async () => {
-    // 1. Set up Lima SSH key for authentication
-    const limaKeyPath = join(homedir(), ".lima", "_config", "user");
-    try {
-      const limaKey = readFileSync(limaKeyPath, "utf-8");
-      process.env.SSH_PRIVATE_KEY = limaKey;
-      console.log("🔑 Loaded Lima SSH key");
-    } catch (error) {
-      console.error("Failed to load Lima SSH key:", error);
-      throw error;
-    }
+    // 1. Set up test server SSH key
+    const privateKey = process.env.SSH_PRIVATE_KEY || "test-key";
+    process.env.SSH_PRIVATE_KEY = privateKey;
+    console.log("🔑 Using test SSH key");
 
-    // 2. Check if Lima VM is running and get SSH port
-    let sshPort: number;
-    const vmName = "gvisor-alpine";
-
-    try {
-      const { isLimaVmRunning, getLimaSshPort } = await import("../lima-utils");
-
-      const isRunning = await isLimaVmRunning(vmName);
-      if (!isRunning) {
-        throw new Error(
-          `Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}`,
-        );
-      }
-
-      console.log(`✅ Lima VM ${vmName} is running`);
-
-      // Get actual SSH port from Lima
-      sshPort = await getLimaSshPort(vmName);
-      console.log(`🔌 Lima SSH port: ${sshPort}`);
-    } catch (error) {
-      console.error("Lima VM check failed:", error);
-      throw error;
-    }
+    // 2. Set up test server connection
+    const sshPort = 22; // Default SSH port for test server
+    console.log(`✅ Using test server connection on port ${sshPort}`);
 
     // 3. Clean up existing test data from database
     console.log("🧹 Cleaning up test data from database...");
@@ -112,7 +86,12 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
-    serverConnection = await getLimaServerConnection();
+    serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: sshPort,
+      user: process.env.USER || "root",
+      privateKey: privateKey,
+    });
     const containerRuntime = new KataRuntime(serverConnection);
 
     const containers = await containerRuntime.listContainers();
@@ -177,7 +156,7 @@ describe("Pod Orchestration Integration Tests", () => {
       role: "owner",
     });
 
-    // Create or update test server record for Lima VM with current SSH port
+    // Create or update test server record for test server with SSH port
     const [existingServer] = await db
       .select()
       .from(servers)
@@ -185,10 +164,10 @@ describe("Pod Orchestration Integration Tests", () => {
       .limit(1);
 
     if (existingServer) {
-      // Update SSH port and limaVmName to current values
+      // Update SSH port
       await db
         .update(servers)
-        .set({ sshPort, limaVmName: vmName })
+        .set({ sshPort })
         .where(eq(servers.id, existingServer.id));
       testServerId = existingServer.id;
       console.log(
@@ -198,7 +177,7 @@ describe("Pod Orchestration Integration Tests", () => {
       const [testServer] = await db
         .insert(servers)
         .values({
-          hostname: "lima-gvisor-alpine",
+          hostname: "test-server",
           ipAddress: "127.0.0.1",
           cpuCores: 4,
           memoryMb: 8192,
@@ -206,7 +185,6 @@ describe("Pod Orchestration Integration Tests", () => {
           sshHost: "127.0.0.1",
           sshPort,
           sshUser: process.env.USER || "root",
-          limaVmName: vmName, // Mark this as a Lima VM
           status: "online",
         })
         .returning();
@@ -728,7 +706,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log("Port 8080 response (from container):", test8080.stdout);
     expect(test8080.stdout.trim()).toBe("Hello from port 8080!");
 
-    // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
+    // Test using curl (this tests the hostname routing)
     console.log("Testing from Mac via curl...");
     const curlTest3000 = await execAsync(
       `curl -s -H "Host: localhost-3000-pod-proxy-test-pod.localhost" http://localhost:${proxyPort}`,
@@ -1031,7 +1009,12 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`✅ Pod provisioned with container: ${containerId}`);
 
     // Verify container exists (directly check Docker)
-    const serverConnection = await getLimaServerConnection();
+    const serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: 22,
+      user: process.env.USER || "root",
+      privateKey: process.env.SSH_PRIVATE_KEY || "test-key",
+    });
     const runtime = new KataRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
@@ -1077,7 +1060,9 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 1. Create and provision a test pod
     const volumeTestId = `volume-test-${Date.now()}`;
-    console.log(`📦 Creating pod ${volumeTestId} for volume persistence test...`);
+    console.log(
+      `📦 Creating pod ${volumeTestId} for volume persistence test...`,
+    );
 
     const pinacleConfig = generatePinacleConfigFromForm({
       template: "nodejs-blank",
@@ -1221,7 +1206,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
   it("should persist data across container removal and recreation", async () => {
     console.log(
-      "\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...",
+      "\n🧪 Testing volume persistence across container removal/recreation...",
     );
 
     // 1. Create and provision a test pod
@@ -1244,7 +1229,8 @@ describe("Pod Orchestration Integration Tests", () => {
         id: recreateTestId,
         name: "Recreation Persistence Test Pod",
         slug: "recreate-test-pod",
-        description: "Test pod for testing volume persistence across recreation",
+        description:
+          "Test pod for testing volume persistence across recreation",
         template: "nodejs-blank",
         teamId: testTeamId,
         ownerId: testUserId,
@@ -1303,7 +1289,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     console.log("✅ Test files written and verified");
 
-    // 3. Stop and remove the container (simulating Lima restart or crash)
+    // 3. Stop and remove the container (simulating server restart or crash)
     console.log("🗑️  Removing container (simulating unexpected restart)...");
     await runtime.stopContainer(originalContainerId);
     await runtime.removeContainer(originalContainerId, {
@@ -1316,7 +1302,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     console.log("✅ Container removed, volumes preserved");
 
-    // 4. Create a new container for the same pod (simulating pod restart after Lima restart)
+    // 4. Create a new container for the same pod (simulating pod restart after server restart)
     console.log("🔄 Creating new container with same volumes...");
 
     // Get the pod spec to recreate container
@@ -1363,8 +1349,13 @@ describe("Pod Orchestration Integration Tests", () => {
       "data that should survive recreation",
     );
 
-    const persistedConfig = await podManager.execInPod(["cat", "/root/.config"]);
-    expect(persistedConfig.stdout.trim()).toBe("root config that should survive");
+    const persistedConfig = await podManager.execInPod([
+      "cat",
+      "/root/.config",
+    ]);
+    expect(persistedConfig.stdout.trim()).toBe(
+      "root config that should survive",
+    );
 
     console.log("✅ All data persisted correctly across container recreation!");
 

@@ -274,7 +274,7 @@ export class ServerAgent {
             );
             await this.registerToDevUrl();
           }
-        } catch (error) {
+        } catch {
           // Dev URL is optional, so just log warning if it fails
           console.warn("⚠️  Failed to send metrics to dev URL (non-critical)");
         }

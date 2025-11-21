@@ -197,10 +197,10 @@ EOF`,
 }
 EOF`,
         `mkdir -p /root/.local/share/vibe-kanban`,
-        `ln -s ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
+        `ln -sfn ~/.local/share/vibe-kanban/config.json /root/.local/share/vibe-kanban/config.json`,
       ];
     },
-    startCommand: () => ["sh", "-c", "cd /workspace && /root/.local/share/pnpm/vibe-kanban"],
+    startCommand: () => ["sh", "-c 'cd /workspace && /root/.local/share/pnpm/vibe-kanban'"],
     cleanupCommand: [],
     healthCheckStartDelay: 4,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],

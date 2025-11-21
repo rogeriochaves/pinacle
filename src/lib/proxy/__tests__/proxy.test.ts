@@ -26,7 +26,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
-import { getLimaServerConnection } from "@/lib/pod-orchestration/lima-utils";
+import { SSHServerConnection } from "@/lib/pod-orchestration/server-connection";
 import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
 import {
   generatePinacleConfigFromForm,
@@ -49,42 +49,14 @@ describe("Proxy Integration Tests", () => {
   let proxyPort: number;
 
   beforeAll(async () => {
-    // 1. Set up Lima SSH key for authentication
-    const limaKeyPath = join(homedir(), ".lima", "_config", "user");
-    try {
-      const limaKey = readFileSync(limaKeyPath, "utf-8");
-      process.env.SSH_PRIVATE_KEY = limaKey;
-      console.log("🔑 Loaded Lima SSH key");
-    } catch (error) {
-      console.error("Failed to load Lima SSH key:", error);
-      throw error;
-    }
+    // 1. Set up test server SSH key
+    const privateKey = process.env.SSH_PRIVATE_KEY || "test-key";
+    process.env.SSH_PRIVATE_KEY = privateKey;
+    console.log("🔑 Using test SSH key");
 
-    // 2. Check if Lima VM is running and get SSH port
-    let sshPort: number;
-    const vmName = "gvisor-alpine";
-
-    try {
-      const { isLimaVmRunning, getLimaSshPort } = await import(
-        "@/lib/pod-orchestration/lima-utils"
-      );
-
-      const isRunning = await isLimaVmRunning(vmName);
-      if (!isRunning) {
-        throw new Error(
-          `Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}`,
-        );
-      }
-
-      console.log(`✅ Lima VM ${vmName} is running`);
-
-      // Get actual SSH port from Lima
-      sshPort = await getLimaSshPort(vmName);
-      console.log(`🔌 Lima SSH port: ${sshPort}`);
-    } catch (error) {
-      console.error("Lima VM check failed:", error);
-      throw error;
-    }
+    // 2. Set up test server connection
+    const sshPort = 22; // Default SSH port for test server
+    console.log(`✅ Using test server connection on port ${sshPort}`);
 
     // 3. Clean up existing test data from database
     console.log("🧹 Cleaning up test data from database...");
@@ -125,7 +97,12 @@ describe("Proxy Integration Tests", () => {
 
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
-    serverConnection = await getLimaServerConnection();
+    serverConnection = new SSHServerConnection({
+      host: "127.0.0.1",
+      port: sshPort,
+      user: process.env.USER || "root",
+      privateKey: privateKey,
+    });
     const containerRuntime = new KataRuntime(serverConnection);
 
     const containers = await containerRuntime.listContainers();
@@ -190,10 +167,10 @@ describe("Proxy Integration Tests", () => {
       .limit(1);
 
     if (existingServer) {
-      // Update SSH port and limaVmName to current values
+      // Update SSH port
       await db
         .update(servers)
-        .set({ sshPort, limaVmName: vmName })
+        .set({ sshPort })
         .where(eq(servers.id, existingServer.id));
       testServerId = existingServer.id;
       console.log(
@@ -203,7 +180,7 @@ describe("Proxy Integration Tests", () => {
       const [testServer] = await db
         .insert(servers)
         .values({
-          hostname: "lima-gvisor-alpine",
+          hostname: "test-server-proxy",
           ipAddress: "127.0.0.1",
           cpuCores: 4,
           memoryMb: 8192,
@@ -211,7 +188,6 @@ describe("Proxy Integration Tests", () => {
           sshHost: "127.0.0.1",
           sshPort,
           sshUser: process.env.USER || "root",
-          limaVmName: vmName, // Mark this as a Lima VM
           status: "online",
         })
         .returning();
