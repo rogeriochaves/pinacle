@@ -133,7 +133,6 @@ export const servers = pgTable("server", {
   sshHost: varchar("ssh_host", { length: 255 }).notNull().default(""),
   sshPort: integer("ssh_port").notNull().default(22),
   sshUser: varchar("ssh_user", { length: 100 }).notNull().default("root"),
-  limaVmName: varchar("lima_vm_name", { length: 100 }), // If this is a Lima VM, store VM name for dynamic port retrieval
 
   // Hardware specs
   cpuCores: real("cpu_cores").notNull(),

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { cpus, hostname, networkInterfaces, totalmem } from "node:os";
 import { resolve } from "node:path";
 import { config } from "dotenv";
+import KSUID from "ksuid";
 import { MetricsCollector } from "./metrics-collector.js";
 import type { AgentConfig, ServerInfo } from "./types.js";
 
@@ -13,13 +14,15 @@ const CONFIG_FILE = resolve(process.cwd(), ".server-config.json");
 export class ServerAgent {
   private config: AgentConfig;
   private metricsCollector: MetricsCollector;
-  private serverId?: string;
+  private serverId!: string; // Stable server ID generated on first run (initialized in loadServerConfig)
   private intervalId?: NodeJS.Timeout;
 
   constructor() {
     this.config = {
       apiUrl: process.env.API_URL || "http://localhost:3000",
+      devApiUrl: process.env.DEV_API_URL, // Optional dev/cloudflared tunnel URL
       apiKey: process.env.API_KEY || "",
+      devApiKey: process.env.DEV_API_KEY, // Optional separate API key for dev URL
       heartbeatIntervalMs: parseInt(
         process.env.HEARTBEAT_INTERVAL_MS || "30000",
         10,
@@ -38,6 +41,9 @@ export class ServerAgent {
   async start(): Promise<void> {
     console.log("🚀 Starting Pinacle Server Agent...");
     console.log(`   API URL: ${this.config.apiUrl}`);
+    if (this.config.devApiUrl) {
+      console.log(`   Dev API URL: ${this.config.devApiUrl} 🔧`);
+    }
     console.log(
       `   Heartbeat interval: ${this.config.heartbeatIntervalMs / 1000}s`,
     );
@@ -78,10 +84,27 @@ export class ServerAgent {
 
   /**
    * Register this server with the main application
+   * Registers with both production and dev URLs if dev URL is configured
+   * Uses the stable server ID to ensure consistent identity across environments
    */
   private async registerServer(): Promise<void> {
     const serverInfo = await this.getServerInfo();
 
+    const registerPayload = {
+      json: {
+        id: this.serverId, // Include stable server ID
+        hostname: serverInfo.hostname,
+        ipAddress: serverInfo.ipAddress,
+        cpuCores: serverInfo.cpuCores,
+        memoryMb: serverInfo.memoryMb,
+        diskGb: serverInfo.diskGb,
+        sshHost: serverInfo.sshHost,
+        sshPort: serverInfo.sshPort,
+        sshUser: serverInfo.sshUser,
+      },
+    };
+
+    // Register with production URL (primary)
     try {
       const response = await fetch(
         `${this.config.apiUrl}/api/trpc/servers.registerServer`,
@@ -91,19 +114,7 @@ export class ServerAgent {
             "Content-Type": "application/json",
             "x-api-key": this.config.apiKey,
           },
-          body: JSON.stringify({
-            json: {
-              hostname: serverInfo.hostname,
-              ipAddress: serverInfo.ipAddress,
-              cpuCores: serverInfo.cpuCores,
-              memoryMb: serverInfo.memoryMb,
-              diskGb: serverInfo.diskGb,
-              sshHost: serverInfo.sshHost,
-              sshPort: serverInfo.sshPort,
-              sshUser: serverInfo.sshUser,
-              limaVmName: serverInfo.limaVmName,
-            },
-          }),
+          body: JSON.stringify(registerPayload),
         },
       );
 
@@ -124,13 +135,71 @@ export class ServerAgent {
 
       console.log(`✅ Server registered successfully! ID: ${this.serverId}`);
     } catch (error) {
-      console.error("❌ Failed to register server:", error);
+      console.error("❌ Failed to register server with production URL:", error);
       throw error;
+    }
+
+    // Also register with dev URL if configured
+    if (this.config.devApiUrl) {
+      await this.registerToDevUrl();
+    }
+  }
+
+  /**
+   * Register server specifically to the dev URL
+   * This is called when the dev URL returns 404 for metrics
+   * Uses the same stable server ID as production registration
+   */
+  private async registerToDevUrl(): Promise<void> {
+    if (!this.config.devApiUrl) {
+      return;
+    }
+
+    const serverInfo = await this.getServerInfo();
+
+    const registerPayload = {
+      json: {
+        id: this.serverId, // Use same stable server ID
+        hostname: serverInfo.hostname,
+        ipAddress: serverInfo.ipAddress,
+        cpuCores: serverInfo.cpuCores,
+        memoryMb: serverInfo.memoryMb,
+        diskGb: serverInfo.diskGb,
+        sshHost: serverInfo.sshHost,
+        sshPort: serverInfo.sshPort,
+        sshUser: serverInfo.sshUser,
+      },
+    };
+
+    try {
+      const response = await fetch(
+        `${this.config.devApiUrl}/api/trpc/servers.registerServer`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": this.config.devApiKey || this.config.apiKey,
+          },
+          body: JSON.stringify(registerPayload),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Dev URL registration failed: ${response.status}\n${errorText}`,
+        );
+      }
+
+      console.log("✅ Server registered with dev URL");
+    } catch (error) {
+      console.warn("⚠️  Failed to register with dev URL:", error);
     }
   }
 
   /**
    * Send heartbeat and metrics to main server
+   * Reports to both production and dev URLs if dev URL is configured
    */
   private async sendHeartbeatAndMetrics(): Promise<void> {
     if (!this.serverId) {
@@ -142,7 +211,18 @@ export class ServerAgent {
       // Collect metrics
       const metrics = await this.metricsCollector.collect();
 
-      // Send metrics
+      const metricsPayload = {
+        json: {
+          serverId: this.serverId,
+          cpuUsagePercent: metrics.cpuUsagePercent,
+          memoryUsageMb: metrics.memoryUsageMb,
+          diskUsageGb: metrics.diskUsageGb,
+          activePodsCount: metrics.activePodsCount,
+          podMetrics: metrics.podMetrics,
+        },
+      };
+
+      // Send metrics to production URL (primary)
       const metricsResponse = await fetch(
         `${this.config.apiUrl}/api/trpc/servers.reportMetrics`,
         {
@@ -151,16 +231,7 @@ export class ServerAgent {
             "Content-Type": "application/json",
             "x-api-key": this.config.apiKey,
           },
-          body: JSON.stringify({
-            json: {
-              serverId: this.serverId,
-              cpuUsagePercent: metrics.cpuUsagePercent,
-              memoryUsageMb: metrics.memoryUsageMb,
-              diskUsageGb: metrics.diskUsageGb,
-              activePodsCount: metrics.activePodsCount,
-              podMetrics: metrics.podMetrics,
-            },
-          }),
+          body: JSON.stringify(metricsPayload),
         },
       );
 
@@ -180,6 +251,34 @@ export class ServerAgent {
       console.log(
         `💓 Heartbeat sent | CPU: ${metrics.cpuUsagePercent}% | Memory: ${metrics.memoryUsageMb}MB | Pods: ${metrics.activePodsCount}`,
       );
+
+      // Also send metrics to dev URL if configured
+      if (this.config.devApiUrl) {
+        try {
+          const devMetricsResponse = await fetch(
+            `${this.config.devApiUrl}/api/trpc/servers.reportMetrics`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": this.config.devApiKey || this.config.apiKey,
+              },
+              body: JSON.stringify(metricsPayload),
+            },
+          );
+
+          // If server not found on dev URL, register it with the same stable ID
+          if (!devMetricsResponse.ok && devMetricsResponse.status === 404) {
+            console.warn(
+              "⚠️  Server not found on dev URL, registering now...",
+            );
+            await this.registerToDevUrl();
+          }
+        } catch (error) {
+          // Dev URL is optional, so just log warning if it fails
+          console.warn("⚠️  Failed to send metrics to dev URL (non-critical)");
+        }
+      }
     } catch (error) {
       console.error("❌ Failed to send heartbeat/metrics:", error);
     }
@@ -245,17 +344,12 @@ export class ServerAgent {
       sshUser,
     };
 
-    // Add Lima VM name if this is a Lima VM (for dynamic port retrieval)
-    if (process.env.LIMA_VM_NAME) {
-      serverInfo.limaVmName = process.env.LIMA_VM_NAME;
-      console.log(`📌 Lima VM detected: ${process.env.LIMA_VM_NAME}`);
-    }
-
     return serverInfo;
   }
 
   /**
    * Load server configuration from file
+   * Generates a new stable server ID if config doesn't exist
    */
   private loadServerConfig(): void {
     if (existsSync(CONFIG_FILE)) {
@@ -266,8 +360,23 @@ export class ServerAgent {
         console.log(`📁 Loaded server config: ${this.serverId}`);
       } catch (error) {
         console.warn("⚠️  Failed to load server config:", error);
+        this.serverId = this.generateServerId();
+        this.saveServerConfig();
       }
+    } else {
+      // First run - generate new stable server ID
+      this.serverId = this.generateServerId();
+      console.log(`🆔 Generated new server ID: ${this.serverId}`);
+      this.saveServerConfig();
     }
+  }
+
+  /**
+   * Generate a new server ID with "server_" prefix
+   */
+  private generateServerId(): string {
+    const ksuid = KSUID.randomSync();
+    return `server_${ksuid.string}`;
   }
 
   /**

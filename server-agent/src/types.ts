@@ -8,7 +8,6 @@ export type ServerInfo = {
   sshHost: string;
   sshPort: number;
   sshUser: string;
-  limaVmName?: string; // For Lima VMs, enables dynamic port retrieval
 };
 
 export type PodMetrics = {
@@ -31,8 +30,10 @@ export type ServerMetrics = {
 
 export type AgentConfig = {
   serverId?: string;
-  apiUrl: string;
-  apiKey: string;
+  apiUrl: string; // Production URL (always used)
+  devApiUrl?: string; // Optional dev URL (e.g., cloudflared tunnel)
+  apiKey: string; // API key for production URL
+  devApiKey?: string; // API key for dev URL (if different)
   heartbeatIntervalMs: number;
 };
 

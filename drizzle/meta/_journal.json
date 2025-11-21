@@ -176,6 +176,13 @@
       "when": 1763330461518,
       "tag": "0024_oval_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1763680178650,
+      "tag": "0025_ancient_warbound",
+      "breakpoints": true
     }
   ]
 }

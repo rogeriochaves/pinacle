@@ -7,11 +7,11 @@ import type {
   ServerConnection,
 } from "./types";
 
-export class GVisorRuntime {
+export class KataRuntime {
   private serverConnection: ServerConnection;
 
   constructor(serverConnection: ServerConnection) {
-    // Use provided connection or create default Lima connection for dev
+    // Use provided server connection
     this.serverConnection = serverConnection;
   }
 
@@ -137,7 +137,7 @@ export class GVisorRuntime {
     const containerId = stdout.trim();
     if (containerId) {
       console.log(
-        `[GVisorRuntime] Container ${containerName} already exists, removing it`,
+        `[KataRuntime] Container ${containerName} already exists, removing it`,
       );
       await this.exec(`docker stop ${containerId}`, true);
       await this.exec(`docker rm ${containerId}`, true);
@@ -155,11 +155,11 @@ export class GVisorRuntime {
     // Parse volume mounts
     const volumeMounts = this.parseVolumeMounts(spec.id);
 
-    // Build Docker run command with gVisor runtime - use array to avoid shell escaping issues
+    // Build Docker run command with Kata runtime - use array to avoid shell escaping issues
     const dockerArgs = [
       "docker",
       "create",
-      "--runtime=runsc", // Use gVisor runtime
+      "--runtime=kata-fc", // Use Kata Containers with Firecracker hypervisor
       "--name",
       containerName,
       ...resourceLimits.split(" ").filter(Boolean),
@@ -170,7 +170,7 @@ export class GVisorRuntime {
       spec.workingDir || "/workspace",
       "--user",
       spec.user || "root",
-      // Security options for gVisor
+      // Security options for Kata Containers
       "--security-opt",
       "seccomp=unconfined",
       "--cap-drop=ALL",
@@ -196,12 +196,12 @@ export class GVisorRuntime {
       }
 
       console.log(
-        `[GVisorRuntime] Created container ${containerName} with ID: ${containerId}`,
+        `[KataRuntime] Created container ${containerName} with ID: ${containerId}`,
       );
       return containerInfo;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to create container: ${message}`);
+      console.error(`[KataRuntime] Failed to create container: ${message}`);
       throw new Error(`Container creation failed: ${message}`);
     }
   }
@@ -221,10 +221,10 @@ export class GVisorRuntime {
         );
       }
 
-      console.log(`[GVisorRuntime] Started container: ${containerId}`);
+      console.log(`[KataRuntime] Started container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to start container: ${message}`);
+      console.error(`[KataRuntime] Failed to start container: ${message}`);
       throw new Error(`Container start failed: ${message}`);
     }
   }
@@ -232,10 +232,10 @@ export class GVisorRuntime {
   async stopContainer(containerId: string): Promise<void> {
     try {
       await this.exec(`docker stop ${containerId}`, true);
-      console.log(`[GVisorRuntime] Stopped container: ${containerId}`);
+      console.log(`[KataRuntime] Stopped container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to stop container: ${message}`);
+      console.error(`[KataRuntime] Failed to stop container: ${message}`);
       throw new Error(`Container stop failed: ${message}`);
     }
   }
@@ -254,7 +254,7 @@ export class GVisorRuntime {
     // If container doesn't exist, that's fine - it's already gone
     if (!container) {
       console.log(
-        `[GVisorRuntime] Container ${containerId} doesn't exist, skipping removal`,
+        `[KataRuntime] Container ${containerId} doesn't exist, skipping removal`,
       );
       // Still try to clean up volumes if requested and we can extract pod ID from container name
       if (removeVolumes) {
@@ -262,7 +262,7 @@ export class GVisorRuntime {
         const podIdFromName = containerId.replace("pinacle-pod-", "");
         if (podIdFromName !== containerId) {
           console.log(
-            `[GVisorRuntime] Cleaning up volumes for pod ${podIdFromName}`,
+            `[KataRuntime] Cleaning up volumes for pod ${podIdFromName}`,
           );
           await this.removeAllPodVolumes(podIdFromName);
         }
@@ -280,29 +280,29 @@ export class GVisorRuntime {
         !message.includes("No such container") &&
         !message.includes("is not running")
       ) {
-        console.warn(`[GVisorRuntime] Error stopping container: ${message}`);
+        console.warn(`[KataRuntime] Error stopping container: ${message}`);
       }
     }
 
     // Remove the container
     try {
       await this.exec(`docker rm ${containerId}`, true);
-      console.log(`[GVisorRuntime] Removed container: ${containerId}`);
+      console.log(`[KataRuntime] Removed container: ${containerId}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // If container doesn't exist, that's fine
       if (message.includes("No such container")) {
-        console.log(`[GVisorRuntime] Container ${containerId} already removed`);
+        console.log(`[KataRuntime] Container ${containerId} already removed`);
       } else {
         const errorMsg = `Failed to remove container: ${message}`;
-        console.error(`[GVisorRuntime] ${errorMsg}`);
+        console.error(`[KataRuntime] ${errorMsg}`);
         throw new Error(errorMsg);
       }
     }
 
     // Remove volumes (default behavior, unless explicitly disabled)
     if (removeVolumes && podId) {
-      console.log(`[GVisorRuntime] Cleaning up volumes for pod ${podId}`);
+      console.log(`[KataRuntime] Cleaning up volumes for pod ${podId}`);
       await this.removeAllPodVolumes(podId);
     }
   }
@@ -376,7 +376,7 @@ export class GVisorRuntime {
       ) {
         return null;
       }
-      console.error(`[GVisorRuntime] Failed to get container info: ${message}`);
+      console.error(`[KataRuntime] Failed to get container info: ${message}`);
       throw new Error(`Container inspection failed: ${message}`);
     }
   }
@@ -409,7 +409,7 @@ export class GVisorRuntime {
       return containers;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to list containers: ${message}`);
+      console.error(`[KataRuntime] Failed to list containers: ${message}`);
       throw new Error(`Container listing failed: ${message}`);
     }
   }
@@ -490,7 +490,7 @@ export class GVisorRuntime {
       return stdout;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to get container logs: ${message}`);
+      console.error(`[KataRuntime] Failed to get container logs: ${message}`);
       throw new Error(`Container logs retrieval failed: ${message}`);
     }
   }
@@ -520,35 +520,36 @@ export class GVisorRuntime {
     return match ? match[1] : containerName;
   }
 
-  // Additional gVisor-specific methods
-  async getGVisorInfo(): Promise<{ version: string; runtime: string }> {
+  // Additional Kata-specific methods
+  async getKataInfo(): Promise<{ version: string; runtime: string; hypervisor: string }> {
     try {
-      const { stdout } = await this.exec("runsc --version", false);
-      const versionMatch = stdout.match(/runsc version (.+)/);
+      const { stdout } = await this.exec("kata-runtime --version", false);
+      const versionMatch = stdout.match(/kata-runtime\s+:\s+(.+)/);
       const version = versionMatch ? versionMatch[1] : "unknown";
 
       return {
         version,
-        runtime: "gvisor",
+        runtime: "kata",
+        hypervisor: "firecracker",
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to get gVisor info: ${message}`);
-      throw new Error(`gVisor info retrieval failed: ${message}`);
+      console.error(`[KataRuntime] Failed to get Kata info: ${message}`);
+      throw new Error(`Kata info retrieval failed: ${message}`);
     }
   }
 
-  async validateGVisorRuntime(): Promise<boolean> {
+  async validateKataRuntime(): Promise<boolean> {
     try {
-      // Test if gVisor runtime is available
+      // Test if Kata runtime is available
       const { stdout } = await this.exec(
         "docker info --format='{{.Runtimes}}'",
         true,
       );
-      return stdout.includes("runsc");
+      return stdout.includes("kata-fc") || stdout.includes("io.containerd.kata.v2");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] gVisor validation failed: ${message}`);
+      console.error(`[KataRuntime] Kata validation failed: ${message}`);
       return false;
     }
   }
@@ -576,7 +577,7 @@ export class GVisorRuntime {
 
       if (stdout.trim()) {
         console.log(
-          `[GVisorRuntime] Volume ${fullVolumeName} already exists, reusing it`,
+          `[KataRuntime] Volume ${fullVolumeName} already exists, reusing it`,
         );
         return;
       }
@@ -593,7 +594,7 @@ export class GVisorRuntime {
         // Format: --opt size=XG or --opt size=XGiB
         createCommand += ` --opt size=${sizeGb}G`;
         console.log(
-          `[GVisorRuntime] Creating volume ${fullVolumeName} with ${sizeGb}GB limit`,
+          `[KataRuntime] Creating volume ${fullVolumeName} with ${sizeGb}GB limit`,
         );
       }
 
@@ -601,10 +602,10 @@ export class GVisorRuntime {
 
       if (sizeGb) {
         console.log(
-          `[GVisorRuntime] Created volume with size limit: ${fullVolumeName} (${sizeGb}GB)`,
+          `[KataRuntime] Created volume with size limit: ${fullVolumeName} (${sizeGb}GB)`,
         );
       } else {
-        console.log(`[GVisorRuntime] Created volume: ${fullVolumeName}`);
+        console.log(`[KataRuntime] Created volume: ${fullVolumeName}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -626,12 +627,12 @@ export class GVisorRuntime {
         // In production, quotas are REQUIRED for security and resource isolation
         if (process.env.NODE_ENV === "production") {
           console.error(
-            `[GVisorRuntime] CRITICAL: Storage quotas are not supported but required in production!`,
+            `[KataRuntime] CRITICAL: Storage quotas are not supported but required in production!`,
           );
           console.error(
-            `[GVisorRuntime] Ensure XFS with project quotas is configured on the Docker host.`,
+            `[KataRuntime] Ensure XFS with project quotas is configured on the Docker host.`,
           );
-          console.error(`[GVisorRuntime] See provisioning script for setup instructions.`);
+          console.error(`[KataRuntime] See provisioning script for setup instructions.`);
           throw new Error(
             `Storage quota enforcement is required in production but not available. ` +
             `Docker storage driver does not support quotas. ` +
@@ -641,24 +642,24 @@ export class GVisorRuntime {
 
         // In development/test, allow fallback without quotas
         console.warn(
-          `[GVisorRuntime] Storage driver doesn't support size limits (this is normal in dev/Lima), creating volume without quota: ${fullVolumeName}`,
+          `[KataRuntime] Storage driver doesn't support size limits (this is normal in dev), creating volume without quota: ${fullVolumeName}`,
         );
         // Retry without size option (graceful fallback)
         try {
           await this.exec(`docker volume create ${fullVolumeName}`, true);
           console.log(
-            `[GVisorRuntime] Created volume without size limit: ${fullVolumeName}`,
+            `[KataRuntime] Created volume without size limit: ${fullVolumeName}`,
           );
           return;
         } catch (retryError) {
           const retryMessage =
             retryError instanceof Error ? retryError.message : String(retryError);
-          console.error(`[GVisorRuntime] Failed to create volume: ${retryMessage}`);
+          console.error(`[KataRuntime] Failed to create volume: ${retryMessage}`);
           throw new Error(`Volume creation failed: ${retryMessage}`);
         }
       }
 
-      console.error(`[GVisorRuntime] Failed to create volume: ${message}`);
+      console.error(`[KataRuntime] Failed to create volume: ${message}`);
       throw new Error(`Volume creation failed: ${message}`);
     }
   }
@@ -668,11 +669,11 @@ export class GVisorRuntime {
 
     try {
       await this.exec(`docker volume rm ${fullVolumeName}`, true);
-      console.log(`[GVisorRuntime] Removed volume: ${fullVolumeName}`);
+      console.log(`[KataRuntime] Removed volume: ${fullVolumeName}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `[GVisorRuntime] Failed to remove volume ${fullVolumeName}: ${message}`,
+        `[KataRuntime] Failed to remove volume ${fullVolumeName}: ${message}`,
       );
       // Don't throw - volume might not exist or be in use
     }
@@ -694,18 +695,18 @@ export class GVisorRuntime {
       for (const volumeName of volumeNames) {
         try {
           await this.exec(`docker volume rm ${volumeName}`, true);
-          console.log(`[GVisorRuntime] Removed volume: ${volumeName}`);
+          console.log(`[KataRuntime] Removed volume: ${volumeName}`);
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
           console.warn(
-            `[GVisorRuntime] Failed to remove volume ${volumeName}: ${message}`,
+            `[KataRuntime] Failed to remove volume ${volumeName}: ${message}`,
           );
         }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[GVisorRuntime] Failed to list pod volumes: ${message}`);
+      console.error(`[KataRuntime] Failed to list pod volumes: ${message}`);
     }
   }
 }

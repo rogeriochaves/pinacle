@@ -46,11 +46,11 @@ export const recreatePodWithSnapshot = async ({
   db,
 }: RecreatePodInput): Promise<RecreatePodResult> => {
   const { PodManager } = await import("../../pod-orchestration/pod-manager");
-  const { GVisorRuntime } = await import(
+  const { KataRuntime } = await import(
     "../../pod-orchestration/container-runtime"
   );
   const podManager = new PodManager(pod.id, serverConnection);
-  const runtime = new GVisorRuntime(serverConnection);
+  const runtime = new KataRuntime(serverConnection);
 
   // Remove any stale container first
   const container = await podManager.getPodContainer();

@@ -1,6 +1,6 @@
 
 import { getProjectFolderFromRepository } from "../utils";
-import { GVisorRuntime } from "./container-runtime";
+import { KataRuntime } from "./container-runtime";
 import type { PodSpec, ProcessConfig, ServerConnection } from "./types";
 
 /**
@@ -9,11 +9,11 @@ import type { PodSpec, ProcessConfig, ServerConnection } from "./types";
  */
 export class ProcessProvisioner {
   private podId: string;
-  private containerRuntime: GVisorRuntime;
+  private containerRuntime: KataRuntime;
 
   constructor(podId: string, serverConnection: ServerConnection) {
     this.podId = podId;
-    this.containerRuntime = new GVisorRuntime(serverConnection);
+    this.containerRuntime = new KataRuntime(serverConnection);
   }
 
   /**

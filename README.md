@@ -7,7 +7,7 @@ Pinacle provides secure, lightweight virtual machines pre-configured with Claude
 - **Pre-configured AI Tools**: Claude Code, Vibe Kanban, and VS Code ready to use
 - **Scalable Resources**: From 1GB to 16GB RAM configurations
 - **Team Collaboration**: Invite team members and share development environments
-- **Secure Sandboxing**: gVisor isolation for maximum security
+- **Secure Sandboxing**: Firecracker microVMs for maximum security and isolation
 - **24/7 Uptime**: Keep your AI agents working while you sleep
 - **Mobile Access**: Monitor and control from your phone
 
@@ -18,16 +18,17 @@ Pinacle provides secure, lightweight virtual machines pre-configured with Claude
 - **Backend**: tRPC v11 for type-safe APIs
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: NextAuth.js with GitHub and credentials
-- **Containerization**: gVisor for secure VM isolation
-- **Deployment**: Vercel (frontend), Docker (backend services)
+- **Virtualization**: Firecracker microVMs with Kata Containers for secure VM isolation
+- **Deployment**: Vercel (frontend), Debian bare-metal servers with Docker + Firecracker
 
 ## 📋 Prerequisites
 
 - Node.js 18+ and pnpm
 - PostgreSQL database
-- Docker (for gVisor/container management)
+- Debian bare-metal server with KVM support (for Firecracker/Kata Containers)
+- Docker (for container management)
 - GitHub OAuth app (optional, for GitHub sign-in)
-- **For macOS Development**: Lima VM for gVisor support
+- **Note**: Firecracker requires KVM and cannot run on macOS - use remote server for development
 
 ## 🏗 Setup Instructions
 
@@ -77,23 +78,28 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-### 4. Lima VM Setup (macOS Development Only)
+### 4. Server Setup (Development & Production)
 
-For pod orchestration development on macOS, you need Lima with gVisor support:
+Pinacle uses Firecracker microVMs which require KVM (hardware virtualization) and cannot run on macOS. For development, use a remote Debian server:
 
 ```bash
-# Install Lima
-brew install lima
+# Set up environment variables in .env.local
+export DEV_SERVER_HOST="root@your-server-ip"
+export SERVER_API_KEY="your-dev-api-key"
+export SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 
-# Start the gVisor-enabled Lima VM
-limactl start gvisor-alpine.yaml
+# Provision development server with Firecracker + Kata Containers
+pnpm server:provision:dev
 
-# Verify Lima VM is running
-limactl list
-
-# Test gVisor runtime
-limactl shell gvisor-alpine sudo docker run --rm --runtime=runsc hello-world
+# Or for production server
+pnpm server:provision
 ```
+
+The provision script will:
+- Install Docker, Firecracker, and Kata Containers
+- Configure secure container runtime
+- Set up the server agent for monitoring
+- Deploy with Cloudflared tunnel for local development
 
 ### 5. Development Server
 
@@ -161,20 +167,17 @@ Key entities:
 
 ## 🐳 Pod Orchestration System
 
-The pod orchestration system manages secure development VMs using gVisor containers.
+The pod orchestration system manages secure development VMs using Firecracker microVMs with Kata Containers.
 
-### Development Environment (macOS)
+### Development Environment
 
-The system uses Lima VM for gVisor support on macOS:
+Development requires a remote Debian server with KVM support (Firecracker cannot run on macOS):
 
 ```bash
-# Install Lima
-brew install lima
+# Provision development server
+pnpm server:provision:dev
 
-# Start gVisor-enabled Lima VM
-limactl start gvisor-alpine.yaml
-
-# Test the pod system
+# Test the pod system (requires local dev server running)
 pnpm test:pod-system
 ```
 
@@ -194,23 +197,22 @@ curl http://localhost-8726-pod-test-pod.localhost:30000  # Code server on port 8
 curl http://localhost-5262-pod-test-pod.localhost:30000  # Vibe Kanban on port 5262
 ```
 
-### Production Environment (Linux)
+### Production Environment
 
-In production, the system runs directly on Linux with gVisor:
+In production, the system uses Firecracker microVMs on Debian bare-metal servers:
 
 ```bash
-# Install gVisor on Linux
-curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null
-sudo apt-get update && sudo apt-get install -y runsc
+# Provision production server
+pnpm server:provision
 
-# Configure Docker with gVisor
-sudo tee /etc/docker/daemon.json << EOF
-{
-  "runtimes": {
-    "runsc": {
-      "path": "/usr/bin/runsc"
-    }
+# The script installs:
+# - Docker
+# - Firecracker v1.13.1
+# - Kata Containers 3.23.0
+# - Configures kata-fc runtime with Firecracker hypervisor
+
+# Verify installation
+ssh root@your-server 'docker run --rm --runtime=kata-fc hello-world'
   }
 }
 EOF

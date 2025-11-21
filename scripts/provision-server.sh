@@ -3,16 +3,19 @@ set -e
 
 # Pinacle Server Provisioning Script
 #
-# Provisions a compute server with:
+# Provisions a Debian compute server with:
 # - Node.js
-# - Docker + gVisor
+# - Docker + Firecracker (via Kata Containers)
 # - Pinacle server agent
 #
+# Requires: Debian-based server with KVM support (bare metal)
+#
 # Usage:
-#   ./provision-server.sh --api-url https://api.pinacle.dev --api-key YOUR_KEY [--host lima:gvisor-alpine]
-#   ./provision-server.sh --api-url http://localhost:3000 --api-key test-key --host ssh:user@server.com
+#   ./provision-server.sh --api-url https://api.pinacle.dev --api-key YOUR_KEY --host ssh:root@server.com
+#   ./provision-server.sh --api-url http://localhost:3000 --api-key test-key --host ssh:root@157.90.177.85
 
 API_URL=""
+DEV_API_URL=""
 API_KEY=$SERVER_API_KEY
 HOST=""
 AGENT_PATH="/usr/local/pinacle/server-agent"
@@ -25,8 +28,16 @@ while [[ $# -gt 0 ]]; do
       API_URL="$2"
       shift 2
       ;;
+    --dev-api-url)
+      DEV_API_URL="$2"
+      shift 2
+      ;;
     --api-key)
       API_KEY="$2"
+      shift 2
+      ;;
+    --dev-api-key)
+      DEV_API_KEY="$2"
       shift 2
       ;;
     --host)
@@ -45,21 +56,23 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate required args
-if [ -z "$API_URL" ] || [ -z "$API_KEY" ] || [ -z "$HOST" ]; then
-  echo "Error: --api-url, --api-key and --host are required"
+if [ -z "$API_URL" ] || [ -z "$HOST" ]; then
+  echo "Error: --api-url and --host are required"
   echo ""
   echo "Usage:"
-  echo "  $0 --api-url URL --api-key KEY --host HOST"
+  echo "  $0 --api-url URL [--api-key KEY] --host ssh:user@host"
   echo ""
-  echo "Examples:"
-  echo "  # Provision Lima VM (for testing)"
-  echo "  $0 --api-url http://localhost:3000 --api-key test-key --host lima:gvisor-alpine"
+  echo "Example:"
+  echo "  $0 --api-url http://localhost:3000 --api-key test-key --host ssh:root@157.90.177.85"
   echo ""
-  echo "  # Provision remote server via SSH"
-  echo "  $0 --api-url https://pinacle.dev --api-key prod-key --host ssh:root@192.168.1.100"
-  echo ""
-  echo "  # Provision local machine"
-  echo "  $0 --api-url http://localhost:3000 --api-key test-key --host local"
+  echo "Dev mode (preserves existing prod key):"
+  echo "  $0 --api-url https://pinacle.dev --dev-api-url https://tunnel.com --dev-api-key dev-key --host ssh:root@server"
+  exit 1
+fi
+
+# API_KEY is required unless we're in dev mode (dev-api-url is set)
+if [ -z "$API_KEY" ] && [ -z "$DEV_API_URL" ]; then
+  echo "Error: --api-key is required (unless using --dev-api-url for dev mode)"
   exit 1
 fi
 
@@ -71,111 +84,85 @@ if [ -z "$SSH_PUBLIC_KEY" ]; then
   exit 1
 fi
 
-# Determine command prefix based on host type
-CMD_PREFIX=""
-COPY_CMD="cp -r"
-if [[ $HOST == lima:* ]]; then
-  LIMA_VM="${HOST#lima:}"
-  CMD_PREFIX="limactl shell $LIMA_VM --"
-  COPY_CMD="limactl copy"
-  echo "🖥️  Provisioning Lima VM: $LIMA_VM"
-elif [[ $HOST == ssh:* ]]; then
-  SSH_HOST="${HOST#ssh:}"
-  CMD_PREFIX="ssh $SSH_HOST"
-  COPY_CMD="scp -r"
-  echo "🖥️  Provisioning remote server: $SSH_HOST"
-elif [[ $HOST == "local" ]]; then
-  echo "🖥️  Provisioning local machine"
-else
-  echo "Error: Invalid host format. Use lima:VM_NAME, ssh:user@host, or local"
+# Only support SSH now (no Lima, no local)
+if [[ $HOST != ssh:* ]]; then
+  echo "Error: Only ssh:user@host format is supported"
+  echo "       Firecracker requires KVM and cannot run on macOS"
   exit 1
 fi
 
+SSH_HOST="${HOST#ssh:}"
+echo "🖥️  Provisioning remote server: $SSH_HOST"
+
 # Helper function to run commands on target
 run_remote() {
-  if [ -z "$CMD_PREFIX" ]; then
-    eval "$@"
-  else
-    $CMD_PREFIX "$@"
-  fi
+  ssh "$SSH_HOST" "$@"
 }
 
-# Helper function to copy files
-copy_to_remote() {
-  local src=$1
-  local dest=$2
+# Verify KVM support (critical for Firecracker)
+echo "🔍 Verifying KVM support..."
+if ! run_remote "[ -e /dev/kvm ]"; then
+  echo "❌ /dev/kvm not found. This server does NOT support hardware virtualization."
+  echo "   Firecracker requires KVM. Please use a bare metal server (not a VM)."
+  exit 1
+fi
+echo "✅ KVM support confirmed"
 
-  if [[ $HOST == lima:* ]]; then
-    limactl copy "$src" "$LIMA_VM:$dest"
-  elif [[ $HOST == ssh:* ]]; then
-    scp -r "$src" "$SSH_HOST:$dest"
-  else
-    cp -r "$src" "$dest"
-  fi
-}
+# Detect architecture
+echo "🔍 Detecting architecture..."
+ARCH=$(run_remote "uname -m")
+if [[ "$ARCH" == "x86_64" ]]; then
+  ARCH_NAME="amd64"
+  FIRECRACKER_ARCH="x86_64"
+elif [[ "$ARCH" == "aarch64" ]]; then
+  ARCH_NAME="arm64"
+  FIRECRACKER_ARCH="aarch64"
+else
+  echo "❌ Unsupported architecture: $ARCH"
+  exit 1
+fi
+echo "✅ Detected architecture: $ARCH ($ARCH_NAME)"
 
 echo "📦 Step 1: Installing Node.js..."
-if run_remote which node > /dev/null 2>&1; then
+if run_remote "which node > /dev/null 2>&1"; then
   echo "✅ Node.js already installed"
 else
-  # Detect OS and install Node.js
-  if run_remote which apk > /dev/null 2>&1; then
-    # Alpine Linux (Lima VM)
-    run_remote sudo apk add --no-cache nodejs npm
-  elif run_remote which apt-get > /dev/null 2>&1; then
-    # Debian/Ubuntu
-    run_remote sudo apt-get update
-    run_remote sudo apt-get install -y curl
-    run_remote "curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
-    run_remote sudo apt-get install -y nodejs
-  elif run_remote which yum > /dev/null 2>&1; then
-    # CentOS/RHEL
-    run_remote "curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -"
-    run_remote sudo yum install -y nodejs
-  else
-    echo "❌ Unsupported OS. Please install Node.js manually."
-    exit 1
-  fi
+  echo "   Installing Node.js from NodeSource..."
+  run_remote "sudo apt-get update"
+  run_remote "sudo apt-get install -y curl"
+  run_remote "curl -fsSL https://deb.nodesource.com/setup_24.x | sudo bash -"
+  run_remote "sudo apt-get install -y nodejs"
   echo "✅ Node.js installed"
 fi
 
 echo "🐳 Step 2: Installing Docker..."
-if run_remote which docker > /dev/null 2>&1; then
+if run_remote "which docker > /dev/null 2>&1"; then
   echo "✅ Docker already installed"
 else
-  # Detect OS and install Docker
-  if run_remote which apk > /dev/null 2>&1; then
-    # Alpine Linux (Lima VM)
-    run_remote sudo apk add --no-cache docker docker-cli-compose
-    run_remote sudo rc-update add docker boot
-    run_remote sudo service docker start || true
-  elif run_remote which apt-get > /dev/null 2>&1; then
-    # Debian/Ubuntu - Install Docker from official repository
-    echo "   Installing Docker on Debian/Ubuntu..."
-    run_remote "sudo apt-get update"
-    run_remote "sudo apt-get install -y ca-certificates curl"
-    run_remote "sudo install -m 0755 -d /etc/apt/keyrings"
+  echo "   Installing Docker from official repository..."
+  run_remote "sudo apt-get update"
+  run_remote "sudo apt-get install -y ca-certificates curl"
+  run_remote "sudo install -m 0755 -d /etc/apt/keyrings"
 
-    # Detect if Debian or Ubuntu and use correct URL
-    OS_ID=$(run_remote "grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '\"'" 2>/dev/null || echo "debian")
-    if [[ "$OS_ID" == "ubuntu" ]]; then
-      DOCKER_URL="https://download.docker.com/linux/ubuntu"
-    else
-      DOCKER_URL="https://download.docker.com/linux/debian"
-    fi
+  # Detect if Debian or Ubuntu
+  OS_ID=$(run_remote "grep ^ID= /etc/os-release | cut -d= -f2 | tr -d '\"'")
+  if [[ "$OS_ID" == "ubuntu" ]]; then
+    DOCKER_URL="https://download.docker.com/linux/ubuntu"
+  else
+    DOCKER_URL="https://download.docker.com/linux/debian"
+  fi
 
-    echo "   Detected OS: $OS_ID, using $DOCKER_URL"
+  echo "   Detected OS: $OS_ID, using $DOCKER_URL"
 
-    # Add Docker's official GPG key
-    run_remote "sudo curl -fsSL $DOCKER_URL/gpg -o /etc/apt/keyrings/docker.asc"
-    run_remote "sudo chmod a+r /etc/apt/keyrings/docker.asc"
+  # Add Docker's official GPG key
+  run_remote "sudo curl -fsSL $DOCKER_URL/gpg -o /etc/apt/keyrings/docker.asc"
+  run_remote "sudo chmod a+r /etc/apt/keyrings/docker.asc"
 
-    VERSION_CODENAME=$(run_remote ". /etc/os-release && echo \"\$VERSION_CODENAME\"")
+  VERSION_CODENAME=$(run_remote ". /etc/os-release && echo \"\$VERSION_CODENAME\"")
+  echo "   Detected VERSION_CODENAME: $VERSION_CODENAME"
 
-    echo "   Detected VERSION_CODENAME: $VERSION_CODENAME"
-
-    # Add the repository to Apt sources using modern .sources format
-    run_remote "sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
+  # Add Docker repository
+  run_remote "sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
 Types: deb
 URIs: $DOCKER_URL
 Suites: $VERSION_CODENAME
@@ -183,33 +170,19 @@ Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF"
 
-    # Install Docker
-    run_remote "sudo apt-get update"
-    run_remote "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+  # Install Docker
+  run_remote "sudo apt-get update"
+  run_remote "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
 
-    # Start and enable Docker
-    run_remote "sudo systemctl start docker"
-    run_remote "sudo systemctl enable docker"
-  elif run_remote which yum > /dev/null 2>&1; then
-    # CentOS/RHEL - Install Docker from official repository
-    echo "   Installing Docker on CentOS/RHEL..."
-    run_remote "sudo yum install -y yum-utils"
-    run_remote "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo"
-    run_remote "sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
-
-    # Start and enable Docker
-    run_remote "sudo systemctl start docker"
-    run_remote "sudo systemctl enable docker"
-  else
-    echo "❌ Unsupported OS. Please install Docker manually."
-    exit 1
-  fi
+  # Start and enable Docker
+  run_remote "sudo systemctl start docker"
+  run_remote "sudo systemctl enable docker"
 
   echo "✅ Docker installed"
 fi
 
 echo "🔄 Pulling pinacle-base image..."
-run_remote "docker image pull pinacledev/pinacle-base:latest"
+run_remote "sudo docker image pull pinacledev/pinacle-base:latest"
 
 echo "💾 Step 2.5: Setting up XFS storage with quotas for Docker volumes..."
 # Check if XFS volume already exists
@@ -224,11 +197,10 @@ else
   echo "   Available space: ${AVAILABLE_GB}GB, using ${VOLUME_SIZE_GB}GB for Docker volumes"
 
   # Stop Docker temporarily
-  if run_remote which systemctl > /dev/null 2>&1; then
-    run_remote "sudo systemctl stop docker" || true
-  elif run_remote which rc-service > /dev/null 2>&1; then
-    run_remote "sudo rc-service docker stop" || true
-  fi
+  run_remote "sudo systemctl stop docker" || true
+
+  # Install XFS tools if not present
+  run_remote "sudo apt-get install -y xfsprogs"
 
   # Create loopback XFS file
   echo "   Creating ${VOLUME_SIZE_GB}GB XFS loopback file..."
@@ -246,164 +218,201 @@ else
   echo "   Adding to /etc/fstab for automatic mounting..."
   run_remote "echo '/var/lib/docker-volumes.xfs /var/lib/docker/volumes xfs loop,pquota 0 0' | sudo tee -a /etc/fstab"
 
-  # Update Docker daemon configuration to enable storage driver options
+  # Configure Docker daemon for XFS quotas (will be updated with Kata config later)
   echo "   Configuring Docker daemon for XFS quotas..."
   run_remote "sudo mkdir -p /etc/docker"
-
-  # Update daemon.json preserving existing config
-  EXISTING_CONFIG=$(run_remote "cat /etc/docker/daemon.json 2>/dev/null || echo '{}'")
-
-  # Use jq if available, otherwise do simple merge
-  if run_remote which jq > /dev/null 2>&1; then
-    run_remote "echo '$EXISTING_CONFIG' | jq '. + {\"data-root\": \"/var/lib/docker\", \"storage-driver\": \"overlay2\"}' | sudo tee /etc/docker/daemon.json > /dev/null"
-  else
-    # Fallback: reconstruct config (preserving runtimes)
-    if [[ "$EXISTING_CONFIG" == *"runsc"* ]]; then
-      run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
-{
-  \"data-root\": \"/var/lib/docker\",
-  \"storage-driver\": \"overlay2\",
-  \"runtimes\": {
-    \"runsc\": {
-      \"path\": \"/usr/bin/runsc\"
-    }
-  }
-}
-EOF"
-    else
-      run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+  run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
 {
   \"data-root\": \"/var/lib/docker\",
   \"storage-driver\": \"overlay2\"
 }
 EOF"
-    fi
-  fi
 
   # Start Docker
-  if run_remote which systemctl > /dev/null 2>&1; then
-    run_remote "sudo systemctl start docker"
-  elif run_remote which rc-service > /dev/null 2>&1; then
-    run_remote "sudo rc-service docker start"
-  fi
+  run_remote "sudo systemctl start docker"
 
   echo "✅ XFS storage configured with quota support (${VOLUME_SIZE_GB}GB)"
 fi
 
-echo "🔒 Step 3: Installing gVisor..."
-GVISOR_NEEDS_CONFIG=false
-if run_remote which runsc > /dev/null 2>&1; then
-  echo "✅ gVisor already installed"
-  RUNSC_PATH=$(run_remote which runsc)
+echo "🔥 Step 3: Installing Firecracker..."
+FIRECRACKER_VERSION="v1.13.1"
+FIRECRACKER_PATH="/opt/firecracker"
 
-  # Check if Docker already knows about runsc runtime
-  if run_remote "docker info 2>/dev/null | grep -q 'runsc'"; then
-    echo "   Docker already configured with gVisor runtime"
-  else
-    echo "   Docker needs gVisor runtime configuration"
-    GVISOR_NEEDS_CONFIG=true
-  fi
+if run_remote "[ -f $FIRECRACKER_PATH/firecracker ]"; then
+  echo "✅ Firecracker already installed"
 else
-  GVISOR_NEEDS_CONFIG=true
-  # Detect OS and install gVisor
-  if run_remote which apk > /dev/null 2>&1; then
-    # Alpine Linux - Manual installation
-    echo "   Installing gVisor manually on Alpine..."
-    run_remote "cd /tmp && wget https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc.sha512 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1.sha512"
-    run_remote "cd /tmp && sha512sum -c runsc.sha512 && sha512sum -c containerd-shim-runsc-v1.sha512"
-    run_remote "cd /tmp && chmod a+rx runsc containerd-shim-runsc-v1"
-    run_remote "sudo mv /tmp/runsc /tmp/containerd-shim-runsc-v1 /usr/local/bin/"
-    run_remote "cd /tmp && rm -f *.sha512"
-  elif run_remote which apt-get > /dev/null 2>&1; then
-    # Debian/Ubuntu - Use APT repository
-    echo "   Installing gVisor from APT repository..."
-    run_remote "sudo apt-get update"
-    run_remote "sudo apt-get install -y apt-transport-https ca-certificates curl gnupg"
-    run_remote "curl -fsSL https://gvisor.dev/archive.key | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg"
-    run_remote "echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main\" | sudo tee /etc/apt/sources.list.d/gvisor.list > /dev/null"
-    run_remote "sudo apt-get update"
-    run_remote "sudo apt-get install -y runsc"
-    echo "   gVisor installed via APT"
-  elif run_remote which yum > /dev/null 2>&1; then
-    # CentOS/RHEL - Manual installation
-    echo "   Installing gVisor manually on CentOS/RHEL..."
-    run_remote "cd /tmp && wget https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/runsc.sha512 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1 https://storage.googleapis.com/gvisor/releases/release/latest/x86_64/containerd-shim-runsc-v1.sha512"
-    run_remote "cd /tmp && sha512sum -c runsc.sha512 && sha512sum -c containerd-shim-runsc-v1.sha512"
-    run_remote "cd /tmp && chmod a+rx runsc containerd-shim-runsc-v1"
-    run_remote "sudo mv /tmp/runsc /tmp/containerd-shim-runsc-v1 /usr/local/bin/"
-    run_remote "cd /tmp && rm -f *.sha512"
-  else
-    echo "❌ Unsupported OS for gVisor installation."
-    exit 1
-  fi
+  echo "   Installing Firecracker ${FIRECRACKER_VERSION}..."
 
-  echo "✅ gVisor binary installed"
+  # Install dependencies
+  run_remote "sudo apt-get install -y curl wget tar jq acl"
+
+  # Create install directory
+  run_remote "sudo mkdir -p $FIRECRACKER_PATH"
+
+  # Download Firecracker release
+  FIRECRACKER_TGZ="firecracker-${FIRECRACKER_VERSION}-${FIRECRACKER_ARCH}.tgz"
+  FIRECRACKER_URL="https://github.com/firecracker-microvm/firecracker/releases/download/${FIRECRACKER_VERSION}/${FIRECRACKER_TGZ}"
+
+  echo "   Downloading from: $FIRECRACKER_URL"
+  run_remote "cd /tmp && curl -fSL '$FIRECRACKER_URL' -o '$FIRECRACKER_TGZ'"
+
+  # Extract
+  run_remote "cd /tmp && tar -xzf '$FIRECRACKER_TGZ'"
+
+  # Find extracted directory and install binaries
+  run_remote "cd /tmp && EXTRACTED_DIR=\$(find . -maxdepth 1 -type d -name 'release-*${FIRECRACKER_ARCH}*' | head -n 1) && \
+    sudo cp \"\$EXTRACTED_DIR/firecracker-${FIRECRACKER_VERSION}-${FIRECRACKER_ARCH}\" $FIRECRACKER_PATH/firecracker && \
+    sudo cp \"\$EXTRACTED_DIR/jailer-${FIRECRACKER_VERSION}-${FIRECRACKER_ARCH}\" $FIRECRACKER_PATH/jailer && \
+    sudo chmod +x $FIRECRACKER_PATH/firecracker $FIRECRACKER_PATH/jailer"
+
+  # Clean up
+  run_remote "cd /tmp && rm -rf release-* '$FIRECRACKER_TGZ'"
+
+  # Allow current user access to /dev/kvm
+  run_remote "sudo setfacl -m u:\$USER:rw /dev/kvm || true"
+
+  echo "✅ Firecracker installed"
 fi
 
-# Configure Docker to use gVisor runtime only if needed
-if [ "$GVISOR_NEEDS_CONFIG" = true ]; then
-  echo "   Configuring Docker to use gVisor runtime..."
+echo "📦 Step 4: Installing Kata Containers..."
+KATA_VERSION="3.23.0"
+KATA_INSTALL_DIR="/opt/kata"
 
-  # Find the runsc binary (APT installs to /usr/bin, manual to /usr/local/bin)
-  if [ -z "$RUNSC_PATH" ]; then
-    RUNSC_PATH=$(run_remote which runsc 2>/dev/null || echo "")
-  fi
-
-  if [ -z "$RUNSC_PATH" ]; then
-    echo "❌ runsc binary not found in PATH"
-    exit 1
-  fi
-
-  run_remote "$RUNSC_PATH install"
-
-  # Restart Docker to pick up the new runtime
-  echo "   Restarting Docker to apply gVisor configuration..."
-  if run_remote which systemctl > /dev/null 2>&1; then
-    run_remote "sudo systemctl restart docker"
-  elif run_remote which rc-service > /dev/null 2>&1; then
-    run_remote "sudo rc-service docker restart"
-  fi
-
-  echo "✅ gVisor configured with Docker"
+if run_remote "[ -f /usr/bin/kata-runtime ]"; then
+  echo "✅ Kata Containers already installed"
 else
-  echo "✅ gVisor already configured with Docker"
+  echo "   Installing Kata Containers ${KATA_VERSION}..."
+
+  # Install dependencies
+  run_remote "sudo apt-get install -y curl wget zstd tar jq"
+
+  # Download Kata static bundle
+  KATA_ZST="kata-static-${KATA_VERSION}-${ARCH_NAME}.tar.zst"
+  KATA_URL="https://github.com/kata-containers/kata-containers/releases/download/${KATA_VERSION}/${KATA_ZST}"
+
+  echo "   Downloading from: $KATA_URL"
+  run_remote "sudo mkdir -p $KATA_INSTALL_DIR"
+  run_remote "cd /tmp && curl -fSL '$KATA_URL' -o '$KATA_ZST'"
+
+  # Extract
+  echo "   Extracting Kata bundle..."
+  run_remote "cd $KATA_INSTALL_DIR && sudo tar --use-compress-program=unzstd -xvf /tmp/$KATA_ZST"
+
+  # Move files from nested structure
+  if run_remote "[ -d $KATA_INSTALL_DIR/opt/kata ]"; then
+    run_remote "sudo mv $KATA_INSTALL_DIR/opt/kata/* $KATA_INSTALL_DIR/ && sudo rm -rf $KATA_INSTALL_DIR/opt"
+  fi
+
+  # Install runtime globally
+  run_remote "sudo ln -sf $KATA_INSTALL_DIR/bin/kata-runtime /usr/bin/kata-runtime"
+  run_remote "sudo ln -sf $KATA_INSTALL_DIR/bin/containerd-shim-kata-v2 /usr/bin/containerd-shim-kata-v2"
+
+  # Clean up
+  run_remote "rm -f /tmp/$KATA_ZST"
+
+  echo "✅ Kata Containers installed"
+  run_remote "kata-runtime --version" || true
 fi
 
-# Verify gVisor works with Docker (CRITICAL - must succeed)
-echo "   Verifying gVisor with Docker..."
-if run_remote "docker run --rm --runtime=runsc hello-world" 2>&1 | tee /tmp/gvisor-test.log; then
-  echo "✅ gVisor runtime verified successfully"
-else
-  echo "❌ gVisor verification FAILED - this is critical for security!"
-  echo "   Please check Docker configuration and ensure gVisor is properly installed."
-  run_remote "docker info | grep -i runtime" || true
+echo "⚙️  Step 5: Configuring Kata to use Firecracker..."
+KATA_CONFIG="$KATA_INSTALL_DIR/share/defaults/kata-containers/configuration-fc.toml"
+
+if ! run_remote "[ -f $KATA_CONFIG ]"; then
+  echo "❌ Kata configuration file not found: $KATA_CONFIG"
   exit 1
 fi
 
-echo "📁 Step 4: Creating agent directory and log file..."
-if [[ $HOST == lima:* ]]; then
-  limactl shell "$LIMA_VM" -- sudo mkdir -p "$AGENT_PATH"
-  limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '$AGENT_PATH'"
-  limactl shell "$LIMA_VM" -- sudo mkdir -p "/var/lib/pinacle/snapshots"
-  limactl shell "$LIMA_VM" -- sh -c "sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
-  limactl shell "$LIMA_VM" -- sudo touch /var/log/pinacle-agent.log
-  limactl shell "$LIMA_VM" -- sudo chmod 666 /var/log/pinacle-agent.log
-elif [[ $HOST == ssh:* ]]; then
-  ssh "$SSH_HOST" "sudo mkdir -p '$AGENT_PATH' && sudo chown -R \$USER '$AGENT_PATH'"
-  ssh "$SSH_HOST" "sudo mkdir -p '/var/lib/pinacle/snapshots' && sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
-  ssh "$SSH_HOST" "sudo touch /var/log/pinacle-agent.log && sudo chmod 666 /var/log/pinacle-agent.log"
-else
-  sudo mkdir -p "$AGENT_PATH"
-  sudo chown -R "$USER" "$AGENT_PATH"
-  sudo mkdir -p "/var/lib/pinacle/snapshots"
-  sudo chown -R "$USER" "/var/lib/pinacle/snapshots"
-  sudo touch /var/log/pinacle-agent.log
-  sudo chmod 666 /var/log/pinacle-agent.log
-fi
-echo "✅ Directory created: $AGENT_PATH"
-echo "✅ Log file created: /var/log/pinacle-agent.log (writable by all)"
+echo "   Updating Kata configuration for Firecracker..."
 
-echo "📋 Step 5: Building and copying agent..."
+# Update Kata configuration to use Firecracker
+run_remote "sudo sed -i 's|^path = .*|path = \"$FIRECRACKER_PATH/firecracker\"|g' $KATA_CONFIG"
+run_remote "sudo sed -i 's|^kernel = .*|kernel = \"$KATA_INSTALL_DIR/share/kata-containers/vmlinux.container\"|g' $KATA_CONFIG"
+run_remote "sudo sed -i 's|^initrd = .*|initrd = \"$KATA_INSTALL_DIR/share/kata-containers/kata-containers-initrd.img\"|g' $KATA_CONFIG" || true
+run_remote "sudo sed -i 's|^image = .*|image = \"$KATA_INSTALL_DIR/share/kata-containers/kata-containers.img\"|g' $KATA_CONFIG" || true
+
+# Use virtio-mmio for Firecracker compatibility
+run_remote "sudo sed -i 's|block_device_driver = .*|block_device_driver = \"virtio-mmio\"|' $KATA_CONFIG"
+
+# Disable vsock (Firecracker doesn't fully support it)
+run_remote "sudo sed -i 's|enable_vsock = true|enable_vsock = false|' $KATA_CONFIG" || true
+
+echo "✅ Kata configured for Firecracker"
+
+echo "🔧 Step 6a: Configuring containerd for Kata runtime..."
+
+# Generate default containerd config
+run_remote "sudo mkdir -p /etc/containerd"
+run_remote "containerd config default | sudo tee /etc/containerd/config.toml > /dev/null"
+
+# Add Kata runtime to containerd config
+run_remote "sudo tee -a /etc/containerd/config.toml > /dev/null <<'EOF'
+
+[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.kata-fc]
+  runtime_type = \"io.containerd.kata.v2\"
+  privileged_without_host_devices = true
+  pod_annotations = [\"io.katacontainers.*\"]
+  [plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.kata-fc.options]
+    ConfigPath = \"$KATA_CONFIG\"
+EOF"
+
+echo "   Restarting containerd..."
+run_remote "sudo systemctl restart containerd"
+
+echo "✅ containerd configured with Kata runtime"
+
+echo "🐳 Step 6b: Configuring Docker to use Kata runtime..."
+
+# Configure Docker to use the Kata runtime from containerd
+run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+{
+  \"data-root\": \"/var/lib/docker\",
+  \"storage-driver\": \"overlay2\",
+  \"runtimes\": {
+    \"kata-fc\": {
+      \"runtimeType\": \"io.containerd.kata.v2\"
+    }
+  },
+  \"default-runtime\": \"runc\"
+}
+EOF"
+
+echo "   Restarting Docker to apply configuration..."
+run_remote "sudo systemctl restart docker"
+
+echo "✅ Docker configured with kata-fc runtime"
+
+echo "✅ Step 7: Verifying Kata + Firecracker installation..."
+echo "   Testing with hello-world container..."
+
+# Test the kata-fc runtime
+if run_remote "sudo docker run --rm --runtime=kata-fc hello-world" 2>&1 | tee /tmp/kata-test.log; then
+  echo "✅ Kata + Firecracker runtime verified successfully!"
+else
+  echo "❌ Kata + Firecracker verification FAILED!"
+  echo "   This is critical - containers won't be isolated properly."
+  echo ""
+  echo "   Checking configuration..."
+  run_remote "sudo docker info | grep -i runtime" || true
+  run_remote "kata-runtime kata-check" || true
+  exit 1
+fi
+
+# Test with pinacle-base image
+echo "   Testing with pinacle-base image..."
+if run_remote "sudo docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest echo 'Kata + Firecracker working!'" 2>&1; then
+  echo "✅ pinacle-base image works with Kata + Firecracker!"
+else
+  echo "⚠️  Warning: pinacle-base test failed, but continuing..."
+fi
+
+echo "📁 Step 8: Creating agent directory and log file..."
+run_remote "sudo mkdir -p '$AGENT_PATH' && sudo chown -R \$USER '$AGENT_PATH'"
+run_remote "sudo mkdir -p '/var/lib/pinacle/snapshots' && sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
+run_remote "sudo touch /var/log/pinacle-agent.log && sudo chmod 666 /var/log/pinacle-agent.log"
+echo "✅ Directory created: $AGENT_PATH"
+echo "✅ Log file created: /var/log/pinacle-agent.log"
+
+echo "📋 Step 9: Building and copying agent..."
 cd "$(dirname "$0")/.."
 cd server-agent
 
@@ -411,144 +420,94 @@ cd server-agent
 echo "🔨 Building agent..."
 npm run build
 
-# Copy files to target
+# Copy files to server
 echo "📤 Copying files..."
-if [[ $HOST == lima:* ]]; then
-  # limactl copy has issues with directories, so we tar first
-  tar czf /tmp/pinacle-agent.tar.gz dist package.json
-  limactl copy /tmp/pinacle-agent.tar.gz "$LIMA_VM:$AGENT_PATH/"
-  limactl shell "$LIMA_VM" -- sh -c "cd $AGENT_PATH && tar xzf pinacle-agent.tar.gz && rm pinacle-agent.tar.gz"
-  rm /tmp/pinacle-agent.tar.gz
-elif [[ $HOST == ssh:* ]]; then
-  scp -r dist "$SSH_HOST:$AGENT_PATH/"
-  scp package.json "$SSH_HOST:$AGENT_PATH/"
-else
-  cp -r dist "$AGENT_PATH/"
-  cp package.json "$AGENT_PATH/"
-fi
+scp -r dist "$SSH_HOST:$AGENT_PATH/"
+scp package.json "$SSH_HOST:$AGENT_PATH/"
 
 echo "✅ Agent copied"
 
-echo "📦 Step 6: Installing dependencies..."
+echo "📦 Step 10: Installing agent dependencies..."
 run_remote "cd $AGENT_PATH && npm install --production"
 echo "✅ Dependencies installed"
 
-echo "🔑 Step 6: Installing SSH public key..."
-# Install SSH key for main server access
-if [[ $HOST == lima:* ]]; then
-  limactl shell "$LIMA_VM" -- sh -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-  limactl shell "$LIMA_VM" -- sh -c "echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-elif [[ $HOST == ssh:* ]]; then
-  ssh "$SSH_HOST" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-  ssh "$SSH_HOST" "echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-else
-  mkdir -p ~/.ssh && chmod 700 ~/.ssh
-  echo "$SSH_PUBLIC_KEY" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
-fi
+echo "🔑 Step 11: Installing SSH public key..."
+run_remote "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+run_remote "echo '$SSH_PUBLIC_KEY' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 echo "✅ SSH key installed"
 
-echo "⚙️  Step 7: Creating configuration..."
-# Adjust API_URL for Lima (host.lima.internal allows Lima to reach host)
-if [[ $HOST == lima:* ]] && [[ $API_URL == http://localhost:* ]]; then
-  PORT="${API_URL##*:}"
-  API_URL="http://host.lima.internal:$PORT"
-  echo "   Adjusted API_URL for Lima: $API_URL"
-fi
+echo "⚙️  Step 12: Creating agent configuration..."
 
-# Extract SSH connection details
+# Extract SSH connection details from HOST
+SSH_TARGET="${HOST#ssh:}"
+SSH_USER="root"
 SSH_HOST_ADDR=""
 SSH_PORT="22"
-SSH_USER="root"
 
-if [[ $HOST == lima:* ]]; then
-  # For Lima, extract SSH details from limactl
-  SSH_INFO=$(limactl show-ssh "$LIMA_VM" 2>/dev/null | grep -o 'Port=[0-9]*' | cut -d= -f2 || echo "")
-  if [ -n "$SSH_INFO" ]; then
-    SSH_PORT="$SSH_INFO"
-  fi
-  SSH_HOST_ADDR="127.0.0.1"
-  SSH_USER=$(limactl shell "$LIMA_VM" -- whoami 2>/dev/null || echo "root")
-elif [[ $HOST == ssh:* ]]; then
-  # For SSH, parse user@host:port format
-  SSH_TARGET="${HOST#ssh:}"
-  if [[ $SSH_TARGET == *@* ]]; then
-    SSH_USER="${SSH_TARGET%%@*}"
-    SSH_TARGET="${SSH_TARGET#*@}"
-  fi
-  if [[ $SSH_TARGET == *:* ]]; then
-    SSH_HOST_ADDR="${SSH_TARGET%%:*}"
-    SSH_PORT="${SSH_TARGET##*:}"
-  else
-    SSH_HOST_ADDR="$SSH_TARGET"
-  fi
-else
-  # Local
-  SSH_HOST_ADDR="localhost"
-  SSH_USER=$(whoami)
+if [[ $SSH_TARGET == *@* ]]; then
+  SSH_USER="${SSH_TARGET%%@*}"
+  SSH_TARGET="${SSH_TARGET#*@}"
 fi
 
-ENV_CONTENT="API_URL=$API_URL
+if [[ $SSH_TARGET == *:* ]]; then
+  SSH_HOST_ADDR="${SSH_TARGET%%:*}"
+  SSH_PORT="${SSH_TARGET##*:}"
+else
+  SSH_HOST_ADDR="$SSH_TARGET"
+fi
+
+# If DEV_API_URL is set, we're in dev mode - preserve the existing prod API_KEY on server
+if [ -n "$DEV_API_URL" ]; then
+  echo "   Dev mode: Preserving existing production API_KEY on server"
+
+  # Check if .env already exists and has API_KEY
+  EXISTING_API_KEY=$(ssh "$SSH_HOST" "grep '^API_KEY=' $AGENT_PATH/.env 2>/dev/null | cut -d'=' -f2" || echo "")
+
+  if [ -n "$EXISTING_API_KEY" ]; then
+    echo "   Using existing API_KEY from server for production URL"
+    ENV_CONTENT="API_URL=$API_URL
+API_KEY=$EXISTING_API_KEY
+HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
+SSH_HOST=$SSH_HOST_ADDR
+SSH_PORT=$SSH_PORT
+SSH_USER=$SSH_USER
+DEV_API_URL=$DEV_API_URL"
+  else
+    # No existing API_KEY, use the one provided (will be used as prod key)
+    echo "   No existing API_KEY found, using provided key as production key"
+    ENV_CONTENT="API_URL=$API_URL
+API_KEY=$API_KEY
+HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
+SSH_HOST=$SSH_HOST_ADDR
+SSH_PORT=$SSH_PORT
+SSH_USER=$SSH_USER
+DEV_API_URL=$DEV_API_URL"
+  fi
+
+  # Add DEV_API_KEY if provided
+  if [ -n "$DEV_API_KEY" ]; then
+    ENV_CONTENT="$ENV_CONTENT
+DEV_API_KEY=$DEV_API_KEY"
+    echo "   Dev API key configured"
+  fi
+else
+  # Production mode: just set API_KEY normally
+  ENV_CONTENT="API_URL=$API_URL
 API_KEY=$API_KEY
 HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
 SSH_HOST=$SSH_HOST_ADDR
 SSH_PORT=$SSH_PORT
 SSH_USER=$SSH_USER"
-
-# Add Lima VM name for Lima hosts (for dynamic port retrieval)
-if [[ $HOST == lima:* ]]; then
-  ENV_CONTENT="$ENV_CONTENT
-LIMA_VM_NAME=$LIMA_VM"
 fi
 
-if [[ $HOST == lima:* ]]; then
-  limactl shell "$LIMA_VM" -- sh -c "echo '$ENV_CONTENT' > $AGENT_PATH/.env"
-elif [[ $HOST == ssh:* ]]; then
-  echo "$ENV_CONTENT" | ssh "$SSH_HOST" "cat > $AGENT_PATH/.env"
-else
-  echo "$ENV_CONTENT" > "$AGENT_PATH/.env"
-fi
+echo "$ENV_CONTENT" | ssh "$SSH_HOST" "cat > $AGENT_PATH/.env"
 
 echo "✅ Configuration created"
 
-echo "🚀 Step 8: Starting agent..."
-if [[ $HOST == lima:* ]]; then
-  # Create OpenRC init script for Alpine
-  limactl shell "$LIMA_VM" -- sudo tee /etc/init.d/pinacle-agent > /dev/null << 'EOF'
-#!/sbin/openrc-run
+echo "🚀 Step 13: Starting agent..."
 
-name="Pinacle Server Agent"
-description="Pinacle Server Agent for pod orchestration"
-command="/usr/bin/node"
-command_args="/usr/local/pinacle/server-agent/dist/index.js"
-command_background=true
-directory="/usr/local/pinacle/server-agent"
-pidfile="/run/pinacle-agent.pid"
-output_log="/var/log/pinacle-agent.log"
-error_log="/var/log/pinacle-agent.err"
-
-# Auto-restart configuration
-respawn_delay=5
-respawn_max=0
-respawn_period=60
-
-depend() {
-    need net
-    after docker
-}
-EOF
-
-  # Make it executable and enable
-  limactl shell "$LIMA_VM" -- sudo chmod +x /etc/init.d/pinacle-agent
-  limactl shell "$LIMA_VM" -- sudo rc-update add pinacle-agent default || true
-
-  # Stop if already running, then start
-  limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent stop || true
-  limactl shell "$LIMA_VM" -- sudo rc-service pinacle-agent start
-
-  echo "✅ Agent installed as OpenRC service (auto-restart enabled)"
-elif [[ $HOST == ssh:* ]]; then
-  # Install as systemd service on remote servers
-  ssh "$SSH_HOST" "cat > /etc/systemd/system/pinacle-agent.service" << EOF
+# Install as systemd service
+ssh "$SSH_HOST" "sudo tee /etc/systemd/system/pinacle-agent.service > /dev/null" <<EOF
 [Unit]
 Description=Pinacle Server Agent
 After=network.target docker.service
@@ -568,29 +527,21 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-  ssh "$SSH_HOST" systemctl daemon-reload
-  ssh "$SSH_HOST" systemctl enable pinacle-agent
-  ssh "$SSH_HOST" systemctl restart pinacle-agent
+run_remote "sudo systemctl daemon-reload"
+run_remote "sudo systemctl enable pinacle-agent"
+run_remote "sudo systemctl restart pinacle-agent"
 
-  echo "✅ Agent installed as systemd service (auto-restart enabled)"
-else
-  # Local: just start it
-  cd "$AGENT_PATH"
-  nohup node dist/index.js > /tmp/pinacle-agent.log 2>&1 &
-  echo "✅ Agent started locally"
-fi
+echo "✅ Agent installed as systemd service (auto-restart enabled)"
 
 echo ""
 echo "✅ Server provisioned successfully!"
 echo ""
 echo "📊 To check agent logs:"
-if [[ $HOST == lima:* ]]; then
-  echo "   limactl shell $LIMA_VM -- tail -f /var/log/pinacle-agent.log"
-  echo "   limactl shell $LIMA_VM -- sudo rc-service pinacle-agent status"
-elif [[ $HOST == ssh:* ]]; then
-  echo "   ssh $SSH_HOST journalctl -u pinacle-agent -f"
-else
-  echo "   tail -f /tmp/pinacle-agent.log"
-fi
+echo "   ssh $SSH_HOST sudo journalctl -u pinacle-agent -f"
 echo ""
-
+echo "🔍 To check Kata runtime:"
+echo "   ssh $SSH_HOST kata-runtime kata-check"
+echo ""
+echo "🐳 To test Docker with Kata:"
+echo "   ssh $SSH_HOST sudo docker run --rm --runtime=kata-fc alpine echo 'Hello from Firecracker!'"
+echo ""

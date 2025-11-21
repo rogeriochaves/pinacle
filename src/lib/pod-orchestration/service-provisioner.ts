@@ -1,4 +1,4 @@
-import { GVisorRuntime } from "./container-runtime";
+import { KataRuntime } from "./container-runtime";
 import {
   getAllServiceTemplates,
   getServiceTemplateUnsafe,
@@ -8,11 +8,11 @@ import type { PodSpec, ServerConnection, ServiceConfig } from "./types";
 
 export class ServiceProvisioner {
   private podId: string;
-  private containerRuntime: GVisorRuntime;
+  private containerRuntime: KataRuntime;
 
   constructor(podId: string, serverConnection: ServerConnection) {
     this.podId = podId;
-    this.containerRuntime = new GVisorRuntime(serverConnection);
+    this.containerRuntime = new KataRuntime(serverConnection);
   }
 
   async provisionService(spec: PodSpec, service: ServiceConfig): Promise<void> {

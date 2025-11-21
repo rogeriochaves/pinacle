@@ -30,6 +30,7 @@ export const serversRouter = createTRPCRouter({
   registerServer: serverAgentAuth
     .input(
       z.object({
+        id: z.string().optional(), // Accept optional stable server ID from agent
         hostname: z.string().min(1),
         ipAddress: z.string().min(1),
         cpuCores: z.number().positive(),
@@ -38,13 +39,43 @@ export const serversRouter = createTRPCRouter({
         sshHost: z.string().min(1),
         sshPort: z.number().int().positive().default(22),
         sshUser: z.string().min(1).default("root"),
-        limaVmName: z.string().optional(), // For Lima VMs
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Check if server with this ID already exists (for dev/prod sync)
+      if (input.id) {
+        const existing = await ctx.db.query.servers.findFirst({
+          where: eq(servers.id, input.id),
+        });
+
+        if (existing) {
+          // Update existing server instead of creating new one
+          const [server] = await ctx.db
+            .update(servers)
+            .set({
+              hostname: input.hostname,
+              ipAddress: input.ipAddress,
+              cpuCores: input.cpuCores,
+              memoryMb: input.memoryMb,
+              diskGb: input.diskGb,
+              sshHost: input.sshHost,
+              sshPort: input.sshPort,
+              sshUser: input.sshUser,
+              status: "online",
+              lastHeartbeatAt: new Date(),
+            })
+            .where(eq(servers.id, input.id))
+            .returning();
+
+          return server;
+        }
+      }
+
+      // Create new server with provided ID or let database generate one
       const [server] = await ctx.db
         .insert(servers)
         .values({
+          ...(input.id ? { id: input.id } : {}), // Use provided ID if available
           hostname: input.hostname,
           ipAddress: input.ipAddress,
           cpuCores: input.cpuCores,
@@ -53,7 +84,6 @@ export const serversRouter = createTRPCRouter({
           sshHost: input.sshHost,
           sshPort: input.sshPort,
           sshUser: input.sshUser,
-          limaVmName: input.limaVmName || null, // Store Lima VM name if provided
           status: "online",
           lastHeartbeatAt: new Date(),
         })

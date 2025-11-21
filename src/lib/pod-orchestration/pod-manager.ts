@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { pods } from "../db/schema";
 import { DefaultConfigResolver } from "./config-resolver";
-import { GVisorRuntime } from "./container-runtime";
+import { KataRuntime } from "./container-runtime";
 import { GitHubIntegration, type GitHubRepoSetup } from "./github-integration";
 import { NetworkManager } from "./network-manager";
 import { type PinacleConfig, podConfigToPinacleConfig } from "./pinacle-config";
@@ -26,7 +26,7 @@ export class PodManager extends EventEmitter {
   private configResolver: ConfigResolver;
   private githubIntegration: GitHubIntegration;
   private serverConnection: ServerConnection;
-  private containerRuntime: GVisorRuntime;
+  private containerRuntime: KataRuntime;
   private networkManager: NetworkManager;
   private serviceProvisioner: ServiceProvisioner;
   private processProvisioner: ProcessProvisioner;
@@ -38,7 +38,7 @@ export class PodManager extends EventEmitter {
     this.serverConnection = serverConnection;
     this.configResolver = new DefaultConfigResolver();
     this.githubIntegration = new GitHubIntegration(this);
-    this.containerRuntime = new GVisorRuntime(this.serverConnection);
+    this.containerRuntime = new KataRuntime(this.serverConnection);
     this.networkManager = new NetworkManager(this.serverConnection);
     this.serviceProvisioner = new ServiceProvisioner(
       this.podId,

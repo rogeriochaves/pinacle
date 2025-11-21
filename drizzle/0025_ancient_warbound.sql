@@ -1,0 +1,1 @@
+ALTER TABLE "server" DROP COLUMN "lima_vm_name";

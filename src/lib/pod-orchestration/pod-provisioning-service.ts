@@ -33,7 +33,6 @@ export type DeprovisionPodInput = {
 export class PodProvisioningService {
   /**
    * Helper method to get server connection details
-   * Abstracts away Lima VM detection and SSH port retrieval
    */
   async getServerConnectionDetails(
     serverId: string,
@@ -52,19 +51,9 @@ export class PodProvisioningService {
       throw new Error("SSH_PRIVATE_KEY not found in environment");
     }
 
-    // Get SSH port (dynamic for Lima VMs)
-    let sshPort = server.sshPort;
-    if (server.limaVmName) {
-      const { getLimaSshPort } = await import("./lima-utils");
-      sshPort = await getLimaSshPort(server.limaVmName);
-      console.log(
-        `[PodProvisioningService] Retrieved Lima SSH port for ${server.limaVmName}: ${sshPort}`,
-      );
-    }
-
     return new SSHServerConnection({
       host: server.sshHost,
-      port: sshPort,
+      port: server.sshPort,
       user: server.sshUser,
       privateKey: process.env.SSH_PRIVATE_KEY,
     });
