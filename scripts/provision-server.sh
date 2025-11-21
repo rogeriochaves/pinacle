@@ -372,8 +372,14 @@ echo "✅ containerd configured with Kata runtime"
 
 echo "🐳 Step 6d: Configuring Docker to use Kata runtime..."
 
-# Configure Docker to use the Kata runtime from containerd
-run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
+# Check if kata-fc runtime is already configured
+KATA_CONFIGURED=$(run_remote "grep -q 'kata-fc' /etc/docker/daemon.json 2>/dev/null && echo 'yes' || echo 'no'")
+
+if [ "$KATA_CONFIGURED" = "yes" ]; then
+  echo "   Kata runtime already configured in Docker, skipping restart"
+else
+  # Configure Docker to use the Kata runtime from containerd
+  run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
 {
   \"data-root\": \"/var/lib/docker\",
   \"storage-driver\": \"overlay2\",
@@ -386,8 +392,9 @@ run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
 }
 EOF"
 
-echo "   Restarting Docker to apply configuration..."
-run_remote "sudo systemctl restart docker"
+  echo "   Restarting Docker to apply configuration..."
+  run_remote "sudo systemctl restart docker"
+fi
 
 echo "✅ Docker configured with kata-fc runtime"
 
