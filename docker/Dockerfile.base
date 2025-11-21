@@ -1,6 +1,40 @@
 # Build stage for code-server
 FROM pinacledev/code-server-alpine:4.104.2 AS code-server-builder
 
+# Build stage for postgres
+FROM alpine AS pg-builder
+
+RUN apk add --no-cache \
+    build-base \
+    readline-dev \
+    zlib-dev \
+    openssl-dev \
+    bison \
+    flex \
+    perl \
+    wget
+
+ENV PGVERSION=18.1
+
+RUN wget https://ftp.postgresql.org/pub/source/v${PGVERSION}/postgresql-${PGVERSION}.tar.gz && \
+    tar xf postgresql-${PGVERSION}.tar.gz && \
+    cd postgresql-${PGVERSION} && \
+    ./configure --prefix=/usr/local --without-readline --with-openssl --without-icu && \
+    # Remove root restriction
+    sed -i 's/if (geteuid() == 0)/if (0)/' src/backend/main/main.c && \
+    # Remove tools that won't build on musl (missing linux/fs.h)
+    sed -i '/pg_combinebackup/d' src/bin/Makefile && \
+    sed -i '/pg_upgrade/d' src/bin/Makefile && \
+    \
+    make -j4 && \
+    make install
+
+# Create postgres user ONLY in build stage (here we can su/chown freely)
+RUN adduser -D -h /var/lib/postgresql -s /bin/sh postgres && \
+    mkdir -p /build-data && \
+    chown -R postgres:postgres /build-data && \
+    su postgres -c "/usr/local/bin/initdb -D /build-data --auth=trust"
+
 # Runtime stage
 FROM node:22-alpine
 
@@ -34,6 +68,12 @@ RUN npm install -g pnpm
 
 # Set tmux config
 RUN echo "set -g status off" >> /etc/tmux.conf
+
+# Copy PostgreSQL from builder stage (binaries + initialized data)
+COPY --from=pg-builder /usr/local /usr/local
+COPY --from=pg-builder /build-data /var/lib/postgresql/data
+# Change to root:root for working with gvisor
+RUN chown -R root:root /var/lib/postgresql && chmod -R 700 /var/lib/postgresql/data
 
 # Copy code-server binaries from builder stage
 COPY --from=code-server-builder /code-server/release-standalone /usr/local/code-server
