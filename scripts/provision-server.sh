@@ -158,21 +158,22 @@ else
   run_remote "sudo curl -fsSL $DOCKER_URL/gpg -o /etc/apt/keyrings/docker.asc"
   run_remote "sudo chmod a+r /etc/apt/keyrings/docker.asc"
 
-  VERSION_CODENAME=$(run_remote ". /etc/os-release && echo \"\$VERSION_CODENAME\"")
-  echo "   Detected VERSION_CODENAME: $VERSION_CODENAME"
+  # Use bookworm repository (Docker 27.x) to fix Kata networking compatibility
+  # Docker 28+ breaks Kata networking (https://github.com/kata-containers/kata-containers/issues/9340)
+  echo "   Using bookworm repository (Docker 27.x) for Kata networking compatibility"
 
-  # Add Docker repository
+  # Add Docker repository (force bookworm for Debian compatibility)
   run_remote "sudo tee /etc/apt/sources.list.d/docker.sources > /dev/null <<EOF
 Types: deb
 URIs: $DOCKER_URL
-Suites: $VERSION_CODENAME
+Suites: bookworm
 Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF"
 
-  # Install Docker
+  # Install Docker 27.x (latest in 27.x series for Kata networking compatibility)
   run_remote "sudo apt-get update"
-  run_remote "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+  run_remote "sudo apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm containerd.io docker-buildx-plugin docker-compose-plugin"
 
   # Start and enable Docker
   run_remote "sudo systemctl start docker"
@@ -338,7 +339,13 @@ run_remote "sudo sed -i 's|enable_vsock = true|enable_vsock = false|' $KATA_CONF
 
 echo "✅ Kata configured for Firecracker"
 
-echo "🔧 Step 6a: Configuring containerd for Kata runtime..."
+echo "🌐 Step 6a: Installing CNI plugins for Kata networking..."
+# Install CNI plugins for Kata networking (Docker 27 + Kata compatibility)
+run_remote "sudo mkdir -p /opt/cni/bin"
+run_remote "cd /tmp && sudo curl -L https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz | sudo tar -xzC /opt/cni/bin/"
+echo "✅ CNI plugins installed"
+
+echo "🔧 Step 6c: Configuring containerd for Kata runtime..."
 
 # Generate default containerd config
 run_remote "sudo mkdir -p /etc/containerd"
@@ -360,7 +367,7 @@ run_remote "sudo systemctl restart containerd"
 
 echo "✅ containerd configured with Kata runtime"
 
-echo "🐳 Step 6b: Configuring Docker to use Kata runtime..."
+echo "🐳 Step 6d: Configuring Docker to use Kata runtime..."
 
 # Configure Docker to use the Kata runtime from containerd
 run_remote "sudo tee /etc/docker/daemon.json > /dev/null <<'EOF'
