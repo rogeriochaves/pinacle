@@ -3,13 +3,13 @@ import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
 import { KataRuntime } from "../container-runtime";
 import { GitHubIntegration } from "../github-integration";
-import { SSHServerConnection } from "../server-connection";
 import { NetworkManager } from "../network-manager";
 import {
   generatePinacleConfigFromForm,
   parsePinacleConfig,
 } from "../pinacle-config";
 import { PodManager } from "../pod-manager";
+import { SSHServerConnection } from "../server-connection";
 import type { ServiceId } from "../service-registry";
 import type { PodSpec } from "../types";
 

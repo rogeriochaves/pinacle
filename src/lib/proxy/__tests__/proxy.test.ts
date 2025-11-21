@@ -10,9 +10,6 @@
  */
 
 import { exec } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -26,13 +23,13 @@ import {
   users,
 } from "@/lib/db/schema";
 import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
-import { SSHServerConnection } from "@/lib/pod-orchestration/server-connection";
 import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
 import {
   generatePinacleConfigFromForm,
   pinacleConfigToJSON,
 } from "@/lib/pod-orchestration/pinacle-config";
 import { PodProvisioningService } from "@/lib/pod-orchestration/pod-provisioning-service";
+import { SSHServerConnection } from "@/lib/pod-orchestration/server-connection";
 import type { ServerConnection } from "@/lib/pod-orchestration/types";
 import { generateKSUID } from "@/lib/utils";
 
@@ -263,7 +260,9 @@ describe("Proxy Integration Tests", () => {
     expect(provisionedPod.ports).toBeTruthy();
 
     const ports = JSON.parse(provisionedPod.ports!);
-    const nginxProxy = ports.find((p: {name: string; external: number}) => p.name === "nginx-proxy");
+    const nginxProxy = ports.find(
+      (p: { name: string; external: number }) => p.name === "nginx-proxy",
+    );
     expect(nginxProxy).toBeTruthy();
     proxyPort = nginxProxy.external;
 
@@ -321,4 +320,3 @@ describe("Proxy Integration Tests", () => {
     console.log("⏭️  Skipping: requires Next.js test environment");
   });
 });
-

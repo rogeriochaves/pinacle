@@ -28171,6 +28171,2186 @@ there are still some limaVmName left, 16 typescript erros left, fix them pls
 
 _**Agent (model grok-code-fast-1, mode Agent)**_
 
+<think><details><summary>Thought Process</summary>
+The user is saying there are still some `limaVmName` references left and 16 TypeScript errors. Let me search for any remaining `limaVmName` references and fix them.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "limaVmName" in "/Users/rchaves/Projects/pinacle/src" • 8 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Update SSH port and limaVmName to current values` | L188 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `.set(\{ sshPort, limaVmName: vmName \})` | L191 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `limaVmName: vmName, // Mark this as a Lima VM` | L209 |
+| `src/lib/proxy/__tests__/proxy.test.ts` | `// Update SSH port and limaVmName to current values` | L193 |
+| `src/lib/proxy/__tests__/proxy.test.ts` | `.set(\{ sshPort, limaVmName: vmName \})` | L196 |
+| `src/lib/proxy/__tests__/proxy.test.ts` | `limaVmName: vmName, // Mark this as a Lima VM` | L214 |
+| `src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `.set(\{ sshPort, limaVmName: vmName, status: "online" \})` | L181 |
+| `src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `limaVmName: vmName,` | L196 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I found some remaining `limaVmName` references in test files. Let me also check for any TypeScript errors by running a build.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
+```
+
+```
+
+&gt; pinacle@0.1.0 build
+&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+
+Checking types...
+server.ts(344,31): error TS2339: Property &#39;limaVmName&#39; does not exist on type &#39;{ id: string; hostname: string; ipAddress: string; status: string; lastHeartbeatAt: Date | null; sshHost: string; sshPort: number; sshUser: string; cpuCores: number; memoryMb: number; diskGb: number; createdAt: Date; updatedAt: Date; }&#39;.
+src/lib/pod-orchestration/__tests__/container-runtime.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(19,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(57,64): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(191,25): error TS2353: Object literal may only specify known properties, and &#39;limaVmName&#39; does not exist in type &#39;{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(201,11): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Object literal may only specify known properties, and &#39;hostname&#39; does not exist in type &#39;{ cpuCores: number | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt;; createdAt?: Date | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt; | undefined; diskGb: number | Placeholder&lt;...&gt; | SQL&lt;...&gt;; ... 9 more ...; updatedAt?: Date | ... 2 more ... | undefined; }[]&#39;.
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(6,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(29,41): error TS2307: Cannot find module &#39;@/lib/pod-orchestration/lima-utils&#39; or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(69,9): error TS2307: Cannot find module &#39;@/lib/pod-orchestration/lima-utils&#39; or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(196,25): error TS2353: Object literal may only specify known properties, and &#39;limaVmName&#39; does not exist in type &#39;{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }&#39;.
+src/lib/proxy/__tests__/proxy.test.ts(206,11): error TS2769: No overload matches this call.
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see several issues:
+</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Found the issue in server.ts. Let me fix it by removing the limaVmName reference. Now let me fix all the issues:
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 3
+
+```diff
+@@ -341,7 +341,6 @@
+      }
+  
+-     // Determine target host
+-     const isLimaVm = !!server.limaVmName;
+-     const targetHost = isLimaVm ? &quot;127.0.0.1&quot; : server.ipAddress;
++     // Target host (always use server IP since we no longer use Lima VMs)
++     const targetHost = server.ipAddress;
+      const targetPort = nginxProxy.external;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the test files. I need to remove the limaVmName references and fix the imports. Let me start with the integration test file.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue. The test files are still trying to use Lima VM logic and create servers with limaVmName. Since we've migrated to bare metal servers, I need to update these tests to not use Lima VM logic. Let me fix the integration test file first.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -186,8 +186,8 @@
+  
+      if (existingServer) {
+-       // Update SSH port and limaVmName to current values
++       // Update SSH port
+        await db
+          .update(servers)
+-         .set({ sshPort, limaVmName: vmName })
++         .set({ sshPort })
+          .where(eq(servers.id, existingServer.id));
+        testServerId = existingServer.id;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the insert statement that includes limaVmName.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -199,5 +199,5 @@
+          .insert(servers)
+          .values({
+-           hostname: &quot;lima-gvisor-alpine&quot;,
++           hostname: &quot;test-server&quot;,
+            ipAddress: &quot;127.0.0.1&quot;,
+            cpuCores: 4,
+```
+
+**Chunk 2**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -207,5 +207,4 @@
+            sshPort,
+            sshUser: process.env.USER || &quot;root&quot;,
+-           limaVmName: vmName, // Mark this as a Lima VM
+            status: &quot;online&quot;,
+          })
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to remove the Lima-related imports and logic from the test files. Let me check what Lima-related code is still there.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to remove the getLimaServerConnection import and update the test setup. Let me also check how it's being used.</details></think>
+
+---
+
+Model provided invalid arguments to grep tool.
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me search for the usage of getLimaServerConnection in the integration test.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts" • 3 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `import \{ getLimaServerConnection \} from "../lima-utils";` | L19 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `serverConnection = await getLimaServerConnection();` | L115 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `const serverConnection = await getLimaServerConnection();` | L1033 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update the test setup to not use Lima. Since these are integration tests that run against actual servers, I need to create a proper server connection. Let me update the test setup.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this to use the test server connection instead of Lima. Let me update the test setup to use the test server we create.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -17,5 +17,5 @@
+  import { generateKSUID } from &quot;@/lib/utils&quot;;
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the serverConnection assignment. Let me find where serverConnection is assigned and update it to use the test server we created.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -113,5 +113,10 @@
+      // 4. Clean up containers and networks
+      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+-     serverConnection = await getLimaServerConnection();
++     serverConnection = {
++       host: &quot;127.0.0.1&quot;,
++       port: sshPort,
++       username: process.env.USER || &quot;root&quot;,
++       privateKey: privateKey,
++     };
+      const containerRuntime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the other getLimaServerConnection usage. Let me find it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -1036,5 +1036,10 @@
+  
+      // Verify container exists (directly check Docker)
+-     const serverConnection = await getLimaServerConnection();
++     const serverConnection = {
++       host: &quot;127.0.0.1&quot;,
++       port: sshPort,
++       username: process.env.USER || &quot;root&quot;,
++       privateKey: privateKey,
++     };
+      const runtime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the proxy test file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -27,5 +27,5 @@
+  } from &quot;@/lib/db/schema&quot;;
+  import { KataRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
+- import { getLimaServerConnection } from &quot;@/lib/pod-orchestration/lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { NetworkManager } from &quot;@/lib/pod-orchestration/network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to find and fix the limaVmName references in the proxy test.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update the proxy test file similar to how I updated the integration test. Let me fix the database operations.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 2
+
+```diff
+@@ -191,8 +191,8 @@
+  
+      if (existingServer) {
+-       // Update SSH port and limaVmName to current values
++       // Update SSH port
+        await db
+          .update(servers)
+-         .set({ sshPort, limaVmName: vmName })
++         .set({ sshPort })
+          .where(eq(servers.id, existingServer.id));
+        testServerId = existingServer.id;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the insert statement in the proxy test.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -204,5 +204,5 @@
+          .insert(servers)
+          .values({
+-           hostname: &quot;lima-gvisor-alpine&quot;,
++           hostname: &quot;test-server-proxy&quot;,
+            ipAddress: &quot;127.0.0.1&quot;,
+            cpuCores: 4,
+```
+
+**Chunk 2**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -212,5 +212,4 @@
+            sshPort,
+            sshUser: process.env.USER || &quot;root&quot;,
+-           limaVmName: vmName, // Mark this as a Lima VM
+            status: &quot;online&quot;,
+          })
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the getLimaServerConnection usage in the proxy test. Let me find where it's used.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/proxy/__tests__/proxy.test.ts` | `serverConnection = await getLimaServerConnection();` | L128 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this to use the test server connection. Let me find the context and update it.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this to use the test server connection. Let me replace it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -126,5 +126,10 @@
+      // 4. Clean up containers and networks
+      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+-     serverConnection = await getLimaServerConnection();
++     serverConnection = {
++       host: &quot;127.0.0.1&quot;,
++       port: sshPort,
++       username: process.env.USER || &quot;root&quot;,
++       privateKey: privateKey,
++     };
+      const containerRuntime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the pods-e2e.integration.test.ts file. Let me check what needs to be fixed there.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to fix the pods-e2e.integration.test.ts file by removing the limaVmName references.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -179,5 +179,5 @@
+        await db
+          .update(servers)
+-         .set({ sshPort, limaVmName: vmName, status: &quot;online&quot; })
++         .set({ sshPort, status: &quot;online&quot; })
+          .where(eq(servers.id, existingServer.id));
+        testServerId = existingServer.id;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the insert statement.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -186,5 +186,5 @@
+          .insert(servers)
+          .values({
+-           hostname: &quot;lima-gvisor-alpine-e2e&quot;,
++           hostname: &quot;test-server-e2e&quot;,
+            ipAddress: &quot;127.0.0.1&quot;,
+            cpuCores: 4,
+```
+
+**Chunk 2**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -194,5 +194,4 @@
+            sshPort,
+            sshUser: process.env.USER || &quot;root&quot;,
+-           limaVmName: vmName,
+            status: &quot;online&quot;,
+            lastHeartbeatAt: new Date(),
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the remaining test files that import lima-utils. Let me check which ones still have issues.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "lima-utils" in "/Users/rchaves/Projects/pinacle/src" • 7 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `import \{ getLimaSshPort, isLimaVmRunning \} from "@/lib/pod-orchestration/lima-utils";` | L21 |
+| `src/lib/proxy/__tests__/proxy.test.ts` | `"@/lib/pod-orchestration/lima-utils"` | L69 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `const \{ isLimaVmRunning, getLimaSshPort \} = await import("../lima-utils");` | L57 |
+| `src/lib/pod-orchestration/__tests__/container-runtime.test.ts` | `import \{ getLimaServerConnection \} from "../lima-utils";` | L3 |
+| `src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts` | `import \{ getLimaServerConnection \} from "../lima-utils";` | L6 |
+| `src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts` | `import \{ getLimaServerConnection \} from "../lima-utils";` | L3 |
+| `src/lib/pod-orchestration/__tests__/process-provisioner.test.ts` | `import \{ getLimaServerConnection \} from "../lima-utils";` | L3 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to remove these imports and fix the test logic. Let me start with the pods-e2e.integration.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -19,5 +19,5 @@
+    users,
+  } from &quot;@/lib/db/schema&quot;;
+- import { getLimaSshPort, isLimaVmRunning } from &quot;@/lib/pod-orchestration/lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { appRouter } from &quot;../../root&quot;;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check if there are any usages of the Lima functions in this file and remove them.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "isLimaVmRunning|getLimaSshPort" in "/Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `const running = await isLimaVmRunning(vmName);` | L56 |
+| `src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts` | `const sshPort = await getLimaSshPort(vmName);` | L63 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to remove the Lima VM checks from this test since we're no longer using Lima. Let me see the context and update it.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this test to not check for Lima VMs. Since it's an E2E test, it probably expects a real server. Let me update it to assume a test server is available.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 11
+
+```diff
+@@ -52,15 +52,7 @@
+      }
+  
+-     // 2. Check if Lima VM is running and get SSH port
+-     const vmName = &quot;gvisor-alpine&quot;;
+-     const running = await isLimaVmRunning(vmName);
+-     if (!running) {
+-       throw new Error(
+-         &#96;Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}&#96;,
+-       );
+-     }
+- 
+-     const sshPort = await getLimaSshPort(vmName);
+-     console.log(&#96;✅ Lima VM ${vmName} is running on port ${sshPort}&#96;);
++     // 2. Set up test server connection (assumes test server is available)
++     const sshPort = 22; // Default SSH port for test server
++     console.log(&#96;✅ Using test server connection on port ${sshPort}&#96;);
+  
+      // 3. Clean up existing test data
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the other test files. Let me start with the container-runtime.test.ts.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import type { PodSpec, } from &quot;../types&quot;;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the test to not use getLimaServerConnection. Let me check how it's used.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/container-runtime.test.ts` | `runtime = new KataRuntime(await getLimaServerConnection());` | L47 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to create a mock server connection for this test. Let me update it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -45,5 +45,10 @@
+      );
+  
+-     runtime = new KataRuntime(await getLimaServerConnection());
++     runtime = new KataRuntime({
++       host: &quot;127.0.0.1&quot;,
++       port: 22,
++       username: &quot;root&quot;,
++       privateKey: &quot;mock-key&quot;,
++     });
+  
+      testConfig = {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the pinacle-yaml-integration.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -4,5 +4,5 @@
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+  import { GitHubIntegration } from &quot;../github-integration&quot;;
+- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to find and update the usage of getLimaServerConnection in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts` | `const serverConnection = await getLimaServerConnection();` | L54 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this to use a mock server connection.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -52,5 +52,10 @@
+  
+      // Clean up any existing test containers
+-     const serverConnection = await getLimaServerConnection();
++     const serverConnection = {
++       host: &quot;127.0.0.1&quot;,
++       port: 22,
++       username: &quot;root&quot;,
++       privateKey: &quot;mock-key&quot;,
++     };
+      containerRuntime = new KataRuntime(serverConnection);
+      networkManager = new NetworkManager(serverConnection);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the github-integration.unit.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
+  import { GitHubIntegration } from &quot;../github-integration&quot;;
+- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { PodManager } from &quot;../pod-manager&quot;;
+  import type { PodSpec } from &quot;../types&quot;;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me find and update the usage in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts` | `podManager = new PodManager(podId, await getLimaServerConnection());` | L14 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this usage.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -12,5 +12,10 @@
+    beforeAll(async () =&gt; {
+      // Initialize managers
+-     podManager = new PodManager(podId, await getLimaServerConnection());
++     podManager = new PodManager(podId, {
++       host: &quot;127.0.0.1&quot;,
++       port: 22,
++       username: &quot;root&quot;,
++       privateKey: &quot;mock-key&quot;,
++     });
+      githubIntegration = new GitHubIntegration(podManager);
+    });
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the process-provisioner.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it } from &quot;vitest&quot;;
+  import { generateKSUID } from &quot;../../utils&quot;;
+- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
++ // Removed Lima imports - now using direct server connections
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import { PodManager } from &quot;../pod-manager&quot;;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me find and update the usage in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getLimaServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/process-provisioner.test.ts` | `const serverConnection = await getLimaServerConnection();` | L17 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to update this usage.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 1
+
+```diff
+@@ -15,5 +15,10 @@
+    beforeAll(async () =&gt; {
+      testPodId = generateKSUID(&quot;pod&quot;);
+-     const serverConnection = await getLimaServerConnection();
++     const serverConnection = {
++       host: &quot;127.0.0.1&quot;,
++       port: 22,
++       username: &quot;root&quot;,
++       privateKey: &quot;mock-key&quot;,
++     };
+      podManager = new PodManager(testPodId, serverConnection);
+      networkManager = new NetworkManager(serverConnection);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the proxy test file that still has the import issue.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "lima-utils" in "/Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/proxy/__tests__/proxy.test.ts` | `"@/lib/pod-orchestration/lima-utils"` | L69 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check what this import is for.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to remove this Lima VM check logic from the proxy test. Let me update it.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to replace this entire Lima VM check block with a simple SSH port assignment. Let me update it.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the exact content around that area to get the correct string.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue - the error handling is different. Let me update it correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 25
+
+```diff
+@@ -61,29 +61,7 @@
+      }
+  
+-     // 2. Check if Lima VM is running and get SSH port
+-     let sshPort: number;
+-     const vmName = &quot;gvisor-alpine&quot;;
+- 
+-     try {
+-       const { isLimaVmRunning, getLimaSshPort } = await import(
+-         &quot;@/lib/pod-orchestration/lima-utils&quot;
+-       );
+- 
+-       const isRunning = await isLimaVmRunning(vmName);
+-       if (!isRunning) {
+-         throw new Error(
+-           &#96;Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}&#96;,
+-         );
+-       }
+- 
+-       console.log(&#96;✅ Lima VM ${vmName} is running&#96;);
+- 
+-       // Get actual SSH port from Lima
+-       sshPort = await getLimaSshPort(vmName);
+-       console.log(&#96;🔌 Lima SSH port: ${sshPort}&#96;);
+-     } catch (error) {
+-       console.error(&quot;Lima VM check failed:&quot;, error);
+-       throw error;
+-     }
++     // 2. Set up test server connection
++     const sshPort = 22; // Default SSH port for test server
++     console.log(&#96;✅ Using test server connection on port ${sshPort}&#96;);
+  
+      // 3. Clean up existing test data from database
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check if there are any remaining Lima references in the integration test file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "lima-utils|Lima" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts" • 19 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Removed Lima imports - now using direct server connections` | L19 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Integration tests that run against actual Lima VM and database` | L31 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// 1. Set up Lima SSH key for authentication` | L41 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `console.log("🔑 Loaded Lima SSH key");` | L46 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `console.error("Failed to load Lima SSH key:", error);` | L48 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// 2. Check if Lima VM is running and get SSH port` | L52 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `const \{ isLimaVmRunning, getLimaSshPort \} = await import("../lima-utils");` | L57 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `const isRunning = await isLimaVmRunning(vmName);` | L59 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | ``Lima VM $\{vmName\} is not running. Start it with: limactl start $\{vmName\}`,` | L62 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `console.log(`✅ Lima VM $\{vmName\} is running`);` | L66 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Get actual SSH port from Lima` | L68 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `sshPort = await getLimaSshPort(vmName);` | L69 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `console.log(`🔌 Lima SSH port: $\{sshPort\}`);` | L70 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `console.error("Lima VM check failed:", error);` | L72 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Create or update test server record for Lima VM with current SSH port` | L185 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)` | L735 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `"\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...",` | L1233 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// 3. Stop and remove the container (simulating Lima restart or crash)` | L1315 |
+| `src/lib/pod-orchestration/__tests__/integration.test.ts` | `// 4. Create a new container for the same pod (simulating pod restart after Lima restart)` | L1328 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to clean up the remaining Lima references in the integration test. Let me update the comments and logic.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -29,5 +29,5 @@
+  const execAsync = promisify(exec);
+  
+- // Integration tests that run against actual Lima VM and database
++ // Integration tests that run against actual test server and database
+  describe(&quot;Pod Orchestration Integration Tests&quot;, () =&gt; {
+    let provisioningService: PodProvisioningService;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the Lima SSH key setup and VM check logic.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the exact content and update it correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I can update it correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 34
+
+```diff
+@@ -39,38 +39,11 @@
+  
+    beforeAll(async () =&gt; {
+-     // 1. Set up Lima SSH key for authentication
+-     const limaKeyPath = join(homedir(), &quot;.lima&quot;, &quot;_config&quot;, &quot;user&quot;);
+-     try {
+-       const limaKey = readFileSync(limaKeyPath, &quot;utf-8&quot;);
+-       process.env.SSH_PRIVATE_KEY = limaKey;
+-       console.log(&quot;🔑 Loaded Lima SSH key&quot;);
+-     } catch (error) {
+-       console.error(&quot;Failed to load Lima SSH key:&quot;, error);
+-       throw error;
+-     }
+- 
+-     // 2. Check if Lima VM is running and get SSH port
+-     let sshPort: number;
+-     const vmName = &quot;gvisor-alpine&quot;;
+- 
+-     try {
+-       const { isLimaVmRunning, getLimaSshPort } = await import(&quot;../lima-utils&quot;);
+- 
+-       const isRunning = await isLimaVmRunning(vmName);
+-       if (!isRunning) {
+-         throw new Error(
+-           &#96;Lima VM ${vmName} is not running. Start it with: limactl start ${vmName}&#96;,
+-         );
+-       }
+- 
+-       console.log(&#96;✅ Lima VM ${vmName} is running&#96;);
+- 
+-       // Get actual SSH port from Lima
+-       sshPort = await getLimaSshPort(vmName);
+-       console.log(&#96;🔌 Lima SSH port: ${sshPort}&#96;);
+-     } catch (error) {
+-       console.error(&quot;Lima VM check failed:&quot;, error);
+-       throw error;
+-     }
++     // 1. Set up test server SSH key
++     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
++     console.log(&quot;🔑 Using test SSH key&quot;);
++ 
++     // 2. Set up test server connection
++     const sshPort = 22; // Default SSH port for test server
++     console.log(&#96;✅ Using test server connection on port ${sshPort}&#96;);
+  
+      // 3. Clean up existing test data from database
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the remaining comments in the integration test.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -156,5 +156,5 @@
+      });
+  
+-     // Create or update test server record for Lima VM with current SSH port
++     // Create or update test server record for test server with SSH port
+      const [existingServer] = await db
+        .select()
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me also update the other comments about Lima.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -706,5 +706,5 @@
+      expect(test8080.stdout.trim()).toBe(&quot;Hello from port 8080!&quot;);
+  
+-     // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
++     // Test using curl (this tests the hostname routing)
+      console.log(&quot;Testing from Mac via curl...&quot;);
+      const curlTest3000 = await execAsync(
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me update the volume persistence comments too.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1204,5 +1204,5 @@
+    it(&quot;should persist data across container removal and recreation&quot;, async () =&gt; {
+      console.log(
+-       &quot;\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...&quot;,
++       &quot;\n🧪 Testing volume persistence across container removal/recreation...&quot;,
+      );
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me update the other Lima restart comments.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1286,5 +1286,5 @@
+      console.log(&quot;✅ Test files written and verified&quot;);
+  
+-     // 3. Stop and remove the container (simulating Lima restart or crash)
++     // 3. Stop and remove the container (simulating server restart or crash)
+      console.log(&quot;🗑️  Removing container (simulating unexpected restart)...&quot;);
+      await runtime.stopContainer(originalContainerId);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me update the last comment.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1299,5 +1299,5 @@
+      console.log(&quot;✅ Container removed, volumes preserved&quot;);
+  
+-     // 4. Create a new container for the same pod (simulating pod restart after Lima restart)
++     // 4. Create a new container for the same pod (simulating pod restart after server restart)
+      console.log(&quot;🔄 Creating new container with same volumes...&quot;);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me run the build again to see if we've fixed all the TypeScript errors.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
+```
+
+```
+
+&gt; pinacle@0.1.0 build
+&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+
+Checking types...
+src/lib/pod-orchestration/__tests__/container-runtime.test.ts(48,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
+src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(15,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(89,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(92,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1013,13): error TS2304: Cannot find name &#39;sshPort&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1015,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1017,37): error TS2739: Type &#39;{ host: string; port: any; username: string; privateKey: any; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(60,40): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(61,41): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(62,44): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(23,44): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(24,41): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(25,60): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
+src/lib/proxy/__tests__/proxy.test.ts(107,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
+src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue. The ServerConnection type expects different properties. Let me check what the ServerConnection type looks like.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "interface ServerConnection|type ServerConnection" in "/Users/rchaves/Projects/pinacle/src" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/types.ts` | `export interface ServerConnectionConfig \{` | L187 |
+| `src/lib/pod-orchestration/types.ts` | `export interface ServerConnection \{` | L194 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see. The ServerConnection interface is not just a config object - it has methods. I need to use a proper ServerConnection instance or create a mock that implements the interface. Let me check how the tests were originally set up and what they used for server connections.
+</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/types.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see. The ServerConnection is an interface with methods. I need to create a mock implementation or use a real ServerConnection. Let me check how the original tests created server connections or if there's a factory function.
+</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "getServerConnectionDetails|ServerConnection" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts" • 8 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `import \{ SSHServerConnection \} from "./server-connection";` | L19 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `import type \{ ServerConnection \} from "./types";` | L20 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `async getServerConnectionDetails(` | L37 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `): Promise<ServerConnection> \{` | L39 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `return new SSHServerConnection(\{` | L54 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `const serverConnection = await this.getServerConnectionDetails(serverId);` | L96 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `const serverConnection = await this.getServerConnectionDetails(` | L297 |
+| `src/lib/pod-orchestration/pod-provisioning-service.ts` | `const serverConnection = await this.getServerConnectionDetails(serverId);` | L346 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I can see that the tests should use `SSHServerConnection` from `./server-connection`. Let me update the test files to use the proper server connection creation.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me update the import correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -17,5 +17,5 @@
+  import { generateKSUID } from &quot;@/lib/utils&quot;;
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;../server-connection&quot;;
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the server connection creation to use SSHServerConnection properly. Let me check what variables are available.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue. The variables `privateKey` and `sshPort` are not defined in this scope. Let me fix this by defining them properly and using SSHServerConnection.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: 1
+
+```diff
+@@ -40,5 +40,6 @@
+    beforeAll(async () =&gt; {
+      // 1. Set up test server SSH key
+-     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
++     const privateKey = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
++     process.env.SSH_PRIVATE_KEY = privateKey;
+      console.log(&quot;🔑 Using test SSH key&quot;);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server connection creation to use SSHServerConnection.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -87,10 +87,10 @@
+      // 4. Clean up containers and networks
+      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+-     serverConnection = {
++     serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: sshPort,
+-       username: process.env.USER || &quot;root&quot;,
++       user: process.env.USER || &quot;root&quot;,
+        privateKey: privateKey,
+-     };
++     });
+      const containerRuntime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to find and fix the other serverConnection usage in the file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -1010,10 +1010,10 @@
+  
+      // Verify container exists (directly check Docker)
+-     const serverConnection = {
++     const serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: sshPort,
+-       username: process.env.USER || &quot;root&quot;,
++       user: process.env.USER || &quot;root&quot;,
+        privateKey: privateKey,
+-     };
++     });
+      const runtime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the other test files similarly. Let me start with the container-runtime test.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;../server-connection&quot;;
+  import type { PodSpec, } from &quot;../types&quot;;
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the runtime instantiation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -45,10 +45,10 @@
+      );
+  
+-     runtime = new KataRuntime({
++     runtime = new KataRuntime(new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: 22,
+-       username: &quot;root&quot;,
++       user: &quot;root&quot;,
+        privateKey: &quot;mock-key&quot;,
+-     });
++     }));
+  
+      testConfig = {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the pinacle-yaml-integration.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -4,5 +4,5 @@
+  import { KataRuntime } from &quot;../container-runtime&quot;;
+  import { GitHubIntegration } from &quot;../github-integration&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;../server-connection&quot;;
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server connection creation in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -52,10 +52,10 @@
+  
+      // Clean up any existing test containers
+-     const serverConnection = {
++     const serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: 22,
+-       username: &quot;root&quot;,
++       user: &quot;root&quot;,
+        privateKey: &quot;mock-key&quot;,
+-     };
++     });
+      containerRuntime = new KataRuntime(serverConnection);
+      networkManager = new NetworkManager(serverConnection);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the process-provisioner.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it } from &quot;vitest&quot;;
+  import { generateKSUID } from &quot;../../utils&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;../server-connection&quot;;
+  import { NetworkManager } from &quot;../network-manager&quot;;
+  import { PodManager } from &quot;../pod-manager&quot;;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server connection creation in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -15,10 +15,10 @@
+    beforeAll(async () =&gt; {
+      testPodId = generateKSUID(&quot;pod&quot;);
+-     const serverConnection = {
++     const serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: 22,
+-       username: &quot;root&quot;,
++       user: &quot;root&quot;,
+        privateKey: &quot;mock-key&quot;,
+-     };
++     });
+      podManager = new PodManager(testPodId, serverConnection);
+      networkManager = new NetworkManager(serverConnection);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the github-integration.unit.test.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,5 +1,5 @@
+  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
+  import { GitHubIntegration } from &quot;../github-integration&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;../server-connection&quot;;
+  import { PodManager } from &quot;../pod-manager&quot;;
+  import type { PodSpec } from &quot;../types&quot;;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server connection creation in this file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 2
+
+```diff
+@@ -12,10 +12,11 @@
+    beforeAll(async () =&gt; {
+      // Initialize managers
+-     podManager = new PodManager(podId, {
++     const serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: 22,
+-       username: &quot;root&quot;,
++       user: &quot;root&quot;,
+        privateKey: &quot;mock-key&quot;,
+      });
++     podManager = new PodManager(podId, serverConnection);
+      githubIntegration = new GitHubIntegration(podManager);
+    });
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the proxy test file.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -27,5 +27,5 @@
+  } from &quot;@/lib/db/schema&quot;;
+  import { KataRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
+- // Removed Lima imports - now using direct server connections
++ import { SSHServerConnection } from &quot;@/lib/pod-orchestration/server-connection&quot;;
+  import { NetworkManager } from &quot;@/lib/pod-orchestration/network-manager&quot;;
+  import {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the server connection creation in the proxy test. Let me find where it's used.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -104,10 +104,10 @@
+      // 4. Clean up containers and networks
+      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+-     serverConnection = {
++     serverConnection = new SSHServerConnection({
+        host: &quot;127.0.0.1&quot;,
+        port: sshPort,
+-       username: process.env.USER || &quot;root&quot;,
++       user: process.env.USER || &quot;root&quot;,
+        privateKey: privateKey,
+-     };
++     });
+      const containerRuntime = new KataRuntime(serverConnection);
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me run the build again to see if we've fixed all the TypeScript errors.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30
+```
+
+```
+
+&gt; pinacle@0.1.0 build
+&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+
+Checking types...
+src/lib/pod-orchestration/__tests__/integration.test.ts(1014,13): error TS2304: Cannot find name &#39;sshPort&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1016,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I still have some undefined variables. Let me fix these by defining them properly in the test scopes. Let me check the integration test first.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
 
 
 ---

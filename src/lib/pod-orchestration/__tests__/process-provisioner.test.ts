@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateKSUID } from "../../utils";
-import { SSHServerConnection } from "../server-connection";
 import { NetworkManager } from "../network-manager";
 import { PodManager } from "../pod-manager";
 import { ProcessProvisioner } from "../process-provisioner";
+import { SSHServerConnection } from "../server-connection";
 import type { PodSpec, ProcessConfig } from "../types";
 
 describe("ProcessProvisioner Integration Tests", () => {
