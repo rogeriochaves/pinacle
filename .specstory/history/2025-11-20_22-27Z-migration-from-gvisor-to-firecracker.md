@@ -22228,3 +22228,199 @@ The changes are now committed and ready for deployment! 🚀
 
 ---
 
+_**User (2025-11-21 01:47Z)**_
+
+ok because I don't want to restart docker all the time as I may have customer containers there, can you do the docker restart on @provision-server.sh ONLY IF kata etc was not set up before?
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to modify the provision-server.sh script to only restart Docker if Kata wasn't already set up before. This makes sense because restarting Docker can disrupt running containers.
+
+
+## Evaluating script modification  
+- The user needs the provision-server.sh script updated to restart Docker only if Kata wasn't previously set up.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: scripts/provision-server.sh</summary>
+
+**Chunk 1**
+Lines added: 8, lines removed: 2
+
+```diff
+@@ -373,6 +373,12 @@
+  echo &quot;🐳 Step 6d: Configuring Docker to use Kata runtime...&quot;
+  
+- # Configure Docker to use the Kata runtime from containerd
+- run_remote &quot;sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;&#39;EOF&#39;
++ # Check if kata-fc runtime is already configured
++ KATA_CONFIGURED=$(run_remote &quot;grep -q &#39;kata-fc&#39; /etc/docker/daemon.json 2&gt;/dev/null &amp;&amp; echo &#39;yes&#39; || echo &#39;no&#39;&quot;)
++ 
++ if [ &quot;$KATA_CONFIGURED&quot; = &quot;yes&quot; ]; then
++   echo &quot;   Kata runtime already configured in Docker, skipping restart&quot;
++ else
++   # Configure Docker to use the Kata runtime from containerd
++   run_remote &quot;sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;&#39;EOF&#39;
+  {
+    \&quot;data-root\&quot;: \&quot;/var/lib/docker\&quot;,
+```
+
+**Chunk 2**
+Lines added: 3, lines removed: 2
+
+```diff
+@@ -387,6 +393,7 @@
+  EOF&quot;
+  
+- echo &quot;   Restarting Docker to apply configuration...&quot;
+- run_remote &quot;sudo systemctl restart docker&quot;
++   echo &quot;   Restarting Docker to apply configuration...&quot;
++   run_remote &quot;sudo systemctl restart docker&quot;
++ fi
+  
+  echo &quot;✅ Docker configured with kata-fc runtime&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The change looks good. I've added a check to see if the kata-fc runtime is already configured in Docker's daemon.json. If it is, we skip the Docker restart. If it's not, we configure it and then restart Docker.
+</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: bash -n scripts/provision-server.sh</summary>
+
+```bash
+bash -n scripts/provision-server.sh
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! The syntax check passed. Let me also run a quick test to make sure the logic works by checking if the kata-fc check would work on our test server.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -q "kata-fc" /etc/docker/daemon.json 2>/dev/null && echo "kata-fc already configured" || echo "kata-fc not configured"'</summary>
+
+```bash
+ssh root@157.90.177.85 'grep -q "kata-fc" /etc/docker/daemon.json 2>/dev/null && echo "kata-fc already configured" || echo "kata-fc not configured"'
+```
+
+```
+kata-fc already configured
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Excellent! The test shows that kata-fc is already configured on the server, so the new logic would skip the Docker restart. This is exactly what we want.
+</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git add scripts/provision-server.sh</summary>
+
+```bash
+git add scripts/provision-server.sh
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me commit this change with an appropriate commit message.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git commit -m "feat: avoid Docker restart when Kata already configured
+
+- Skip Docker daemon restart if kata-fc runtime already configured
+- Prevents disruption of running customer containers during re-provisioning
+- Maintains idempotency for server provisioning script"</summary>
+
+```bash
+git commit -m "feat: avoid Docker restart when Kata already configured
+
+- Skip Docker daemon restart if kata-fc runtime already configured
+- Prevents disruption of running customer containers during re-provisioning
+- Maintains idempotency for server provisioning script"
+```
+
+```
+[main 79c59d8] feat: avoid Docker restart when Kata already configured
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've successfully committed the change. Let me summarize what was accomplished.</details></think>
+
+---
+
+## ✅ **Docker Restart Optimization Complete!**
+
+## **What Changed:**
+The provisioning script now **only restarts Docker when necessary**:
+
+### **Before:**
+```bash
+# Always restarted Docker after configuring Kata runtime
+sudo systemctl restart docker
+```
+
+### **After:**
+```bash
+# Check if kata-fc runtime is already configured
+KATA_CONFIGURED=$(run_remote "grep -q 'kata-fc' /etc/docker/daemon.json 2>/dev/null && echo 'yes' || echo 'no'")
+
+if [ "$KATA_CONFIGURED" = "yes" ]; then
+  echo "   Kata runtime already configured in Docker, skipping restart"
+else
+  # Configure and restart Docker only if needed
+  ...
+  sudo systemctl restart docker
+fi
+```
+
+## **Benefits:**
+- ✅ **Prevents disruption** of running customer containers
+- ✅ **Faster re-provisioning** on already-configured servers  
+- ✅ **Idempotent script** - safe to run multiple times
+- ✅ **Zero downtime** for existing Kata deployments
+
+## **Tested & Verified:**
+- ✅ **Syntax validated** - bash script is correct
+- ✅ **Logic tested** - detects existing kata-fc configuration properly
+- ✅ **Committed** - changes are in repository
+
+Now when you re-run the provisioning script on servers that already have Kata configured, Docker won't restart and interrupt running containers! 🚀
+
+*(Docker restart is now conditional - only happens when Kata runtime needs to be added)*
+
+---
+

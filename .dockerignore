@@ -11,6 +11,7 @@ server-agent/dist
 dist
 build
 *.tsbuildinfo
+.specstory
 
 # Development files
 .env
