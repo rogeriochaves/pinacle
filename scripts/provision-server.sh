@@ -415,6 +415,22 @@ else
   echo "⚠️  Warning: pinacle-base test failed, but continuing..."
 fi
 
+# Test network connectivity in Kata container
+echo "   Testing network connectivity in Kata container..."
+if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl && curl -s --connect-timeout 5 https://api.github.com/zen && echo \"✅ Network connectivity verified!\"'" 2>&1; then
+  echo "✅ Kata containers have internet access!"
+else
+  echo "❌ Kata container network connectivity FAILED!"
+  echo "   This will prevent containers from accessing external resources."
+  echo "   Common causes: Docker version incompatibility or missing CNI plugins."
+  echo ""
+  echo "   Troubleshooting:"
+  echo "   - Check Docker version (should be 27.x for Kata networking)"
+  echo "   - Verify CNI plugins are installed: ls -la /opt/cni/bin/"
+  echo "   - Check Kata configuration: kata-runtime kata-check"
+  exit 1
+fi
+
 echo "📁 Step 8: Creating agent directory and log file..."
 run_remote "sudo mkdir -p '$AGENT_PATH' && sudo chown -R \$USER '$AGENT_PATH'"
 run_remote "sudo mkdir -p '/var/lib/pinacle/snapshots' && sudo chown -R \$USER '/var/lib/pinacle/snapshots'"
