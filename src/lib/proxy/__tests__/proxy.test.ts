@@ -25,7 +25,7 @@ import {
   teams,
   users,
 } from "@/lib/db/schema";
-import { GVisorRuntime } from "@/lib/pod-orchestration/container-runtime";
+import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
 import { getLimaServerConnection } from "@/lib/pod-orchestration/lima-utils";
 import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
 import {
@@ -126,7 +126,7 @@ describe("Proxy Integration Tests", () => {
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
     serverConnection = await getLimaServerConnection();
-    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containerRuntime = new KataRuntime(serverConnection);
 
     const containers = await containerRuntime.listContainers();
     const testContainers = containers.filter(

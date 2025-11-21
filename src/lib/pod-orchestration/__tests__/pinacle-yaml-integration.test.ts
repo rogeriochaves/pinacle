@@ -1,7 +1,7 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
-import { GVisorRuntime } from "../container-runtime";
+import { KataRuntime } from "../container-runtime";
 import { GitHubIntegration } from "../github-integration";
 import { getLimaServerConnection } from "../lima-utils";
 import { NetworkManager } from "../network-manager";
@@ -22,7 +22,7 @@ const execAsync = promisify(exec);
 describe("Pinacle YAML Integration Tests", () => {
   let podManager: PodManager;
   let githubIntegration: GitHubIntegration;
-  let containerRuntime: GVisorRuntime;
+  let containerRuntime: KataRuntime;
   let networkManager: NetworkManager;
   const testPodId = `pinacle-yaml-test-${Date.now()}`;
 
@@ -52,7 +52,7 @@ describe("Pinacle YAML Integration Tests", () => {
 
     // Clean up any existing test containers
     const serverConnection = await getLimaServerConnection();
-    containerRuntime = new GVisorRuntime(serverConnection);
+    containerRuntime = new KataRuntime(serverConnection);
     networkManager = new NetworkManager(serverConnection);
     podManager = new PodManager(testPodId, serverConnection);
     githubIntegration = new GitHubIntegration(podManager);

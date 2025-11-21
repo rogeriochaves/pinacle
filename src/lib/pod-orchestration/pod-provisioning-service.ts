@@ -317,8 +317,8 @@ export class PodProvisioningService {
           `[PodProvisioningService] Pod ${podId} has no container, cleaning up volumes only`,
         );
 
-        const { GVisorRuntime } = await import("./container-runtime");
-        const runtime = new GVisorRuntime(serverConnection);
+        const { KataRuntime } = await import("./container-runtime");
+        const runtime = new KataRuntime(serverConnection);
         await runtime.removeAllPodVolumes(podId);
 
         console.log(

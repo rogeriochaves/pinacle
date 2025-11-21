@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { GVisorRuntime } from "../container-runtime";
+import { KataRuntime } from "../container-runtime";
 import { getLimaServerConnection } from "../lima-utils";
 import type { PodSpec, } from "../types";
 
@@ -25,8 +25,8 @@ vi.mock("util", () => ({
   },
 }));
 
-describe("LimaGVisorRuntime", () => {
-  let runtime: GVisorRuntime;
+describe("KataRuntime", () => {
+  let runtime: KataRuntime;
   let testConfig: PodSpec;
 
   beforeAll(async () => {
@@ -44,7 +44,7 @@ describe("LimaGVisorRuntime", () => {
       },
     );
 
-    runtime = new GVisorRuntime(await getLimaServerConnection());
+    runtime = new KataRuntime(await getLimaServerConnection());
 
     testConfig = {
       version: "1.0",
@@ -287,14 +287,14 @@ describe("LimaGVisorRuntime", () => {
     });
   });
 
-  describe("validateGVisorRuntime", () => {
+  describe("validateKataRuntime", () => {
     it("should validate gVisor runtime is available", async () => {
       mockExec.mockImplementationOnce((cmd: string, callback: any) => {
         expect(cmd).toContain("docker info");
         callback(null, { stdout: "Runtimes: runc runsc", stderr: "" });
       });
 
-      const result = await runtime.validateGVisorRuntime();
+      const result = await runtime.validateKataRuntime();
       expect(result).toBe(true);
     });
 
@@ -303,7 +303,7 @@ describe("LimaGVisorRuntime", () => {
         callback(null, { stdout: "Runtimes: runc", stderr: "" });
       });
 
-      const result = await runtime.validateGVisorRuntime();
+      const result = await runtime.validateKataRuntime();
       expect(result).toBe(false);
     });
   });

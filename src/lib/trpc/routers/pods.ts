@@ -984,10 +984,10 @@ export const podsRouter = createTRPCRouter({
             console.log(
               `[pods.stop] Removing stopped container ${container.id} AND volumes (full deprovision)`,
             );
-            const { GVisorRuntime } = await import(
+            const { KataRuntime } = await import(
               "../../pod-orchestration/container-runtime"
             );
-            const runtime = new GVisorRuntime(serverConnection);
+            const runtime = new KataRuntime(serverConnection);
             // removeVolumes defaults to true
             await runtime.removeContainer(container.id);
           }
@@ -1822,10 +1822,10 @@ export const podsRouter = createTRPCRouter({
         const serverConnection =
           await provisioningService.getServerConnectionDetails(pod.serverId);
 
-        const { GVisorRuntime } = await import(
+        const { KataRuntime } = await import(
           "../../pod-orchestration/container-runtime"
         );
-        const runtime = new GVisorRuntime(serverConnection);
+        const runtime = new KataRuntime(serverConnection);
 
         // Get the active container
         const container = await runtime.getActiveContainerForPodOrThrow(
@@ -1957,10 +1957,10 @@ export const podsRouter = createTRPCRouter({
           const serverConnection =
             await provisioningService.getServerConnectionDetails(pod.serverId!);
 
-          const { GVisorRuntime } = await import(
+          const { KataRuntime } = await import(
             "../../pod-orchestration/container-runtime"
           );
-          const runtime = new GVisorRuntime(serverConnection);
+          const runtime = new KataRuntime(serverConnection);
 
           const container = await runtime.getActiveContainerForPodOrThrow(
             input.podId,
@@ -2043,10 +2043,10 @@ export const podsRouter = createTRPCRouter({
         const serverConnection =
           await provisioningService.getServerConnectionDetails(pod.serverId);
 
-        const { GVisorRuntime } = await import(
+        const { KataRuntime } = await import(
           "../../pod-orchestration/container-runtime"
         );
-        const runtime = new GVisorRuntime(serverConnection);
+        const runtime = new KataRuntime(serverConnection);
 
         // Get the active container
         const container = await runtime.getActiveContainerForPodOrThrow(

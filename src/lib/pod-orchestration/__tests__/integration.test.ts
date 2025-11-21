@@ -15,7 +15,7 @@ import {
   users,
 } from "@/lib/db/schema";
 import { generateKSUID } from "@/lib/utils";
-import { GVisorRuntime } from "../container-runtime";
+import { KataRuntime } from "../container-runtime";
 import { getLimaServerConnection } from "../lima-utils";
 import { NetworkManager } from "../network-manager";
 import {
@@ -113,7 +113,7 @@ describe("Pod Orchestration Integration Tests", () => {
     // 4. Clean up containers and networks
     console.log("🧹 Cleaning up containers and networks...");
     serverConnection = await getLimaServerConnection();
-    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containerRuntime = new KataRuntime(serverConnection);
 
     const containers = await containerRuntime.listContainers();
     const testContainers = containers.filter(
@@ -831,7 +831,7 @@ describe("Pod Orchestration Integration Tests", () => {
     // 5. Verify the repository was cloned correctly
     console.log("🔍 Verifying cloned repository...");
 
-    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containerRuntime = new KataRuntime(serverConnection);
     const { stdout: repoCheck } = await containerRuntime.execInContainer(
       provisionedPod.id,
       provisionedPod.containerId!,
@@ -936,7 +936,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Verify container exists
     const podManager = new PodManager(deleteTestId, serverConnection);
-    const runtime = new GVisorRuntime(serverConnection);
+    const runtime = new KataRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
     expect(containerBefore).toBeTruthy();
@@ -1032,7 +1032,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Verify container exists (directly check Docker)
     const serverConnection = await getLimaServerConnection();
-    const runtime = new GVisorRuntime(serverConnection);
+    const runtime = new KataRuntime(serverConnection);
 
     const containerBefore = await runtime.getContainer(containerId);
     expect(containerBefore).toBeTruthy();
@@ -1125,7 +1125,7 @@ describe("Pod Orchestration Integration Tests", () => {
     console.log(`✅ Pod provisioned with container: ${containerId}`);
 
     // 2. Create test files in volume-mounted directories
-    const runtime = new GVisorRuntime(serverConnection);
+    const runtime = new KataRuntime(serverConnection);
     const podManager = new PodManager(volumeTestId, serverConnection);
 
     console.log("📝 Writing test files to volumes...");
@@ -1277,7 +1277,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Create test files in volumes
     const podManager = new PodManager(recreateTestId, serverConnection);
-    const runtime = new GVisorRuntime(serverConnection);
+    const runtime = new KataRuntime(serverConnection);
 
     console.log("📝 Writing test files to volumes...");
 
@@ -1431,7 +1431,7 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // 2. Install a package with apk
     const podManager = new PodManager(apkTestId, serverConnection);
-    const runtime = new GVisorRuntime(serverConnection);
+    const runtime = new KataRuntime(serverConnection);
 
     console.log("📦 Installing curl with apk...");
 
@@ -1529,7 +1529,7 @@ describe("Pod Orchestration Integration Tests", () => {
     }
 
     // 4. Verify pod container exists (check directly, since git push failure prevented DB update)
-    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containerRuntime = new KataRuntime(serverConnection);
     const containers = await containerRuntime.listContainers();
     const viteContainer = containers.find((c) => c.podId === viteTestId);
 
@@ -1741,7 +1741,7 @@ describe("Pod Orchestration Integration Tests", () => {
     }
 
     // 4. Verify pod container exists
-    const containerRuntime = new GVisorRuntime(serverConnection);
+    const containerRuntime = new KataRuntime(serverConnection);
     const containers = await containerRuntime.listContainers();
     const nextjsContainer = containers.find((c) => c.podId === nextjsTestId);
 
