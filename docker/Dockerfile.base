@@ -98,6 +98,10 @@ RUN pnpm add -g vibe-kanban
 RUN mkdir -p /etc/nginx/http.d && \
     rm -f /etc/nginx/http.d/default.conf
 COPY docker/config/nginx.conf /etc/nginx/nginx.conf
+
+# Configure OpenRC to disable cgroup management (fixes Firecracker microVM issues)
+RUN echo 'rc_cgroup_mode="none"' >> /etc/rc.conf
+
 # Add nginx to OpenRC to start automatically
 RUN rc-update add nginx default
 
