@@ -337,6 +337,9 @@ run_remote "sudo sed -i 's|block_device_driver = .*|block_device_driver = \"virt
 # Disable vsock (Firecracker doesn't fully support it)
 run_remote "sudo sed -i 's|enable_vsock = true|enable_vsock = false|' $KATA_CONFIG" || true
 
+# Set kernel parameters to prevent OpenRC cgroup issues in microVMs
+run_remote "sudo sed -i 's|kernel_params = .*|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\"|' $KATA_CONFIG"
+
 echo "✅ Kata configured for Firecracker"
 
 echo "🌐 Step 6a: Installing CNI plugins for Kata networking..."
