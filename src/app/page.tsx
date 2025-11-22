@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UTMCapture } from "../components/analytics/utm-capture";
 import { FAQ } from "../components/landing/faq";
 import { Footer } from "../components/landing/footer";
 import { Hero } from "../components/landing/hero";
@@ -10,6 +11,7 @@ import { Button } from "../components/ui/button";
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
+      <UTMCapture />
       <Hero />
       <JumpRightBack />
       <Templates />

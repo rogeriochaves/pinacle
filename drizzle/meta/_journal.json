@@ -183,6 +183,13 @@
       "when": 1763680178650,
       "tag": "0025_ancient_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1763817502995,
+      "tag": "0026_narrow_tomorrow_man",
+      "breakpoints": true
     }
   ]
 }

@@ -16,6 +16,7 @@ import {
 } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
+import { getUTMFromStorage } from "../../../lib/analytics/utm";
 import { api } from "../../../lib/trpc/client";
 
 function SignUpForm() {
@@ -59,10 +60,14 @@ function SignUpForm() {
     }
 
     try {
+      // Get UTM parameters from session storage
+      const utm = getUTMFromStorage();
+
       await signUpMutation.mutateAsync({
         name,
         email,
         password,
+        ...(utm || {}),
       });
 
       // Auto sign in after successful registration
@@ -89,7 +94,25 @@ function SignUpForm() {
   };
 
   const handleGithubSignIn = () => {
-    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    // Get UTM parameters from session storage
+    const utm = getUTMFromStorage();
+
+    // Base callback URL
+    let callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+    // Append UTM parameters to callback URL so they're preserved after OAuth
+    if (utm) {
+      const utmParams = new URLSearchParams();
+      if (utm.utmSource) utmParams.set("utm_source", utm.utmSource);
+      if (utm.utmMedium) utmParams.set("utm_medium", utm.utmMedium);
+      if (utm.utmCampaign) utmParams.set("utm_campaign", utm.utmCampaign);
+      if (utm.utmTerm) utmParams.set("utm_term", utm.utmTerm);
+      if (utm.utmContent) utmParams.set("utm_content", utm.utmContent);
+
+      const separator = callbackUrl.includes("?") ? "&" : "?";
+      callbackUrl = `${callbackUrl}${separator}${utmParams.toString()}`;
+    }
+
     signIn("github", { callbackUrl });
   };
 

@@ -1,5 +1,6 @@
 // PostHog tracking utilities
 import posthog from "posthog-js";
+import { getUTMFromStorage } from "./utm";
 
 type EventProperties = Record<string, string | number | boolean | null>;
 
@@ -55,12 +56,21 @@ export const trackBeginCheckout = (params: {
   tierId: string;
   tierName: string;
 }) => {
+  // Include UTM parameters if available
+  const utm = getUTMFromStorage();
+
   captureEvent("begin_checkout", {
     currency: params.currency,
     value: params.value,
     tier_id: params.tierId,
     tier_name: params.tierName,
     category: "subscription",
+    // Add UTM parameters to the event
+    ...(utm?.utmSource && { utm_source: utm.utmSource }),
+    ...(utm?.utmMedium && { utm_medium: utm.utmMedium }),
+    ...(utm?.utmCampaign && { utm_campaign: utm.utmCampaign }),
+    ...(utm?.utmTerm && { utm_term: utm.utmTerm }),
+    ...(utm?.utmContent && { utm_content: utm.utmContent }),
   });
 };
 
@@ -71,6 +81,9 @@ export const trackPurchase = (params: {
   tierId: string;
   tierName: string;
 }) => {
+  // Include UTM parameters if available
+  const utm = getUTMFromStorage();
+
   captureEvent("purchase", {
     transaction_id: params.transactionId,
     currency: params.currency,
@@ -78,6 +91,12 @@ export const trackPurchase = (params: {
     tier_id: params.tierId,
     tier_name: params.tierName,
     category: "subscription",
+    // Add UTM parameters to the event
+    ...(utm?.utmSource && { utm_source: utm.utmSource }),
+    ...(utm?.utmMedium && { utm_medium: utm.utmMedium }),
+    ...(utm?.utmCampaign && { utm_campaign: utm.utmCampaign }),
+    ...(utm?.utmTerm && { utm_term: utm.utmTerm }),
+    ...(utm?.utmContent && { utm_content: utm.utmContent }),
   });
 };
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSession, signIn } from "next-auth/react";
 import { Suspense, useEffect, useState } from "react";
+import { getUTMFromStorage } from "../../../lib/analytics/utm";
 import { Button } from "../../../components/ui/button";
 import {
   Card,
@@ -102,7 +103,25 @@ function SignInForm() {
   };
 
   const handleGithubSignIn = () => {
-    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+    // Get UTM parameters from session storage or URL
+    const utm = getUTMFromStorage();
+
+    // Base callback URL
+    let callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+    // Append UTM parameters to callback URL so they're preserved after OAuth
+    if (utm) {
+      const utmParams = new URLSearchParams();
+      if (utm.utmSource) utmParams.set("utm_source", utm.utmSource);
+      if (utm.utmMedium) utmParams.set("utm_medium", utm.utmMedium);
+      if (utm.utmCampaign) utmParams.set("utm_campaign", utm.utmCampaign);
+      if (utm.utmTerm) utmParams.set("utm_term", utm.utmTerm);
+      if (utm.utmContent) utmParams.set("utm_content", utm.utmContent);
+
+      const separator = callbackUrl.includes("?") ? "&" : "?";
+      callbackUrl = `${callbackUrl}${separator}${utmParams.toString()}`;
+    }
+
     signIn("github", { callbackUrl });
   };
 

@@ -30,6 +30,12 @@ export const users = pgTable("user", {
   password: text("password"),
   githubId: varchar("github_id", { length: 255 }),
   githubUsername: varchar("github_username", { length: 255 }),
+  // UTM tracking fields
+  utmSource: varchar("utm_source", { length: 255 }),
+  utmMedium: varchar("utm_medium", { length: 255 }),
+  utmCampaign: varchar("utm_campaign", { length: 255 }),
+  utmTerm: varchar("utm_term", { length: 255 }),
+  utmContent: varchar("utm_content", { length: 255 }),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });

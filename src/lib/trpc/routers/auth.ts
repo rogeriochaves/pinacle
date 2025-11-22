@@ -14,13 +14,19 @@ const signUpSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
+  // UTM parameters (optional)
+  utmSource: z.string().optional(),
+  utmMedium: z.string().optional(),
+  utmCampaign: z.string().optional(),
+  utmTerm: z.string().optional(),
+  utmContent: z.string().optional(),
 });
 
 export const authRouter = createTRPCRouter({
   signUp: publicProcedure
     .input(signUpSchema)
     .mutation(async ({ ctx, input }) => {
-      const { name, email, password } = input;
+      const { name, email, password, utmSource, utmMedium, utmCampaign, utmTerm, utmContent } = input;
 
       // Check if user already exists
       const existingUser = await ctx.db
@@ -51,6 +57,11 @@ export const authRouter = createTRPCRouter({
           name,
           email,
           password: hashedPassword,
+          utmSource,
+          utmMedium,
+          utmCampaign,
+          utmTerm,
+          utmContent,
         })
         .returning({
           id: users.id,

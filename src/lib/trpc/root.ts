@@ -9,10 +9,12 @@ import { podsRouter } from "./routers/pods";
 import { serversRouter } from "./routers/servers";
 import { snapshotsRouter } from "./routers/snapshots";
 import { teamsRouter } from "./routers/teams";
+import { usersRouter } from "./routers/users";
 import { createTRPCRouter } from "./server";
 
 export const appRouter = createTRPCRouter({
   auth: authRouter,
+  users: usersRouter,
   teams: teamsRouter,
   pods: podsRouter,
   envSets: envSetsRouter,

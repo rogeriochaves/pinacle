@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
+import { UTMPersister } from "../../components/analytics/utm-persister";
 
 export default function DashboardLayout({
   children,
@@ -37,9 +38,19 @@ export default function DashboardLayout({
   const isMainDashboard = pathname === "/dashboard";
 
   if (isMainDashboard) {
-    return <div className="bg-slate-900 min-h-screen">{children}</div>;
+    return (
+      <div className="bg-slate-900 min-h-screen">
+        <UTMPersister />
+        {children}
+      </div>
+    );
   }
 
   // Other pages (team, account) get clean layout with no sidebar
-  return <>{children}</>;
+  return (
+    <>
+      <UTMPersister />
+      {children}
+    </>
+  );
 }
