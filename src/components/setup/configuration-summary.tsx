@@ -40,13 +40,13 @@ export const ConfigurationSummary = ({
 }: ConfigurationSummaryProps) => {
   const t = useTranslations("setup");
   // Detect currency from IP using tRPC
-  const { data: currencyData, isLoading: isCurrencyLoading } = api.currency.detectCurrency.useQuery();
+  const { data: currencyData, isLoading: isCurrencyLoading } =
+    api.currency.detectCurrency.useQuery();
   const currency = currencyData?.currency || "usd";
 
   // Get pricing for the selected tier in the detected currency
   const tierPrice =
-    PRICING_TABLE[tierData.id as keyof typeof PRICING_TABLE]?.[currency] ||
-    tierData.price;
+    PRICING_TABLE[tierData.id as keyof typeof PRICING_TABLE]?.[currency];
 
   // Use selectedServices if provided, otherwise fall back to template's default services
   const allServices: ServiceId[] = (selectedServices ||
@@ -239,10 +239,14 @@ export const ConfigurationSummary = ({
                   </span>
                 ) : (
                   <span className="text-white font-mono text-3xl font-bold">
-                    {formatCurrency(tierPrice, currency, { showDecimals: false })}
+                    {formatCurrency(tierPrice, currency, {
+                      showDecimals: false,
+                    })}
                   </span>
                 )}
-                <span className="text-slate-400 font-mono text-sm">{t("perMonth")}</span>
+                <span className="text-slate-400 font-mono text-sm">
+                  {t("perMonth")}
+                </span>
               </div>
               <p className="text-slate-500 font-mono text-xs mt-1">
                 {t("billedHourly")}

@@ -3458,3 +3458,241 @@ Let me know what you'd like to do with these other uncommitted changes!
 
 ---
 
+_**User (2025-11-22 18:25Z)**_
+
+alright, can you implement tracking the conversion now
+
+
+
+<!-- Event snippet for Purchase conversion page -->
+
+<script>
+
+  gtag('event', 'conversion', {
+
+      'send_to': 'AW-17752491685/QGwTCLy1hcUbEKWNhpFC',
+
+      'value': 1.0,
+
+      'currency': 'EUR',
+
+      'transaction_id': ''
+
+  });
+
+</script>
+
+
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to implement tracking the conversion for Google Ads Purchase conversions. They've provided the conversion snippet that Google Ads gave them.
+
+
+## Implementing Conversion Tracking  
+- The user requested adding Google Ads Purchase conversion tracking.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "checkout.*success|checkout.*success.*session_id" in "src" • 7 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/components/setup/setup-form.tsx` | `checkoutStatus === "success" \|\| checkoutStatus === "cancel";` | L93 |
+| `src/components/setup/setup-form.tsx` | `// Mutation for handling checkout success` | L213 |
+| `src/components/setup/setup-form.tsx` | `// Handle checkout success/cancel from URL params` | L217 |
+| `src/components/setup/setup-form.tsx` | `if (checkout === "success" && sessionId) \{` | L231 |
+| `src/components/setup/setup-form.tsx` | `successUrl: `$\{window.location.origin\}/setup/configure?checkout=success&session_id=\{CHECKOUT_SESSION_ID\}`,` | L575 |
+| `src/components/setup/setup-form.tsx` | `status=\{checkoutStatus as "success" \| "cancel" \| null\}` | L692 |
+| `src/lib/trpc/routers/billing.ts` | `success_url: successUrl \|\| `$\{baseUrl\}/dashboard?checkout=success`,` | L140 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I can see that the checkout success handling happens in the `useEffect` in `setup-form.tsx` around line 231. This is where I need to add the Google Ads conversion tracking.
+</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I can see exactly where the GA and PostHog tracking happens (lines 271-293). I need to add the Google Ads conversion tracking right after that, using the same data that's already available.
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 15, lines removed: undefined
+
+```diff
+@@ -292,4 +292,19 @@
+                    tierName: &#96;Pinacle ${tier}&#96;,
+                  });
++ 
++                 // Google Ads conversion tracking
++                 if (typeof window !== &quot;undefined&quot; &amp;&amp; window.gtag) {
++                   window.gtag(&#39;event&#39;, &#39;conversion&#39;, {
++                     &#39;send_to&#39;: &#39;AW-17752491685/QGwTCLy1hcUbEKWNhpFC&#39;,
++                     &#39;value&#39;: tierPrice,
++                     &#39;currency&#39;: currency.toUpperCase(),
++                     &#39;transaction_id&#39;: sessionId
++                   });
++                   console.log(&quot;[Checkout] Google Ads conversion tracked:&quot;, {
++                     transaction_id: sessionId,
++                     value: tierPrice,
++                     currency: currency.toUpperCase()
++                   });
++                 }
+                } catch (error) {
+                  console.error(&quot;[Checkout] Error tracking purchase:&quot;, error);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to make sure the window.gtag type is available. Let me check if it's already declared in the analytics files.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/analytics/gtag.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good, the global types are already declared. Let me check if the setup-form.tsx imports the gtag utilities or if it has the types available.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Great! I can see that the gtag types are already imported through the analytics/gtag import (line 13-15), so window.gtag should be available. Let me run the linter to make sure everything is working.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/components/setup/setup-form.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! The implementation looks good. Let me commit this change.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/setup/setup-form.tsx && git commit -m "feat: add Google Ads conversion tracking for purchases
+
+- Track purchase conversions in Google Ads when checkout succeeds
+- Use actual transaction ID, value, and currency from Stripe session
+- Fire conversion event alongside existing GA and PostHog tracking"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/components/setup/setup-form.tsx && git commit -m "feat: add Google Ads conversion tracking for purchases
+
+- Track purchase conversions in Google Ads when checkout succeeds
+- Use actual transaction ID, value, and currency from Stripe session
+- Fire conversion event alongside existing GA and PostHog tracking"
+```
+
+```
+[main 77410f6] feat: add Google Ads conversion tracking for purchases
+ 1 file changed, 15 insertions(+)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've successfully implemented Google Ads conversion tracking. Let me summarize what was done:
+</details></think>
+
+---
+
+Perfect! ✅ **Google Ads conversion tracking is now implemented and committed.**
+
+## What's now tracking:
+
+When users complete a purchase, the system fires **three tracking events**:
+
+1. **Google Analytics** - `purchase` event with transaction details
+2. **PostHog** - `purchase` event with transaction details  
+3. **Google Ads** - `conversion` event with your specific conversion ID (`AW-17752491685/QGwTCLy1hcUbEKWNhpFC`)
+
+## The conversion includes:
+- ✅ **Transaction ID** (Stripe session ID)
+- ✅ **Actual purchase value** (tier price in cents)
+- ✅ **Currency** (USD, EUR, etc.)
+- ✅ **Your conversion ID** (`QGwTCLy1hcUbEKWNhpFC`)
+
+## When it fires:
+- User completes payment on Stripe
+- Redirects back to `/setup/configure?checkout=success`
+- System verifies payment and fires all tracking events
+- Google Ads will now optimize your campaigns for actual paying customers!
+
+Your Google Ads campaigns will now be able to optimize for conversions using the real transaction data! 🚀
+
+**Next step:** You can now set up the conversion in Google Ads using the URL `https://pinacle.dev/setup/configure?checkout=success` and it will automatically track when users complete payments.
+
+---
+

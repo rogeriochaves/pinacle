@@ -21,7 +21,11 @@ import {
   pinacleConfigToJSON,
 } from "../../pod-orchestration/pinacle-config";
 import { PodProvisioningService } from "../../pod-orchestration/pod-provisioning-service";
-import { getResourceTierUnsafe } from "../../pod-orchestration/resource-tier-registry";
+import {
+  getResourceTierUnsafe,
+  PRICING_TABLE,
+  type TierId,
+} from "../../pod-orchestration/resource-tier-registry";
 import {
   SERVICE_TEMPLATES,
   type ServiceId,
@@ -37,6 +41,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "../server";
+import { detectCurrencyFromContext } from "./currency";
 
 const createPodSchema = z.object({
   name: z.string().min(2).max(255).optional(), // Auto-generated if not provided
@@ -346,10 +351,15 @@ export const podsRouter = createTRPCRouter({
           message: "Invalid resource tier",
         });
       }
-      const monthlyPrice = resourceTier.price * 100; // in cents
+
+      const { currency } = await detectCurrencyFromContext(ctx);
+      const monthlyPrice = PRICING_TABLE[tier as TierId][currency] * 100; // in cents
 
       // Generate slug from name
-      const slug = name.replace(/[^a-z0-9]+/gi, "-").replace(/(^-|-$)/gi, "").toLowerCase();
+      const slug = name
+        .replace(/[^a-z0-9]+/gi, "-")
+        .replace(/(^-|-$)/gi, "")
+        .toLowerCase();
 
       // Update: Generate PinacleConfig with slug so tabs can be generated
       const pinacleConfig = generatePinacleConfigFromForm({
@@ -484,12 +494,15 @@ export const podsRouter = createTRPCRouter({
 
           // Race between provisioning and timeout
           await Promise.race([
-            provisioningService.provisionPod({
-              podId: pod.id,
-              serverId: availableServer.id,
-              githubRepoSetup,
-              hasPinacleYaml,
-            }, process.env.NODE_ENV === "production"),
+            provisioningService.provisionPod(
+              {
+                podId: pod.id,
+                serverId: availableServer.id,
+                githubRepoSetup,
+                hasPinacleYaml,
+              },
+              process.env.NODE_ENV === "production",
+            ),
             timeoutPromise,
           ]);
 
@@ -816,7 +829,9 @@ export const podsRouter = createTRPCRouter({
 
           // Track initial 1-hour usage for this restart
           try {
-            const { usageTracker } = await import("../../billing/usage-tracker");
+            const { usageTracker } = await import(
+              "../../billing/usage-tracker"
+            );
             const { podRecordToPinacleConfig } = await import(
               "../../pod-orchestration/pinacle-config"
             );
@@ -829,7 +844,9 @@ export const podsRouter = createTRPCRouter({
               pod.ownerId,
               config.tier,
             );
-            console.log(`[pods.start] Tracked initial usage for pod ${input.id}`);
+            console.log(
+              `[pods.start] Tracked initial usage for pod ${input.id}`,
+            );
           } catch (error) {
             console.error(
               `[pods.start] Failed to track initial usage for pod ${input.id}:`,
@@ -1662,11 +1679,14 @@ export const podsRouter = createTRPCRouter({
 
           // Race between provisioning and timeout
           await Promise.race([
-            provisioningService.provisionPod({
-              podId: input.podId,
-              serverId: availableServer.id,
-              githubRepoSetup,
-            }, process.env.NODE_ENV === "production"),
+            provisioningService.provisionPod(
+              {
+                podId: input.podId,
+                serverId: availableServer.id,
+                githubRepoSetup,
+              },
+              process.env.NODE_ENV === "production",
+            ),
             timeoutPromise,
           ]);
 
@@ -2116,7 +2136,9 @@ export const podsRouter = createTRPCRouter({
       .limit(6); // Show max 6 pods
 
     // Get screenshot storage for generating signed URLs
-    const { getScreenshotStorage } = await import("../../screenshots/screenshot-storage");
+    const { getScreenshotStorage } = await import(
+      "../../screenshots/screenshot-storage"
+    );
     const storage = getScreenshotStorage();
 
     // For each pod, get the latest screenshot and generate signed URL

@@ -13,7 +13,6 @@ export type ResourceTier = {
   cpu: number;
   memory: number;
   storage: number;
-  price: number;
 };
 
 /**
@@ -27,7 +26,6 @@ export const RESOURCE_TIERS = {
     cpu: 1,
     memory: 2,
     storage: 20,
-    price: 7,
   },
   "dev.medium": {
     id: "dev.medium",
@@ -35,7 +33,6 @@ export const RESOURCE_TIERS = {
     cpu: 2,
     memory: 4,
     storage: 40,
-    price: 14,
   },
   "dev.large": {
     id: "dev.large",
@@ -43,7 +40,6 @@ export const RESOURCE_TIERS = {
     cpu: 4,
     memory: 8,
     storage: 80,
-    price: 28,
   },
   "dev.xlarge": {
     id: "dev.xlarge",
@@ -51,7 +47,6 @@ export const RESOURCE_TIERS = {
     cpu: 8,
     memory: 16,
     storage: 160,
-    price: 56,
   },
 } satisfies Record<string, ResourceTier>;
 

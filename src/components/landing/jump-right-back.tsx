@@ -53,7 +53,7 @@ export const JumpRightBack = () => {
   }
 
   return (
-    <section className="bg-white py-12 sm:py-12 border-b border-gray-200">
+    <section className="bg-white py-12 sm:py-12 border-b border-gray-200 px-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">
