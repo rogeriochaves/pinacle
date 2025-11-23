@@ -32,9 +32,6 @@ type PaymentSuccessEmailProps = {
 };
 
 export const PaymentSuccessEmail = ({
-  name,
-  amount,
-  currency,
   invoiceUrl,
   billingUrl,
   translations,

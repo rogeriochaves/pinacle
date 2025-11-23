@@ -42,7 +42,6 @@ export const CheckoutRecoveryEmail = ({
   tier = "dev.small",
   checkoutUrl = "https://pinacle.dev/setup/configure",
   attemptNumber = 1,
-  locale = "en",
   translations,
 }: CheckoutRecoveryEmailProps) => {
   // Translations object is guaranteed to be provided by the email function
