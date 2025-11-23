@@ -38,6 +38,7 @@
     "signIn": "Login",
     "getStarted": "Começar",
     "dashboard": "Dashboard",
+    "openMenu": "Abrir menu",
     "closeMenu": "Fechar menu"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "Máquinas baratas com as melhores ferramentas de dev, pra você começar seu projeto na hora.",
     "popular": "Popular",
     "startBuilding": "Começar",
+    "selectCodingAssistant": "Selecionar assistente de código",
+    "selectTier": "Selecionar nível",
     "customSetup": "Setup personalizado →",
     "buildWebsites": "Para criar sites",
     "buildSaas": "Para criar aplicações SaaS",
@@ -162,6 +165,7 @@
     "terms": "Termos",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "Selecionar idioma",
     "footerHeading": "Rodapé",
     "copyright": "© {year} Pinacle, Inc. Todos os direitos reservados."
   },

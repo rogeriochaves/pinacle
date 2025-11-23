@@ -125,6 +125,7 @@ const TemplateCard = ({
                   <Select
                     value={selectedAgent}
                     onValueChange={setSelectedAgent}
+                    aria-label={t("selectCodingAssistant")}
                   >
                     <SelectTrigger className="w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&>svg]:text-foreground [&>svg]:text-lg">
                       {selectedCodingAgent.name}
@@ -173,6 +174,7 @@ const TemplateCard = ({
             compact
             currency={currency}
             isLoading={isCurrencyLoading}
+            ariaLabel={t("selectTier")}
           />
           <Link
             href={`/setup?type=new&template=${template.id}&tier=${selectedTier}&agent=${selectedAgent}`}

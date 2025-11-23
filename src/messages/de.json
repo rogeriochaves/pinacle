@@ -38,6 +38,7 @@
     "signIn": "Login",
     "getStarted": "Loslegen",
     "dashboard": "Dashboard",
+    "openMenu": "Menü öffnen",
     "closeMenu": "Menü schließen"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "Günstige Maschinen mit den besten Entwicklungstools, um dein Projekt sofort zu starten.",
     "popular": "Beliebt",
     "startBuilding": "Mit dem Bauen beginnen",
+    "selectCodingAssistant": "Coding-Assistent auswählen",
+    "selectTier": "Tier auswählen",
     "customSetup": "Benutzerdefinierte Konfiguration →",
     "buildWebsites": "Zum Erstellen von Websites",
     "buildSaas": "Zum Builden von SaaS Apps",
@@ -162,6 +165,7 @@
     "terms": "Terms",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "Sprache auswählen",
     "footerHeading": "Fußzeile",
     "copyright": "© {year} Pinacle, Inc. Alle Rechte vorbehalten."
   },

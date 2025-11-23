@@ -38,6 +38,7 @@
     "signIn": "登录",
     "getStarted": "开始",
     "dashboard": "Dashboard",
+    "openMenu": "打开菜单",
     "closeMenu": "关闭菜单"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "配备最佳开发工具的实惠机器,立即启动您的项目。",
     "popular": "热门",
     "startBuilding": "开始构建",
+    "selectCodingAssistant": "选择代码助手",
+    "selectTier": "选择等级",
     "customSetup": "自定义配置 →",
     "buildWebsites": "用于构建网站",
     "buildSaas": "用于构建 SaaS 应用",
@@ -162,6 +165,7 @@
     "terms": "条款",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "选择语言",
     "footerHeading": "页脚",
     "copyright": "© {year} Pinacle, Inc. 版权所有。"
   },

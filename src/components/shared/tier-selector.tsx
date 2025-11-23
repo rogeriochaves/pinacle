@@ -1,11 +1,11 @@
 "use client";
 
+import { formatCurrency } from "@/lib/currency-utils";
 import {
+  type Currency,
   PRICING_TABLE,
   RESOURCE_TIERS,
-  type Currency,
 } from "@/lib/pod-orchestration/resource-tier-registry";
-import { formatCurrency } from "@/lib/currency-utils";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "../ui/select";
 
 type TierSelectorProps = {
@@ -15,6 +15,7 @@ type TierSelectorProps = {
   compact?: boolean;
   currency?: Currency;
   isLoading?: boolean;
+  ariaLabel?: string;
 };
 
 export const TierSelector = ({
@@ -24,6 +25,7 @@ export const TierSelector = ({
   compact = false,
   currency = "usd",
   isLoading = false,
+  ariaLabel,
 }: TierSelectorProps) => {
   const selectedTier =
     value && value in RESOURCE_TIERS
@@ -38,7 +40,10 @@ export const TierSelector = ({
     return (
       <div className="flex flex-col gap-1">
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger className="w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&>svg]:text-lg">
+          <SelectTrigger
+            className="w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&>svg]:text-lg"
+            aria-label={ariaLabel}
+          >
             <span className="mr-2">
               {isLoading ? (
                 <span className="text-xl font-bold">...</span>
@@ -91,7 +96,7 @@ export const TierSelector = ({
   // Full version for configure step
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" aria-label={ariaLabel}>
         <div className="flex items-center justify-between w-full">
           <span className="font-mono">{selectedTier.name}</span>
           {isLoading ? (

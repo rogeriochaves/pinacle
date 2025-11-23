@@ -41,6 +41,7 @@ export const Header = () => {
             variant="ghost"
             size="icon"
             onClick={() => setMobileMenuOpen(true)}
+            aria-label={t("openMenu")}
           >
             <Menu className="h-4 w-4" />
           </Button>

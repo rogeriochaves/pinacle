@@ -38,6 +38,7 @@
     "signIn": "Войти",
     "getStarted": "Начать",
     "dashboard": "Dashboard",
+    "openMenu": "Открыть меню",
     "closeMenu": "Закрыть меню"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "Недорогие машины с лучшими инструментами разработки, чтобы сразу начать ваш проект.",
     "popular": "Популярно",
     "startBuilding": "Начать Разработку",
+    "selectCodingAssistant": "Выбрать помощника по коду",
+    "selectTier": "Выбрать уровень",
     "customSetup": "Пользовательская настройка →",
     "buildWebsites": "Для создания сайтов",
     "buildSaas": "Для создания SaaS приложений",
@@ -162,6 +165,7 @@
     "terms": "Условия",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "Выбрать язык",
     "footerHeading": "Подвал",
     "copyright": "© {year} Pinacle, Inc. Все права защищены."
   },

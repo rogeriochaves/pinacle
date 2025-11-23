@@ -38,6 +38,7 @@
     "signIn": "ログイン",
     "getStarted": "始める",
     "dashboard": "Dashboard",
+    "openMenu": "メニューを開く",
     "closeMenu": "メニューを閉じる"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "最高の開発ツールを備えた手頃なマシンで、すぐにプロジェクトを開始できます。",
     "popular": "人気",
     "startBuilding": "構築を開始",
+    "selectCodingAssistant": "コーディングアシスタントを選択",
+    "selectTier": "ティアを選択",
     "customSetup": "カスタム設定 →",
     "buildWebsites": "ウェブサイト構築用",
     "buildSaas": "SaaS アプリ構築用",
@@ -162,6 +165,7 @@
     "terms": "Terms",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "言語を選択",
     "footerHeading": "フッター",
     "copyright": "© {year} Pinacle, Inc. 無断複写・転載を禁じます。"
   },

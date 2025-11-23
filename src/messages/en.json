@@ -38,6 +38,7 @@
     "signIn": "Sign in",
     "getStarted": "Get started",
     "dashboard": "Dashboard",
+    "openMenu": "Open menu",
     "closeMenu": "Close menu"
   },
   "hero": {
@@ -68,6 +69,8 @@
     "subtitle": "Cheap machines with the best development tools, to kickoff your project right away.",
     "popular": "Popular",
     "startBuilding": "Start Building",
+    "selectCodingAssistant": "Select coding assistant",
+    "selectTier": "Select tier",
     "customSetup": "Build with custom setup →",
     "buildWebsites": "For building websites",
     "buildSaas": "For building SaaS applications",
@@ -162,6 +165,7 @@
     "terms": "Terms",
     "dockerHub": "Docker Hub",
     "twitter": "Twitter",
+    "selectLanguage": "Select language",
     "footerHeading": "Footer",
     "copyright": "© {year} Pinacle, Inc. All rights reserved."
   },
@@ -315,6 +319,7 @@
     "price": "PRICE",
     "perMonth": "/mo",
     "perHour": "per hour",
+    "selectTier": "Select tier",
     "getStarted": "Get Started",
     "vcpu": "vCPU",
     "gb": "GB",

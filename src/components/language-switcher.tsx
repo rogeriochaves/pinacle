@@ -2,7 +2,7 @@
 
 import { Globe } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Select,
   SelectContent,
@@ -16,6 +16,7 @@ export const LanguageSwitcher = () => {
   const locale = useLocale() as Locale;
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations("footer");
 
   const switchLocale = (newLocale: Locale) => {
     if (newLocale === locale) return;
@@ -40,7 +41,10 @@ export const LanguageSwitcher = () => {
       value={locale}
       onValueChange={(value) => switchLocale(value as Locale)}
     >
-      <SelectTrigger className="w-[140px] gap-2 text-white relative">
+      <SelectTrigger
+        className="w-[140px] gap-2 text-white relative"
+        aria-label={t("selectLanguage")}
+      >
         <Globe className="h-4 w-4" />
         <SelectValue />
       </SelectTrigger>

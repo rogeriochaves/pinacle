@@ -57,7 +57,7 @@ export default async function LocaleLayout({
       <NextIntlClientProvider locale={locale} messages={messages}>
         <Providers>
           <ImpersonationBanner />
-          {children}
+          <main>{children}</main>
         </Providers>
       </NextIntlClientProvider>
       <Toaster />
