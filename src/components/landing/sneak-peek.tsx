@@ -16,55 +16,57 @@ type TourStep = {
   };
 };
 
-const tourSteps: TourStep[] = [
+// Tour steps configuration - will be populated with translations
+const createTourSteps = (t: (key: string) => string): TourStep[] => [
   {
     id: 1,
-    name: "Your App",
+    name: t("tour.yourApp"),
     image: "/sneak-peak/tab-1-app.png",
-    label: "Preview your app and any local ports",
+    label: t("tour.yourAppLabel"),
     hotspot: { x: 25, y: 10 },
   },
   {
     id: 2,
-    name: "Claude Code",
+    name: t("tour.claudeCode"),
     image: "/sneak-peak/tab-2-claude-code.png",
-    label: "Build with any coding assistant (Claude Code, Cursor CLI, etc.)",
+    label: t("tour.claudeCodeLabel"),
     hotspot: { x: 36, y: 10 },
   },
   {
     id: 3,
-    name: "VS Code",
+    name: t("tour.vsCode"),
     image: "/sneak-peak/tab-3-vs-code.png",
-    label: "Navigate the code with VS Code",
+    label: t("tour.vsCodeLabel"),
     hotspot: { x: 47, y: 10 },
   },
   {
     id: 4,
-    name: "Terminal",
+    name: t("tour.terminal"),
     image: "/sneak-peak/tab-4-terminal.png",
-    label: "Run commands and install what you need",
+    label: t("tour.terminalLabel"),
     hotspot: { x: 58, y: 10 },
   },
   {
     id: 5,
-    name: "Vibe Kanban",
+    name: t("tour.vibeKanban"),
     image: "/sneak-peak/tab-5-vibe-kanban.png",
-    label: "Build in parallel with Vibe Kanban",
+    label: t("tour.vibeKanbanLabel"),
     hotspot: { x: 70, y: 10 },
   },
   {
     id: 6,
-    name: "Commit Changes",
+    name: t("tour.commitChanges"),
     image: "/sneak-peak/tab-6-commit.png",
-    label: "Commit your changes",
+    label: t("tour.commitChangesLabel"),
     hotspot: { x: 92, y: 8 },
   },
 ];
 
 export const SneakPeek = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const currentStep = tourSteps[activeStep];
   const t = useTranslations("sneakPeek");
+  const tourSteps = createTourSteps(t);
+  const currentStep = tourSteps[activeStep];
 
   const goToNextStep = () => {
     setActiveStep((prev) => (prev + 1) % tourSteps.length);
