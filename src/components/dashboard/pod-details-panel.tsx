@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import {
   getResourcesFromTier,
@@ -67,6 +68,7 @@ const formatBytes = (mb: number) => {
 };
 
 export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
+  const t = useTranslations("podDetails");
   const [activeTab, setActiveTab] = useState<TabType>("metrics");
   const [timeRange, setTimeRange] = useState(3); // Default to 3 hours for better performance
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -121,43 +123,49 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
 
   const createMutation = api.snapshots.create.useMutation({
     onSuccess: () => {
-      toast.success("Snapshot created successfully!");
+      toast.success(t("snapshotCreated"));
       setShowCreateDialog(false);
       setSnapshotName("");
       setSnapshotDescription("");
       utils.snapshots.list.invalidate({ podId: pod.id });
     },
     onError: (error) => {
-      toast.error(`Failed to create snapshot: ${error.message}`);
+      toast.error(t("failedCreateSnapshot"), {
+        description: error.message,
+      });
     },
   });
 
   const deleteMutation = api.snapshots.delete.useMutation({
     onSuccess: () => {
-      toast.success("Snapshot deleted successfully!");
+      toast.success(t("snapshotDeleted"));
       utils.snapshots.list.invalidate({ podId: pod.id });
       setDeleteConfirmId(null);
     },
     onError: (error) => {
-      toast.error(`Failed to delete snapshot: ${error.message}`);
+      toast.error(t("failedDeleteSnapshot"), {
+        description: error.message,
+      });
     },
   });
 
   const restoreMutation = api.snapshots.restore.useMutation({
     onSuccess: () => {
-      toast.success("Snapshot restored successfully! Pod is now running.");
+      toast.success(t("snapshotRestored"));
       utils.snapshots.list.invalidate({ podId: pod.id });
       utils.pods.getUserPods.invalidate();
       onClose(); // Close the panel after restore
     },
     onError: (error) => {
-      toast.error(`Failed to restore snapshot: ${error.message}`);
+      toast.error(t("failedRestoreSnapshot"), {
+        description: error.message,
+      });
     },
   });
 
   const handleCreateSnapshot = () => {
     if (!snapshotName.trim()) {
-      toast.error("Please enter a snapshot name");
+      toast.error(t("enterSnapshotName"));
       return;
     }
 
@@ -304,12 +312,12 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
           {/* Tabs */}
           <div className="flex gap-2">
             {[
-              { id: "metrics" as const, label: "Metrics", icon: Activity },
-              { id: "logs" as const, label: "Logs", icon: FileText },
-              { id: "snapshots" as const, label: "Snapshots", icon: Camera },
+              { id: "metrics" as const, label: t("metrics"), icon: Activity },
+              { id: "logs" as const, label: t("logs"), icon: FileText },
+              { id: "snapshots" as const, label: t("snapshots"), icon: Camera },
               {
                 id: "settings" as const,
-                label: "Settings",
+                label: t("settings"),
                 icon: SettingsIcon,
               },
             ].map((tab) => {
@@ -347,7 +355,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                     <div className="flex items-center gap-2 mb-2">
                       <Cpu className="w-4 h-4 text-slate-600" />
                       <span className="font-mono text-xs text-slate-600">
-                        CPU Usage
+                        {t("cpuUsage")}
                       </span>
                     </div>
                     <p className="text-2xl font-mono font-bold text-slate-900">
@@ -367,7 +375,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                     <div className="flex items-center gap-2 mb-2">
                       <HardDrive className="w-4 h-4 text-slate-600" />
                       <span className="font-mono text-xs text-slate-600">
-                        Memory
+                        {t("memory")}
                       </span>
                     </div>
                     <p className="text-2xl font-mono font-bold text-slate-900">
@@ -382,7 +390,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                     <div className="flex items-center gap-2 mb-2">
                       <HardDrive className="w-4 h-4 text-slate-600" />
                       <span className="font-mono text-xs text-slate-600">
-                        Disk
+                        {t("disk")}
                       </span>
                     </div>
                     <p className="text-2xl font-mono font-bold text-slate-900">
@@ -394,7 +402,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                     <div className="flex items-center gap-2 mb-2">
                       <Network className="w-4 h-4 text-slate-600" />
                       <span className="font-mono text-xs text-slate-600">
-                        Network
+                        {t("network")}
                       </span>
                     </div>
                     <p className="text-xs font-mono text-slate-900">
@@ -413,7 +421,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                   {/* Time Range Selector */}
                   <div className="flex items-center justify-between">
                     <h3 className="font-mono font-bold text-slate-900 text-sm">
-                      Historical Metrics
+                      {t("historicalMetrics")}
                     </h3>
                     <div className="flex gap-1">
                       {TIME_RANGE_OPTIONS.map((option) => (
@@ -474,13 +482,13 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
               ) : pod.status !== "running" ? (
                 <div className="text-center py-12">
                   <p className="text-slate-600 font-mono text-sm">
-                    Pod must be running to see metrics
+                    {t("podMustBeRunning")}
                   </p>
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <p className="text-slate-600 font-mono text-sm">
-                    Loading metrics...
+                    {t("loadingMetrics")}
                   </p>
                 </div>
               )}
@@ -490,7 +498,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
           {activeTab === "logs" && (
             <div className="space-y-4">
               <h3 className="font-mono font-bold text-slate-900 text-sm">
-                Recent Logs (Last 100 lines)
+                {t("recentLogs")}
               </h3>
               {logs && logs.length > 0 ? (
                 <div className="bg-slate-900 rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
@@ -503,7 +511,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-slate-600 font-mono text-sm">
-                    No logs available
+                    {t("noLogsAvailable")}
                   </p>
                 </div>
               )}
@@ -524,18 +532,18 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                   {createMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      {t("creating")}
                     </>
                   ) : (
                     <>
                       <Camera className="w-4 h-4 mr-2" />
-                      Create Snapshot
+                      {t("createSnapshot")}
                     </>
                   )}
                 </Button>
                 {pod.status !== "running" && (
                   <p className="text-sm text-slate-600 mt-2 font-mono">
-                    Pod must be running to create a snapshot
+                    {t("podMustBeRunning")}
                   </p>
                 )}
               </div>
@@ -560,18 +568,18 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                             </h3>
                             {snapshot.isAuto && (
                               <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-mono">
-                                auto
+                                {t("auto")}
                               </span>
                             )}
                             {snapshot.status === "creating" && (
                               <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded font-mono flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
-                                creating...
+                                {t("creatingStatus")}
                               </span>
                             )}
                             {snapshot.status === "failed" && (
                               <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded font-mono">
-                                failed
+                                {t("failed")}
                               </span>
                             )}
                           </div>
@@ -600,7 +608,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                               snapshot.status !== "ready"
                             }
                             className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Restore from this snapshot"
+                            title={t("restoreFromSnapshot")}
                           >
                             {restoreMutation.isPending ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
@@ -613,7 +621,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                             onClick={() => setDeleteConfirmId(snapshot.id)}
                             disabled={deleteMutation.isPending}
                             className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded hover:bg-red-50"
-                            title="Delete snapshot"
+                            title={t("deleteSnapshot")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -633,10 +641,10 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                 <div className="text-center py-12">
                   <Camera className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                   <p className="text-slate-600 font-mono text-sm mb-2">
-                    No snapshots yet
+                    {t("noSnapshotsYet")}
                   </p>
                   <p className="text-slate-400 font-mono text-xs">
-                    Snapshots are automatically created when you stop your pod
+                    {t("autoSnapshotsNote")}
                   </p>
                 </div>
               )}
@@ -647,17 +655,17 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
             <div className="space-y-6">
               <div>
                 <h3 className="font-mono font-bold text-slate-900 text-sm mb-2">
-                  Danger Zone
+                  {t("dangerZone")}
                 </h3>
                 <div className="bg-red-50 rounded-xl p-4 border border-red-200">
                   <p className="text-sm text-red-800 mb-4">
-                    Deleting a pod is permanent and cannot be undone.
+                    {t("deletePodWarning")}
                   </p>
                   <Button
                     variant="destructive"
                     className="w-full font-mono font-bold"
                   >
-                    Delete Pod
+                    {t("deletePod")}
                   </Button>
                 </div>
               </div>
@@ -671,12 +679,12 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="font-mono font-bold text-lg mb-4">
-              Create Snapshot
+              {t("createSnapshot")}
             </h3>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="snapshot-name" className="font-mono">
-                  Snapshot Name *
+                  {t("snapshotName")} *
                 </Label>
                 <Input
                   id="snapshot-name"
@@ -688,13 +696,13 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
               </div>
               <div>
                 <Label htmlFor="snapshot-description" className="font-mono">
-                  Description (Optional)
+                  {t("descriptionOptional")}
                 </Label>
                 <Textarea
                   id="snapshot-description"
                   value={snapshotDescription}
                   onChange={(e) => setSnapshotDescription(e.target.value)}
-                  placeholder="What's in this snapshot?"
+                  placeholder={t("snapshotDescriptionPlaceholder")}
                   className="font-mono"
                   rows={3}
                 />
@@ -709,14 +717,14 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
                   }}
                   className="flex-1 font-mono"
                 >
-                  Cancel
+                  {t("cancel")}
                 </Button>
                 <Button
                   onClick={handleCreateSnapshot}
                   disabled={createMutation.isPending}
                   className="flex-1 font-mono"
                 >
-                  {createMutation.isPending ? "Creating..." : "Create"}
+                  {createMutation.isPending ? t("creating") : t("create")}
                 </Button>
               </div>
             </div>
@@ -732,22 +740,21 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-mono">
-              Delete Snapshot
+              {t("deleteSnapshot")}
             </AlertDialogTitle>
             <AlertDialogDescription className="font-mono">
-              Are you sure you want to delete this snapshot? This action cannot
-              be undone.
+              {t("deleteSnapshotConfirm")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-mono">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="font-mono">{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
                 deleteConfirmId && handleDeleteSnapshot(deleteConfirmId)
               }
               className="bg-red-500 hover:bg-red-600 font-mono"
             >
-              Delete
+              {t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
