@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Globe } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -54,6 +55,7 @@ export const AddTabPopover = ({
   existingServiceTabs,
   children,
 }: AddTabPopoverProps) => {
+  const t = useTranslations("common");
   // Filter out services that already have tabs
   const availableServicesForNewTab = availableServices.filter(
     (service) => !existingServiceTabs.includes(service),
@@ -129,7 +131,7 @@ export const AddTabPopover = ({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="service-select" className="text-gray-700 text-sm">
-              Service Type
+              {t("serviceType")}
             </Label>
             <Select
               value={serviceType}
@@ -145,7 +147,7 @@ export const AddTabPopover = ({
                 <SelectItem value="custom">
                   <div className="flex items-center gap-2">
                     <Globe className="h-4 w-4" />
-                    <span>Custom URL</span>
+                    <span>{t("customUrl")}</span>
                   </div>
                 </SelectItem>
                 {availableServicesForNewTab.map((serviceName) => {
@@ -170,7 +172,7 @@ export const AddTabPopover = ({
             <>
               <div className="space-y-2">
                 <Label htmlFor="tab-name" className="text-gray-700 text-sm">
-                  Tab Name
+                  {t("tabName")}
                 </Label>
                 <Input
                   id="tab-name"
@@ -187,7 +189,7 @@ export const AddTabPopover = ({
 
               <div className="space-y-2">
                 <Label htmlFor="custom-url" className="text-gray-700 text-sm">
-                  URL
+                  {t("url")}
                 </Label>
                 <InputGroup>
                   <InputGroupAddon align="inline-start">
@@ -214,7 +216,7 @@ export const AddTabPopover = ({
               type="submit"
               className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2"
             >
-              Add Tab
+              {t("addTab")}
             </Button>
           </div>
         </form>

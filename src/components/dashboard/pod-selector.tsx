@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   getResourcesFromTier,
   podRecordToPinacleConfig,
@@ -39,46 +40,6 @@ type PodSelectorProps = {
   onViewDetails: (podId: string) => void;
 };
 
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "running":
-      return (
-        <Badge className="bg-green-100 text-green-800 border-green-200">
-          <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse" />
-          Running
-        </Badge>
-      );
-    case "stopped":
-      return (
-        <Badge className="bg-gray-100 text-gray-800 border-gray-200">
-          <div className="w-2 h-2 rounded-full bg-gray-500 mr-1.5" />
-          Stopped
-        </Badge>
-      );
-    case "starting":
-    case "creating":
-      return (
-        <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-          <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
-          Starting
-        </Badge>
-      );
-    case "error":
-      return (
-        <Badge className="bg-red-100 text-red-800 border-red-200">
-          <div className="w-2 h-2 rounded-full bg-red-500 mr-1.5" />
-          Error
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-gray-100 text-gray-800 border-gray-200">
-          {status}
-        </Badge>
-      );
-  }
-};
-
 export const PodSelector = ({
   pods,
   currentPodId,
@@ -90,6 +51,48 @@ export const PodSelector = ({
   deletingPodId,
   onViewDetails,
 }: PodSelectorProps) => {
+  const t = useTranslations("dashboard");
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "running":
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            <div className="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse" />
+            {t("running")}
+          </Badge>
+        );
+      case "stopped":
+        return (
+          <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+            <div className="w-2 h-2 rounded-full bg-gray-500 mr-1.5" />
+            {t("stopped")}
+          </Badge>
+        );
+      case "starting":
+      case "creating":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+            <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+            {t("starting")}
+          </Badge>
+        );
+      case "error":
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200">
+            <div className="w-2 h-2 rounded-full bg-red-500 mr-1.5" />
+            {t("error")}
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
   const sortedPods = [...pods].sort((a, b) => {
     // Running pods first, then by name
     if (a.status === "running" && b.status !== "running") return -1;
@@ -111,7 +114,7 @@ export const PodSelector = ({
       <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-slate-50 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="bg-slate-900 border-b border-slate-800 p-4 flex items-center justify-between shrink-0">
-          <h2 className="text-white font-mono text-lg font-bold">Your Pods</h2>
+          <h2 className="text-white font-mono text-lg font-bold">{t("yourPods")}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -204,7 +207,7 @@ export const PodSelector = ({
                       disabled={pod.status === "deleting"}
                     >
                       <Play className="w-3 h-3 mr-1" />
-                      Start
+                      {t("startPod")}
                     </Button>
                   )}
                   <Button
@@ -212,7 +215,7 @@ export const PodSelector = ({
                     variant="ghost"
                     onClick={() => onViewDetails(pod.id)}
                     className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                    title="View Details"
+                    title={t("viewDetails")}
                   >
                     <Settings className="w-3 h-3" />
                   </Button>
@@ -237,7 +240,7 @@ export const PodSelector = ({
           {sortedPods.length === 0 && (
             <div className="text-center py-12">
               <p className="text-slate-600 font-mono text-sm mb-4">
-                No pods yet
+                {t("noPodsYet")}
               </p>
               <Button
                 asChild
@@ -245,7 +248,7 @@ export const PodSelector = ({
               >
                 <Link href="/setup">
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Pod
+                  {t("createYourFirstPod")}
                 </Link>
               </Button>
             </div>
@@ -261,7 +264,7 @@ export const PodSelector = ({
             >
               <Link href="/setup">
                 <Plus className="w-4 h-4 mr-2" />
-                Create New Pod
+                {t("createNewPod")}
               </Link>
             </Button>
           </div>

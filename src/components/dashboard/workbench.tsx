@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
@@ -233,6 +234,7 @@ function SortableTab({
 }
 
 export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
+  const t = useTranslations("common");
   const [tabs, setTabs] = useState<TabConfig[]>([]);
   const [availableServices, setAvailableServices] = useState<string[]>([]);
   const [existingServiceTabs, setExistingServiceTabs] = useState<string[]>([]);
@@ -850,7 +852,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                   </TooltipTrigger>
                 </AddTabPopover>
                 <TooltipContent>
-                  <p>Add new tab</p>
+                  <p>{t("addNewTab")}</p>
                 </TooltipContent>
               </Tooltip>
             </div>

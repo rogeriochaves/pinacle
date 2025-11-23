@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { UTMPersister } from "@/components/analytics/utm-persister";
 
 export default function DashboardLayout({
@@ -13,6 +14,7 @@ export default function DashboardLayout({
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const t = useTranslations("common");
 
   useEffect(() => {
     if (status === "loading") return; // Still loading
@@ -24,7 +26,7 @@ export default function DashboardLayout({
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="h-12 w-12 animate-spin mx-auto mb-4 border-4 border-orange-500 border-t-transparent rounded-full" />
-          <p className="font-mono font-bold text-white">LOADING...</p>
+          <p className="font-mono font-bold text-white">{t("loading")}</p>
         </div>
       </div>
     );
