@@ -1,4 +1,5 @@
 import { and, count, eq, lt } from "drizzle-orm";
+import type { Locale } from "../../i18n";
 import { db } from "../db";
 import { checkoutSessions, users } from "../db/schema";
 import { sendCheckoutRecoveryEmail } from "../email";
@@ -90,6 +91,7 @@ export class CheckoutRecoveryService {
           tier: checkout.tier,
           checkoutUrl,
           attemptNumber: attemptNumber as 1 | 2 | 3,
+          locale: (user.preferredLanguage as Locale) || "en",
         });
 
         if (result.success) {

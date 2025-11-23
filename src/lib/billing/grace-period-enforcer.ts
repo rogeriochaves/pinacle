@@ -1,4 +1,5 @@
 import { and, eq, isNotNull } from "drizzle-orm";
+import type { Locale } from "../../i18n";
 import { db } from "../db";
 import { stripeCustomers, users } from "../db/schema";
 import {
@@ -31,6 +32,7 @@ type GracePeriodStatus = {
   userId: string;
   email: string;
   name: string | null;
+  preferredLanguage: string;
   gracePeriodStartedAt: Date;
   daysInGracePeriod: number;
   shouldSuspend: boolean;
@@ -105,6 +107,7 @@ export class GracePeriodEnforcer {
       userId: user.id,
       email: user.email,
       name: user.name,
+      preferredLanguage: user.preferredLanguage || "en",
       gracePeriodStartedAt: gracePeriodStart,
       daysInGracePeriod,
       shouldSuspend: hoursSinceStart >= GRACE_PERIOD_HOURS,
@@ -195,6 +198,7 @@ export class GracePeriodEnforcer {
         amount,
         currency,
         billingUrl: `${baseUrl}/dashboard/billing`,
+        locale: (status.preferredLanguage as Locale) || "en",
       });
 
       console.log(
@@ -278,6 +282,7 @@ export class GracePeriodEnforcer {
         name: user.name || "there",
         daysUntilDeletion,
         billingUrl: `${baseUrl}/dashboard/billing`,
+        locale: (user.preferredLanguage as Locale) || "en",
       });
 
       console.log(

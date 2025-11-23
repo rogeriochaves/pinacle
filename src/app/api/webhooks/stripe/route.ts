@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import type Stripe from "stripe";
+import type { Locale } from "../../../../i18n";
 import {
   activateSubscription,
   cancelSubscription,
@@ -92,7 +93,12 @@ const getUserFromCustomerId = async (stripeCustomerId: string) => {
   }
 
   const user = await db
-    .select()
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      preferredLanguage: users.preferredLanguage,
+    })
     .from(users)
     .where(eq(users.id, customer[0].userId))
     .limit(1);
@@ -137,6 +143,7 @@ const handleSubscriptionEvent = async (event: Stripe.Event): Promise<void> => {
               name: userInfo.name || "there",
               billingUrl: `${baseUrl}/dashboard/billing`,
               dataRetentionDays: 30,
+              locale: (userInfo.preferredLanguage as Locale) || "en",
             });
           }
         }
@@ -300,6 +307,7 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
                 invoiceUrl:
                   invoice.hosted_invoice_url || `${baseUrl}/dashboard/billing`,
                 billingUrl: `${baseUrl}/dashboard/billing`,
+                locale: (userInfo.preferredLanguage as Locale) || "en",
               });
               console.log(`[Webhook] Sent recovery email to ${userInfo.email}`);
             }
@@ -347,6 +355,7 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
                 currency: invoice.currency,
                 billingUrl: `${baseUrl}/dashboard/billing`,
                 graceDays: 1, // 24 hours grace period
+                locale: (userInfo.preferredLanguage as Locale) || "en",
               });
               console.log(`[Webhook] Sent payment failure email to ${userInfo.email}`);
             }

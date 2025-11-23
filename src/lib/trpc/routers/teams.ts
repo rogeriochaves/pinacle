@@ -1,5 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
+import type { Locale } from "../../../i18n";
 import { teamMembers, teams, users } from "../../db/schema";
 import { sendTeamInviteEmail } from "../../email";
 import { generateKSUID } from "../../utils";
@@ -188,7 +189,10 @@ export const teamsRouter = createTRPCRouter({
         .where(eq(teams.id, teamId));
 
       const [inviter] = await ctx.db
-        .select({ name: users.name })
+        .select({
+          name: users.name,
+          preferredLanguage: users.preferredLanguage,
+        })
         .from(users)
         .where(eq(users.id, userId));
 
@@ -237,6 +241,7 @@ export const teamsRouter = createTRPCRouter({
           invitedByName: inviter?.name || "Someone",
           teamName: team?.name || "Unknown Team",
           acceptUrl,
+          locale: (inviter?.preferredLanguage as Locale) || "en",
         });
 
         return { success: true, message: "User added to team successfully" };
@@ -261,6 +266,7 @@ export const teamsRouter = createTRPCRouter({
           invitedByName: inviter?.name || "Someone",
           teamName: team?.name || "Unknown Team",
           acceptUrl,
+          locale: (inviter?.preferredLanguage as Locale) || "en",
         });
 
         return { success: true, message: "Invitation sent successfully" };
@@ -353,10 +359,11 @@ export const teamsRouter = createTRPCRouter({
       }
 
       // Remove the member
-      await ctx.db
-        .delete(teamMembers)
-        .where(eq(teamMembers.id, memberId));
+      await ctx.db.delete(teamMembers).where(eq(teamMembers.id, memberId));
 
-      return { success: true, message: "Member removed from team successfully" };
+      return {
+        success: true,
+        message: "Member removed from team successfully",
+      };
     }),
 });

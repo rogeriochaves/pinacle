@@ -1,7 +1,6 @@
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 import type { Locale } from "@/i18n";
-import { getEmailTranslations, getEmailT } from "./email-i18n";
 import FinalDeletionWarningEmail from "../emails/final-deletion-warning";
 import GracePeriodWarningEmail from "../emails/grace-period-warning";
 import PaymentFailedEmail from "../emails/payment-failed";
@@ -10,6 +9,7 @@ import ResetPasswordEmail from "../emails/reset-password";
 import SubscriptionCancelledEmail from "../emails/subscription-cancelled";
 import TeamInviteEmail from "../emails/team-invite";
 import WelcomeEmail from "../emails/welcome";
+import { getEmailT, getEmailTranslations } from "./email-i18n";
 
 // Lazy initialization of Resend client (only when needed at runtime)
 let resend: Resend | null = null;
@@ -24,21 +24,21 @@ type SendWelcomeEmailParams = {
   to: string;
   name: string;
   dashboardUrl: string;
-  locale?: Locale;
+  locale: Locale;
 };
 
 type SendResetPasswordEmailParams = {
   to: string;
   name: string;
   resetUrl: string;
-  locale?: Locale;
+  locale: Locale;
 };
 
 export const sendWelcomeEmail = async ({
   to,
   name,
   dashboardUrl,
-  locale = "en",
+  locale,
 }: SendWelcomeEmailParams): Promise<{ success: boolean; error?: string }> => {
   try {
     if (!process.env.RESEND_API_KEY) {
@@ -77,7 +77,9 @@ export const sendWelcomeEmail = async ({
     };
 
     // Render the email template
-    const emailHtml = await render(WelcomeEmail({ name, dashboardUrl, locale, translations }));
+    const emailHtml = await render(
+      WelcomeEmail({ name, dashboardUrl, locale, translations }),
+    );
 
     // Send the email
     const { data, error } = await getResendClient().emails.send({
@@ -110,7 +112,7 @@ export const sendResetPasswordEmail = async ({
   to,
   name,
   resetUrl,
-  locale = "en",
+  locale,
 }: SendResetPasswordEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -142,7 +144,9 @@ export const sendResetPasswordEmail = async ({
     };
 
     // Render the email template
-    const emailHtml = await render(ResetPasswordEmail({ name, resetUrl, locale, translations }));
+    const emailHtml = await render(
+      ResetPasswordEmail({ name, resetUrl, locale, translations }),
+    );
 
     // Send the email
     const { data, error } = await getResendClient().emails.send({
@@ -179,6 +183,7 @@ type SendPaymentSuccessEmailParams = {
   currency: string;
   invoiceUrl: string;
   billingUrl: string;
+  locale: Locale;
 };
 
 type SendPaymentFailedEmailParams = {
@@ -188,6 +193,7 @@ type SendPaymentFailedEmailParams = {
   currency: string;
   billingUrl: string;
   graceDays?: number;
+  locale: Locale;
 };
 
 type SendSubscriptionCancelledEmailParams = {
@@ -195,6 +201,7 @@ type SendSubscriptionCancelledEmailParams = {
   name: string;
   billingUrl: string;
   dataRetentionDays?: number;
+  locale: Locale;
 };
 
 type SendGracePeriodWarningEmailParams = {
@@ -204,6 +211,7 @@ type SendGracePeriodWarningEmailParams = {
   amount: string;
   currency: string;
   billingUrl: string;
+  locale: Locale;
 };
 
 type SendFinalDeletionWarningEmailParams = {
@@ -211,6 +219,7 @@ type SendFinalDeletionWarningEmailParams = {
   name: string;
   daysUntilDeletion: number;
   billingUrl: string;
+  locale: Locale;
 };
 
 export const sendPaymentSuccessEmail = async ({
@@ -220,6 +229,7 @@ export const sendPaymentSuccessEmail = async ({
   currency,
   invoiceUrl,
   billingUrl,
+  locale,
 }: SendPaymentSuccessEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -451,7 +461,7 @@ type SendTeamInviteEmailParams = {
   invitedByName: string;
   teamName: string;
   acceptUrl: string;
-  locale?: Locale;
+  locale: Locale;
 };
 
 export const sendTeamInviteEmail = async ({
@@ -459,7 +469,7 @@ export const sendTeamInviteEmail = async ({
   invitedByName,
   teamName,
   acceptUrl,
-  locale = "en",
+  locale,
 }: SendTeamInviteEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -498,7 +508,13 @@ export const sendTeamInviteEmail = async ({
     };
 
     const emailHtml = await render(
-      TeamInviteEmail({ invitedByName, teamName, acceptUrl, locale, translations }),
+      TeamInviteEmail({
+        invitedByName,
+        teamName,
+        acceptUrl,
+        locale,
+        translations,
+      }),
     );
 
     const { data, error } = await getResendClient().emails.send({
@@ -531,6 +547,7 @@ type SendCheckoutRecoveryEmailParams = {
   tier: string;
   checkoutUrl: string;
   attemptNumber: 1 | 2 | 3;
+  locale: Locale;
 };
 
 export const sendCheckoutRecoveryEmail = async ({
