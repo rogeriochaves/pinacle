@@ -24,7 +24,11 @@
     "addNewTab": "Добавить новую вкладку",
     "team": "Команда",
     "account": "Аккаунт",
-    "signOut": "Выйти"
+    "signOut": "Выйти",
+    "refreshCurrentTab": "Обновить текущую вкладку",
+    "uncommittedChange": "незафиксированное изменение",
+    "uncommittedChanges": "незафиксированные изменения",
+    "commitChanges": "Зафиксировать изменения"
   },
   "header": {
     "features": "Продукт",

@@ -916,7 +916,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Refresh current tab</p>
+              <p>{t("refreshCurrentTab")}</p>
             </TooltipContent>
           </Tooltip>
 
@@ -963,8 +963,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
               <TooltipContent>
                 <p>
                   {gitStatus?.hasChanges
-                    ? `${gitStatus.changedFiles} uncommitted change${gitStatus.changedFiles !== 1 ? "s" : ""}`
-                    : "Commit changes"}
+                    ? `${gitStatus.changedFiles} ${gitStatus.changedFiles === 1 ? t("uncommittedChange") : t("uncommittedChanges")}`
+                    : t("commitChanges")}
                 </p>
               </TooltipContent>
             </Tooltip>

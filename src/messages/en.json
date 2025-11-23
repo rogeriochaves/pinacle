@@ -24,7 +24,11 @@
     "addNewTab": "Add new tab",
     "team": "Team",
     "account": "Account",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "refreshCurrentTab": "Refresh current tab",
+    "uncommittedChange": "uncommitted change",
+    "uncommittedChanges": "uncommitted changes",
+    "commitChanges": "Commit changes"
   },
   "header": {
     "features": "Features",

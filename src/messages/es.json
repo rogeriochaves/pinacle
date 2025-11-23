@@ -24,7 +24,11 @@
     "addNewTab": "Agregar nueva pestaña",
     "team": "Equipo",
     "account": "Cuenta",
-    "signOut": "Salir"
+    "signOut": "Salir",
+    "refreshCurrentTab": "Actualizar pestaña actual",
+    "uncommittedChange": "cambio sin confirmar",
+    "uncommittedChanges": "cambios sin confirmar",
+    "commitChanges": "Confirmar cambios"
   },
   "header": {
     "features": "Producto",

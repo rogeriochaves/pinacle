@@ -24,7 +24,11 @@
     "addNewTab": "Neuen Tab hinzufügen",
     "team": "Team",
     "account": "Konto",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "refreshCurrentTab": "Aktuellen Tab aktualisieren",
+    "uncommittedChange": "nicht übertragene Änderung",
+    "uncommittedChanges": "nicht übertragene Änderungen",
+    "commitChanges": "Änderungen übertragen"
   },
   "header": {
     "features": "Produkt",

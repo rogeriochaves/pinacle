@@ -24,7 +24,11 @@
     "addNewTab": "Adicionar nova aba",
     "team": "Time",
     "account": "Conta",
-    "signOut": "Sair"
+    "signOut": "Sair",
+    "refreshCurrentTab": "Atualizar aba atual",
+    "uncommittedChange": "mudança não confirmada",
+    "uncommittedChanges": "mudanças não confirmadas",
+    "commitChanges": "Confirmar mudanças"
   },
   "header": {
     "features": "Produto",

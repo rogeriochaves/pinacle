@@ -24,7 +24,11 @@
     "addNewTab": "新しいタブを追加",
     "team": "チーム",
     "account": "アカウント",
-    "signOut": "ログアウト"
+    "signOut": "ログアウト",
+    "refreshCurrentTab": "現在のタブを更新",
+    "uncommittedChange": "コミットされていない変更",
+    "uncommittedChanges": "コミットされていない変更",
+    "commitChanges": "変更をコミット"
   },
   "header": {
     "features": "プロダクト",

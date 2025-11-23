@@ -24,7 +24,11 @@
     "addNewTab": "添加新标签",
     "team": "团队",
     "account": "账户",
-    "signOut": "退出"
+    "signOut": "退出",
+    "refreshCurrentTab": "刷新当前标签页",
+    "uncommittedChange": "未提交的更改",
+    "uncommittedChanges": "未提交的更改",
+    "commitChanges": "提交更改"
   },
   "header": {
     "features": "产品",
