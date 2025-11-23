@@ -354,7 +354,7 @@ name="${serviceName}"
 description="Auto-generated service for ${serviceName}"
 ${envVars}
 command="${command}"
-command_args="${commandArgs.replace("*", "\\*")}"
+command_args="${commandArgs.replace("*", "\\*").replace(/"/g, '\\"')}"
 pidfile="/tmp/${serviceName}.pid"
 command_background="yes"
 

@@ -18,8 +18,10 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  BookOpen,
   ChevronDown,
   Code2,
+  Database,
   GitBranch,
   Globe,
   Kanban,
@@ -29,6 +31,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Server,
   Sparkles,
   Square,
   Terminal,
@@ -43,7 +46,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
-import { getServiceTemplateUnsafe } from "../../lib/pod-orchestration/service-registry";
+import {
+  getServiceLucideIcon,
+  getServiceTemplateUnsafe,
+} from "../../lib/pod-orchestration/service-registry";
 import { api } from "../../lib/trpc/client";
 import { GitHubReauthButton } from "../shared/github-reauth-button";
 import { Button } from "../ui/button";
@@ -116,21 +122,25 @@ const generateTabId = (
 };
 
 /**
- * Map service names to icons
+ * Map service names to icons using the service registry
  */
 const getServiceIcon = (serviceName: string): LucideIcon => {
-  switch (serviceName) {
-    case "code-server":
+  const iconName = getServiceLucideIcon(serviceName);
+  switch (iconName) {
+    case "Code2":
       return Code2;
-    case "vibe-kanban":
+    case "Kanban":
       return Kanban;
-    case "claude-code":
-    case "openai-codex":
-    case "cursor-cli":
-    case "gemini-cli":
+    case "Sparkles":
       return Sparkles;
-    case "web-terminal":
+    case "Terminal":
       return Terminal;
+    case "Database":
+      return Database;
+    case "Server":
+      return Server;
+    case "BookOpen":
+      return BookOpen;
     default:
       return Globe;
   }

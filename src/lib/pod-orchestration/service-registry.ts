@@ -79,6 +79,7 @@ export type ServiceTemplate = {
   description: string;
   icon?: string; // Path to icon for UI display
   iconAlt?: string; // Alt text for icon
+  lucideIcon: string; // Lucide icon name for UI display
   installScript: string[] | ((spec: PodSpec) => string[]); // Commands to install service dependencies
   postStartScript?: string[] | ((spec: PodSpec) => string[]); // Commands to install service dependencies
   startCommand: (spec: PodSpec) => string[]; // Function that returns command and args to start the service
@@ -101,6 +102,7 @@ export const SERVICE_TEMPLATES = {
     description: "VS Code in the browser",
     icon: "/logos/vscode.svg",
     iconAlt: "VS Code",
+    lucideIcon: "Code2",
     installScript: [
       "mkdir -p ~/.local/share/code-server/User",
       `cat <<'EOF' > ~/.local/share/code-server/User/settings.json
@@ -146,6 +148,7 @@ EOF`,
     description: "Kanban board for project management",
     icon: "/logos/vibe-kanban.svg",
     iconAlt: "Vibe",
+    lucideIcon: "Kanban",
     installScript: (spec: PodSpec): string[] => {
       // Find the first coding assistant service and use its Vibe Kanban executor name
       const codingAssistantService = spec.services.find((s) =>
@@ -202,7 +205,7 @@ EOF`,
     },
     startCommand: () => ["sh", "-c 'cd /workspace && /root/.local/share/pnpm/vibe-kanban'"],
     cleanupCommand: [],
-    healthCheckStartDelay: 2,
+    healthCheckStartDelay: 3,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],
     defaultPort: 5262,
     environment: {
@@ -220,6 +223,7 @@ EOF`,
     description: "AI coding assistant via terminal",
     icon: "/logos/claude.svg",
     iconAlt: "Claude",
+    lucideIcon: "Sparkles",
     installScript: [
       "pnpm add -g @anthropic-ai/claude-code@latest",
       "mkdir -p ~/.claude",
@@ -266,6 +270,7 @@ EOF`,
     description: "OpenAI powered coding assistant",
     icon: "/logos/openai.svg",
     iconAlt: "OpenAI",
+    lucideIcon: "Sparkles",
     installScript: (spec: PodSpec) => [
       "pnpm add -g @openai/codex",
       "mkdir -p ~/.codex",
@@ -307,6 +312,7 @@ EOF`,
     description: "Cursor AI coding assistant",
     icon: "/logos/cursor.svg",
     iconAlt: "Cursor",
+    lucideIcon: "Sparkles",
     installScript: [
       // Install cursor-agent
       "curl https://cursor.com/install -fsS | bash",
@@ -388,6 +394,7 @@ EOF`,
     description: "Google Gemini coding assistant",
     icon: "/logos/gemini.svg",
     iconAlt: "Gemini",
+    lucideIcon: "Sparkles",
     installScript: [
       "pnpm add -g @google/gemini-cli",
       // Patch node-pty to skip Debug build check (removes warning)
@@ -429,6 +436,7 @@ EOF`,
     description: "Amp - AI coding agent by Sourcegraph",
     icon: "/logos/amp.svg",
     iconAlt: "Amp",
+    lucideIcon: "Sparkles",
     installScript: ["pnpm add -g @sourcegraph/amp"],
     startCommand: (spec: PodSpec) => {
       return [
@@ -461,6 +469,7 @@ EOF`,
       "AI coding agent for the open source Qwen family of models by Alibaba",
     icon: "/logos/qwen.png",
     iconAlt: "Qwen",
+    lucideIcon: "Sparkles",
     installScript: ["pnpm add -g @qwen-code/qwen-code"],
     startCommand: (spec: PodSpec) => {
       return [
@@ -493,6 +502,7 @@ EOF`,
     description: "Browser-based terminal with tmux",
     icon: "/window.svg",
     iconAlt: "Terminal",
+    lucideIcon: "Terminal",
     installScript: [], // Pre-installed in base image (ttyd)
     startCommand: (spec: PodSpec) => {
       // Pass the tab id as a URL argument, e.g. ?arg=0 for the first tab
@@ -525,15 +535,78 @@ EOF`,
     description: "PostgreSQL database server",
     icon: "/logos/postgres.svg",
     iconAlt: "PostgreSQL",
-    installScript: [],
-    startCommand: () => ["postgres", "-D", "/var/lib/postgresql/data"],
+    lucideIcon: "Database",
+    installScript: [
+      // Install pgweb
+      `
+      # Detect architecture and download appropriate pgweb binary
+      ARCH=$(uname -m)
+      case "$ARCH" in
+        x86_64|amd64) ARCH_NAME="amd64" ;;
+        aarch64|arm64) ARCH_NAME="arm64" ;;
+        *) echo "✗ Unsupported architecture: $ARCH"; exit 1 ;;
+      esac
+      echo "Detected architecture: $ARCH_NAME"
+
+      # Download and install pgweb
+      cd /tmp
+      wget -q https://github.com/sosedoff/pgweb/releases/download/v0.17.0/pgweb_linux_\${ARCH_NAME}.zip
+      unzip pgweb_linux_\${ARCH_NAME}.zip
+      mv pgweb_linux_\${ARCH_NAME} /usr/local/bin/pgweb
+      chmod +x /usr/local/bin/pgweb
+      rm pgweb_linux_\${ARCH_NAME}.zip
+      echo "✓ Installed pgweb"
+
+      # Create startup script
+      cat << 'EOF' > /usr/local/bin/start-postgres-pgweb.sh
+#!/bin/bash
+
+# Start postgres in background
+postgres -D /var/lib/postgresql/data &
+POSTGRES_PID=$!
+
+# Wait a moment for postgres to start
+sleep 3
+
+# Start pgweb
+/usr/local/bin/pgweb --url "$POSTGRES_URL" --listen 7493 &
+PGWEB_PID=$!
+
+# Function to kill both processes
+cleanup() {
+  echo "Stopping postgres and pgweb..."
+  kill $POSTGRES_PID 2>/dev/null
+  kill $PGWEB_PID 2>/dev/null
+  wait $POSTGRES_PID 2>/dev/null
+  wait $PGWEB_PID 2>/dev/null
+  exit 0
+}
+
+# Trap signals to cleanup both processes
+trap cleanup SIGTERM SIGINT
+
+# Wait for either process to exit
+wait $POSTGRES_PID $PGWEB_PID
+EOF
+
+      chmod +x /usr/local/bin/start-postgres-pgweb.sh
+      echo "✓ Created startup script"
+      `,
+    ],
+    startCommand: () => ["/usr/local/bin/start-postgres-pgweb.sh"],
     cleanupCommand: [],
-    healthCheckCommand: ["pg_isready", "-U", "postgres"],
-    defaultPort: 5432,
+    healthCheckStartDelay: 5,
+    healthCheckCommand: [
+      "sh",
+      "-c",
+      "pg_isready -U postgres && curl -fsSL http://localhost:7493 > /dev/null",
+    ],
+    defaultPort: 7493,
     environment: {
       POSTGRES_USER: "postgres",
       POSTGRES_PASSWORD: "postgres",
       POSTGRES_DB: "postgres",
+      POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
     },
   },
 
@@ -543,6 +616,7 @@ EOF`,
     description: "In-memory data store",
     icon: "/file.svg",
     iconAlt: "Redis",
+    lucideIcon: "Server",
     installScript: ["apk add --no-cache redis"],
     startCommand: () => ["redis-server", "--bind", "0.0.0.0"],
     cleanupCommand: [],
@@ -556,6 +630,7 @@ EOF`,
     description: "Interactive notebook environment",
     icon: "/file.svg",
     iconAlt: "Jupyter",
+    lucideIcon: "BookOpen",
     installScript: ["pip install jupyter jupyterlab pandas numpy matplotlib"],
     startCommand: () => [
       "jupyter",
@@ -624,4 +699,12 @@ export const isServiceAvailable = (serviceName: string): boolean => {
 const getProjectFolder = (spec: PodSpec): string => {
   const projectFolder = getProjectFolderFromRepository(spec.githubRepo);
   return projectFolder ? `/workspace/${projectFolder}` : "/workspace";
+};
+
+/**
+ * Get Lucide icon name for a service
+ */
+export const getServiceLucideIcon = (serviceName: string): string => {
+  const template = getServiceTemplateUnsafe(serviceName);
+  return template?.lucideIcon || "Globe";
 };
