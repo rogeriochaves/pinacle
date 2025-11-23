@@ -2,6 +2,7 @@
 
 import { GithubIcon, Plus } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "../ui/button";
 import { Header } from "./header";
 
@@ -9,6 +10,7 @@ const renderTerminalScreen = (
   terminalString: string,
   currentTab: "claude" | "vibe" | "vs-code" | "browser",
   setCurrentTab: (tab: "claude" | "vibe" | "vs-code" | "browser") => void,
+  t: (key: string) => string,
 ) => {
   const lines = terminalString.split("\n");
 
@@ -29,7 +31,7 @@ const renderTerminalScreen = (
                   currentTab === "claude" ? "text-orange-200" : ""
                 }`}
               >
-                Claude Code
+                {t("claudeCode")}
               </button>
               <span> | </span>
               <button
@@ -39,7 +41,7 @@ const renderTerminalScreen = (
                   currentTab === "vibe" ? "text-orange-200" : ""
                 }`}
               >
-                Vibe Kanban
+                {t("vibeKanban")}
               </button>
               <span> | </span>
               <button
@@ -49,7 +51,7 @@ const renderTerminalScreen = (
                   currentTab === "vs-code" ? "text-orange-200" : ""
                 }`}
               >
-                VS Code
+                {t("vsCode")}
               </button>
               <span> | </span>
               <button
@@ -59,7 +61,7 @@ const renderTerminalScreen = (
                   currentTab === "browser" ? "text-orange-200" : ""
                 }`}
               >
-                Browser
+                {t("browser")}
               </button>
               <span> ═══╗</span>
             </div>
@@ -107,6 +109,7 @@ export const Hero = () => {
   const [currentTab, setCurrentTab] = useState<
     "claude" | "vibe" | "vs-code" | "browser"
   >("claude");
+  const t = useTranslations("hero");
 
   return (
     <section className="relative bg-gray-900 py-6 px-6 lg:px-8 text-background">
@@ -115,23 +118,22 @@ export const Hero = () => {
         <div className="flex gap-10 align-start w-full justify-between">
           <div className="flex flex-col gap-4 pb-8 max-w-2xl">
             <h1 className="text-4xl font-bold font-mono tracking-tight">
-              dev box for your coding agents to run 24/7
+              {t("title")}
             </h1>
             <h2>
-              Stop using AI just for vibe coding prototypes, start using it with
-              real tools for real software development
+              {t("subtitle")}
             </h2>
             <div className="flex gap-4 pt-4">
               <Button asChild>
                 <a href="/setup?type=repository">
                   <GithubIcon size={16} />
-                  Open Repository
+                  {t("openRepository")}
                 </a>
               </Button>
               <Button variant="accent" asChild>
                 <a href="/setup?type=new">
                   <Plus size={16} />
-                  New Project
+                  {t("newProject")}
                 </a>
               </Button>
             </div>
@@ -156,6 +158,7 @@ export const Hero = () => {
  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░`,
               currentTab,
               setCurrentTab,
+              t,
             )}
           {currentTab === "vibe" &&
             renderTerminalScreen(
@@ -177,6 +180,7 @@ export const Hero = () => {
  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░`,
               currentTab,
               setCurrentTab,
+              t,
             )}
           {currentTab === "vs-code" &&
             renderTerminalScreen(
@@ -198,6 +202,7 @@ export const Hero = () => {
  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░`,
               currentTab,
               setCurrentTab,
+              t,
             )}
           {currentTab === "browser" &&
             renderTerminalScreen(
@@ -219,6 +224,7 @@ export const Hero = () => {
  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░`,
               currentTab,
               setCurrentTab,
+              t,
             )}
         </div>
       </div>

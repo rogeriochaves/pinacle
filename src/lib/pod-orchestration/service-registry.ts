@@ -132,7 +132,7 @@ EOF`,
       ];
     },
     cleanupCommand: [],
-    healthCheckStartDelay: 8,
+    healthCheckStartDelay: 4,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:8726"],
     defaultPort: 8726,
     environment: {
@@ -202,7 +202,7 @@ EOF`,
     },
     startCommand: () => ["sh", "-c 'cd /workspace && /root/.local/share/pnpm/vibe-kanban'"],
     cleanupCommand: [],
-    healthCheckStartDelay: 4,
+    healthCheckStartDelay: 2,
     healthCheckCommand: ["curl", "-fsSL", "http://localhost:5262"],
     defaultPort: 5262,
     environment: {

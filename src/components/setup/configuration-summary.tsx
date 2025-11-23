@@ -2,6 +2,7 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { formatCurrency } from "../../lib/currency-utils";
 import {
   PRICING_TABLE,
@@ -37,6 +38,7 @@ export const ConfigurationSummary = ({
   isCreating,
   selectedServices,
 }: ConfigurationSummaryProps) => {
+  const t = useTranslations("setup");
   // Detect currency from IP using tRPC
   const { data: currencyData, isLoading: isCurrencyLoading } = api.currency.detectCurrency.useQuery();
   const currency = currencyData?.currency || "usd";
@@ -68,7 +70,7 @@ export const ConfigurationSummary = ({
         <div className="space-y-6">
           <div>
             <h3 className="text-white font-mono text-sm font-medium mb-4">
-              Your Configuration
+              {t("yourConfiguration")}
             </h3>
             <div className="space-y-3">
               {/* Project */}
@@ -87,7 +89,7 @@ export const ConfigurationSummary = ({
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-slate-300 font-mono text-xs mb-0.5">
-                      Project
+                      {t("project")}
                     </p>
                     <p className="text-white font-mono text-sm break-all">
                       {projectName}
@@ -112,7 +114,7 @@ export const ConfigurationSummary = ({
                   </svg>
                   <div className="flex-1 min-w-0">
                     <p className="text-slate-300 font-mono text-xs mb-0.5">
-                      Template
+                      {t("template")}
                     </p>
                     <div className="flex items-center gap-2">
                       {selectedTemplate.icon && (
@@ -155,7 +157,7 @@ export const ConfigurationSummary = ({
                   </svg>
                   <div className="flex-1">
                     <p className="text-slate-300 font-mono text-xs mb-2">
-                      Tools
+                      {t("toolsLabel")}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {(
@@ -213,7 +215,7 @@ export const ConfigurationSummary = ({
                 </svg>
                 <div className="flex-1">
                   <p className="text-slate-300 font-mono text-xs mb-1">
-                    Resources
+                    {t("resources")}
                   </p>
                   <p className="text-white font-mono text-sm">
                     {tierData.cpu} vCPU • {tierData.memory}GB RAM •{" "}
@@ -228,7 +230,7 @@ export const ConfigurationSummary = ({
           <div className="pt-6 border-t border-slate-800">
             <div className="mb-4">
               <p className="text-slate-400 font-mono text-xs mb-1">
-                Estimated cost
+                {t("estimatedCost")}
               </p>
               <div className="flex items-baseline gap-2">
                 {isCurrencyLoading ? (
@@ -240,10 +242,10 @@ export const ConfigurationSummary = ({
                     {formatCurrency(tierPrice, currency, { showDecimals: false })}
                   </span>
                 )}
-                <span className="text-slate-400 font-mono text-sm">/month</span>
+                <span className="text-slate-400 font-mono text-sm">{t("perMonth")}</span>
               </div>
               <p className="text-slate-500 font-mono text-xs mt-1">
-                Billed hourly based on usage
+                {t("billedHourly")}
               </p>
             </div>
 
@@ -257,11 +259,11 @@ export const ConfigurationSummary = ({
               {isCreating ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Creating...
+                  {t("creating")}
                 </>
               ) : (
                 <>
-                  Create Pod
+                  {t("createPod")}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}

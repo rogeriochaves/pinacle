@@ -1,12 +1,8 @@
 import { and, eq, gt } from "drizzle-orm";
 import { z } from "zod";
+import { defaultLocale, type Locale, locales } from "../../../i18n";
 import { hashPassword } from "../../auth";
-import {
-  teamMembers,
-  teams,
-  users,
-  verificationTokens,
-} from "../../db/schema";
+import { teamMembers, teams, users, verificationTokens } from "../../db/schema";
 import { sendResetPasswordEmail, sendWelcomeEmail } from "../../email";
 import { createTRPCRouter, publicProcedure } from "../server";
 
@@ -22,11 +18,47 @@ const signUpSchema = z.object({
   utmContent: z.string().optional(),
 });
 
+// Helper to detect locale from request headers
+const detectLocaleFromRequest = (req: Request | undefined): Locale => {
+  if (!req) return defaultLocale;
+
+  // Get Accept-Language header
+  const acceptLanguage = req.headers.get("accept-language");
+  if (!acceptLanguage) return defaultLocale;
+
+  // Parse Accept-Language header (e.g., "en-US,en;q=0.9,es;q=0.8")
+  const languages = acceptLanguage.split(",").map((lang) => {
+    const [locale] = lang.trim().split(";");
+    return locale.split("-")[0]; // Get just the language code (en from en-US)
+  });
+
+  // Find first supported locale
+  for (const lang of languages) {
+    if (locales.includes(lang as Locale)) {
+      return lang as Locale;
+    }
+  }
+
+  return defaultLocale;
+};
+
 export const authRouter = createTRPCRouter({
   signUp: publicProcedure
     .input(signUpSchema)
     .mutation(async ({ ctx, input }) => {
-      const { name, email, password, utmSource, utmMedium, utmCampaign, utmTerm, utmContent } = input;
+      const {
+        name,
+        email,
+        password,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmTerm,
+        utmContent,
+      } = input;
+
+      // Detect user's preferred language from browser
+      const preferredLanguage = detectLocaleFromRequest(ctx.req);
 
       // Check if user already exists
       const existingUser = await ctx.db
@@ -57,6 +89,7 @@ export const authRouter = createTRPCRouter({
           name,
           email,
           password: hashedPassword,
+          preferredLanguage,
           utmSource,
           utmMedium,
           utmCampaign,
@@ -100,24 +133,21 @@ export const authRouter = createTRPCRouter({
         // Don't throw error here - user creation should succeed even if team creation fails
       }
 
-      // Send welcome email
+      // Send welcome email in user's preferred language
       try {
-        const baseUrl =
-          process.env.NEXTAUTH_URL || "http://localhost:3000";
+        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
         const dashboardUrl = `${baseUrl}/dashboard`;
 
         await sendWelcomeEmail({
           to: email,
           name,
           dashboardUrl,
+          locale: preferredLanguage,
         });
 
-        console.log(`Welcome email sent to ${email}`);
+        console.log(`Welcome email sent to ${email} in ${preferredLanguage}`);
       } catch (error) {
-        console.error(
-          `Failed to send welcome email to ${email}:`,
-          error,
-        );
+        console.error(`Failed to send welcome email to ${email}:`, error);
         // Don't throw error here - user creation should succeed even if email fails
       }
 
@@ -169,7 +199,7 @@ export const authRouter = createTRPCRouter({
           },
         });
 
-      // Send email
+      // Send email in user's preferred language
       const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
       const resetUrl = `${baseUrl}/auth/reset-password?token=${token}`;
 
@@ -177,9 +207,12 @@ export const authRouter = createTRPCRouter({
         to: email,
         name: user.name || "there",
         resetUrl,
+        locale: (user.preferredLanguage as Locale) || defaultLocale,
       });
 
-      console.log(`Password reset email sent to ${email}`);
+      console.log(
+        `Password reset email sent to ${email} in ${user.preferredLanguage || defaultLocale}`,
+      );
       return { success: true };
     }),
 

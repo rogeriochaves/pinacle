@@ -265,12 +265,13 @@ export class DefaultConfigResolver implements ConfigResolver {
   }
 
   async listTemplates(): Promise<
-    Array<{ id: string; name: string; description: string }>
+    Array<{ id: string; name: string; description: string; descriptionKey?: string }>
   > {
     return getAllTemplates().map((template) => ({
       id: template.id,
       name: template.name,
-      description: template.mainUseCase || "",
+      description: "", // Deprecated: use descriptionKey instead
+      descriptionKey: template.mainUseCaseKey,
     }));
   }
 

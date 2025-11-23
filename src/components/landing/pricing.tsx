@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatCurrency, formatHourlyPrice } from "@/lib/currency-utils";
 import {
   getAllResourceTiers,
@@ -14,6 +15,7 @@ import { Header } from "./header";
 
 export const Pricing = () => {
   const tiers = getAllResourceTiers();
+  const t = useTranslations("pricing");
 
   // Detect currency from IP using tRPC
   const { data: currencyData, isLoading } =
@@ -31,12 +33,10 @@ export const Pricing = () => {
             {/* Header */}
             <div className="text-center max-w-3xl mx-auto">
               <h1 className="text-4xl font-bold font-mono tracking-tight mb-4">
-                Your machine. Your rules.
+                {t("title")}
               </h1>
               <p className="text-lg text-gray-300 mb-2">
-                Pick your hardware specs and install anything you need for your
-                AI-powered development work. You only pay when your machine is
-                running.
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -55,19 +55,19 @@ export const Pricing = () => {
                   <thead>
                     <tr className="border-b-2 border-gray-300">
                       <th className="text-left py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        TIER
+                        {t("tier")}
                       </th>
                       <th className="text-center py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        CPU
+                        {t("cpu")}
                       </th>
                       <th className="text-center py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        MEMORY
+                        {t("memory")}
                       </th>
                       <th className="text-center py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        STORAGE
+                        {t("storage")}
                       </th>
                       <th className="text-right py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        PRICE
+                        {t("price")}
                       </th>
                       <th className="w-40 py-4 px-6"></th>
                     </tr>
@@ -90,17 +90,17 @@ export const Pricing = () => {
                           </td>
                           <td className="text-center py-5 px-6">
                             <span className="text-gray-700">
-                              {tier.cpu} vCPU
+                              {tier.cpu} {t("vcpu")}
                             </span>
                           </td>
                           <td className="text-center py-5 px-6">
                             <span className="text-gray-700">
-                              {tier.memory} GB
+                              {tier.memory} {t("gb")}
                             </span>
                           </td>
                           <td className="text-center py-5 px-6">
                             <span className="text-gray-700">
-                              {tier.storage} GB
+                              {tier.storage} {t("gb")}
                             </span>
                           </td>
                           <td className="text-right py-5 px-6">
@@ -108,16 +108,16 @@ export const Pricing = () => {
                               {isLoading
                                 ? "..."
                                 : formatCurrency(monthlyPrice, currency, {
-                                    showDecimals: false,
-                                  })}
+                                  showDecimals: false,
+                                })}
                               <span className="text-sm text-gray-600 font-normal">
-                                /mo
+                                {t("perMonth")}
                               </span>
                             </div>
                             <div className="text-xs text-gray-500 font-mono mt-1">
                               {isLoading
                                 ? "(....... per hour)"
-                                : `(${formatHourlyPrice(monthlyPrice, currency)} per hour)`}
+                                : `(${formatHourlyPrice(monthlyPrice, currency)} ${t("perHour")})`}
                             </div>
                           </td>
                           <td className="py-5 px-6">
@@ -127,7 +127,7 @@ export const Pricing = () => {
                               asChild
                               className="w-full"
                             >
-                              <Link href={"/setup?type=new"}>Get Started</Link>
+                              <Link href={"/setup?type=new"}>{t("getStarted")}</Link>
                             </Button>
                           </td>
                         </tr>
@@ -171,23 +171,23 @@ export const Pricing = () => {
                         </div>
                       </div>
 
-                      <div className="space-y-3 mb-6">
+                        <div className="space-y-3 mb-6">
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.cpu} vCPU</span>
+                          <span>{tier.cpu} {t("vcpu")}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.memory} GB Memory</span>
+                          <span>{tier.memory} {t("gbMemory")}</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.storage} GB Storage</span>
+                          <span>{tier.storage} {t("gbStorage")}</span>
                         </div>
                       </div>
 
                       <Button variant="accent" asChild className="w-full">
-                        <Link href={"/setup?type=new"}>Get Started</Link>
+                        <Link href={"/setup?type=new"}>{t("getStarted")}</Link>
                       </Button>
                     </div>
                   );
@@ -204,10 +204,10 @@ export const Pricing = () => {
                 <thead>
                     <tr className="border-b-2 border-gray-300">
                       <th className="text-left py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        SNAPSHOTS
+                        {t("snapshots")}
                       </th>
                       <th className="text-right py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        PRICE
+                        {t("price")}
                       </th>
                       <th className="w-40 py-4 px-6"></th>
                     </tr>
@@ -216,10 +216,10 @@ export const Pricing = () => {
                   <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                     <td className="py-5 px-6">
                       <div className="font-mono font-bold text-gray-900 flex items-center gap-2">
-                        Snapshot Storage
+                        {t("snapshotStorage")}
                         <span
                           className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-gray-400 text-gray-600 text-xs cursor-help"
-                          title="Automatic snapshots preserve your work when you stop a pod. Billed per GB per month. Delete anytime."
+                          title={t("snapshotTooltip")}
                         >
                           i
                         </span>
@@ -235,7 +235,7 @@ export const Pricing = () => {
                                 { showDecimals: true },
                               )}
                           <span className="text-sm text-gray-600 font-normal">
-                            /GB-month
+                            {t("perGbMonth")}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 font-mono mt-1">
@@ -244,7 +244,7 @@ export const Pricing = () => {
                             : `(${formatHourlyPrice(
                                 SNAPSHOT_STORAGE_PRICING[currency],
                                 currency,
-                              )} per GB per hour)`}
+                              )} ${t("perGbPerHour")})`}
                         </div>
                       </td>
                       <td className="py-5 px-6 text-center">
@@ -253,7 +253,7 @@ export const Pricing = () => {
                           className="text-sm underline font-mono"
                           target="_blank"
                         >
-                          View Docs
+                          {t("viewDocs")}
                         </Link>
                       </td>
                   </tr>
@@ -309,51 +309,51 @@ export const Pricing = () => {
           <div className="mt-12 border-t-2 border-gray-300 pt-16 pb-12">
             <div className="mx-auto max-w-4xl">
               <h2 className="text-2xl font-bold font-mono mb-8 text-center text-gray-900">
-                What you get
+                {t("whatYouGet")}
               </h2>
               <div className="grid md:grid-cols-2 gap-4 ml-4">
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">
-                    Root access - install anything you need
+                    {t("features.rootAccess")}
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">VS Code integration</span>
+                  <span className="text-gray-700">{t("features.vsCodeIntegration")}</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">
-                    Run AI agents 24/7 on your machine
+                    {t("features.runAgents247")}
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">GitHub repository sync</span>
+                  <span className="text-gray-700">{t("features.githubSync")}</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">
-                    Persistent storage for your projects
-                  </span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">
-                    Secure isolated environment
+                    {t("features.persistentStorage")}
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">
-                    Start/stop anytime - pay only when running
+                    {t("features.secureIsolated")}
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
                   <span className="text-gray-700">
-                    Snapshot & restore your machine state
+                    {t("features.startStopAnytime")}
+                  </span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    {t("features.snapshotRestore")}
                   </span>
                 </div>
               </div>

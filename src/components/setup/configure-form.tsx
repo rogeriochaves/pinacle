@@ -2,6 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import type { PinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
@@ -61,6 +62,7 @@ export const ConfigureForm = ({
   currency = "usd",
   isCurrencyLoading = false,
 }: ConfigureFormProps) => {
+  const t = useTranslations("setup");
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [showSecrets, setShowSecrets] = useState<Record<number, boolean>>({});
   const [isCreating, setIsCreating] = useState(false);
@@ -473,11 +475,11 @@ export const ConfigureForm = ({
                 className="font-mono text-slate-600 hover:text-slate-900"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {t("back")}
               </Link>
             </Button>
             <h1 className="text-2xl font-mono font-bold text-slate-900">
-              Configure Your Pod
+              {t("configureYourPod")}
             </h1>
           </div>
 
@@ -504,7 +506,7 @@ export const ConfigureForm = ({
             {/* Template Selection */}
             <div>
               <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
-                SELECT TEMPLATE
+                {t("selectTemplate")}
               </Label>
               {form.formState.errors.bundle?.message && (
                 <p className="text-red-500 text-xs mb-2 font-mono">
@@ -515,7 +517,7 @@ export const ConfigureForm = ({
                 setupType === "repository" &&
                 selectedRepo && (
                   <p className="text-xs font-mono text-slate-500 mb-2">
-                    Checking for pinacle.yaml...
+                    {t("checkingPinacleYaml")}
                   </p>
                 )}
               <TemplateSelector
@@ -597,7 +599,7 @@ export const ConfigureForm = ({
               (bundle === "pinacle-yaml" || selectedTemplate) && (
                 <>
                   <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
-                    APPLICATION CONFIGURATION
+                    {t("applicationConfiguration")}
                   </Label>
 
                   <div className="bg-white p-6 rounded-lg border-2 border-slate-200 space-y-4">
@@ -607,12 +609,12 @@ export const ConfigureForm = ({
                         htmlFor="processInstallCommand"
                         className="text-xs font-mono text-slate-700 mb-2 block"
                       >
-                        Install Command (optional)
+                        {t("installCommand")}
                       </Label>
                       <input
                         id="processInstallCommand"
                         type="text"
-                        placeholder="e.g., pnpm install or uv sync"
+                        placeholder={t("installCommandPlaceholder")}
                         value={form.watch("processInstallCommand") || ""}
                         onChange={(e) =>
                           form.setValue("processInstallCommand", e.target.value)
@@ -627,12 +629,12 @@ export const ConfigureForm = ({
                         htmlFor="processStartCommand"
                         className="text-xs font-mono text-slate-700 mb-2 block"
                       >
-                        Start Command (optional)
+                        {t("startCommand")}
                       </Label>
                       <input
                         id="processStartCommand"
                         type="text"
-                        placeholder="e.g., pnpm dev or uv run fastapi dev"
+                        placeholder={t("startCommandPlaceholder")}
                         value={form.watch("processStartCommand") || ""}
                         onChange={(e) =>
                           form.setValue("processStartCommand", e.target.value)
@@ -647,12 +649,12 @@ export const ConfigureForm = ({
                         htmlFor="processAppUrl"
                         className="text-xs font-mono text-slate-700 mb-2 block"
                       >
-                        Application URL (optional)
+                        {t("applicationUrl")}
                       </Label>
                       <input
                         id="processAppUrl"
                         type="text"
-                        placeholder="e.g., http://localhost:3000"
+                        placeholder={t("applicationUrlPlaceholder")}
                         value={form.watch("processAppUrl") || ""}
                         onChange={(e) =>
                           form.setValue("processAppUrl", e.target.value)
@@ -667,7 +669,7 @@ export const ConfigureForm = ({
             {/* Resource Tier Selection */}
             <div>
               <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
-                COMPUTE RESOURCES
+                {t("computeResources")}
               </Label>
               <TierSelectorSetup
                 value={selectedTier}
@@ -690,7 +692,7 @@ export const ConfigureForm = ({
             {isAdmin && servers && servers.length > 0 && (
               <div>
                 <Label className="text-xs font-mono font-medium text-slate-600 mb-3 block">
-                  SERVER (ADMIN ONLY)
+                  {t("serverAdminOnly")}
                 </Label>
                 <select
                   value={serverId || ""}
@@ -699,7 +701,7 @@ export const ConfigureForm = ({
                   }
                   className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
-                  <option value="">Auto-assign (default)</option>
+                  <option value="">{t("autoAssign")}</option>
                   {servers.map((server) => {
                     const displayStatus = getServerDisplayStatus(
                       server.status,
@@ -713,8 +715,7 @@ export const ConfigureForm = ({
                   })}
                 </select>
                 <p className="text-xs font-mono text-slate-500 mt-2">
-                  Leave as "Auto-assign" for production. Specify server only for
-                  testing.
+                  {t("serverSelectionNote")}
                 </p>
               </div>
             )}

@@ -2,6 +2,7 @@
 
 import { Check, LucidePlus, X } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { CodingAssistantId, ServiceId } from "../../lib/pod-orchestration/service-registry";
 import {
@@ -40,6 +41,7 @@ export const ServiceCustomizer = ({
   selectedServices,
   onChange,
 }: ServiceCustomizerProps) => {
+  const t = useTranslations("setup");
   const [open, setOpen] = useState(false);
 
   // Find the current coding assistant
@@ -80,7 +82,7 @@ export const ServiceCustomizer = ({
       {/* Coding Assistant Column */}
       <div>
         <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
-          CODING ASSISTANT
+          {t("codingAssistant")}
         </Label>
         <Select
           value={currentCodingAssistant}
@@ -117,7 +119,7 @@ export const ServiceCustomizer = ({
       {/* Tools Column */}
       <div>
         <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
-          TOOLS
+          {t("tools")}
         </Label>
         <div className="flex flex-wrap gap-2 min-h-[40px] items-center">
           {selectedTools.map((toolName) => {
@@ -155,7 +157,7 @@ export const ServiceCustomizer = ({
                 size="sm"
                 className="h-8 border-dashed border font-mono text-xs"
               >
-                Add
+                {t("add")}
                 <LucidePlus className="w-3 h-3" />
               </Button>
             </PopoverTrigger>

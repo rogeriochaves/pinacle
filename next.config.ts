@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+
+const withNextIntl = createNextIntlPlugin("./src/i18n.ts");
 
 const nextConfig: NextConfig = {
   logging: {
@@ -47,19 +50,21 @@ const GIT_COMMIT_HASH =
     ? readFileSync(".git-commit-hash", "utf-8").trim()
     : "dev";
 
-export default withPostHogConfig(nextConfig, {
-  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY || "",
-  envId: process.env.POSTHOG_ENV_ID || "",
-  host: "https://eu.i.posthog.com",
-  logLevel: "error",
-  sourcemaps: {
-    enabled:
-    false && // disable for now
-      process.env.NODE_ENV === "production" &&
-      !!process.env.POSTHOG_PERSONAL_API_KEY &&
-      !!process.env.POSTHOG_ENV_ID,
-    project: "pinacle",
-    deleteAfterUpload: true,
-    version: GIT_COMMIT_HASH,
-  },
-});
+export default withNextIntl(
+  withPostHogConfig(nextConfig, {
+    personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY || "",
+    envId: process.env.POSTHOG_ENV_ID || "",
+    host: "https://eu.i.posthog.com",
+    logLevel: "error",
+    sourcemaps: {
+      enabled:
+        false && // disable for now
+        process.env.NODE_ENV === "production" &&
+        !!process.env.POSTHOG_PERSONAL_API_KEY &&
+        !!process.env.POSTHOG_ENV_ID,
+      project: "pinacle",
+      deleteAfterUpload: true,
+      version: GIT_COMMIT_HASH,
+    },
+  }),
+);

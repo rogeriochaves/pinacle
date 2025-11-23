@@ -1,4 +1,3 @@
-import geoip from "geoip-country";
 import { type Currency, getCurrencyFromCountry } from "../../currency-utils";
 import { createTRPCRouter, publicProcedure } from "../server";
 
@@ -34,6 +33,9 @@ export const currencyRouter = createTRPCRouter({
           ip: "local",
         };
       }
+
+      // Dynamically import geoip-country to avoid webpack bundling issues
+      const geoip = await import("geoip-country").then(m => m.default);
 
       // Look up country from IP using geoip-country
       const geo = geoip.lookup(ip);

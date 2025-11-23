@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { users } from "../../db/schema";
 import { createTRPCRouter, protectedProcedure } from "../server";
+import { locales } from "../../../i18n";
 
 const utmParametersSchema = z.object({
   utmSource: z.string().optional(),
@@ -72,5 +73,39 @@ export const usersRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  updatePreferredLanguage: protectedProcedure
+    .input(
+      z.object({
+        language: z.enum(locales),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      await ctx.db
+        .update(users)
+        .set({
+          preferredLanguage: input.language,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      console.log(`[Language] Updated preferred language for user ${userId} to ${input.language}`);
+
+      return { success: true };
+    }),
+
+  getPreferredLanguage: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.session.user.id;
+
+    const [user] = await ctx.db
+      .select({ preferredLanguage: users.preferredLanguage })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    return { language: user?.preferredLanguage || "en" };
+  }),
 });
 

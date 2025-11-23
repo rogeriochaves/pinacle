@@ -3,12 +3,13 @@
 import { LucideLayers } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
-  SERVICE_TEMPLATES,
-  getCodingAssistantIds,
   CODING_ASSISTANTS,
   type CodingAssistantId,
+  getCodingAssistantIds,
+  SERVICE_TEMPLATES,
 } from "@/lib/pod-orchestration/service-registry";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
 import { api } from "@/lib/trpc/client";
@@ -52,25 +53,29 @@ type TemplateCardProps = {
   isCurrencyLoading: boolean;
 };
 
-const TemplateCard = ({ template, currency, isCurrencyLoading }: TemplateCardProps) => {
+const TemplateCard = ({
+  template,
+  currency,
+  isCurrencyLoading,
+}: TemplateCardProps) => {
   const [selectedAgent, setSelectedAgent] = useState<string>("claude");
   const [selectedTier, setSelectedTier] = useState<string>("dev.small");
+  const t = useTranslations("templates");
 
   const selectedCodingAgent =
     CODING_AGENTS.find((agent) => agent.id === selectedAgent) ||
     CODING_AGENTS[0];
 
   // Get services with icons, excluding terminal (respects template order)
-  const servicesWithIcons = (template.services
+  const servicesWithIcons = template.services
     .filter((serviceName) => serviceName !== "web-terminal")
     .map((serviceName) => SERVICE_TEMPLATES[serviceName])
     .filter((service) => service.icon) as Array<{
-      name: string;
-      displayName: string;
-      icon: string;
-      iconAlt?: string;
-    }>
-  );
+    name: string;
+    displayName: string;
+    icon: string;
+    iconAlt?: string;
+  }>;
 
   return (
     <Card>
@@ -88,9 +93,13 @@ const TemplateCard = ({ template, currency, isCurrencyLoading }: TemplateCardPro
             {template.name}
           </div>
 
-          {template.popular && <Badge>Popular</Badge>}
+          {template.popular && <Badge>{t("popular")}</Badge>}
         </CardTitle>
-        <CardDescription>{template.mainUseCase}</CardDescription>
+        <CardDescription>
+          {template.mainUseCaseKey
+            ? t(template.mainUseCaseKey.replace("templates.", ""))
+            : ""}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
         <hr className="my-4 border-gray-200" />
@@ -169,7 +178,7 @@ const TemplateCard = ({ template, currency, isCurrencyLoading }: TemplateCardPro
             href={`/setup?type=new&template=${template.id}&tier=${selectedTier}&agent=${selectedAgent}`}
           >
             <Button variant="accent" className="w-full">
-              Start Building
+              {t("startBuilding")}
             </Button>
           </Link>
         </div>
@@ -180,9 +189,11 @@ const TemplateCard = ({ template, currency, isCurrencyLoading }: TemplateCardPro
 
 export const Templates = () => {
   const templates = getPublicTemplates().slice(0, 6);
+  const t = useTranslations("templates");
 
   // Detect currency from IP using tRPC
-  const { data: currencyData, isLoading: isCurrencyLoading } = api.currency.detectCurrency.useQuery();
+  const { data: currencyData, isLoading: isCurrencyLoading } =
+    api.currency.detectCurrency.useQuery();
   const currency = currencyData?.currency || "usd";
 
   return (
@@ -190,11 +201,10 @@ export const Templates = () => {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">
-            Get started
+            {t("title")}
           </h2>
           <p className="mt-2 text-md leading-8 text-muted-foreground font-mono">
-            Cheap machines with the best development tools, to kickoff your
-            project right away.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -210,7 +220,7 @@ export const Templates = () => {
         </div>
         <div className="mt-10 flex justify-end">
           <Link href="/setup?type=new&template=nodejs-blank&tier=dev.small">
-            <Button>Build with custom setup →</Button>
+            <Button>{t("customSetup")}</Button>
           </Link>
         </div>
       </div>

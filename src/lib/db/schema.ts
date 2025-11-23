@@ -30,6 +30,8 @@ export const users = pgTable("user", {
   password: text("password"),
   githubId: varchar("github_id", { length: 255 }),
   githubUsername: varchar("github_username", { length: 255 }),
+  // User preferences
+  preferredLanguage: varchar("preferred_language", { length: 10 }).default("en"),
   // UTM tracking fields
   utmSource: varchar("utm_source", { length: 255 }),
   utmMedium: varchar("utm_medium", { length: 255 }),

@@ -4,31 +4,39 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { api } from "@/lib/trpc/client";
 import { Card, CardContent } from "../ui/card";
 
-const formatRelativeTime = (date: Date): string => {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSeconds < 60) {
-    return "just now";
-  }
-  if (diffMinutes < 60) {
-    return `${diffMinutes} ${diffMinutes === 1 ? "minute" : "minutes"} ago`;
-  }
-  if (diffHours < 24) {
-    return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
-  }
-  return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
-};
-
 export const JumpRightBack = () => {
   const { data: session } = useSession();
+  const t = useTranslations("jumpRightBack");
+
+  const formatRelativeTime = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) {
+      return t("justNow");
+    }
+    if (diffMinutes < 60) {
+      return diffMinutes === 1
+        ? t("minuteAgo", { count: diffMinutes })
+        : t("minutesAgo", { count: diffMinutes });
+    }
+    if (diffHours < 24) {
+      return diffHours === 1
+        ? t("hourAgo", { count: diffHours })
+        : t("hoursAgo", { count: diffHours });
+    }
+    return diffDays === 1
+      ? t("dayAgo", { count: diffDays })
+      : t("daysAgo", { count: diffDays });
+  };
 
   // Only fetch pods if user is authenticated
   const { data: podsWithScreenshots, isLoading } =
@@ -49,10 +57,10 @@ export const JumpRightBack = () => {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">
-            Jump right back
+            {t("title")}
           </h2>
           <p className="mt-2 text-md leading-8 text-muted-foreground font-mono">
-            Continue working on your running projects
+            {t("subtitle")}
           </p>
         </div>
 
@@ -78,7 +86,7 @@ export const JumpRightBack = () => {
                         {/* Overlay on hover */}
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <div className="text-white font-mono text-sm">
-                            Open in Workbench
+                            {t("openInWorkbench")}
                           </div>
                         </div>
                       </div>
@@ -88,7 +96,7 @@ export const JumpRightBack = () => {
                       {pod.name}
                     </div>
                     <div className="text-sm text-muted-foreground font-mono">
-                      Edited {formatRelativeTime(new Date(pod.screenshot.createdAt))}
+                      {t("editedAgo", { time: formatRelativeTime(new Date(pod.screenshot.createdAt)) })}
                     </div>
                   </CardContent>
                 </Card>

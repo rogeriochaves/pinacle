@@ -2,6 +2,7 @@
 
 import { FileCode2 } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import type { PinacleConfig } from "@/lib/pod-orchestration/pinacle-config";
 import { getPublicTemplates } from "@/lib/pod-orchestration/template-registry";
 import { Badge } from "../ui/badge";
@@ -21,6 +22,8 @@ export const TemplateSelector = ({
   showOnlyBlank = false,
   pinacleConfig,
 }: TemplateSelectorProps) => {
+  const t = useTranslations("setup");
+  const tTemplates = useTranslations("templateUseCases");
   const allTemplates = getPublicTemplates();
 
   // Filter templates based on showOnlyBlank flag
@@ -35,7 +38,7 @@ export const TemplateSelector = ({
     // Get the template ID from pinacle.yaml config if it exists
     const pinacleTemplateId = pinacleConfig?.template || "nodejs-blank";
     const isPinacleTemplate = pinacleConfig && showOnlyBlank && selectedTemplate === pinacleTemplateId;
-    
+
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {/* Show pinacle.yaml indicator first if config exists and we're in blank template mode (existing repo) */}
@@ -62,14 +65,14 @@ export const TemplateSelector = ({
             <div className="flex-1 text-left min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="font-mono font-bold text-sm text-slate-900">
-                  From pinacle.yaml
+                  {t("fromPinacleYaml")}
                 </span>
                 <Badge className="bg-green-500 text-white text-[10px] px-1.5 py-0">
-                  Detected
+                  {t("detected")}
                 </Badge>
               </div>
               <p className="text-xs text-slate-600 truncate">
-                {pinacleConfig.template ? `Template: ${pinacleConfig.template}` : "Using config from repo"}
+                {pinacleConfig.template ? `Template: ${pinacleConfig.template}` : t("usingConfigFromRepo")}
               </p>
             </div>
 
@@ -125,7 +128,7 @@ export const TemplateSelector = ({
                   </span>
                   {template.popular && (
                     <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0">
-                      Popular
+                      {t("popular")}
                     </Badge>
                   )}
                 </div>
@@ -176,7 +179,7 @@ export const TemplateSelector = ({
             {template.popular && (
               <div className="absolute -top-2 -right-2">
                 <Badge className="bg-orange-500 text-white text-xs px-2 py-0.5">
-                  Popular
+                  {t("popular")}
                 </Badge>
               </div>
             )}
@@ -196,9 +199,9 @@ export const TemplateSelector = ({
               </h3>
             </div>
 
-            {template.mainUseCase && (
+            {template.mainUseCaseKey && (
               <p className="text-sm text-gray-600 mb-4">
-                {template.mainUseCase}
+                {tTemplates(template.mainUseCaseKey)}
               </p>
             )}
 

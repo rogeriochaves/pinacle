@@ -2,49 +2,45 @@
 
 import { Twitter } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { DockerIcon } from "../icons/docker";
-
-const navigation = {
-  main: [
-    { name: "About", href: "/about" },
-    { name: "Blog", href: "/blog" },
-    { name: "Jobs", href: "/jobs" },
-    { name: "Press", href: "/press" },
-    { name: "Accessibility", href: "/accessibility" },
-    { name: "Partners", href: "/partners" },
-  ],
-  support: [
-    { name: "Pricing", href: "/pricing" },
-    { name: "Documentation", href: "/docs" },
-    { name: "Status Page", href: "https://status.pinacle.dev/" },
-  ],
-  company: [
-    { name: "About", href: "/blog/why-we-built-pinacle" },
-    { name: "Blog", href: "/blog" },
-  ],
-  legal: [
-    { name: "Privacy", href: "/privacy" },
-    { name: "Terms", href: "/terms" },
-  ],
-  social: [
-    {
-      name: "Docker Hub",
-      href: "https://hub.docker.com/u/pinacledev",
-      icon: DockerIcon,
-    },
-    {
-      name: "Twitter",
-      href: "https://x.com/pinacledev",
-      icon: Twitter,
-    },
-  ],
-};
+import { LanguageSwitcher } from "../language-switcher";
 
 export const Footer = () => {
+  const t = useTranslations("footer");
+
+  const navigation = {
+    support: [
+      { name: t("pricing"), href: "/pricing" },
+      { name: t("documentation"), href: "/docs" },
+      { name: t("statusPage"), href: "https://status.pinacle.dev/" },
+    ],
+    company: [
+      { name: t("about"), href: "/blog/why-we-built-pinacle" },
+      { name: t("blog"), href: "/blog" },
+    ],
+    legal: [
+      { name: t("privacy"), href: "/privacy" },
+      { name: t("terms"), href: "/terms" },
+    ],
+    social: [
+      {
+        name: t("dockerHub"),
+        href: "https://hub.docker.com/u/pinacledev",
+        icon: DockerIcon,
+      },
+      {
+        name: t("twitter"),
+        href: "https://x.com/pinacledev",
+        icon: Twitter,
+      },
+    ],
+  };
+
   return (
     <footer className="bg-gray-900" aria-labelledby="footer-heading">
       <h2 id="footer-heading" className="sr-only">
-        Footer
+        {t("footerHeading")}
       </h2>
       <div className="mx-auto max-w-7xl px-6 pb-8 pt-8 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
@@ -52,7 +48,7 @@ export const Footer = () => {
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
                 <h3 className="text-sm font-semibold leading-6 text-white">
-                  Support
+                  {t("support")}
                 </h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {navigation.support.map((item) => (
@@ -70,7 +66,7 @@ export const Footer = () => {
               </div>
               <div className="mt-10 md:mt-0">
                 <h3 className="text-sm font-semibold leading-6 text-white">
-                  Company
+                  {t("company")}
                 </h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {navigation.company.map((item) => (
@@ -89,7 +85,7 @@ export const Footer = () => {
             <div className="md:grid md:grid-cols-2 md:gap-8">
               <div>
                 <h3 className="text-sm font-semibold leading-6 text-white">
-                  Legal
+                  {t("legal")}
                 </h3>
                 <ul role="list" className="mt-6 space-y-4">
                   {navigation.legal.map((item) => (
@@ -108,7 +104,7 @@ export const Footer = () => {
           </div>
           <div className="space-y-8">
             <p className="text-sm leading-6 text-gray-300">
-              Secure, scalable AI development environments. You can just do things.
+              {t("description")}
             </p>
             <p className="text-sm leading-6 text-gray-300">
               hello@pinacle.dev
@@ -141,10 +137,13 @@ export const Footer = () => {
 ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝╚══════╝╚══════╝`}
           </pre>
         </div>
-        <div className="mt-6 border-t border-gray-700 pt-6">
+        <div className="mt-6 border-t border-gray-700 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p className="text-xs leading-5 text-gray-400">
-            &copy; {new Date().getFullYear()} Pinacle, Inc. All rights reserved.
+            {t("copyright", { year: new Date().getFullYear() })}
           </p>
+          <div className="flex items-center">
+            <LanguageSwitcher />
+          </div>
         </div>
       </div>
     </footer>

@@ -170,13 +170,21 @@ export const authOptions: NextAuthOptions = {
                 process.env.NEXTAUTH_URL || "http://localhost:3000";
               const dashboardUrl = `${baseUrl}/dashboard`;
 
+              // Get user's preferred language from database
+              const [userData] = await db
+                .select({ preferredLanguage: users.preferredLanguage })
+                .from(users)
+                .where(eq(users.id, user.id))
+                .limit(1);
+
               await sendWelcomeEmail({
                 to: user.email,
                 name: user.name || githubLogin,
                 dashboardUrl,
+                locale: (userData?.preferredLanguage as any) || "en",
               });
 
-              console.log(`Welcome email sent to GitHub user: ${user.email}`);
+              console.log(`Welcome email sent to GitHub user: ${user.email} in ${userData?.preferredLanguage || "en"}`);
             } catch (error) {
               console.error(
                 `Failed to send welcome email to ${user.email}:`,

@@ -1,6 +1,7 @@
 "use client";
 
 import { Book, Check, ChevronDown, Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { cn } from "../../lib/utils";
@@ -42,6 +43,7 @@ export const RepositorySelector = ({
   organizations,
   installationUrl,
 }: RepositorySelectorProps) => {
+  const t = useTranslations("setup");
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -68,7 +70,7 @@ export const RepositorySelector = ({
   return (
     <>
       <Label className="text-xs font-mono font-medium text-slate-600 mb-4 block">
-        PROJECT REPOSITORY
+        {t("projectRepository")}
       </Label>
 
       <RadioGroup
@@ -88,7 +90,7 @@ export const RepositorySelector = ({
                 className="flex flex-col items-start gap-1 cursor-pointer"
               >
                 <div className="font-mono font-medium text-slate-900">
-                  New Repository
+                  {t("newRepository")}
                 </div>
               </Label>
             </div>
@@ -98,7 +100,7 @@ export const RepositorySelector = ({
                 {/* Organization Selector */}
                 <div>
                   <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
-                    ORGANIZATION
+                    {t("organization")}
                   </Label>
                   <Select
                     value={selectedOrg || ""}
@@ -145,7 +147,7 @@ export const RepositorySelector = ({
                 {/* Repository Name Input */}
                 <div>
                   <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
-                    REPOSITORY NAME
+                    {t("repositoryName")}
                   </Label>
                   <Input
                     placeholder="my-awesome-project"
@@ -182,7 +184,7 @@ export const RepositorySelector = ({
                 className="flex flex-col items-start gap-1 cursor-pointer"
               >
                 <div className="font-mono font-medium text-slate-900">
-                  Existing Repository
+                  {t("existingRepository")}
                 </div>
               </Label>
             </div>
@@ -190,7 +192,7 @@ export const RepositorySelector = ({
             {setupType === "repository" && (
               <div className="pl-1 pt-2">
                 <Label className="text-xs font-mono font-medium text-slate-600 mb-2 block">
-                  SELECT REPOSITORY
+                  {t("selectRepository")}
                 </Label>
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
@@ -221,7 +223,7 @@ export const RepositorySelector = ({
                       ) : (
                         <div className="flex items-center gap-2 text-slate-700">
                           <Book className="h-4 w-4" />
-                          Select repository
+                          {t("selectRepositoryPlaceholder")}
                         </div>
                       )}
                       <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50 text-muted-foreground" />

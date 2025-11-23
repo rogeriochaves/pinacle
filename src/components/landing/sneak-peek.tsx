@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 type TourStep = {
@@ -63,6 +64,7 @@ const tourSteps: TourStep[] = [
 export const SneakPeek = () => {
   const [activeStep, setActiveStep] = useState(0);
   const currentStep = tourSteps[activeStep];
+  const t = useTranslations("sneakPeek");
 
   const goToNextStep = () => {
     setActiveStep((prev) => (prev + 1) % tourSteps.length);
@@ -74,10 +76,10 @@ export const SneakPeek = () => {
         {/* Header */}
         <div className="mb-12 text-center">
           <h2 className="text-xl font-bold font-mono tracking-tight text-foreground sm:text-2xl">
-            This is how it looks like
+            {t("title")}
           </h2>
           <p className="mt-4 text-md leading-8 text-muted-foreground font-mono">
-            Everything you need to build, code, and ship — right in your browser
+            {t("subtitle")}
           </p>
         </div>
 
@@ -97,7 +99,8 @@ export const SneakPeek = () => {
                 {/* URL Bar */}
                 <div className="flex-1 ml-4">
                   <div className="bg-white rounded px-3 py-1 text-xs text-gray-600 font-mono">
-                    pinacle.dev/{currentStep.name.toLowerCase().replace(/\s+/g, "-")}
+                    pinacle.dev/
+                    {currentStep.name.toLowerCase().replace(/\s+/g, "-")}
                   </div>
                 </div>
               </div>
@@ -175,7 +178,7 @@ export const SneakPeek = () => {
                             <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-orange-500 rotate-45" />
                           </div>
                           <div className="text-xs font-mono text-gray-600 bg-white px-2 py-1 rounded">
-                            Click to continue →
+                            {t("clickToContinue")}
                           </div>
                         </motion.div>
                       </div>
@@ -200,7 +203,7 @@ export const SneakPeek = () => {
                     {currentStep.label}
                   </div>
                   <div className="text-xs font-mono text-orange-100">
-                    Tap to continue →
+                    {t("tapToContinue")}
                   </div>
                 </motion.div>
               </AnimatePresence>

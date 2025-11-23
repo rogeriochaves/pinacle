@@ -4,19 +4,21 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "../ui/button";
-
-const navigation = [
-  { name: "Features", href: "/#features" },
-  { name: "Pricing", href: "/pricing" },
-  { name: "Docs", href: "/docs" },
-  { name: "Blog", href: "/blog" },
-];
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: session } = useSession();
+  const t = useTranslations("header");
+
+  const navigation = [
+    { name: t("features"), href: "/#features" },
+    { name: t("pricing"), href: "/pricing" },
+    { name: t("docs"), href: "/docs" },
+    { name: t("blog"), href: "/blog" },
+  ];
 
   return (
     <header>
@@ -44,7 +46,7 @@ export const Header = () => {
           </Button>
         </div>
 
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4 lg:items-center">
           {navigation.map((item) => (
             <Button variant="ghost" asChild key={item.name}>
               <Link
@@ -57,15 +59,15 @@ export const Header = () => {
           ))}
           {session ? (
             <Button variant="accent" asChild>
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href="/dashboard">{t("dashboard")}</Link>
             </Button>
           ) : (
             <>
               <Button variant="ghost" asChild>
-                <Link href="/auth/signin">Sign in</Link>
+                <Link href="/auth/signin">{t("signIn")}</Link>
               </Button>
               <Button variant="accent" asChild>
-                <Link href="/auth/signup">Get started</Link>
+                <Link href="/auth/signup">{t("getStarted")}</Link>
               </Button>
             </>
           )}
@@ -79,7 +81,7 @@ export const Header = () => {
             className="fixed inset-0 z-50 bg-black/50"
             onClick={() => setMobileMenuOpen(false)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') setMobileMenuOpen(false);
+              if (e.key === "Escape") setMobileMenuOpen(false);
             }}
             role="button"
             tabIndex={0}
@@ -107,6 +109,7 @@ export const Header = () => {
                 size="icon"
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-white hover:bg-gray-800"
+                aria-label={t("closeMenu")}
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -129,15 +132,15 @@ export const Header = () => {
                 <div className="py-6 space-y-2">
                   {session ? (
                     <Button variant="accent" asChild className="w-full">
-                      <Link href="/dashboard">Dashboard</Link>
+                      <Link href="/dashboard">{t("dashboard")}</Link>
                     </Button>
                   ) : (
                     <>
                       <Button variant="outline" asChild className="w-full">
-                        <Link href="/auth/signin">Sign in</Link>
+                        <Link href="/auth/signin">{t("signIn")}</Link>
                       </Button>
                       <Button variant="accent" asChild className="w-full">
-                        <Link href="/auth/signup">Get started</Link>
+                        <Link href="/auth/signup">{t("getStarted")}</Link>
                       </Button>
                     </>
                   )}

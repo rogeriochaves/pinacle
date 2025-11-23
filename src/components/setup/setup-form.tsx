@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ const SetupForm = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { reauthenticate } = useGitHubReauth();
+  const t = useTranslations("setup");
   const [isRestoringFromCheckout, setIsRestoringFromCheckout] = useState(false);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
 
@@ -347,7 +349,7 @@ const SetupForm = () => {
                 await new Promise((resolve) => setTimeout(resolve, 500));
 
                 console.log("[Checkout] Creating pod with restored data...");
-                toast.success("Payment successful! Creating your pod...");
+                toast.success(t("paymentSuccessCreating"));
 
                 // Fetch teams to ensure we have the latest data
                 const { data: userTeams } = await refetchTeams();
@@ -438,7 +440,7 @@ const SetupForm = () => {
                 setIsRestoringFromCheckout(false);
               }
             } else {
-              toast.success("Payment successful! Please configure your pod.");
+              toast.success(t("paymentSuccessCreating"));
               setIsProcessingCheckout(false);
             }
           },
@@ -505,9 +507,7 @@ const SetupForm = () => {
           console.log(
             "[Checkout Cancel] Form data restored successfully. You can continue editing.",
           );
-          toast.info(
-            "Checkout cancelled. Your configuration has been restored.",
-          );
+          toast.info(t("checkoutCancelled"));
 
           // Re-enable auto-detection useEffects after a delay
           setTimeout(() => {
@@ -515,10 +515,10 @@ const SetupForm = () => {
           }, 1000);
         } catch (error) {
           console.error("Failed to restore form data:", error);
-          toast.error("Checkout cancelled");
+          toast.error(t("checkoutCancelledShort"));
         }
       } else {
-        toast.info("Checkout cancelled");
+        toast.info(t("checkoutCancelledShort"));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -667,11 +667,11 @@ const SetupForm = () => {
   if (isLoading) {
     const loadingMessage = isProcessingCheckout
       ? createPodMutation.isPending
-        ? "Creating your pod..."
-        : "Verifying your payment..."
+        ? t("creatingPod")
+        : t("verifyingPayment")
       : isTokenInvalid
-        ? "Refreshing authentication..."
-        : "Loading your repositories...";
+        ? t("refreshingAuth")
+        : t("loadingRepositories");
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -680,7 +680,7 @@ const SetupForm = () => {
           <h2 className="text-xl font-semibold text-white mb-2 font-mono">
             {loadingMessage}
           </h2>
-          <p className="text-slate-400 font-mono">Just a moment</p>
+          <p className="text-slate-400 font-mono">{t("justAMoment")}</p>
         </div>
       </div>
     );

@@ -1,5 +1,7 @@
 import { render } from "@react-email/render";
 import { Resend } from "resend";
+import type { Locale } from "@/i18n";
+import { getEmailTranslations, getEmailT } from "./email-i18n";
 import FinalDeletionWarningEmail from "../emails/final-deletion-warning";
 import GracePeriodWarningEmail from "../emails/grace-period-warning";
 import PaymentFailedEmail from "../emails/payment-failed";
@@ -22,18 +24,21 @@ type SendWelcomeEmailParams = {
   to: string;
   name: string;
   dashboardUrl: string;
+  locale?: Locale;
 };
 
 type SendResetPasswordEmailParams = {
   to: string;
   name: string;
   resetUrl: string;
+  locale?: Locale;
 };
 
 export const sendWelcomeEmail = async ({
   to,
   name,
   dashboardUrl,
+  locale = "en",
 }: SendWelcomeEmailParams): Promise<{ success: boolean; error?: string }> => {
   try {
     if (!process.env.RESEND_API_KEY) {
@@ -46,14 +51,39 @@ export const sendWelcomeEmail = async ({
       };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `welcome.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview"),
+      title: t("title"),
+      greeting: t("greeting", { name }),
+      body1: t("body1"),
+      body2: t("body2"),
+      button: t("button"),
+      whatYouNeedToKnow: t("whatYouNeedToKnow"),
+      payForUse: t("payForUse"),
+      payForUseDesc: t("payForUseDesc"),
+      itsYours: t("itsYours"),
+      itsYoursDesc: t("itsYoursDesc"),
+      persistentState: t("persistentState"),
+      persistentStateDesc: t("persistentStateDesc"),
+      shareAccess: t("shareAccess"),
+      shareAccessDesc: t("shareAccessDesc"),
+      questionsReply: t("questionsReply"),
+      footer: t("footer"),
+    };
+
     // Render the email template
-    const emailHtml = await render(WelcomeEmail({ name, dashboardUrl }));
+    const emailHtml = await render(WelcomeEmail({ name, dashboardUrl, locale, translations }));
 
     // Send the email
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <hello@pinacle.dev>",
       to: [to],
-      subject: "Welcome to Pinacle - Create Your First Pod! 🚀",
+      subject: t("preview"),
       html: emailHtml,
     });
 
@@ -80,6 +110,7 @@ export const sendResetPasswordEmail = async ({
   to,
   name,
   resetUrl,
+  locale = "en",
 }: SendResetPasswordEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -95,14 +126,29 @@ export const sendResetPasswordEmail = async ({
       };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `resetPassword.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview"),
+      title: t("title"),
+      greeting: t("greeting", { name }),
+      body1: t("body1"),
+      body2: t("body2"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     // Render the email template
-    const emailHtml = await render(ResetPasswordEmail({ name, resetUrl }));
+    const emailHtml = await render(ResetPasswordEmail({ name, resetUrl, locale, translations }));
 
     // Send the email
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <hello@pinacle.dev>",
       to: [to],
-      subject: "Reset your Pinacle password",
+      subject: t("preview"),
       html: emailHtml,
     });
 
@@ -405,6 +451,7 @@ type SendTeamInviteEmailParams = {
   invitedByName: string;
   teamName: string;
   acceptUrl: string;
+  locale?: Locale;
 };
 
 export const sendTeamInviteEmail = async ({
@@ -412,6 +459,7 @@ export const sendTeamInviteEmail = async ({
   invitedByName,
   teamName,
   acceptUrl,
+  locale = "en",
 }: SendTeamInviteEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -424,14 +472,39 @@ export const sendTeamInviteEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `teamInvite.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview", { teamName }),
+      title: t("title"),
+      greeting: t("greeting"),
+      body1: t("body1", { invitedByName, teamName }),
+      body2: t("body2"),
+      button: t("button"),
+      whatYouGet: t("whatYouGet"),
+      accessTeamPods: t("accessTeamPods"),
+      accessTeamPodsDesc: t("accessTeamPodsDesc"),
+      collaborative: t("collaborative"),
+      collaborativeDesc: t("collaborativeDesc"),
+      teamBilling: t("teamBilling"),
+      teamBillingDesc: t("teamBillingDesc"),
+      persistentState: t("persistentState"),
+      persistentStateDesc: t("persistentStateDesc"),
+      questionsContact: t("questionsContact", { invitedByName }),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
-      TeamInviteEmail({ invitedByName, teamName, acceptUrl }),
+      TeamInviteEmail({ invitedByName, teamName, acceptUrl, locale, translations }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <hello@pinacle.dev>",
       to: [to],
-      subject: `You've been invited to join ${teamName} on Pinacle`,
+      subject: t("preview", { teamName }),
       html: emailHtml,
     });
 

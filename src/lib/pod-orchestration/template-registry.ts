@@ -24,7 +24,7 @@ export type PodTemplate = {
   icon?: string; // Path to icon image (e.g., "/logos/vite.svg")
   iconAlt?: string; // Alt text for icon
   techStack?: string; // Tech stack description for landing page
-  mainUseCase?: string; // Main use case description (e.g., "For building websites")
+  mainUseCaseKey?: string; // Translation key for main use case (e.g., "templates.buildWebsites")
   category: string;
   popular?: boolean;
 
@@ -79,7 +79,7 @@ export const POD_TEMPLATES = {
     icon: "/logos/vite.svg",
     iconAlt: "Vite",
     techStack: "React, TypeScript, Tailwind CSS",
-    mainUseCase: "For building websites",
+    mainUseCaseKey: "templates.buildWebsites",
     category: "frontend",
     popular: true,
 
@@ -261,7 +261,7 @@ EOF`,
     icon: "/logos/nextjs.svg",
     iconAlt: "Next.js",
     techStack: "React, TypeScript, Tailwind CSS, NextAuth, PostgreSQL, Stripe",
-    mainUseCase: "For building SaaS applications",
+    mainUseCaseKey: "templates.buildSaas",
     category: "fullstack",
 
     baseImage: "pinacledev/pinacle-base",
@@ -331,7 +331,7 @@ EOF`,
     icon: "/logos/mastra.svg",
     iconAlt: "Mastra",
     techStack: "TypeScript, Mastra, Mastra Playground",
-    mainUseCase: "For building AI agents",
+    mainUseCaseKey: "templates.buildAiAgents",
     category: "ai",
 
     baseImage: "pinacledev/pinacle-base",
@@ -373,7 +373,7 @@ EOF`,
     icon: "/logos/nodejs.svg",
     iconAlt: "Node.js",
     techStack: "Node.js, pnpm",
-    mainUseCase: "For custom backend development",
+    mainUseCaseKey: "templates.customBackend",
     category: "backend",
     popular: false,
 
@@ -418,7 +418,7 @@ EOF`,
     icon: "/logos/python.svg",
     iconAlt: "Python",
     techStack: "Python, uv",
-    mainUseCase: "For custom Python development",
+    mainUseCaseKey: "templates.customPython",
     category: "backend",
     popular: false,
 
@@ -464,7 +464,7 @@ EOF`,
     icon: "/logos/agno.svg",
     iconAlt: "Agno",
     techStack: "Python, FastAPI, Agno, AgentUI",
-    mainUseCase: "For building AI agents",
+    mainUseCaseKey: "templates.buildAiAgents",
     category: "ai",
     popular: false,
 
@@ -513,7 +513,7 @@ EOF`,
     icon: "/logos/nextjs.svg",
     iconAlt: "Next.js",
     techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS",
-    mainUseCase: "For building AI agents",
+    mainUseCaseKey: "templates.buildAiAgents",
     category: "ai",
     popular: false,
 
@@ -561,7 +561,7 @@ EOF`,
     icon: "/logos/langflow.svg",
     iconAlt: "Langflow",
     techStack: "Python, Langflow",
-    mainUseCase: "For building AI automations",
+    mainUseCaseKey: "templates.buildAiAutomations",
     category: "ai",
     popular: false,
 

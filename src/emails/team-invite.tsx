@@ -17,12 +17,34 @@ type TeamInviteEmailProps = {
   invitedByName: string;
   teamName: string;
   acceptUrl: string;
+  locale?: string;
+  translations?: {
+    preview: string;
+    title: string;
+    greeting: string;
+    body1: string;
+    body2: string;
+    button: string;
+    whatYouGet: string;
+    accessTeamPods: string;
+    accessTeamPodsDesc: string;
+    collaborative: string;
+    collaborativeDesc: string;
+    teamBilling: string;
+    teamBillingDesc: string;
+    persistentState: string;
+    persistentStateDesc: string;
+    questionsContact: string;
+    footer: string;
+  };
 };
 
 export const TeamInviteEmail = ({
   invitedByName,
   teamName,
   acceptUrl,
+  locale = "en",
+  translations,
 }: TeamInviteEmailProps) => {
   // Extract base URL (protocol + domain) from acceptUrl
   let baseUrl: string;
@@ -34,10 +56,31 @@ export const TeamInviteEmail = ({
     baseUrl = acceptUrl.replace(/\/.*$/, "");
   }
 
+  // Default English translations
+  const t = translations || {
+    preview: `You've been invited to join ${teamName} on Pinacle`,
+    title: "team invitation",
+    greeting: "Hi there,",
+    body1: `${invitedByName} has invited you to join the ${teamName} team on Pinacle.`,
+    body2: "As a team member, you'll have access to all the pods created by your team, and you can collaborate on development environments together.",
+    button: "Accept Invitation",
+    whatYouGet: "What you get:",
+    accessTeamPods: "Access to team pods",
+    accessTeamPodsDesc: "Work on the same dev machines as your teammates",
+    collaborative: "Collaborative development",
+    collaborativeDesc: "Share terminals, editors, and workspaces",
+    teamBilling: "Team billing",
+    teamBillingDesc: "Pods are billed to the team account",
+    persistentState: "Persistent state",
+    persistentStateDesc: "Your work continues even when you close your laptop",
+    questionsContact: `Questions? Reply to this email or contact ${invitedByName} directly.`,
+    footer: "– Pinacle",
+  };
+
   return (
-    <Html>
+    <Html lang={locale}>
       <Head />
-      <Preview>You've been invited to join {teamName} on Pinacle</Preview>
+      <Preview>{t.preview.replace("{teamName}", teamName)}</Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
           <Section style={emailStyles.header}>
@@ -51,56 +94,52 @@ export const TeamInviteEmail = ({
             <Text style={emailStyles.logoText}>pinacle</Text>
           </Section>
 
-          <Heading style={emailStyles.h1}>team invitation</Heading>
+          <Heading style={emailStyles.h1}>{t.title}</Heading>
 
-          <Text style={emailStyles.text}>Hi there,</Text>
+          <Text style={emailStyles.text}>{t.greeting}</Text>
 
           <Text style={emailStyles.text}>
-            <strong>{invitedByName}</strong> has invited you to join the{" "}
+            <strong>{invitedByName}</strong> {t.body1.replace("{invitedByName}", "").replace("{teamName}", teamName).trim()}{" "}
             <strong>{teamName}</strong> team on Pinacle.
           </Text>
 
           <Text style={emailStyles.text}>
-            As a team member, you'll have access to all the pods created by your
-            team, and you can collaborate on development environments together.
+            {t.body2}
           </Text>
 
           <Section style={emailStyles.buttonContainer}>
             <Button style={emailStyles.button} href={acceptUrl}>
-              Accept Invitation
+              {t.button}
             </Button>
           </Section>
 
           <Hr style={emailStyles.hr} />
 
-          <Text style={emailStyles.h2}>What you get:</Text>
+          <Text style={emailStyles.h2}>{t.whatYouGet}</Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>Access to team pods</strong> – Work on the same dev machines
-            as your teammates
+            <strong>{t.accessTeamPods}</strong> – {t.accessTeamPodsDesc}
           </Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>Collaborative development</strong> – Share terminals, editors,
-            and workspaces
+            <strong>{t.collaborative}</strong> – {t.collaborativeDesc}
           </Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>Team billing</strong> – Pods are billed to the team account
+            <strong>{t.teamBilling}</strong> – {t.teamBillingDesc}
           </Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>Persistent state</strong> – Your work continues even when
-            you close your laptop
+            <strong>{t.persistentState}</strong> – {t.persistentStateDesc}
           </Text>
 
           <Hr style={emailStyles.hr} />
 
           <Text style={emailStyles.text}>
-            Questions? Reply to this email or contact {invitedByName} directly.
+            {t.questionsContact.replace("{invitedByName}", invitedByName)}
           </Text>
 
-          <Text style={emailStyles.footer}>– Pinacle</Text>
+          <Text style={emailStyles.footer}>{t.footer}</Text>
         </Container>
       </Body>
     </Html>

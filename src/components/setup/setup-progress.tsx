@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 type SetupProgressProps = {
   currentStep: "project" | "configure";
   projectName?: string;
@@ -9,6 +11,8 @@ export const SetupProgress = ({
   currentStep,
   projectName,
 }: SetupProgressProps) => {
+  const t = useTranslations("setup.progress");
+
   return (
     <div className="bg-slate-900 border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -32,7 +36,7 @@ export const SetupProgress = ({
                     currentStep === "project" ? "text-white" : "text-slate-400"
                   }`}
                 >
-                  Choose Project
+                  {t("step1")}
                 </div>
               </div>
             </div>
@@ -59,7 +63,7 @@ export const SetupProgress = ({
                       : "text-slate-400"
                   }`}
                 >
-                  Configure Pod
+                  {t("step2")}
                 </div>
               </div>
             </div>
@@ -70,15 +74,15 @@ export const SetupProgress = ({
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold font-mono text-white mb-2">
             {currentStep === "project"
-              ? "Select Your Project"
-              : "Configure Your Pod"}
+              ? t("selectProject")
+              : t("configurePod")}
           </h1>
           <p className="text-slate-400 font-mono text-sm">
             {currentStep === "project"
-              ? "Choose an existing repository or create a new project"
+              ? t("chooseRepo")
               : projectName
-                ? `Setting up development environment for ${projectName}`
-                : "Customize your development environment"}
+                ? t("settingUpFor", { name: projectName })
+                : t("customizeEnvironment")}
           </p>
         </div>
       </div>
