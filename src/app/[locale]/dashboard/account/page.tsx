@@ -28,6 +28,7 @@ export default function AccountPage() {
   const { data: userLanguageData } = api.users.getPreferredLanguage.useQuery();
   const updateLanguageMutation =
     api.users.updatePreferredLanguage.useMutation();
+  const utils = api.useUtils();
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
@@ -37,6 +38,9 @@ export default function AccountPage() {
     try {
       await updateLanguageMutation.mutateAsync({ language: newLanguage });
       toast.success(t("languageUpdated"));
+
+      // Invalidate the preferred language query to update the UI
+      utils.users.getPreferredLanguage.invalidate();
 
       // Redirect to the new locale
       const currentPath = window.location.pathname;
