@@ -158,8 +158,7 @@ export class PodManager extends EventEmitter {
           // Wait a little bit for process to start
           await new Promise((resolve) => setTimeout(resolve, 5_000));
 
-          // Run health check for new repos only
-          if (!isExistingRepo && process.healthCheck) {
+          if (process.healthCheck) {
             const isHealthy = await this.processProvisioner.checkProcessHealth(
               spec,
               process,

@@ -595,7 +595,7 @@ EOF
     ],
     startCommand: () => ["/usr/local/bin/start-postgres-pgweb.sh"],
     cleanupCommand: [],
-    healthCheckStartDelay: 5,
+    healthCheckStartDelay: 3,
     healthCheckCommand: [
       "sh",
       "-c",

@@ -179,13 +179,6 @@ export class ProcessProvisioner {
       return true;
     }
 
-    if (isExistingRepo) {
-      console.log(
-        `[ProcessProvisioner] Skipping health check for existing repo process ${process.name}`,
-      );
-      return true;
-    }
-
     const container =
       await this.containerRuntime.getActiveContainerForPodOrThrow(this.podId);
 
