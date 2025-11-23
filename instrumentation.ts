@@ -8,7 +8,7 @@ export const onRequestError = async (
     path: string;
     headers: { cookie?: string };
   },
-  context: {
+  _context: {
     routerKind?: string;
     routeType?: string;
   },

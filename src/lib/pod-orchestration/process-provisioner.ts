@@ -169,7 +169,7 @@ export class ProcessProvisioner {
   async checkProcessHealth(
     spec: PodSpec,
     process: ProcessConfig,
-    isExistingRepo: boolean,
+    _isExistingRepo: boolean,
     timeout = 30000,
   ): Promise<boolean> {
     if (!process.healthCheck) {

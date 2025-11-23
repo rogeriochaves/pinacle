@@ -1,7 +1,4 @@
 import { exec } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";

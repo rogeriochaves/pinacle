@@ -15,8 +15,8 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   getResourcesFromTier,
@@ -93,7 +93,9 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   );
 
   // biome-ignore lint/suspicious/noExplicitAny: tRPC types will update on server restart
-  const { data: metricsHistory } = (api.pods as any).getMetricsAggregated.useQuery(
+  const { data: metricsHistory } = (
+    api.pods as any
+  ).getMetricsAggregated.useQuery(
     { podId: pod.id, hoursAgo: timeRange },
     {
       enabled: activeTab === "metrics" && pod.status === "running",
@@ -204,81 +206,91 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
   // Memoize chart data transformations to prevent unnecessary recalculations
   const cpuData = useMemo(
     () =>
-      metricsHistory?.map((m: {
-        timestamp: Date;
-        cpuUsagePercent: number;
-        memoryUsageMb: number;
-        diskUsageMb: number;
-        networkRxBytes: number;
-        networkTxBytes: number;
-      }) => ({
-        timestamp: m.timestamp,
-        value: m.cpuUsagePercent,
-      })) || [],
+      metricsHistory?.map(
+        (m: {
+          timestamp: Date;
+          cpuUsagePercent: number;
+          memoryUsageMb: number;
+          diskUsageMb: number;
+          networkRxBytes: number;
+          networkTxBytes: number;
+        }) => ({
+          timestamp: m.timestamp,
+          value: m.cpuUsagePercent,
+        }),
+      ) || [],
     [metricsHistory],
   );
 
   const memoryData = useMemo(
     () =>
-      metricsHistory?.map((m: {
-        timestamp: Date;
-        cpuUsagePercent: number;
-        memoryUsageMb: number;
-        diskUsageMb: number;
-        networkRxBytes: number;
-        networkTxBytes: number;
-      }) => ({
-        timestamp: m.timestamp,
-        value: m.memoryUsageMb,
-      })) || [],
+      metricsHistory?.map(
+        (m: {
+          timestamp: Date;
+          cpuUsagePercent: number;
+          memoryUsageMb: number;
+          diskUsageMb: number;
+          networkRxBytes: number;
+          networkTxBytes: number;
+        }) => ({
+          timestamp: m.timestamp,
+          value: m.memoryUsageMb,
+        }),
+      ) || [],
     [metricsHistory],
   );
 
   const diskData = useMemo(
     () =>
-      metricsHistory?.map((m: {
-        timestamp: Date;
-        cpuUsagePercent: number;
-        memoryUsageMb: number;
-        diskUsageMb: number;
-        networkRxBytes: number;
-        networkTxBytes: number;
-      }) => ({
-        timestamp: m.timestamp,
-        value: m.diskUsageMb,
-      })) || [],
+      metricsHistory?.map(
+        (m: {
+          timestamp: Date;
+          cpuUsagePercent: number;
+          memoryUsageMb: number;
+          diskUsageMb: number;
+          networkRxBytes: number;
+          networkTxBytes: number;
+        }) => ({
+          timestamp: m.timestamp,
+          value: m.diskUsageMb,
+        }),
+      ) || [],
     [metricsHistory],
   );
 
   const networkRxData = useMemo(
     () =>
-      metricsHistory?.map((m: {
-        timestamp: Date;
-        cpuUsagePercent: number;
-        memoryUsageMb: number;
-        diskUsageMb: number;
-        networkRxBytes: number;
-        networkTxBytes: number;
-      }) => ({
-        timestamp: m.timestamp,
-        value: m.networkRxBytes / 1024 / 1024,
-      })) || [],
+      metricsHistory?.map(
+        (m: {
+          timestamp: Date;
+          cpuUsagePercent: number;
+          memoryUsageMb: number;
+          diskUsageMb: number;
+          networkRxBytes: number;
+          networkTxBytes: number;
+        }) => ({
+          timestamp: m.timestamp,
+          value: m.networkRxBytes / 1024 / 1024,
+        }),
+      ) || [],
     [metricsHistory],
   );
 
   const networkTxData = useMemo(
     () =>
-      metricsHistory?.map((m: {
-        timestamp: Date;
-        cpuUsagePercent: number;
-        memoryUsageMb: number;
-        diskUsageMb: number;
-        networkRxBytes: number;
-        networkTxBytes: number;
-      }) => ({
-        timestamp: m.timestamp,
-        value: m.networkTxBytes / 1024 / 1024,
-      })) || [],
+      metricsHistory?.map(
+        (m: {
+          timestamp: Date;
+          cpuUsagePercent: number;
+          memoryUsageMb: number;
+          diskUsageMb: number;
+          networkRxBytes: number;
+          networkTxBytes: number;
+        }) => ({
+          timestamp: m.timestamp,
+          value: m.networkTxBytes / 1024 / 1024,
+        }),
+      ) || [],
     [metricsHistory],
   );
 
@@ -747,7 +759,9 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="font-mono">{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel className="font-mono">
+              {t("cancel")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
                 deleteConfirmId && handleDeleteSnapshot(deleteConfirmId)

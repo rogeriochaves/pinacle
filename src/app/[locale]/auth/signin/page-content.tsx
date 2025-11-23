@@ -62,7 +62,7 @@ function SignInForm() {
           setError(t("errors.default"));
       }
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
