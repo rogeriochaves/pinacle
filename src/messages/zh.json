@@ -15,7 +15,16 @@
     "close": "关闭",
     "search": "搜索",
     "filter": "筛选",
-    "sort": "排序"
+    "sort": "排序",
+    "serviceType": "服务类型",
+    "customUrl": "自定义URL",
+    "tabName": "标签名称",
+    "url": "URL",
+    "addTab": "添加标签",
+    "addNewTab": "添加新标签",
+    "team": "团队",
+    "account": "账户",
+    "signOut": "退出"
   },
   "header": {
     "features": "产品",
@@ -463,6 +472,7 @@
     "archivePod": "归档Pod",
     "startPod": "启动Pod",
     "stopPod": "停止Pod",
+    "current": "当前",
     "createYourFirstPod": "创建您的第一个Pod"
   },
   "provisioning": {

@@ -21,7 +21,10 @@
     "tabName": "Nome da Aba",
     "url": "URL",
     "addTab": "Adicionar Aba",
-    "addNewTab": "Adicionar nova aba"
+    "addNewTab": "Adicionar nova aba",
+    "team": "Time",
+    "account": "Conta",
+    "signOut": "Sair"
   },
   "header": {
     "features": "Produto",
@@ -469,6 +472,7 @@
     "archivePod": "Arquivar Pod",
     "startPod": "Iniciar Pod",
     "stopPod": "Parar Pod",
+    "current": "Selecionado",
     "createYourFirstPod": "Crie Seu Primeiro Pod"
   },
   "provisioning": {

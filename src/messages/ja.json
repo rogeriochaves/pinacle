@@ -15,7 +15,16 @@
     "close": "閉じる",
     "search": "検索",
     "filter": "フィルター",
-    "sort": "並び替え"
+    "sort": "並び替え",
+    "serviceType": "サービスタイプ",
+    "customUrl": "カスタムURL",
+    "tabName": "タブ名",
+    "url": "URL",
+    "addTab": "タブを追加",
+    "addNewTab": "新しいタブを追加",
+    "team": "チーム",
+    "account": "アカウント",
+    "signOut": "ログアウト"
   },
   "header": {
     "features": "プロダクト",
@@ -463,6 +472,7 @@
     "archivePod": "Podをアーカイブ",
     "startPod": "Podを起動",
     "stopPod": "Podを停止",
+    "current": "現在",
     "createYourFirstPod": "最初のPodを作成"
   },
   "provisioning": {

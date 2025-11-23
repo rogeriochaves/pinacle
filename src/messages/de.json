@@ -15,7 +15,16 @@
     "close": "Schließen",
     "search": "Suchen",
     "filter": "Filtern",
-    "sort": "Sortieren"
+    "sort": "Sortieren",
+    "serviceType": "Service-Typ",
+    "customUrl": "Benutzerdefinierte URL",
+    "tabName": "Tab-Name",
+    "url": "URL",
+    "addTab": "Tab hinzufügen",
+    "addNewTab": "Neuen Tab hinzufügen",
+    "team": "Team",
+    "account": "Konto",
+    "signOut": "Abmelden"
   },
   "header": {
     "features": "Produkt",
@@ -463,6 +472,7 @@
     "archivePod": "Pod archivieren",
     "startPod": "Pod starten",
     "stopPod": "Pod stoppen",
+    "current": "Aktuell",
     "createYourFirstPod": "Erstelle Deinen Ersten Pod"
   },
   "provisioning": {

@@ -38,8 +38,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { isGitHubAuthError } from "../../lib/github-error-detection";
 import { podRecordToPinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
@@ -728,7 +728,9 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         const port = Number.parseInt(match[1], 10);
 
         // Build the auth URL with the new port and path
-        const returnUrlParam = path ? `&return_url=${encodeURIComponent(path)}` : "";
+        const returnUrlParam = path
+          ? `&return_url=${encodeURIComponent(path)}`
+          : "";
         const authUrl = `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${port}${returnUrlParam}`;
 
         // Update the iframe src
@@ -955,19 +957,19 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/team">
                   <Users className="mr-2 h-4 w-4" />
-                  Team
+                  {t("team")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/dashboard/account">
                   <User className="mr-2 h-4 w-4" />
-                  Account
+                  {t("account")}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Sign out
+                {t("signOut")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

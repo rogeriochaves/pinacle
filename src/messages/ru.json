@@ -15,7 +15,16 @@
     "close": "Закрыть",
     "search": "Поиск",
     "filter": "Фильтр",
-    "sort": "Сортировка"
+    "sort": "Сортировка",
+    "serviceType": "Тип Сервиса",
+    "customUrl": "Пользовательский URL",
+    "tabName": "Имя Вкладки",
+    "url": "URL",
+    "addTab": "Добавить Вкладку",
+    "addNewTab": "Добавить новую вкладку",
+    "team": "Команда",
+    "account": "Аккаунт",
+    "signOut": "Выйти"
   },
   "header": {
     "features": "Продукт",
@@ -463,6 +472,7 @@
     "archivePod": "Архивировать Под",
     "startPod": "Запустить Под",
     "stopPod": "Остановить Под",
+    "current": "Текущий",
     "createYourFirstPod": "Создайте Ваш Первый Под"
   },
   "provisioning": {

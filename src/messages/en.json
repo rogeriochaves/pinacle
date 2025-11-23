@@ -21,7 +21,10 @@
     "tabName": "Tab Name",
     "url": "URL",
     "addTab": "Add Tab",
-    "addNewTab": "Add new tab"
+    "addNewTab": "Add new tab",
+    "team": "Team",
+    "account": "Account",
+    "signOut": "Sign out"
   },
   "header": {
     "features": "Features",
@@ -601,6 +604,7 @@
     "archivePod": "Archive Pod",
     "startPod": "Start Pod",
     "stopPod": "Stop Pod",
+    "current": "Current",
     "createYourFirstPod": "Create Your First Pod"
   },
   "emails": {

@@ -15,7 +15,16 @@
     "close": "Cerrar",
     "search": "Buscar",
     "filter": "Filtrar",
-    "sort": "Ordenar"
+    "sort": "Ordenar",
+    "serviceType": "Tipo de Servicio",
+    "customUrl": "URL Personalizada",
+    "tabName": "Nombre de Pestaña",
+    "url": "URL",
+    "addTab": "Agregar Pestaña",
+    "addNewTab": "Agregar nueva pestaña",
+    "team": "Equipo",
+    "account": "Cuenta",
+    "signOut": "Salir"
   },
   "header": {
     "features": "Producto",
@@ -463,6 +472,7 @@
     "archivePod": "Archivar Pod",
     "startPod": "Iniciar Pod",
     "stopPod": "Detener Pod",
+    "current": "Actual",
     "createYourFirstPod": "Crea Tu Primer Pod"
   },
   "provisioning": {

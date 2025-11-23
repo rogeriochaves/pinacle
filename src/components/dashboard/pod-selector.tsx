@@ -153,7 +153,7 @@ export const PodSelector = ({
                     <span className="mr-2">{pod.name}</span>
                     {isCurrent && (
                       <Badge className="bg-orange-100 text-orange-800 text-[10px] border-orange-200">
-                        Current
+                        {t("current")}
                       </Badge>
                     )}
                   </h3>
@@ -184,7 +184,7 @@ export const PodSelector = ({
                         disabled={pod.status === "deleting"}
                       >
                         <Square className="w-3 h-3 mr-1" />
-                        Stop
+                        {t("stopPod")}
                       </Button>
                       {pod.publicUrl && (
                         <Button
