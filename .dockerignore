@@ -12,6 +12,7 @@ dist
 build
 *.tsbuildinfo
 .specstory
+**/*.map
 
 # Development files
 .env
