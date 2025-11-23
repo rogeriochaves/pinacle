@@ -291,6 +291,21 @@ const SetupForm = () => {
                   tierId: tier,
                   tierName: `Pinacle ${tier}`,
                 });
+
+                // Google Ads conversion tracking
+                if (typeof window !== "undefined" && window.gtag) {
+                  window.gtag('event', 'conversion', {
+                    'send_to': 'AW-17752491685/QGwTCLy1hcUbEKWNhpFC',
+                    'value': tierPrice,
+                    'currency': currency.toUpperCase(),
+                    'transaction_id': sessionId
+                  });
+                  console.log("[Checkout] Google Ads conversion tracked:", {
+                    transaction_id: sessionId,
+                    value: tierPrice,
+                    currency: currency.toUpperCase()
+                  });
+                }
               } catch (error) {
                 console.error("[Checkout] Error tracking purchase:", error);
               }
