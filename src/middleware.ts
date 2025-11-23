@@ -23,4 +23,3 @@ export const config = {
   // - sitemap.xml and robots.txt
   matcher: ["/((?!api|_next|sitemap\\.xml|robots\\.txt|.*\\..*).*)"],
 };
-

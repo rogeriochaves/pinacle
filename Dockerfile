@@ -25,6 +25,7 @@ COPY public ./public
 COPY server.js ./
 COPY src/worker.js ./src/
 COPY docs/dist ./docs/dist
+COPY content ./content
 
 # Copy necessary config files
 COPY next.config.ts ./
