@@ -52,17 +52,15 @@ export default async function LocaleLayout({
   const messages = await getMessages({ locale });
 
   return (
-    <html lang={locale}>
-      <body className={`${jetbrainsMono.variable} font-mono antialiased`}>
-        <GoogleAnalytics />
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>
-            <ImpersonationBanner />
-            {children}
-          </Providers>
-        </NextIntlClientProvider>
-        <Toaster />
-      </body>
-    </html>
+    <div className={`${jetbrainsMono.variable} font-mono antialiased`}>
+      <GoogleAnalytics />
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <Providers>
+          <ImpersonationBanner />
+          {children}
+        </Providers>
+      </NextIntlClientProvider>
+      <Toaster />
+    </div>
   );
 }
