@@ -125,12 +125,14 @@ const TemplateCard = ({
                   <Select
                     value={selectedAgent}
                     onValueChange={setSelectedAgent}
-                    aria-label={t("selectCodingAssistant")}
                   >
-                    <SelectTrigger className="w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&>svg]:text-foreground [&>svg]:text-lg">
+                    <SelectTrigger
+                      className="w-auto !h-auto text-md font-mono p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&>svg]:text-foreground [&>svg]:text-lg"
+                      aria-label={t("selectCodingAssistant")}
+                    >
                       {selectedCodingAgent.name}
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="font-mono">
                       {CODING_AGENTS.map((agent) => (
                         <SelectItem key={agent.id} value={agent.id}>
                           <div className="flex items-center gap-2">

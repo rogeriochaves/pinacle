@@ -48,7 +48,7 @@ export const LanguageSwitcher = () => {
         <Globe className="h-4 w-4" />
         <SelectValue />
       </SelectTrigger>
-      <SelectContent >
+      <SelectContent className="font-mono">
         {locales.map((loc) => (
           <SelectItem key={loc} value={loc}>
             {localeNames[loc]}

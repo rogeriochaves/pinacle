@@ -41,7 +41,7 @@ export const TierSelector = ({
       <div className="flex flex-col gap-1">
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger
-            className="w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&>svg]:text-lg"
+            className="w-fit-content !h-auto text-md font-mono p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&>svg]:text-lg"
             aria-label={ariaLabel}
           >
             <span className="mr-2">
@@ -57,7 +57,7 @@ export const TierSelector = ({
               <span className="text-sm text-muted-foreground">/month</span>
             </span>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="font-mono">
             {Object.values(RESOURCE_TIERS).map((tier) => {
               const tierPrice =
                 PRICING_TABLE[tier.id as keyof typeof PRICING_TABLE][currency];
@@ -111,7 +111,7 @@ export const TierSelector = ({
           )}
         </div>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="font-mono">
         {Object.values(RESOURCE_TIERS).map((tier) => {
           const tierPrice =
             PRICING_TABLE[tier.id as keyof typeof PRICING_TABLE][currency];
