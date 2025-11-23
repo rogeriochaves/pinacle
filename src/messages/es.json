@@ -28,7 +28,7 @@
     "refreshCurrentTab": "Actualizar pestaña actual",
     "uncommittedChange": "cambio sin confirmar",
     "uncommittedChanges": "cambios sin confirmar",
-    "commitChanges": "Confirmar cambios"
+    "commitChanges": "Commitear cambios"
   },
   "header": {
     "features": "Producto",

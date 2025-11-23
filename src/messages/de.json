@@ -28,7 +28,7 @@
     "refreshCurrentTab": "Aktuellen Tab aktualisieren",
     "uncommittedChange": "nicht übertragene Änderung",
     "uncommittedChanges": "nicht übertragene Änderungen",
-    "commitChanges": "Änderungen übertragen"
+    "commitChanges": "Committen"
   },
   "header": {
     "features": "Produkt",
