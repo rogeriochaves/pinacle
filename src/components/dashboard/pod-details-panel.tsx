@@ -92,9 +92,8 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
     { enabled: pod.status === "running", refetchInterval: 10000 }, // Reduced from 5s to 10s
   );
 
-  // biome-ignore lint/suspicious/noExplicitAny: tRPC types will update on server restart
   const { data: metricsHistory } = (
-    api.pods as any
+    api.pods
   ).getMetricsAggregated.useQuery(
     { podId: pod.id, hoursAgo: timeRange },
     {

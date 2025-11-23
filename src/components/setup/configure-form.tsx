@@ -74,10 +74,12 @@ export const ConfigureForm = ({
   const [hasPinacleYaml, setHasPinacleYaml] = useState(false);
 
   // Track if we should skip applying pinacle.yaml once after checkout restoration
-  const skipNextPinacleApply = React.useRef<boolean>((window as any).__skipNextPinacleApply || false);
+  // biome-ignore lint/suspicious/noExplicitAny: meh
+    const skipNextPinacleApply = React.useRef<boolean>((window as any).__skipNextPinacleApply || false);
 
   // Sync ref with window global on mount
   React.useEffect(() => {
+    // biome-ignore lint/suspicious/noExplicitAny: meh
     if ((window as any).__skipNextPinacleApply) {
       skipNextPinacleApply.current = true;
     }
@@ -169,6 +171,7 @@ export const ConfigureForm = ({
     if (skipNextPinacleApply.current && pinacleConfigData?.found) {
       console.log("[ConfigureForm] Skipping pinacle.yaml application after checkout restore");
       skipNextPinacleApply.current = false;
+      // biome-ignore lint/suspicious/noExplicitAny: meh
       (window as any).__skipNextPinacleApply = false;
 
       // Still mark that pinacle.yaml exists and set the template, but don't apply values

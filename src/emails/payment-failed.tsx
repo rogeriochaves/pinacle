@@ -19,6 +19,21 @@ type PaymentFailedEmailProps = {
   currency: string;
   billingUrl: string;
   graceDays: number;
+  locale?: string;
+  translations: {
+    preview: string;
+    title: string;
+    greeting: string;
+    body1: string;
+    body2: string;
+    body3: string;
+    body4: string;
+    body5: string;
+    body6: string;
+    body7: string;
+    button: string;
+    footer: string;
+  };
 };
 
 export const PaymentFailedEmail = ({
@@ -27,13 +42,18 @@ export const PaymentFailedEmail = ({
   currency,
   billingUrl,
   graceDays = 7,
+  locale = "en",
+  translations,
 }: PaymentFailedEmailProps) => {
   const baseUrl = billingUrl.replace("/dashboard/billing", "");
+
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html>
       <Head />
-      <Preview>Payment failed - Action required to keep your pods running</Preview>
+      <Preview>{t.preview}</Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
           <Section style={emailStyles.header}>
@@ -46,49 +66,45 @@ export const PaymentFailedEmail = ({
             />
             <Text style={emailStyles.logoText}>pinacle</Text>
           </Section>
-          <Heading style={emailStyles.h1}>payment failed</Heading>
+          <Heading style={emailStyles.h1}>{t.title}</Heading>
 
-          <Text style={emailStyles.text}>Hey {name},</Text>
-
-          <Text style={emailStyles.text}>
-            We couldn't process your payment of {currency.toUpperCase()} {amount}.
-            This is usually because:
-          </Text>
-
-          <Text style={emailStyles.listItem}>
-            • Your card expired or was declined
-          </Text>
-          <Text style={emailStyles.listItem}>
-            • Insufficient funds
-          </Text>
-          <Text style={emailStyles.listItem}>
-            • Your card issuer blocked the transaction
-          </Text>
+          <Text style={emailStyles.text}>{t.greeting.replace("{name}", name)}</Text>
 
           <Text style={emailStyles.text}>
-            <strong>Your pods are still running</strong> for the next 24 hours.
-            After that, they'll be suspended until payment is received.
+            {t.body1.replace("{currency}", currency.toUpperCase()).replace("{amount}", amount)}
+          </Text>
+
+          <Text style={emailStyles.listItem}>
+            {t.body2}
+          </Text>
+          <Text style={emailStyles.listItem}>
+            {t.body3}
+          </Text>
+          <Text style={emailStyles.listItem}>
+            {t.body4}
+          </Text>
+
+          <Text style={emailStyles.text}>
+            {t.body5}
           </Text>
 
           <Section style={emailStyles.buttonContainer}>
             <Button style={emailStyles.button} href={billingUrl}>
-              Update Payment Method
+              {t.button}
             </Button>
           </Section>
 
           <Hr style={emailStyles.hr} />
 
           <Text style={emailStyles.text}>
-            Stripe will automatically retry your payment. You can also update
-            your payment method in your billing dashboard to resolve this
-            immediately.
+            {t.body6}
           </Text>
 
           <Text style={emailStyles.text}>
-            Questions? Reply to this email.
+            {t.body7}
           </Text>
 
-          <Text style={emailStyles.footer}>– Pinacle</Text>
+          <Text style={emailStyles.footer}>{t.footer}</Text>
         </Container>
       </Body>
     </Html>

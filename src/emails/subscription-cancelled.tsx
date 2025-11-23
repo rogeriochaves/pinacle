@@ -17,19 +17,37 @@ type SubscriptionCancelledEmailProps = {
   name: string;
   billingUrl: string;
   dataRetentionDays: number;
+  locale?: string;
+  translations: {
+    preview: string;
+    title: string;
+    greeting: string;
+    body1: string;
+    body2: string;
+    body3: string;
+    body4: string;
+    body5: string;
+    button: string;
+    footer: string;
+  };
 };
 
 export const SubscriptionCancelledEmail = ({
   name,
   billingUrl,
   dataRetentionDays = 30,
+  locale = "en",
+  translations,
 }: SubscriptionCancelledEmailProps) => {
   const baseUrl = billingUrl.replace("/dashboard/billing", "");
+
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html>
       <Head />
-      <Preview>Your subscription has been cancelled</Preview>
+      <Preview>{t.preview}</Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
           <Section style={emailStyles.header}>
@@ -42,40 +60,39 @@ export const SubscriptionCancelledEmail = ({
             />
             <Text style={emailStyles.logoText}>pinacle</Text>
           </Section>
-          <Heading style={emailStyles.h1}>subscription cancelled</Heading>
+          <Heading style={emailStyles.h1}>{t.title}</Heading>
 
-          <Text style={emailStyles.text}>Hey {name},</Text>
+          <Text style={emailStyles.text}>{t.greeting.replace("{name}", name)}</Text>
 
           <Text style={emailStyles.text}>
-            Your subscription has been cancelled. All your pods have been stopped
-            and won't incur any more charges.
+            {t.body1}
           </Text>
 
           <Text style={emailStyles.text}>
-            <strong>Your data</strong> will be kept for {dataRetentionDays} days.
-            If you reactivate your subscription before then, everything will be
-            exactly as you left it.
+            {t.body2.replace("{dataRetentionDays}", String(dataRetentionDays))}
           </Text>
 
           <Text style={emailStyles.text}>
-            After {dataRetentionDays} days, your pods and snapshots will be
-            permanently deleted.
+            {t.body3.replace("{dataRetentionDays}", String(dataRetentionDays))}
           </Text>
 
           <Section style={emailStyles.buttonContainer}>
             <Button style={emailStyles.button} href={billingUrl}>
-              Reactivate Subscription
+              {t.button}
             </Button>
           </Section>
 
           <Hr style={emailStyles.hr} />
 
           <Text style={emailStyles.text}>
-            We're sorry to see you go. If there's anything we could have done
-            better, please reply to this email and let us know.
+            {t.body4}
           </Text>
 
-          <Text style={emailStyles.footer}>– Pinacle</Text>
+          <Text style={emailStyles.text}>
+            {t.body5}
+          </Text>
+
+          <Text style={emailStyles.footer}>{t.footer}</Text>
         </Container>
       </Body>
     </Html>

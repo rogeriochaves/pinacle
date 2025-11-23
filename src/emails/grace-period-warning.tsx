@@ -19,6 +19,20 @@ type GracePeriodWarningEmailProps = {
   amount: string;
   currency: string;
   billingUrl: string;
+  locale?: string;
+  translations: {
+    preview: string;
+    title: string;
+    greeting: string;
+    body1: string;
+    body2: string;
+    body3: string;
+    body4: string;
+    body5: string;
+    body6: string;
+    button: string;
+    footer: string;
+  };
 };
 
 export const GracePeriodWarningEmail = ({
@@ -27,14 +41,19 @@ export const GracePeriodWarningEmail = ({
   amount,
   currency,
   billingUrl,
+  locale = "en",
+  translations,
 }: GracePeriodWarningEmailProps) => {
   const baseUrl = billingUrl.replace("/dashboard/billing", "");
+
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html>
       <Head />
       <Preview>
-        {String(daysRemaining)} hours until your pods are suspended - Action required
+        {t.preview.replace("{daysRemaining}", String(daysRemaining))}
       </Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
@@ -48,52 +67,43 @@ export const GracePeriodWarningEmail = ({
             />
             <Text style={emailStyles.logoText}>pinacle</Text>
           </Section>
-          <Heading style={emailStyles.h1}>⚠️ payment overdue</Heading>
+          <Heading style={emailStyles.h1}>{t.title}</Heading>
 
-          <Text style={emailStyles.text}>Hey {name},</Text>
+          <Text style={emailStyles.text}>{t.greeting.replace("{name}", name)}</Text>
 
           <Text style={emailStyles.text}>
-            Your payment of {currency.toUpperCase()} {amount} is still outstanding.
-            We've tried processing it multiple times but haven't been able to
-            collect payment.
+            {t.body1.replace("{currency}", currency.toUpperCase()).replace("{amount}", amount)}
           </Text>
 
           <Text style={emailStyles.text}>
-            <strong>
-              You have {daysRemaining} hour{daysRemaining !== 1 ? "s" : ""} remaining
-            </strong>{" "}
-            before your pods are suspended and you lose access to them.
+            {t.body2.replace("{daysRemaining}", String(daysRemaining))}
           </Text>
 
           <Section style={emailStyles.buttonContainer}>
             <Button style={emailStyles.button} href={billingUrl}>
-              Update Payment Method Now
+              {t.button}
             </Button>
           </Section>
 
           <Hr style={emailStyles.hr} />
 
-          <Text style={emailStyles.h2}>What happens next:</Text>
+          <Text style={emailStyles.h2}>{t.body3}</Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>If you update your payment method:</strong> Your pods will
-            continue running normally.
+            {t.body4}
           </Text>
 
           <Text style={emailStyles.listItem}>
-            <strong>If payment isn't received:</strong> Your pods will be
-            suspended in {daysRemaining} day{daysRemaining !== 1 ? "s" : ""}. You
-            won't be able to access them until payment is made.
+            {t.body5.replace("{daysRemaining}", String(daysRemaining))}
           </Text>
 
           <Hr style={emailStyles.hr} />
 
           <Text style={emailStyles.text}>
-            This is an automated reminder. Please update your payment method to
-            avoid service interruption.
+            {t.body6}
           </Text>
 
-          <Text style={emailStyles.footer}>– Pinacle</Text>
+          <Text style={emailStyles.footer}>{t.footer}</Text>
         </Container>
       </Body>
     </Html>

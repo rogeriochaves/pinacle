@@ -16,7 +16,7 @@ type ResetPasswordEmailProps = {
   name: string;
   resetUrl: string;
   locale?: string;
-  translations?: {
+  translations: {
     preview: string;
     title: string;
     greeting: string;
@@ -35,16 +35,8 @@ export const ResetPasswordEmail = ({
 }: ResetPasswordEmailProps) => {
   const baseUrl = resetUrl.split("/auth")[0];
 
-  // Default English translations
-  const t = translations || {
-    preview: "Reset your Pinacle password",
-    title: "password reset requested",
-    greeting: `Hey ${name},`,
-    body1: "Someone requested a password reset for your account. If this was you, click the button below.",
-    body2: "If you didn't request this, ignore this email. The link expires in 1 hour.",
-    button: "Reset Password",
-    footer: "– Pinacle",
-  };
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html lang={locale}>

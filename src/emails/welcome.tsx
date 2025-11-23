@@ -17,7 +17,7 @@ type WelcomeEmailProps = {
   name: string;
   dashboardUrl: string;
   locale?: string;
-  translations?: {
+  translations: {
     preview: string;
     title: string;
     greeting: string;
@@ -41,26 +41,8 @@ type WelcomeEmailProps = {
 export const WelcomeEmail = ({ name, dashboardUrl, locale = "en", translations }: WelcomeEmailProps) => {
   const baseUrl = dashboardUrl.replace("/dashboard", "");
 
-  // Default English translations
-  const t = translations || {
-    preview: "Your dev box is ready. Spin up your first pod.",
-    title: "account created",
-    greeting: `Hey ${name},`,
-    body1: "Your account is set up. Next step: create your first pod.",
-    body2: "A pod is a dev machine just for you. Comes ready with VS Code, a coding assistant (Claude Code, Cursor CLI, Codex, etc), and all the tools you need for modern software development.",
-    button: "Create First Pod",
-    whatYouNeedToKnow: "What you need to know:",
-    payForUse: "Pay for what you use",
-    payForUseDesc: "You're billed while your machine is running. Stop it anytime.",
-    itsYours: "It's yours",
-    itsYoursDesc: "Install whatever you need. No restrictions.",
-    persistentState: "Persistent state",
-    persistentStateDesc: "Your pod keeps running. Close your laptop, your work continues.",
-    shareAccess: "Share access",
-    shareAccessDesc: "Invite teammates to work on the same machine.",
-    questionsReply: "Questions? Reply to this email.",
-    footer: "– Pinacle",
-  };
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html lang={locale}>

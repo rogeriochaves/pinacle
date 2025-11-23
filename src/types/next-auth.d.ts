@@ -32,3 +32,9 @@ declare module "next-auth/jwt" {
     realAdminId?: string;
   }
 }
+
+declare global {
+  interface Window {
+    __skipNextPinacleApply?: boolean;
+  }
+}

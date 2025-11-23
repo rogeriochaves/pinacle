@@ -31,7 +31,7 @@ export const teamsRouter = createTRPCRouter({
     .input(createTeamSchema)
     .mutation(async ({ ctx, input }) => {
       const { name, description } = input;
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Generate slug from name
       const slug = name
@@ -60,7 +60,7 @@ export const teamsRouter = createTRPCRouter({
     }),
 
   getUserTeams: protectedProcedure.query(async ({ ctx }) => {
-    const userId = (ctx.session.user as any).id;
+    const userId = ctx.session.user.id;
 
     const userTeams = await ctx.db
       .select({
@@ -81,7 +81,7 @@ export const teamsRouter = createTRPCRouter({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check if user is member of this team
       const membership = await ctx.db
@@ -108,7 +108,7 @@ export const teamsRouter = createTRPCRouter({
   getMembers: protectedProcedure
     .input(z.object({ teamId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check if user is member of this team
       const membership = await ctx.db
@@ -149,7 +149,7 @@ export const teamsRouter = createTRPCRouter({
     .input(inviteMemberSchema)
     .mutation(async ({ ctx, input }) => {
       const { teamId, email, role } = input;
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check if user is admin/owner of this team
       const membership = await ctx.db
@@ -277,8 +277,8 @@ export const teamsRouter = createTRPCRouter({
     .input(acceptInvitationSchema)
     .mutation(async ({ ctx, input }) => {
       const { token } = input;
-      const userId = (ctx.session.user as any).id;
-      const userEmail = (ctx.session.user as any).email;
+      const userId = ctx.session.user.id;
+      const userEmail = ctx.session.user.email;
 
       // Find the pending invitation by token
       const [invitation] = await ctx.db
@@ -321,7 +321,7 @@ export const teamsRouter = createTRPCRouter({
     .input(removeMemberSchema)
     .mutation(async ({ ctx, input }) => {
       const { teamId, memberId } = input;
-      const userId = (ctx.session.user as any).id;
+      const userId = ctx.session.user.id;
 
       // Check if user is admin/owner of this team
       const membership = await ctx.db

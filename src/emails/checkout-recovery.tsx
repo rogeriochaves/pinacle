@@ -17,6 +17,24 @@ interface CheckoutRecoveryEmailProps {
   tier: string;
   checkoutUrl: string;
   attemptNumber: 1 | 2 | 3; // Which recovery email is this
+  locale?: string;
+  translations: {
+    subjectAttempt1: string;
+    subjectAttempt2: string;
+    subjectAttempt3: string;
+    headlineAttempt1: string;
+    headlineAttempt2: string;
+    headlineAttempt3: string;
+    greeting: string;
+    body1: string;
+    body2: string;
+    body3: string;
+    body4: string;
+    body5: string;
+    body6: string;
+    button: string;
+    footer: string;
+  };
 }
 
 export const CheckoutRecoveryEmail = ({
@@ -24,30 +42,35 @@ export const CheckoutRecoveryEmail = ({
   tier = "dev.small",
   checkoutUrl = "https://pinacle.dev/setup/configure",
   attemptNumber = 1,
+  locale = "en",
+  translations,
 }: CheckoutRecoveryEmailProps) => {
-  const getSubjectLine = () => {
-    switch (attemptNumber) {
-      case 1:
-        return "Complete your Pinacle setup";
-      case 2:
-        return "Your dev environment is waiting";
-      case 3:
-        return "Last chance - Your Pinacle pod setup";
-      default:
-        return "Complete your Pinacle setup";
-    }
-  };
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   const getHeadline = () => {
     switch (attemptNumber) {
       case 1:
-        return "Almost there!";
+        return t.headlineAttempt1;
       case 2:
-        return "Still interested?";
+        return t.headlineAttempt2;
       case 3:
-        return "We're holding your spot";
+        return t.headlineAttempt3;
       default:
-        return "Complete your setup";
+        return t.headlineAttempt1;
+    }
+  };
+
+  const getSubject = () => {
+    switch (attemptNumber) {
+      case 1:
+        return t.subjectAttempt1;
+      case 2:
+        return t.subjectAttempt2;
+      case 3:
+        return t.subjectAttempt3;
+      default:
+        return t.subjectAttempt1;
     }
   };
 
@@ -56,45 +79,36 @@ export const CheckoutRecoveryEmail = ({
       case 1:
         return (
           <>
-            <Text style={emailStyles.text}>Hi {userName},</Text>
+            <Text style={emailStyles.text}>{t.greeting.replace("{userName}", userName)}</Text>
             <Text style={emailStyles.text}>
-              We noticed you started setting up your <strong>{tier}</strong>{" "}
-              development pod but didn't complete the checkout process.
+              {t.body1.replace("{tier}", tier)}
             </Text>
             <Text style={emailStyles.text}>
-              Your configuration is still saved! Click the button below to
-              complete your setup and get your development environment running
-              in minutes.
+              {t.body2}
             </Text>
           </>
         );
       case 2:
         return (
           <>
-            <Text style={emailStyles.text}>Hi {userName},</Text>
+            <Text style={emailStyles.text}>{t.greeting.replace("{userName}", userName)}</Text>
             <Text style={emailStyles.text}>
-              Your <strong>{tier}</strong> pod configuration is still waiting
-              for you. We'd hate to see you miss out on having your own
-              fully-configured development environment.
+              {t.body3.replace("{tier}", tier)}
             </Text>
             <Text style={emailStyles.text}>
-              Need help? Have questions? Just reply to this email and we'll be
-              happy to assist!
+              {t.body4}
             </Text>
           </>
         );
       case 3:
         return (
           <>
-            <Text style={emailStyles.text}>Hi {userName},</Text>
+            <Text style={emailStyles.text}>{t.greeting.replace("{userName}", userName)}</Text>
             <Text style={emailStyles.text}>
-              This is our last reminder about your <strong>{tier}</strong> pod
-              setup. After this, we'll clear your saved configuration.
+              {t.body5.replace("{tier}", tier)}
             </Text>
             <Text style={emailStyles.text}>
-              If you're not ready yet, no worries! You can always start a new
-              setup anytime. But if you want to continue where you left off,
-              click below now.
+              {t.body6}
             </Text>
           </>
         );
@@ -106,7 +120,7 @@ export const CheckoutRecoveryEmail = ({
   return (
     <Html>
       <Head />
-      <Preview>{getSubjectLine()}</Preview>
+      <Preview>{getSubject()}</Preview>
       <Body style={emailStyles.main}>
         <Container style={emailStyles.container}>
           <Heading style={emailStyles.h1}>{getHeadline()}</Heading>
@@ -115,7 +129,7 @@ export const CheckoutRecoveryEmail = ({
 
           <Section style={emailStyles.buttonContainer}>
             <Link href={checkoutUrl} style={emailStyles.button}>
-              Complete Your Setup
+              {t.button}
             </Link>
           </Section>
 
@@ -144,7 +158,7 @@ export const CheckoutRecoveryEmail = ({
             }}
           >
             <Text style={{ ...emailStyles.footer, margin: "0" }}>
-              Not interested? No problem! You can ignore this email.
+              {t.footer}
             </Text>
           </Section>
         </Container>

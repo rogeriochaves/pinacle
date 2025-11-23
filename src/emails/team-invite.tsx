@@ -18,7 +18,7 @@ type TeamInviteEmailProps = {
   teamName: string;
   acceptUrl: string;
   locale?: string;
-  translations?: {
+  translations: {
     preview: string;
     title: string;
     greeting: string;
@@ -56,26 +56,8 @@ export const TeamInviteEmail = ({
     baseUrl = acceptUrl.replace(/\/.*$/, "");
   }
 
-  // Default English translations
-  const t = translations || {
-    preview: `You've been invited to join ${teamName} on Pinacle`,
-    title: "team invitation",
-    greeting: "Hi there,",
-    body1: `${invitedByName} has invited you to join the ${teamName} team on Pinacle.`,
-    body2: "As a team member, you'll have access to all the pods created by your team, and you can collaborate on development environments together.",
-    button: "Accept Invitation",
-    whatYouGet: "What you get:",
-    accessTeamPods: "Access to team pods",
-    accessTeamPodsDesc: "Work on the same dev machines as your teammates",
-    collaborative: "Collaborative development",
-    collaborativeDesc: "Share terminals, editors, and workspaces",
-    teamBilling: "Team billing",
-    teamBillingDesc: "Pods are billed to the team account",
-    persistentState: "Persistent state",
-    persistentStateDesc: "Your work continues even when you close your laptop",
-    questionsContact: `Questions? Reply to this email or contact ${invitedByName} directly.`,
-    footer: "– Pinacle",
-  };
+  // Translations object is guaranteed to be provided by the email function
+  const t = translations;
 
   return (
     <Html lang={locale}>
@@ -99,8 +81,7 @@ export const TeamInviteEmail = ({
           <Text style={emailStyles.text}>{t.greeting}</Text>
 
           <Text style={emailStyles.text}>
-            <strong>{invitedByName}</strong> {t.body1.replace("{invitedByName}", "").replace("{teamName}", teamName).trim()}{" "}
-            <strong>{teamName}</strong> team on Pinacle.
+            {t.body1.replace("{invitedByName}", invitedByName).replace("{teamName}", teamName)}
           </Text>
 
           <Text style={emailStyles.text}>

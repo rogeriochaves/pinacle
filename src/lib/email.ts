@@ -242,14 +242,30 @@ export const sendPaymentSuccessEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `paymentSuccess.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview"),
+      title: t("title"),
+      greeting: t("greeting", { name }),
+      body1: t("body1", { amount, currency: currency.toUpperCase() }),
+      body2: t("body2"),
+      viewInvoice: t("viewInvoice"),
+      manageBilling: t("manageBilling"),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
-      PaymentSuccessEmail({ name, amount, currency, invoiceUrl, billingUrl }),
+      PaymentSuccessEmail({ name, amount, currency, invoiceUrl, billingUrl, translations }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
-      subject: `Payment Received - ${currency.toUpperCase()} ${amount}`,
+      subject: t("subject", { currency: currency.toUpperCase(), amount }),
       html: emailHtml,
     });
 
@@ -276,6 +292,7 @@ export const sendPaymentFailedEmail = async ({
   currency,
   billingUrl,
   graceDays = 7,
+  locale,
 }: SendPaymentFailedEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -288,14 +305,34 @@ export const sendPaymentFailedEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `paymentFailed.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview"),
+      title: t("title"),
+      greeting: t("greeting"),
+      body1: t("body1", { currency: currency.toUpperCase(), amount }),
+      body2: t("body2"),
+      body3: t("body3"),
+      body4: t("body4"),
+      body5: t("body5"),
+      body6: t("body6"),
+      body7: t("body7"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
-      PaymentFailedEmail({ name, amount, currency, billingUrl, graceDays }),
+      PaymentFailedEmail({ name, amount, currency, billingUrl, graceDays, locale, translations }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
-      subject: "⚠️ Payment Failed - Action Required",
+      subject: t("subject"),
       html: emailHtml,
     });
 
@@ -320,6 +357,7 @@ export const sendSubscriptionCancelledEmail = async ({
   name,
   billingUrl,
   dataRetentionDays = 30,
+  locale,
 }: SendSubscriptionCancelledEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -332,14 +370,32 @@ export const sendSubscriptionCancelledEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `subscriptionCancelled.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview"),
+      title: t("title"),
+      greeting: t("greeting"),
+      body1: t("body1"),
+      body2: t("body2", { dataRetentionDays }),
+      body3: t("body3", { dataRetentionDays }),
+      body4: t("body4"),
+      body5: t("body5"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
-      SubscriptionCancelledEmail({ name, billingUrl, dataRetentionDays }),
+      SubscriptionCancelledEmail({ name, billingUrl, dataRetentionDays, locale, translations }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
-      subject: "Subscription Cancelled",
+      subject: t("subject"),
       html: emailHtml,
     });
 
@@ -366,6 +422,7 @@ export const sendGracePeriodWarningEmail = async ({
   amount,
   currency,
   billingUrl,
+  locale,
 }: SendGracePeriodWarningEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -378,6 +435,25 @@ export const sendGracePeriodWarningEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `gracePeriodWarning.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview", { daysRemaining }),
+      title: t("title"),
+      greeting: t("greeting"),
+      body1: t("body1", { currency: currency.toUpperCase(), amount }),
+      body2: t("body2", { daysRemaining }),
+      body3: t("body3"),
+      body4: t("body4"),
+      body5: t("body5", { daysRemaining }),
+      body6: t("body6"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
       GracePeriodWarningEmail({
         name,
@@ -385,13 +461,15 @@ export const sendGracePeriodWarningEmail = async ({
         amount,
         currency,
         billingUrl,
+        locale,
+        translations,
       }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
-      subject: `⚠️ Payment Overdue - ${daysRemaining} Days Until Suspension`,
+      subject: t("subject", { daysRemaining }),
       html: emailHtml,
     });
 
@@ -416,6 +494,7 @@ export const sendFinalDeletionWarningEmail = async ({
   name,
   daysUntilDeletion,
   billingUrl,
+  locale,
 }: SendFinalDeletionWarningEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -428,14 +507,39 @@ export const sendFinalDeletionWarningEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `finalDeletionWarning.${key}`, replacements);
+
+    const translations = {
+      preview: t("preview", { daysUntilDeletion }),
+      title: t("title"),
+      greeting: t("greeting"),
+      body1: t("body1"),
+      body2: t("body2", { daysUntilDeletion }),
+      body3: t("body3"),
+      body4: t("body4"),
+      body5: t("body5"),
+      body6: t("body6"),
+      body7: t("body7"),
+      body8: t("body8"),
+      body9: t("body9"),
+      body10: t("body10"),
+      body11: t("body11"),
+      body12: t("body12"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     const emailHtml = await render(
-      FinalDeletionWarningEmail({ name, daysUntilDeletion, billingUrl }),
+      FinalDeletionWarningEmail({ name, daysUntilDeletion, billingUrl, locale, translations }),
     );
 
     const { data, error } = await getResendClient().emails.send({
       from: "Pinacle <billing@pinacle.dev>",
       to: [to],
-      subject: `🚨 Final Warning - Data Deletion in ${daysUntilDeletion} Days`,
+      subject: t("subject", { daysUntilDeletion }),
       html: emailHtml,
     });
 
@@ -556,6 +660,7 @@ export const sendCheckoutRecoveryEmail = async ({
   tier,
   checkoutUrl,
   attemptNumber,
+  locale,
 }: SendCheckoutRecoveryEmailParams): Promise<{
   success: boolean;
   error?: string;
@@ -568,6 +673,29 @@ export const sendCheckoutRecoveryEmail = async ({
       return { success: false, error: "Email service not configured" };
     }
 
+    // Get translations for the locale
+    const emailTranslations = await getEmailTranslations(locale);
+    const t = (key: string, replacements?: Record<string, string | number>) =>
+      getEmailT(emailTranslations, `checkoutRecovery.${key}`, replacements);
+
+    const translations = {
+      subjectAttempt1: t("subjectAttempt1"),
+      subjectAttempt2: t("subjectAttempt2"),
+      subjectAttempt3: t("subjectAttempt3"),
+      headlineAttempt1: t("headlineAttempt1"),
+      headlineAttempt2: t("headlineAttempt2"),
+      headlineAttempt3: t("headlineAttempt3"),
+      greeting: t("greeting"),
+      body1: t("body1", { tier }),
+      body2: t("body2"),
+      body3: t("body3", { tier }),
+      body4: t("body4"),
+      body5: t("body5", { tier }),
+      body6: t("body6"),
+      button: t("button"),
+      footer: t("footer"),
+    };
+
     const CheckoutRecoveryEmail = (await import("../emails/checkout-recovery"))
       .default;
     const emailHtml = await render(
@@ -576,19 +704,21 @@ export const sendCheckoutRecoveryEmail = async ({
         tier,
         checkoutUrl,
         attemptNumber,
+        locale,
+        translations,
       }),
     );
 
     const getSubjectLine = () => {
       switch (attemptNumber) {
         case 1:
-          return "Complete your Pinacle setup";
+          return translations.subjectAttempt1;
         case 2:
-          return "Your dev environment is waiting";
+          return translations.subjectAttempt2;
         case 3:
-          return "Last chance - Your Pinacle pod setup";
+          return translations.subjectAttempt3;
         default:
-          return "Complete your Pinacle setup";
+          return translations.subjectAttempt1;
       }
     };
 
