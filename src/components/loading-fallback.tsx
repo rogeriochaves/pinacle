@@ -1,16 +1,18 @@
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 type LoadingFallbackProps = {
   message?: string;
 };
 
-export const LoadingFallback = ({ message = "Loading..." }: LoadingFallbackProps) => {
+export const LoadingFallback = ({ message }: LoadingFallbackProps) => {
+  const t = useTranslations("common");
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="text-center">
         <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-orange-500" />
         <h2 className="text-xl font-semibold text-white mb-2 font-mono">
-          {message}
+          {message || t("loading")}
         </h2>
       </div>
     </div>

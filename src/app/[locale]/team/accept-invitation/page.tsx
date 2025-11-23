@@ -5,9 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
+import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { api } from "@/lib/trpc/client";
 
 function AcceptInvitationForm() {
@@ -17,6 +24,7 @@ function AcceptInvitationForm() {
   const [error, setError] = useState<string | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [isAccepted, setIsAccepted] = useState(false);
+  const t = useTranslations("common");
 
   const token = searchParams.get("token");
 
@@ -48,7 +56,9 @@ function AcceptInvitationForm() {
         router.push("/dashboard");
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to accept invitation");
+      setError(
+        err instanceof Error ? err.message : "Failed to accept invitation",
+      );
     } finally {
       setIsAccepting(false);
     }
@@ -71,7 +81,7 @@ function AcceptInvitationForm() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
+          <p className="mt-2 text-gray-600">{t("loading")}</p>
         </div>
       </div>
     );
@@ -118,7 +128,9 @@ function AcceptInvitationForm() {
             <CardContent className="space-y-6">
               {/* GitHub Sign In */}
               <Button
-                onClick={() => signIn("github", { callbackUrl: window.location.href })}
+                onClick={() =>
+                  signIn("github", { callbackUrl: window.location.href })
+                }
                 variant="outline"
                 className="w-full font-mono"
               >
@@ -147,7 +159,11 @@ function AcceptInvitationForm() {
                 <Button onClick={handleSignIn} className="w-full font-mono">
                   Sign In
                 </Button>
-                <Button onClick={handleSignUp} variant="outline" className="w-full font-mono">
+                <Button
+                  onClick={handleSignUp}
+                  variant="outline"
+                  className="w-full font-mono"
+                >
                   Create Account
                 </Button>
               </div>
@@ -201,7 +217,8 @@ function AcceptInvitationForm() {
                   Welcome to the team!
                 </h3>
                 <p className="mt-2 text-sm font-mono text-gray-600">
-                  You've successfully joined the team. Redirecting you to your dashboard...
+                  You've successfully joined the team. Redirecting you to your
+                  dashboard...
                 </p>
               </div>
             </CardContent>
@@ -255,14 +272,16 @@ function AcceptInvitationForm() {
 
 export default function AcceptInvitationPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            <p className="mt-2 text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <AcceptInvitationForm />
     </Suspense>
   );
