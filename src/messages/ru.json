@@ -87,11 +87,11 @@
       "claudeCode": "Claude Code",
       "claudeCodeLabel": "Разрабатывай с любым code-ассистентом (Claude Code, Cursor CLI и др.)",
       "vsCode": "VS Code",
-      "vsCodeLabel": "Смотри код в VS Code",
+      "vsCodeLabel": "Навигируй по коду в VS Code",
       "terminal": "Terminal",
-      "terminalLabel": "Запускай команды и ставь что нужно",
+      "terminalLabel": "Выполняй команды и устанавливай что нужно",
       "vibeKanban": "Vibe Kanban",
-      "vibeKanbanLabel": "Делай билд параллельно с Vibe Kanban",
+      "vibeKanbanLabel": "Разрабатывай параллельно с Vibe Kanban",
       "commitChanges": "Commit",
       "commitChangesLabel": "Закоммить изменения"
     }

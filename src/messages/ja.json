@@ -85,13 +85,13 @@
       "yourApp": "あなたのApp",
       "yourAppLabel": "Appとローカルポートをプレビュー",
       "claudeCode": "Claude Code",
-      "claudeCodeLabel": "好きなコードアシスタントでbuild (Claude Code、Cursor CLIなど)",
+      "claudeCodeLabel": "好きなコードアシスタントで開発 (Claude Code、Cursor CLIなど)",
       "vsCode": "VS Code",
-      "vsCodeLabel": "VS Codeでコードを見る",
+      "vsCodeLabel": "VS Codeでコードをナビゲート",
       "terminal": "Terminal",
-      "terminalLabel": "コマンド実行して必要なものをインストール",
+      "terminalLabel": "コマンドを実行して必要なものをインストール",
       "vibeKanban": "Vibe Kanban",
-      "vibeKanbanLabel": "Vibe Kanbanで並行してbuild",
+      "vibeKanbanLabel": "Vibe Kanbanで並行して開発",
       "commitChanges": "Commit",
       "commitChangesLabel": "変更をcommit"
     }

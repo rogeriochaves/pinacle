@@ -72,13 +72,13 @@
       "yourApp": "Ton App",
       "yourAppLabel": "Preview de ton app et tous les ports locaux",
       "claudeCode": "Claude Code",
-      "claudeCodeLabel": "Build avec n'importe quel assistant de code (Claude Code, Cursor CLI, etc.)",
+      "claudeCodeLabel": "Développe avec n'importe quel assistant de code (Claude Code, Cursor CLI, etc.)",
       "vsCode": "VS Code",
-      "vsCodeLabel": "Browse le code avec VS Code",
+      "vsCodeLabel": "Navigue dans le code avec VS Code",
       "terminal": "Terminal",
-      "terminalLabel": "Run des commandes et install ce dont tu as besoin",
+      "terminalLabel": "Exécute des commandes et installe ce dont tu as besoin",
       "vibeKanban": "Vibe Kanban",
-      "vibeKanbanLabel": "Build en parallèle avec Vibe Kanban",
+      "vibeKanbanLabel": "Développe en parallèle avec Vibe Kanban",
       "commitChanges": "Commit",
       "commitChangesLabel": "Commit tes changements"
     }

@@ -85,13 +85,13 @@
       "yourApp": "你的App",
       "yourAppLabel": "预览你的app和任何本地端口",
       "claudeCode": "Claude Code",
-      "claudeCodeLabel": "用任何代码助手build (Claude Code、Cursor CLI等)",
+      "claudeCodeLabel": "使用任何代码助手开发 (Claude Code、Cursor CLI等)",
       "vsCode": "VS Code",
-      "vsCodeLabel": "用VS Code看代码",
+      "vsCodeLabel": "用VS Code浏览代码",
       "terminal": "Terminal",
-      "terminalLabel": "跑命令,装你需要的东西",
+      "terminalLabel": "运行命令,安装你需要的软件",
       "vibeKanban": "Vibe Kanban",
-      "vibeKanbanLabel": "用Vibe Kanban并行build",
+      "vibeKanbanLabel": "用Vibe Kanban并行开发",
       "commitChanges": "Commit",
       "commitChangesLabel": "commit你的改动"
     }

@@ -41,8 +41,8 @@
     "closeMenu": "Fechar menu"
   },
   "hero": {
-    "title": "máquinas de dev pra deixar seus agentes programando 24/7",
-    "subtitle": "Pare de usar IA só pra protótipo, use ferramentas de verdade pra desenvolvimento de software real",
+    "title": "máquinas de dev na cloud pra deixar seus agentes programando 24/7",
+    "subtitle": "Pare de usar IA só pra fazer protótipo, use ferramentas de desenvolvimento de software de verdade",
     "openRepository": "Abrir Repo",
     "newProject": "Novo Projeto",
     "claudeCode": "Claude Code",
@@ -85,15 +85,15 @@
       "yourApp": "Seu App",
       "yourAppLabel": "Preview do seu app e de qualquer porta local",
       "claudeCode": "Claude Code",
-      "claudeCodeLabel": "Builda com qualquer assistente de código (Claude Code, Cursor CLI, etc.)",
+      "claudeCodeLabel": "Use qualquer assistente de código (Claude Code, Cursor CLI, etc.)",
       "vsCode": "VS Code",
-      "vsCodeLabel": "Navega no código com VS Code",
+      "vsCodeLabel": "Navegue no código com VS Code",
       "terminal": "Terminal",
-      "terminalLabel": "Roda comandos e instala o que precisar",
+      "terminalLabel": "Rode comandos e instale o que precisar",
       "vibeKanban": "Vibe Kanban",
-      "vibeKanbanLabel": "Builda em paralelo com Vibe Kanban",
-      "commitChanges": "Commitar",
-      "commitChangesLabel": "Commita suas mudanças"
+      "vibeKanbanLabel": "Gere código em paralelo com Vibe Kanban",
+      "commitChanges": "Confirmar Alterações",
+      "commitChangesLabel": "Commite suas mudanças"
     }
   },
   "cta": {
