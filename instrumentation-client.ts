@@ -8,5 +8,6 @@ setTimeout(() => {
     capture_exceptions: true, // This enables capturing exceptions using Error Tracking, set to false if you don't want this
     debug: process.env.NODE_ENV === "development",
     person_profiles: "identified_only", // Only create profiles for logged-in users
+    disable_surveys: true
   });
 }, 0);

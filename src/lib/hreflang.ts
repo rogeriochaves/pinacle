@@ -30,7 +30,7 @@ export function generateHreflangLinks(pathname: string): HreflangLink[] {
     links.push({
       rel: "alternate",
       hreflang: locale,
-      href,
+      href: `${process.env.NEXTAUTH_URL}${href}`,
     });
   }
 
@@ -39,7 +39,7 @@ export function generateHreflangLinks(pathname: string): HreflangLink[] {
   links.push({
     rel: "alternate",
     hreflang: "x-default",
-    href: defaultHref,
+    href: `${process.env.NEXTAUTH_URL}${defaultHref}`,
   });
 
   return links;
