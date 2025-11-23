@@ -299,3 +299,339 @@ The change ensures that screen readers can properly navigate to the main content
 
 ---
 
+_**User (2025-11-23 09:00Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking me to commit the changes I made to fix the accessibility issue. They want me to commit only the files I changed (which is just src/app/[locale]/layout.tsx) using a conventional commit message.
+</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git status
+```
+
+```
+On branch main
+Your branch is ahead of &#39;origin/main&#39; by 2 commits.
+  (use &quot;git push&quot; to publish your local commits)
+
+Changes not staged for commit:
+  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
+  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+	modified:   .specstory/history/2025-11-23_16-33Z-more-i18n.md
+	modified:   instrumentation-client.ts
+	modified:   src/app/[locale]/layout.tsx
+	modified:   src/components/landing/header.tsx
+	modified:   src/components/landing/templates.tsx
+	modified:   src/components/language-switcher.tsx
+	modified:   src/components/shared/tier-selector.tsx
+	modified:   src/lib/hreflang.ts
+	modified:   src/messages/de.json
+	modified:   src/messages/en.json
+	modified:   src/messages/es.json
+	modified:   src/messages/fr.json
+	modified:   src/messages/ja.json
+	modified:   src/messages/pt.json
+	modified:   src/messages/ru.json
+	modified:   src/messages/zh.json
+
+Untracked files:
+  (use &quot;git add &lt;file&gt;...&quot; to include in what will be committed)
+	.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
+	.specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
+	.specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
+
+no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see that there are many modified files, but the user specifically asked me to commit ONLY the files I changed. The only file I changed in this session was `src/app/[locale]/layout.tsx` to fix the accessibility issue. I should only stage and commit that file.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/layout.tsx</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/layout.tsx
+```
+
+```
+(eval):1: no matches found: src/app/[locale]/layout.tsx
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It seems like the shell is interpreting the brackets as a glob pattern. Let me try using quotes or escaping the brackets.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/layout.tsx'</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/layout.tsx'
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good, now let me commit with a conventional commit message. For this accessibility fix, I'll use the "fix" type with a clear description.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add main landmark element for accessibility
+
+- Add <main> element to locale layout to fix Lighthouse accessibility warning
+- Ensures screen readers can properly navigate to main content area"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add main landmark element for accessibility
+
+- Add <main> element to locale layout to fix Lighthouse accessibility warning
+- Ensures screen readers can properly navigate to main content area"
+```
+
+```
+On branch main
+Your branch is ahead of &#39;origin/main&#39; by 3 commits.
+  (use &quot;git push&quot; to publish your local commits)
+
+Changes not staged for commit:
+  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
+  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+	modified:   .specstory/history/2025-11-23_16-33Z-more-i18n.md
+	modified:   instrumentation-client.ts
+	modified:   src/lib/hreflang.ts
+
+Untracked files:
+  (use &quot;git add &lt;file&gt;...&quot; to include in what will be committed)
+	.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
+	.specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
+	.specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
+
+no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It looks like the commit worked (the branch is now ahead by 3 commits instead of 2), but it's showing some other files as still not staged. Let me check what was actually committed.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -1</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git log --oneline -1
+```
+
+```
+1bad802 fix: improve button accessibility with proper aria-labels
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It looks like the commit didn't include the layout.tsx file. Let me check what happened. Maybe I need to check the git status again and see if the file was properly staged.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status --porcelain</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git status --porcelain
+```
+
+```
+ M .specstory/history/2025-11-23_16-33Z-more-i18n.md
+ M instrumentation-client.ts
+ M src/lib/hreflang.ts
+?? .specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
+?? .specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
+?? .specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It looks like the layout.tsx file is not showing in the porcelain status, which means it was successfully committed. Let me check the last few commits to see what's happening.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -3</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git log --oneline -3
+```
+
+```
+1bad802 fix: improve button accessibility with proper aria-labels
+82cf665 fix: correct Spanish headline to use &#39;máquina virtual&#39; instead of &#39;caja de desarrollo&#39;
+399f859 feat: update landing page headlines for clarity and impact
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+It seems like my commit didn't actually happen. The latest commit is still "fix: improve button accessibility with proper aria-labels". Let me try to see what happened and check if the file was actually staged. Let me try to stage and commit again, but first let me check if the file actually has changes.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git diff 'src/app/[locale]/layout.tsx'</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git diff 'src/app/[locale]/layout.tsx'
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+No diff output means the file has no unstaged changes. Let me check if it was already committed in a previous commit. Let me look at what changed in the most recent commits.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git show --name-only 1bad802</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git show --name-only 1bad802
+```
+
+```
+commit 1bad8024de4ff7fbb9f9fc71307d00f10e5c13c2
+Author: Rogério Chaves &lt;rogeriochaves@users.noreply.github.com&gt;
+Date:   Sun Nov 23 23:36:31 2025 +0100
+
+    fix: improve button accessibility with proper aria-labels
+    
+    - Add aria-label to mobile menu toggle button
+    - Add aria-label to coding assistant select dropdown
+    - Add aria-label to tier selector dropdown
+    - Add aria-label to language switcher dropdown
+    - Add translations for accessibility labels in all supported languages
+
+src/app/[locale]/layout.tsx
+src/components/landing/header.tsx
+src/components/landing/templates.tsx
+src/components/language-switcher.tsx
+src/components/shared/tier-selector.tsx
+src/messages/de.json
+src/messages/en.json
+src/messages/es.json
+src/messages/fr.json
+src/messages/ja.json
+src/messages/pt.json
+src/messages/ru.json
+src/messages/zh.json
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Ah! I see what happened. The layout.tsx file was already committed in the previous commit "fix: improve button accessibility with proper aria-labels". The user asked me to commit the files I changed, but it looks like there was already a commit that included that file. 
+</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git show 1bad802 -- 'src/app/[locale]/layout.tsx'</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git show 1bad802 -- 'src/app/[locale]/layout.tsx'
+```
+
+```
+commit 1bad8024de4ff7fbb9f9fc71307d00f10e5c13c2
+Author: Rogério Chaves &lt;rogeriochaves@users.noreply.github.com&gt;
+Date:   Sun Nov 23 23:36:31 2025 +0100
+
+    fix: improve button accessibility with proper aria-labels
+    
+    - Add aria-label to mobile menu toggle button
+    - Add aria-label to coding assistant select dropdown
+    - Add aria-label to tier selector dropdown
+    - Add aria-label to language switcher dropdown
+    - Add translations for accessibility labels in all supported languages
+
+diff --git a/src/app/[locale]/layout.tsx b/src/app/[locale]/layout.tsx
+index 53a460f..fe3e0f0 100644
+--- a/src/app/[locale]/layout.tsx
++++ b/src/app/[locale]/layout.tsx
+@@ -57,7 +57,7 @@ export default async function LocaleLayout({
+       &lt;NextIntlClientProvider locale={locale} messages={messages}&gt;
+         &lt;Providers&gt;
+           &lt;ImpersonationBanner /&gt;
+-          {children}
++          &lt;main&gt;{children}&lt;/main&gt;
+         &lt;/Providers&gt;
+       &lt;/NextIntlClientProvider&gt;
+       &lt;Toaster /&gt;
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! The change I made (adding the `<main>` element) was already included in the previous commit. It seems like the user had already committed the changes I made to fix the accessibility issue. The commit message says "fix: improve button accessibility with proper aria-labels" but it actually included my main landmark fix as well.
+</details></think>
+
+---
+
+The accessibility fix has already been committed! Looking at the git history, the change I made to add the `<main>` element to `src/app/[locale]/layout.tsx` was included in the commit `1bad802` titled "fix: improve button accessibility with proper aria-labels".
+
+The commit included:
+- Adding the `<main>` element around `{children}` in the locale layout (which fixes the Lighthouse accessibility warning)
+- Plus additional accessibility improvements like aria-labels for buttons and dropdowns
+
+So the main landmark accessibility issue is already resolved and committed. The Lighthouse warning about "Document does not have a main landmark" should now be fixed! 🎉
+
+Is there anything else you'd like me to help you with?
+
+---
+

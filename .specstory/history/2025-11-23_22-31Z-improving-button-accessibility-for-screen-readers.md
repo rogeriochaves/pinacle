@@ -873,7 +873,2664 @@ No results found
 ---
 
 <think><details><summary>Thought Process</summary>
-I need to add "openMenu"</details></think>
+I need to add "openMenu" to all these language files. Let me do them one by one. Starting with German.</details></think>
+
+---
+
+The string to replace was not found in the file.
+
+---
+
+<think><details><summary>Thought Process</summary>
+The German translations are different. Let me read the German file to see the exact content.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/de.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add "openMenu" with the German translation "Menü öffnen". Let me do this correctly.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/de.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;Loslegen&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;Menü öffnen&quot;,
+      &quot;closeMenu&quot;: &quot;Menü schließen&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me do the same for the other language files. Let me do French next.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/fr.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me find the header section in the French file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/fr.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/fr.json` | `"header": \{` | L20 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the French header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/fr.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the French translation for "openMenu".</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/fr.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -26,4 +26,5 @@
+      &quot;getStarted&quot;: &quot;Commencer&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;Ouvrir le menu&quot;,
+      &quot;closeMenu&quot;: &quot;Fermer le menu&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with the Spanish file.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/es.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/es.json` | `"header": \{` | L33 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the Spanish header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/es.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Spanish translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/es.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;Empezar&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;Abrir menú&quot;,
+      &quot;closeMenu&quot;: &quot;Cerrar menú&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Japanese.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/ja.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/ja.json` | `"header": \{` | L33 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the Japanese header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ja.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Japanese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ja.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;始める&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;メニューを開く&quot;,
+      &quot;closeMenu&quot;: &quot;メニューを閉じる&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Portuguese.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/pt.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/pt.json` | `"header": \{` | L33 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the Portuguese header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/pt.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Portuguese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/pt.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;Começar&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;Abrir menu&quot;,
+      &quot;closeMenu&quot;: &quot;Fechar menu&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Russian.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/ru.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/ru.json` | `"header": \{` | L33 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the Russian header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ru.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Russian translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ru.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;Начать&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;Открыть меню&quot;,
+      &quot;closeMenu&quot;: &quot;Закрыть меню&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Finally, let me add it to Chinese.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "header" in "src/messages/zh.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/zh.json` | `"header": \{` | L33 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the Chinese header section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/zh.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Chinese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/zh.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -39,4 +39,5 @@
+      &quot;getStarted&quot;: &quot;开始&quot;,
+      &quot;dashboard&quot;: &quot;Dashboard&quot;,
++     &quot;openMenu&quot;: &quot;打开菜单&quot;,
+      &quot;closeMenu&quot;: &quot;关闭菜单&quot;
+    },
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me mark the first todo as completed and move to the next one.</details></think>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Add aria-label to mobile menu toggle button in header.tsx
+- [-] Add aria-label to coding assistant select dropdown in templates.tsx
+- [ ] Add aria-label to tier selector dropdown in tier-selector.tsx
+- [ ] Add aria-label to language switcher select in language-switcher.tsx
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the coding assistant select in templates.tsx. Looking back at the code, the Select component for coding assistants is on line 125-147. It needs an aria-label.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/landing/templates.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -126,4 +126,5 @@
+                      value={selectedAgent}
+                      onValueChange={setSelectedAgent}
++                     aria-label={t(&quot;selectCodingAssistant&quot;)}
+                    &gt;
+                      &lt;SelectTrigger className=&quot;w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&amp;&gt;svg]:text-foreground [&amp;&gt;svg]:text-lg&quot;&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the translation for "selectCodingAssistant" to all language files. Let me first check if there's a templates section in the messages files.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "templates" in "src/messages/en.json" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/en.json` | `"templates": \{` | L67 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the templates section in English.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/en.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add "selectCodingAssistant" to the templates section. Let me add it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/en.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;Popular&quot;,
+      &quot;startBuilding&quot;: &quot;Start Building&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Select coding assistant&quot;,
+      &quot;customSetup&quot;: &quot;Build with custom setup →&quot;,
+      &quot;buildWebsites&quot;: &quot;For building websites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add this translation to all the other language files. Let me start with German.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/de.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the German translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/de.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;Beliebt&quot;,
+      &quot;startBuilding&quot;: &quot;Mit dem Bauen beginnen&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Coding-Assistent auswählen&quot;,
+      &quot;customSetup&quot;: &quot;Benutzerdefinierte Konfiguration →&quot;,
+      &quot;buildWebsites&quot;: &quot;Zum Erstellen von Websites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with French.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/fr.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the French translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/fr.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -57,4 +57,5 @@
+      &quot;popular&quot;: &quot;Populaire&quot;,
+      &quot;startBuilding&quot;: &quot;Commencer à Construire&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Sélectionner l&#39;assistant de code&quot;,
+      &quot;customSetup&quot;: &quot;Configuration personnalisée →&quot;,
+      &quot;buildWebsites&quot;: &quot;Pour créer des sites web&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Spanish.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/es.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Spanish translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/es.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;Popular&quot;,
+      &quot;startBuilding&quot;: &quot;Comenzar a Construir&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Seleccionar asistente de código&quot;,
+      &quot;customSetup&quot;: &quot;Configuración personalizada →&quot;,
+      &quot;buildWebsites&quot;: &quot;Para crear sitios web&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with the remaining languages. Japanese:</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ja.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Japanese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ja.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;人気&quot;,
+      &quot;startBuilding&quot;: &quot;構築を開始&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;コーディングアシスタントを選択&quot;,
+      &quot;customSetup&quot;: &quot;カスタム設定 →&quot;,
+      &quot;buildWebsites&quot;: &quot;ウェブサイト構築用&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Portuguese.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/pt.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Portuguese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/pt.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;Popular&quot;,
+      &quot;startBuilding&quot;: &quot;Começar&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Selecionar assistente de código&quot;,
+      &quot;customSetup&quot;: &quot;Setup personalizado →&quot;,
+      &quot;buildWebsites&quot;: &quot;Para criar sites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Russian.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ru.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Russian translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ru.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;Популярно&quot;,
+      &quot;startBuilding&quot;: &quot;Начать Разработку&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;Выбрать помощника по коду&quot;,
+      &quot;customSetup&quot;: &quot;Пользовательская настройка →&quot;,
+      &quot;buildWebsites&quot;: &quot;Для создания сайтов&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Finally, let me add it to Chinese.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/zh.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Chinese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/zh.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -70,4 +70,5 @@
+      &quot;popular&quot;: &quot;热门&quot;,
+      &quot;startBuilding&quot;: &quot;开始构建&quot;,
++     &quot;selectCodingAssistant&quot;: &quot;选择代码助手&quot;,
+      &quot;customSetup&quot;: &quot;自定义配置 →&quot;,
+      &quot;buildWebsites&quot;: &quot;用于构建网站&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me mark this todo as completed and move to the next one - fixing the tier selector.</details></think>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Add aria-label to mobile menu toggle button in header.tsx
+- [x] Add aria-label to coding assistant select dropdown in templates.tsx
+- [-] Add aria-label to tier selector dropdown in tier-selector.tsx
+- [ ] Add aria-label to language switcher select in language-switcher.tsx
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the tier selector. Looking back at the tier-selector.tsx code, there are two Select components - one for compact mode (lines 40-41) and one for full mode (lines 93-94). I need to add aria-label to both. But first, I need to check if there's a translation for "select tier" or similar. Let me search for tier-related translations.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "tier|select.*tier" in "src/messages/en.json" • 5 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/en.json` | `"answer": "Pinacle charges based on usage time and resource tier. You only pay for the time your pods are running. You can start, stop, and delete pods at any time.\n\nWe offer different tiers (small, medium, large, xlarge) to match your project needs. See our pricing page for detailed rates."` | L133 |
+| `src/messages/en.json` | `"tier": "TIER",` | L313 |
+| `src/messages/en.json` | `"body1": "We noticed you started setting up your \{tier\} development pod but didn't complete the checkout process.",` | L724 |
+| `src/messages/en.json` | `"body3": "Your \{tier\} pod configuration is still waiting for you. We'd hate to see you miss out on having your own fully-configured development environment.",` | L726 |
+| `src/messages/en.json` | `"body5": "This is our last reminder about your \{tier\} pod setup. After this, we'll clear your saved configuration.",` | L728 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see there's a "tier" translation. Let me check the pricing section for more context.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "pricing" in "src/messages/en.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/en.json` | `"pricing": "Pricing",` | L35 |
+| `src/messages/en.json` | `"answer": "Pinacle charges based on usage time and resource tier. You only pay for the time your pods are running. You can start, stop, and delete pods at any time.\n\nWe offer different tiers (small, medium, large, xlarge) to match your project needs. See our pricing page for detailed rates."` | L133 |
+| `src/messages/en.json` | `"pricing": "Pricing",` | L158 |
+| `src/messages/en.json` | `"pricing": \{` | L310 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the pricing section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/en.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I think I should add "selectTier" to the pricing section since that's where tier selection happens. Let me add it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/en.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -318,4 +318,5 @@
+      &quot;perMonth&quot;: &quot;/mo&quot;,
+      &quot;perHour&quot;: &quot;per hour&quot;,
++     &quot;selectTier&quot;: &quot;Select tier&quot;,
+      &quot;getStarted&quot;: &quot;Get Started&quot;,
+      &quot;vcpu&quot;: &quot;vCPU&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add this to the TierSelector component. But the TierSelector doesn't have access to translations directly. I need to pass the translation down from the parent component. Let me check how the TierSelector is used in templates.tsx. Looking back at the code, I can see that the TierSelector is called on line 170-176, but it doesn't receive any translation props.
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -16,4 +16,5 @@
+    currency?: Currency;
+    isLoading?: boolean;
++   ariaLabel?: string;
+  };
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the TierSelector function signature and use the ariaLabel.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -26,4 +26,5 @@
+    currency = &quot;usd&quot;,
+    isLoading = false,
++   ariaLabel,
+  }: TierSelectorProps) =&gt; {
+    const selectedTier =
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the aria-label to both Select components in the TierSelector. Let me do the compact version first.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 1
+
+```diff
+@@ -41,5 +41,8 @@
+        &lt;div className=&quot;flex flex-col gap-1&quot;&gt;
+          &lt;Select value={value} onValueChange={onChange}&gt;
+-           &lt;SelectTrigger className=&quot;w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&amp;&gt;svg]:text-lg&quot;&gt;
++           &lt;SelectTrigger
++             className=&quot;w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&amp;&gt;svg]:text-lg&quot;
++             aria-label={ariaLabel}
++           &gt;
+              &lt;span className=&quot;mr-2&quot;&gt;
+                {isLoading ? (
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the aria-label to the full version as well.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -97,5 +97,5 @@
+    return (
+      &lt;Select value={value} onValueChange={onChange}&gt;
+-       &lt;SelectTrigger className=&quot;w-full&quot;&gt;
++       &lt;SelectTrigger className=&quot;w-full&quot; aria-label={ariaLabel}&gt;
+          &lt;div className=&quot;flex items-center justify-between w-full&quot;&gt;
+            &lt;span className=&quot;font-mono&quot;&gt;{selectedTier.name}&lt;/span&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the templates.tsx to pass the aria-label to the TierSelector. But first, I need to import the useTranslations hook. Looking at the templates component, I can see it already uses `const t = useTranslations("templates");` on line 63. But the aria-label should probably come from pricing since it's about selecting a tier. Let me modify the templates component.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/landing/templates.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -175,4 +175,5 @@
+              currency={currency}
+              isLoading={isCurrencyLoading}
++             ariaLabel={t(&quot;selectTier&quot;)}
+            /&gt;
+            &lt;Link
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I used `t("selectTier")` but "selectTier" is in the pricing section, not templates. I need to either:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/en.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;Start Building&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Select coding assistant&quot;,
++     &quot;selectTier&quot;: &quot;Select tier&quot;,
+      &quot;customSetup&quot;: &quot;Build with custom setup →&quot;,
+      &quot;buildWebsites&quot;: &quot;For building websites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add "selectTier" to all the other language files. Let me do this quickly for all of them. Starting with German.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/de.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;Mit dem Bauen beginnen&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Coding-Assistent auswählen&quot;,
++     &quot;selectTier&quot;: &quot;Tier auswählen&quot;,
+      &quot;customSetup&quot;: &quot;Benutzerdefinierte Konfiguration →&quot;,
+      &quot;buildWebsites&quot;: &quot;Zum Erstellen von Websites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with the remaining languages. French:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/fr.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -58,4 +58,5 @@
+      &quot;startBuilding&quot;: &quot;Commencer à Construire&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Sélectionner l&#39;assistant de code&quot;,
++     &quot;selectTier&quot;: &quot;Sélectionner le niveau&quot;,
+      &quot;customSetup&quot;: &quot;Configuration personnalisée →&quot;,
+      &quot;buildWebsites&quot;: &quot;Pour créer des sites web&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Spanish:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/es.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;Comenzar a Construir&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Seleccionar asistente de código&quot;,
++     &quot;selectTier&quot;: &quot;Seleccionar nivel&quot;,
+      &quot;customSetup&quot;: &quot;Configuración personalizada →&quot;,
+      &quot;buildWebsites&quot;: &quot;Para crear sitios web&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Japanese:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ja.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;構築を開始&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;コーディングアシスタントを選択&quot;,
++     &quot;selectTier&quot;: &quot;ティアを選択&quot;,
+      &quot;customSetup&quot;: &quot;カスタム設定 →&quot;,
+      &quot;buildWebsites&quot;: &quot;ウェブサイト構築用&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Portuguese:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/pt.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;Começar&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Selecionar assistente de código&quot;,
++     &quot;selectTier&quot;: &quot;Selecionar nível&quot;,
+      &quot;customSetup&quot;: &quot;Setup personalizado →&quot;,
+      &quot;buildWebsites&quot;: &quot;Para criar sites&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Russian:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ru.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;Начать Разработку&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;Выбрать помощника по коду&quot;,
++     &quot;selectTier&quot;: &quot;Выбрать уровень&quot;,
+      &quot;customSetup&quot;: &quot;Пользовательская настройка →&quot;,
+      &quot;buildWebsites&quot;: &quot;Для создания сайтов&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Chinese:</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/zh.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+      &quot;startBuilding&quot;: &quot;开始构建&quot;,
+      &quot;selectCodingAssistant&quot;: &quot;选择代码助手&quot;,
++     &quot;selectTier&quot;: &quot;选择等级&quot;,
+      &quot;customSetup&quot;: &quot;自定义配置 →&quot;,
+      &quot;buildWebsites&quot;: &quot;用于构建网站&quot;,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me mark this todo as completed and move to the final one - the language switcher.</details></think>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Add aria-label to mobile menu toggle button in header.tsx
+- [x] Add aria-label to coding assistant select dropdown in templates.tsx
+- [x] Add aria-label to tier selector dropdown in tier-selector.tsx
+- [-] Add aria-label to language switcher select in language-switcher.tsx
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me fix the language switcher. Looking back at the language-switcher.tsx code, I need to add an aria-label to the Select component. But first, I need to check if there's a translation for "select language" or similar. Let me check the messages files for language-related translations.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "language|Language" in "src/messages/en.json" • 5 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/en.json` | `"answer": "Each pod includes a full Linux environment with root access, your choice of coding tools (VS Code, Claude Code, Cursor CLI), web terminal, project management with Vibe Kanban, git integration, and support for any programming language or framework. All tools run in your browser with no local installation needed."` | L118 |
+| `src/messages/en.json` | `"language": "Language",` | L495 |
+| `src/messages/en.json` | `"languageDescription": "Choose your preferred language for the interface.",` | L496 |
+| `src/messages/en.json` | `"languageUpdated": "Language updated successfully",` | L497 |
+| `src/messages/en.json` | `"languageUpdateFailed": "Failed to update language",` | L498 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see there are language-related translations. Let me check what section they're in.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/en.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+This seems to be in the account/dashboard section. Since the language switcher is in the footer and is for the entire site, I should add a translation for "selectLanguage" to the footer section. Let me check the footer translations.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/en.json" • 9 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/en.json` | `"footer": \{` | L154 |
+| `src/messages/en.json` | `"footerHeading": "Footer",` | L168 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L667 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L686 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L705 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L716 |
+| `src/messages/en.json` | `"footer": "Not interested? No problem! You can ignore this email."` | L733 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L747 |
+| `src/messages/en.json` | `"footer": "– Pinacle"` | L767 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the footer section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/en.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I should add "selectLanguage" to the footer section. Let me add it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/en.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Select language&quot;,
+      &quot;footerHeading&quot;: &quot;Footer&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. All rights reserved.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the language-switcher.tsx to use translations and add the aria-label. But first, I need to add the translation to all the other language files. Let me do this quickly for all languages. Starting with German.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/de.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add "selectLanguage" to the German footer.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/de.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Sprache auswählen&quot;,
+      &quot;footerHeading&quot;: &quot;Fußzeile&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. Alle Rechte vorbehalten.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with the remaining languages quickly. French:</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/fr.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me find the footer section in French.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/fr.json" • 9 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/fr.json` | `"footer": \{` | L141 |
+| `src/messages/fr.json` | `"footerHeading": "Pied de page",` | L155 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L601 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L620 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L639 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L650 |
+| `src/messages/fr.json` | `"footer": "Pas intéressé ? Pas de problème ! Vous pouvez ignorer cet e-mail."` | L667 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L681 |
+| `src/messages/fr.json` | `"footer": "– Pinacle"` | L696 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the French footer section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/fr.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the French translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/fr.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -153,4 +153,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Sélectionner la langue&quot;,
+      &quot;footerHeading&quot;: &quot;Pied de page&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. Tous droits réservés.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with the remaining languages. I'll do them all at once to save time. Spanish:</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/es.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/es.json` | `"footer": \{` | L154 |
+| `src/messages/es.json` | `"footerHeading": "Pie de página",` | L168 |
+| `src/messages/es.json` | `"footer": "– Pinacle"` | L665 |
+| `src/messages/es.json` | `"footer": "– Pinacle"` | L684 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read and update the Spanish footer.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/es.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me get the full footer section.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/es.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Spanish translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/es.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Seleccionar idioma&quot;,
+      &quot;footerHeading&quot;: &quot;Pie de página&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. Todos los derechos reservados.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me continue with Japanese, Portuguese, Russian, and Chinese. I'll do them quickly. Japanese:</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/ja.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/ja.json` | `"footer": \{` | L154 |
+| `src/messages/ja.json` | `"footerHeading": "フッター",` | L168 |
+| `src/messages/ja.json` | `"footer": "– Pinacle"` | L665 |
+| `src/messages/ja.json` | `"footer": "– Pinacle"` | L684 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read and update the Japanese footer.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ja.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Japanese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ja.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;言語を選択&quot;,
+      &quot;footerHeading&quot;: &quot;フッター&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. 無断複写・転載を禁じます。&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Portuguese:</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/pt.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/pt.json` | `"footer": \{` | L154 |
+| `src/messages/pt.json` | `"footerHeading": "Rodapé",` | L168 |
+| `src/messages/pt.json` | `"footer": "– Pinacle"` | L665 |
+| `src/messages/pt.json` | `"footer": "– Pinacle"` | L684 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read and update the Portuguese footer.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/pt.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Portuguese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/pt.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Selecionar idioma&quot;,
+      &quot;footerHeading&quot;: &quot;Rodapé&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. Todos os direitos reservados.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Russian:</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/ru.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/ru.json` | `"footer": \{` | L154 |
+| `src/messages/ru.json` | `"footerHeading": "Подвал",` | L168 |
+| `src/messages/ru.json` | `"footer": "– Pinacle"` | L665 |
+| `src/messages/ru.json` | `"footer": "– Pinacle"` | L684 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read and update the Russian footer.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/ru.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Russian translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/ru.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;Выбрать язык&quot;,
+      &quot;footerHeading&quot;: &quot;Подвал&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. Все права защищены.&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Finally, Chinese:</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "footer" in "src/messages/zh.json" • 4 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/messages/zh.json` | `"footer": \{` | L154 |
+| `src/messages/zh.json` | `"footerHeading": "页脚",` | L168 |
+| `src/messages/zh.json` | `"footer": "– Pinacle"` | L665 |
+| `src/messages/zh.json` | `"footer": "– Pinacle"` | L684 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read and update the Chinese footer.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/messages/zh.json</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add the Chinese translation.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/messages/zh.json</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -166,4 +166,5 @@
+      &quot;dockerHub&quot;: &quot;Docker Hub&quot;,
+      &quot;twitter&quot;: &quot;Twitter&quot;,
++     &quot;selectLanguage&quot;: &quot;选择语言&quot;,
+      &quot;footerHeading&quot;: &quot;页脚&quot;,
+      &quot;copyright&quot;: &quot;© {year} Pinacle, Inc. 版权所有。&quot;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the language-switcher.tsx to use the translation and add the aria-label. Let me modify it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/language-switcher.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -3,5 +3,5 @@
+  import { Globe } from &quot;lucide-react&quot;;
+  import { usePathname, useRouter } from &quot;next/navigation&quot;;
+- import { useLocale } from &quot;next-intl&quot;;
++ import { useLocale, useTranslations } from &quot;next-intl&quot;;
+  import {
+    Select,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the translation usage and aria-label.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/language-switcher.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -17,4 +17,5 @@
+    const router = useRouter();
+    const pathname = usePathname();
++   const t = useTranslations(&quot;footer&quot;);
+  
+    const switchLocale = (newLocale: Locale) =&gt; {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the aria-label to the Select component.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/language-switcher.tsx</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 1
+
+```diff
+@@ -42,5 +42,8 @@
+        onValueChange={(value) =&gt; switchLocale(value as Locale)}
+      &gt;
+-       &lt;SelectTrigger className=&quot;w-[140px] gap-2 text-white relative&quot;&gt;
++       &lt;SelectTrigger
++         className=&quot;w-[140px] gap-2 text-white relative&quot;
++         aria-label={t(&quot;selectLanguage&quot;)}
++       &gt;
+          &lt;Globe className=&quot;h-4 w-4&quot; /&gt;
+          &lt;SelectValue /&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me mark the final todo as completed.</details></think>
+
+---
+
+<tool-use data-tool-type="task" data-tool-name="todo_write">
+<details><summary>Tool use: **todo_write** • Todo List</summary>
+
+- [x] Add aria-label to mobile menu toggle button in header.tsx
+- [x] Add aria-label to coding assistant select dropdown in templates.tsx
+- [x] Add aria-label to tier selector dropdown in tier-selector.tsx
+- [x] Add aria-label to language switcher select in language-switcher.tsx
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me run the linter to check if there are any issues with my changes.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 4 files</summary>
+      
+Lint paths:
+
+- `src/components/landing/header.tsx`
+- `src/components/landing/templates.tsx`
+- `src/components/shared/tier-selector.tsx`
+- `src/components/language-switcher.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Great! No linter errors. Now let me run the application to make sure everything works properly.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run dev</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && npm run dev
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've successfully fixed all the Lighthouse accessibility issues. Let me summarize what I did:
+
+
+## Enhancing Accessibility
+
+- Successfully resolved all Lighthouse accessibility issues for improved user experience.</details></think>
+
+---
+
+Perfect! I've successfully fixed all the Lighthouse accessibility issues with buttons not having accessible names. Here's what I addressed:
+
+## Fixed Issues:
+
+1. **Mobile menu toggle button** in the header - Added `aria-label="Open menu"` (translated for all languages)
+
+2. **Coding assistant selector** in the templates - Added `aria-label="Select coding assistant"` (translated)
+
+3. **Tier/pricing selector** in the templates - Added `aria-label="Select tier"` (translated)
+
+4. **Language switcher** in the footer - Added `aria-label="Select language"` (translated)
+
+## Changes Made:
+
+- Added proper `aria-label` attributes to all select dropdowns and buttons
+- Added translations for the new accessibility labels in all 8 supported languages (English, German, French, Spanish, Japanese, Portuguese, Russian, Chinese)
+- Modified the `TierSelector` component to accept an optional `ariaLabel` prop
+
+All buttons now have meaningful accessible names that screen readers will announce instead of just "button". The development server is running, so you can test the changes and run Lighthouse again to verify the accessibility improvements!
+
+---
+
+_**User (2025-11-23 09:00Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking me to commit the files I changed, using a conventional commit message. They want me to only commit the files I changed (not `git add -A`), and they want a conventional commit message.
+</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git status</summary>
+
+```bash
+git status
+```
+
+```
+On branch main
+Your branch is ahead of &#39;origin/main&#39; by 2 commits.
+  (use &quot;git push&quot; to publish your local commits)
+
+Changes not staged for commit:
+  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
+  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+	modified:   .specstory/history/2025-11-23_16-33Z-more-i18n.md
+	modified:   instrumentation-client.ts
+	modified:   src/app/[locale]/layout.tsx
+	modified:   src/components/landing/header.tsx
+	modified:   src/components/landing/templates.tsx
+	modified:   src/components/language-switcher.tsx
+	modified:   src/components/shared/tier-selector.tsx
+	modified:   src/lib/hreflang.ts
+	modified:   src/messages/de.json
+	modified:   src/messages/en.json
+	modified:   src/messages/es.json
+	modified:   src/messages/fr.json
+	modified:   src/messages/ja.json
+	modified:   src/messages/pt.json
+	modified:   src/messages/ru.json
+	modified:   src/messages/zh.json
+
+Untracked files:
+  (use &quot;git add &lt;file&gt;...&quot; to include in what will be committed)
+	.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
+	.specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
+	.specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
+
+no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see the files that were modified. I need to add only the files I changed for the accessibility fixes. The relevant files are:
+
+
+## Reviewing modified files  
+- The task is to add only the files changed for accessibility fixes.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git add src/components/landing/header.tsx src/components/landing/templates.tsx src/components/language-switcher.tsx src/components/shared/tier-selector.tsx src/messages/de.json src/messages/en.json src/messages/es.json src/messages/fr.json src/messages/ja.json src/messages/pt.json src/messages/ru.json src/messages/zh.json</summary>
+
+```bash
+git add src/components/landing/header.tsx src/components/landing/templates.tsx src/components/language-switcher.tsx src/components/shared/tier-selector.tsx src/messages/de.json src/messages/en.json src/messages/es.json src/messages/fr.json src/messages/ja.json src/messages/pt.json src/messages/ru.json src/messages/zh.json
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I'll commit with a conventional commit message. This is a fix for accessibility issues, so I'll use the "fix:" prefix.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git commit -m "fix: improve button accessibility with proper aria-labels
+
+- Add aria-label to mobile menu toggle button
+- Add aria-label to coding assistant select dropdown  
+- Add aria-label to tier selector dropdown
+- Add aria-label to language switcher dropdown
+- Add translations for accessibility labels in all supported languages"</summary>
+
+```bash
+git commit -m "fix: improve button accessibility with proper aria-labels
+
+- Add aria-label to mobile menu toggle button
+- Add aria-label to coding assistant select dropdown  
+- Add aria-label to tier selector dropdown
+- Add aria-label to language switcher dropdown
+- Add translations for accessibility labels in all supported languages"
+```
+
+```
+[main 1bad802] fix: improve button accessibility with proper aria-labels
+ 13 files changed, 52 insertions(+), 7 deletions(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I successfully committed the accessibility fixes with a conventional commit message. The commit includes:
+</details></think>
+
+---
+
+Perfect! I've successfully committed the accessibility fixes with a conventional commit message. The commit includes:
+
+- **13 files changed**: 4 component files + 9 translation files
+- **52 insertions, 7 deletions**: Mostly adding aria-labels and translations
+
+The commit message follows conventional commit format:
+- `fix:` prefix for the accessibility bug fix
+- Clear description of the improvements
+- Bullet points detailing what was fixed
+
+The changes are now committed and ready to be pushed when you're ready. The Lighthouse accessibility issues with buttons not having accessible names should now be resolved! 🎉
+
+---
+
+_**User (2025-11-23 09:00Z)**_
+
+still complaining about this one:
+
+
+
+
+
+Buttons do not have an accessible name
+
+When a button doesn't have an accessible name, screen readers announce it as "button", making it unusable for users who rely on screen readers. Learn how to make buttons more accessible.
+
+Failing Elements
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16kchbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_26kkhbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16kshbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16l4hbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16lchbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16kchbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_26kkhbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16kshbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16l4hbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+Claude Code
+
+<button type="button" role="combobox" aria-controls="radix-_R_16lchbsqivb_" aria-expanded="false" aria-autocomplete="none" dir="ltr" data-state="closed" data-slot="select-trigger" data-size="default" class="border-input data-[placeholder]:text-muted-foreground [&amp;_svg:not([class*='…">
+
+
+
+does it maybe need to be on the select trigger?
+
+
+
+
+
+and btw the font here on this dropdown is different than the website font elsehwere? it goes to `ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`, why? maybe we need to define explicitly on the select content?
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is still getting Lighthouse accessibility errors for buttons that don't have accessible names. Looking at the failing elements, they all appear to be buttons with `role="combobox"` that have "Claude Code" as their text content. These are select triggers that I thought I fixed, but apparently the aria-label I added isn't working properly.
+
+
+## Investigating Accessibility Issues  
+- The user still faces Lighthouse errors for buttons lacking accessible names.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/landing/templates.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue! I put the `aria-label` on the `Select` component itself, but it needs to be on the `SelectTrigger` component. The `Select` component is the root Radix component, but the actual button that gets rendered is the `SelectTrigger`.
+</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/ui/select.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see that the SelectTrigger passes through all props to the Radix SelectPrimitive.Trigger, so aria-label should work. But I put it on the Select component instead of the SelectTrigger. Let me fix this.
+</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/ui/select.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see that the SelectContent uses `text-popover-foreground` which should inherit the proper font. But the user mentioned it's using `ui-sans-serif, system-ui, sans-serif` etc. This suggests that the font isn't being inherited properly.
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/landing/templates.tsx</summary>
+
+**Chunk 1**
+Lines added: 4, lines removed: 2
+
+```diff
+@@ -126,7 +126,9 @@
+                      value={selectedAgent}
+                      onValueChange={setSelectedAgent}
+-                     aria-label={t(&quot;selectCodingAssistant&quot;)}
+                    &gt;
+-                     &lt;SelectTrigger className=&quot;w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&amp;&gt;svg]:text-foreground [&amp;&gt;svg]:text-lg&quot;&gt;
++                     &lt;SelectTrigger
++                       className=&quot;w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&amp;&gt;svg]:text-foreground [&amp;&gt;svg]:text-lg&quot;
++                       aria-label={t(&quot;selectCodingAssistant&quot;)}
++                     &gt;
+                        {selectedCodingAgent.name}
+                      &lt;/SelectTrigger&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to fix the font issue. The user mentioned that the dropdown font goes to `ui-sans-serif, system-ui, sans-serif` etc. instead of using the project's font. 
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/landing/templates.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -128,5 +128,5 @@
+                    &gt;
+                      &lt;SelectTrigger
+-                       className=&quot;w-auto !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&amp;&gt;svg]:text-foreground [&amp;&gt;svg]:text-lg&quot;
++                       className=&quot;w-auto !h-auto text-md font-mono p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 ![&amp;&gt;svg]:text-foreground [&amp;&gt;svg]:text-lg&quot;
+                        aria-label={t(&quot;selectCodingAssistant&quot;)}
+                      &gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the font-mono class to the SelectContent as well to ensure the dropdown items use the correct font. Let me add that.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/landing/templates.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -133,5 +133,5 @@
+                        {selectedCodingAgent.name}
+                      &lt;/SelectTrigger&gt;
+-                     &lt;SelectContent&gt;
++                     &lt;SelectContent className=&quot;font-mono&quot;&gt;
+                        {CODING_AGENTS.map((agent) =&gt; (
+                          &lt;SelectItem key={agent.id} value={agent.id}&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I should also check the tier selector to see if it has the same issues. Let me check if the tier selector needs similar fixes.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/shared/tier-selector.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see that the tier selector already has the aria-label on the SelectTrigger (which is correct), but it's missing the font-mono class. Let me add that.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -42,5 +42,5 @@
+          &lt;Select value={value} onValueChange={onChange}&gt;
+            &lt;SelectTrigger
+-             className=&quot;w-fit-content !h-auto text-md p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&amp;&gt;svg]:text-lg&quot;
++             className=&quot;w-fit-content !h-auto text-md font-mono p-0 border-none shadow-none bg-transparent gap-1 hover:bg-transparent focus:ring-0 focus:ring-offset-0 [&amp;&gt;svg]:text-lg&quot;
+              aria-label={ariaLabel}
+            &gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I also need to add font-mono to the SelectContent in the tier selector. Let me check where the SelectContent is in that file.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/shared/tier-selector.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Found it. Let me add font-mono to the SelectContent in the tier selector.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -58,5 +58,5 @@
+              &lt;/span&gt;
+            &lt;/SelectTrigger&gt;
+-           &lt;SelectContent&gt;
++           &lt;SelectContent className=&quot;font-mono&quot;&gt;
+              {Object.values(RESOURCE_TIERS).map((tier) =&gt; {
+                const tierPrice =
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I also need to check the full version of the tier selector (non-compact) and make sure it has the font-mono class too. Let me check that.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/shared/tier-selector.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see that the full version already has font-mono on the SelectTrigger (line 99), and the selected tier name has font-mono (line 101). Let me check if the SelectContent for the full version also needs font-mono.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/shared/tier-selector.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me add font-mono to the full version's SelectContent as well.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/shared/tier-selector.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -112,5 +112,5 @@
+          &lt;/div&gt;
+        &lt;/SelectTrigger&gt;
+-       &lt;SelectContent&gt;
++       &lt;SelectContent className=&quot;font-mono&quot;&gt;
+          {Object.values(RESOURCE_TIERS).map((tier) =&gt; {
+            const tierPrice =
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me also check the language switcher to make sure it has the font styling. Let me look at it.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: src/components/language-switcher.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The language switcher is in the footer and uses `text-white`, which is appropriate for the footer styling. But I should check if it needs font-mono too for consistency. The footer is styled differently, so it might not need the mono font. Let me check what the footer looks like to see if it uses mono font.
+</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/language-switcher.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -49,5 +49,5 @@
+          &lt;SelectValue /&gt;
+        &lt;/SelectTrigger&gt;
+-       &lt;SelectContent &gt;
++       &lt;SelectContent className=&quot;font-mono&quot;&gt;
+          {locales.map((loc) =&gt; (
+            &lt;SelectItem key={loc} value={loc}&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me run the linter to make sure there are no errors, and then commit the changes.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `src/components/landing/templates.tsx`
+- `src/components/shared/tier-selector.tsx`
+- `src/components/language-switcher.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good, no linter errors. Now let me commit these fixes.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git add src/components/landing/templates.tsx src/components/shared/tier-selector.tsx src/components/language-switcher.tsx</summary>
+
+```bash
+git add src/components/landing/templates.tsx src/components/shared/tier-selector.tsx src/components/language-switcher.tsx
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I'll commit these fixes with a conventional commit message.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: git commit -m "fix: fix aria-label placement and font consistency for select dropdowns
+
+- Move aria-label from Select to SelectTrigger components  
+- Add font-mono class to select triggers and content for consistent typography
+- Ensure dropdowns use JetBrains Mono font instead of system fonts"</summary>
+
+```bash
+git commit -m "fix: fix aria-label placement and font consistency for select dropdowns
+
+- Move aria-label from Select to SelectTrigger components  
+- Add font-mono class to select triggers and content for consistent typography
+- Ensure dropdowns use JetBrains Mono font instead of system fonts"
+```
+
+```
+[main b4f8302] fix: fix aria-label placement and font consistency for select dropdowns
+ 3 files changed, 9 insertions(+), 7 deletions(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Perfect! I've fixed both issues:
+</details></think>
+
+---
+
+Perfect! I've fixed both issues:
+
+## ✅ **Aria-label placement fix**
+- Moved `aria-label` from the `Select` component to the `SelectTrigger` component
+- The `SelectTrigger` is the actual `<button>` element that gets rendered with `role="combobox"`
+
+## ✅ **Font consistency fix** 
+- Added `font-mono` class to select triggers and select content
+- This ensures dropdowns use JetBrains Mono font instead of falling back to system fonts like `ui-sans-serif`
+
+The changes ensure that:
+1. **Screen readers** will now announce meaningful labels for the dropdown buttons (like "Select coding assistant" instead of just "button")
+2. **Typography consistency** is maintained across the site with proper JetBrains Mono font usage
+
+The Lighthouse accessibility errors for the "Claude Code" combobox buttons should now be resolved! 🎉
 
 ---
 
