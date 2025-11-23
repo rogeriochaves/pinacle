@@ -253,6 +253,8 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   // Track current path for each tab (for screenshots)
   const [tabPaths, setTabPaths] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Track which postgres tabs have been refreshed (pgweb hack)
+  const [refreshedPostgresTabs, setRefreshedPostgresTabs] = useState<Set<string>>(new Set());
   // Setup drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -379,6 +381,35 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       }
     }
   }, [tabs, activeTab]);
+
+  // Hack: Refresh postgres tabs on first load (pgweb issue)
+  useEffect(() => {
+    const currentTab = tabs.find((tab) => tab.id === activeTab);
+    if (currentTab?.serviceRef === "postgres" && !refreshedPostgresTabs.has(activeTab)) {
+      // Mark this tab as refreshed
+      setRefreshedPostgresTabs(prev => new Set(prev).add(activeTab));
+
+      // Trigger refresh after a short delay to let iframe load
+      setTimeout(() => {
+        const iframe = document.getElementById(
+          `js-iframe-tab-${activeTab}`,
+        ) as HTMLIFrameElement;
+
+        if (iframe) {
+          setIsRefreshing(true);
+          const currentSrc = iframe.src;
+          iframe.src = "";
+          setTimeout(() => {
+            iframe.src = currentSrc;
+          }, 10);
+
+          setTimeout(() => {
+            setIsRefreshing(false);
+          }, 1000);
+        }
+      }, 500); // Wait 500ms for iframe to start loading
+    }
+  }, [activeTab, tabs, refreshedPostgresTabs]);
 
   const { data: session } = useSession();
   const isRunning = pod.status === "running";

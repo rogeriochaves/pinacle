@@ -1584,3 +1584,170 @@ The generated `.specstory` file was excluded from the commit as it shouldn't be 
 
 ---
 
+_**User (2025-11-23 05:38Z)**_
+
+ok so now, I will need help implementing a bit of a hack
+
+pgweb has a little but, so, on the @workbench.tsx , I need to whenever we switch to the "postgres" service tab, FOR THE FIRST TIME after page loads, then it needs to trigger a refresh for its iframe upon load
+
+
+
+can you do this hack for me
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to implement a hack for the postgres service tab. When switching to the postgres service tab for the first time after page load, it needs to trigger a refresh of its iframe upon load.
+
+
+## Investigating User Request  
+- The user wants to implement a hack for refreshing the postgres service tab's iframe.  
+- The goal is to trigger a refresh when switching to the tab for the first time after page load.
+
+## Investigating User Request  
+- The postgres service tab uses pgweb, which requires a refresh on first load to function properly.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -254,4 +254,6 @@
+    const [tabPaths, setTabPaths] = useState&lt;Record&lt;string, string&gt;&gt;({});
+    const [isRefreshing, setIsRefreshing] = useState(false);
++   // Track which postgres tabs have been refreshed (pgweb hack)
++   const [refreshedPostgresTabs, setRefreshedPostgresTabs] = useState&lt;Set&lt;string&gt;&gt;(new Set());
+    // Setup drag and drop sensors
+    const sensors = useSensors(
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the logic to trigger a refresh for postgres tabs when they become active for the first time. I should add this in the useEffect that handles activeTab changes, or create a separate useEffect.
+
+
+## Enhancing Tab Functionality  
+- Need to implement a refresh for Postgres tabs when they become active initially.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 29, lines removed: undefined
+
+```diff
+@@ -382,4 +382,33 @@
+      }
+    }, [tabs, activeTab]);
++ 
++   // Hack: Refresh postgres tabs on first load (pgweb issue)
++   useEffect(() =&gt; {
++     const currentTab = tabs.find((tab) =&gt; tab.id === activeTab);
++     if (currentTab?.serviceRef === &quot;postgres&quot; &amp;&amp; !refreshedPostgresTabs.has(activeTab)) {
++       // Mark this tab as refreshed
++       setRefreshedPostgresTabs(prev =&gt; new Set(prev).add(activeTab));
++ 
++       // Trigger refresh after a short delay to let iframe load
++       setTimeout(() =&gt; {
++         const iframe = document.getElementById(
++           &#96;js-iframe-tab-${activeTab}&#96;,
++         ) as HTMLIFrameElement;
++ 
++         if (iframe) {
++           setIsRefreshing(true);
++           const currentSrc = iframe.src;
++           iframe.src = &quot;&quot;;
++           setTimeout(() =&gt; {
++             iframe.src = currentSrc;
++           }, 10);
++ 
++           setTimeout(() =&gt; {
++             setIsRefreshing(false);
++           }, 1000);
++         }
++       }, 500); // Wait 500ms for iframe to start loading
++     }
++   }, [activeTab, tabs, refreshedPostgresTabs]);
+  
+    const { data: session } = useSession();
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check if there are any linter errors.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `src/components/dashboard/workbench.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Great! The hack has been implemented. Let me summarize what I did:
+</details></think>
+
+---
+
+Perfect! I've implemented the hack for pgweb. Here's what I added:
+
+1. **New state**: `refreshedPostgresTabs` - A Set to track which postgres tabs have already been refreshed to avoid refreshing them multiple times.
+
+2. **useEffect hook**: Watches for changes to `activeTab` and checks if:
+   - The current tab is a postgres service (`serviceRef === "postgres"`)
+   - This specific tab hasn't been refreshed yet
+
+3. **Automatic refresh logic**: When conditions are met, it:
+   - Marks the tab as refreshed
+   - Waits 500ms for the iframe to start loading
+   - Triggers the same refresh mechanism used by the manual refresh button (clears the src, then restores it)
+   - Shows the refreshing spinner for 1 second
+
+This will automatically refresh postgres/pgweb tabs on their first load after the page loads, which should resolve the pgweb loading issue you mentioned. The refresh only happens once per postgres tab per page load.
+
+---
+
+_**User (2025-11-23 05:38Z)**_
+
+@commit.md 
+
+---
+
+_**Agent (model grok-code-fast-1, mode Agent)**_
+
+
+
+---
+
