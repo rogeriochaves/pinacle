@@ -1,7 +1,8 @@
+import { type NextRequest, NextResponse } from "next/server";
 import createMiddleware from "next-intl/middleware";
 import { defaultLocale, locales } from "./i18n";
 
-export default createMiddleware({
+const intlMiddleware = createMiddleware({
   // A list of all locales that are supported
   locales,
 
@@ -14,6 +15,15 @@ export default createMiddleware({
   // Automatically detect user's preferred locale
   localeDetection: true,
 });
+
+export default function middleware(request: NextRequest) {
+  // Add the current pathname to headers so layouts can access it
+  const response = intlMiddleware(request);
+
+  response.headers.set("x-pathname", request.nextUrl.pathname);
+
+  return response;
+}
 
 export const config = {
   // Match all pathnames except for

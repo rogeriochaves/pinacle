@@ -12,6 +12,8 @@ export interface HreflangLink {
 export function generateHreflangLinks(pathname: string): HreflangLink[] {
   const links: HreflangLink[] = [];
 
+  const baseUrl = process.env.NEXTAUTH_URL || "https://pinacle.dev";
+
   // Remove any existing locale prefix from the pathname
   let cleanPathname = pathname;
   for (const locale of locales) {
@@ -30,7 +32,7 @@ export function generateHreflangLinks(pathname: string): HreflangLink[] {
     links.push({
       rel: "alternate",
       hreflang: locale,
-      href: `${process.env.NEXTAUTH_URL}${href}`,
+      href: `${baseUrl}${href}`,
     });
   }
 
@@ -39,7 +41,7 @@ export function generateHreflangLinks(pathname: string): HreflangLink[] {
   links.push({
     rel: "alternate",
     hreflang: "x-default",
-    href: `${process.env.NEXTAUTH_URL}${defaultHref}`,
+    href: `${baseUrl}${defaultHref}`,
   });
 
   return links;
