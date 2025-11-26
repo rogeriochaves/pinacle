@@ -117,6 +117,7 @@ export class PodManager extends EventEmitter {
       await this.startServices(spec, this.serviceProvisioner);
 
       // Setup GitHub repository if configured
+      // Note: .env file is written inside setupGitHubRepository before init scripts run
       if (spec.githubRepo && spec.githubRepoSetup) {
         console.log(
           `[PodManager] Setting up GitHub repository for pod ${spec.id}`,
@@ -129,36 +130,6 @@ export class PodManager extends EventEmitter {
         // For new repos, it's already included in the initial commit
         if (spec.githubRepoSetup.type === "existing") {
           await this.injectPinacleConfig(pinacleConfig, spec.githubRepo);
-        }
-      }
-
-      // Write .env file to the container if we have dotenv content
-      if (spec.dotenvContent && podInstance.container?.id && spec.githubRepo) {
-        try {
-          const repoName = spec.githubRepo.split("/")[1];
-          const envFilePath = `/workspace/${repoName}/.env`;
-
-          // Write .env file using heredoc to avoid escaping issues
-          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
-${spec.dotenvContent}
-PINACLE_ENV_EOF`;
-
-          await this.containerRuntime.execInContainer(
-            spec.id,
-            podInstance.container.id,
-            ["sh", "-c", writeCommand],
-          );
-
-          console.log(
-            `[PodManager] Wrote .env file to ${envFilePath}`,
-          );
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          console.warn(
-            `[PodManager] Failed to write .env file: ${errorMessage}`,
-          );
-          // Don't fail provisioning if .env write fails
         }
       }
 
@@ -587,12 +558,14 @@ PINACLE_ENV_EOF`;
       : undefined;
 
     // Setup repository (clone or init from template)
+    // dotenvContent is passed so .env can be written before init scripts run
     await this.githubIntegration.setupRepository(
       spec.id,
       setup,
       template,
       spec,
       pinacleConfig,
+      spec.dotenvContent,
     );
   }
 

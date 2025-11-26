@@ -589,13 +589,16 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
       "mv temp-ai-chatbot/.* . 2>/dev/null || true",
       "rm -rf temp-ai-chatbot",
 
-      // 2. Install dependencies
+      // 2. Patch migrate.ts to use .env instead of .env.local (Pinacle uses .env)
+      "sed -i 's/.env.local/.env/g' lib/db/migrate.ts",
+
+      // 3. Install dependencies
       "pnpm install",
 
-      // 3. Wait for Postgres to be ready
+      // 4. Wait for Postgres to be ready
       "until pg_isready -h localhost -U postgres; do echo 'Waiting for postgres...'; sleep 2; done",
 
-      // 4. Run database migrations
+      // 5. Run database migrations
       "pnpm db:migrate",
     ],
   },

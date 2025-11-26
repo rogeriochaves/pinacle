@@ -89,6 +89,7 @@ export class GitHubIntegration {
     repository: string,
     branch: string | undefined,
     sshKeyPair: SSHKeyPair,
+    dotenvContent?: string,
   ): Promise<void> {
     console.log(
       `[GitHubIntegration] Cloning repository ${repository}:${branch} into container ${podId}`,
@@ -146,6 +147,19 @@ export class GitHubIntegration {
       ]);
 
       console.log(`[GitHubIntegration] Successfully cloned ${repository}`);
+
+      // 5. Write .env file if we have dotenv content (before install commands run)
+      if (dotenvContent) {
+        const projectFolder = getProjectFolderFromRepository(repository);
+        const envFilePath = `/workspace/${projectFolder}/.env`;
+
+        const writeCommand = `cat > ${envFilePath} << 'DOTENV_EOF'
+${dotenvContent}
+DOTENV_EOF`;
+
+        await this.podManager.execInPod(["sh", "-c", writeCommand]);
+        console.log(`[GitHubIntegration] Wrote .env file to ${envFilePath}`);
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -165,6 +179,7 @@ export class GitHubIntegration {
     sshKeyPair: SSHKeyPair,
     spec: PodSpec,
     pinacleConfig?: PinacleConfig,
+    dotenvContent?: string,
   ): Promise<void> {
     console.log(
       `[GitHubIntegration] Initializing template ${template.id} for ${repository}`,
@@ -231,6 +246,18 @@ export class GitHubIntegration {
         "-c",
         `'cd ${projectPath} && git remote add origin ${gitUrl}'`,
       ]);
+
+      // 4.5. Write .env file if we have dotenv content (before init script runs)
+      if (dotenvContent) {
+        const envFilePath = `${projectPath}/.env`;
+
+        const writeCommand = `cat > ${envFilePath} << 'DOTENV_EOF'
+${dotenvContent}
+DOTENV_EOF`;
+
+        await this.podManager.execInPod(["sh", "-c", writeCommand]);
+        console.log(`[GitHubIntegration] Wrote .env file to ${envFilePath}`);
+      }
 
       // 5. Run template initialization script
       if (template.initScript) {
@@ -330,6 +357,7 @@ export class GitHubIntegration {
     template?: PodTemplate,
     spec?: PodSpec,
     pinacleConfig?: PinacleConfig,
+    dotenvContent?: string,
   ): Promise<void> {
     if (setup.type === "existing") {
       // Clone existing repository
@@ -338,6 +366,7 @@ export class GitHubIntegration {
         setup.repository,
         setup.branch,
         setup.sshKeyPair,
+        dotenvContent,
       );
     } else if (setup.type === "new") {
       // Initialize from template
@@ -353,6 +382,7 @@ export class GitHubIntegration {
         setup.sshKeyPair,
         spec,
         pinacleConfig,
+        dotenvContent,
       );
     }
   }

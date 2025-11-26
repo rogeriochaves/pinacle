@@ -271,9 +271,18 @@ export class SSHServerConnection implements ServerConnection {
   }
 
   private maskSensitive(command: string): string {
-    return command.replaceAll(
-      /(-----BEGIN OPENSSH PRIVATE KEY-----)[\s\S]*(-----END OPENSSH PRIVATE KEY-----)/g,
-      "$1 [redacted] $2",
+    return (
+      command
+        // Redact SSH private keys
+        .replaceAll(
+          /(-----BEGIN OPENSSH PRIVATE KEY-----)[\s\S]*(-----END OPENSSH PRIVATE KEY-----)/g,
+          "$1 [redacted] $2",
+        )
+        // Redact .env file content (may contain API keys, passwords, etc.)
+        .replaceAll(
+          /(DOTENV_EOF\n)[\s\S]*(DOTENV_EOF)/g,
+          "$1[env content redacted]\n$2",
+        )
     );
   }
 

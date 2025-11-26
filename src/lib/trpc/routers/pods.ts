@@ -2502,9 +2502,9 @@ export const podsRouter = createTRPCRouter({
           const envFilePath = `/workspace/${repoName}/.env`;
 
           // Write .env file
-          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
+          const writeCommand = `cat > ${envFilePath} << 'DOTENV_EOF'
 ${input.content}
-PINACLE_ENV_EOF`;
+DOTENV_EOF`;
 
           await runtime.execInContainer(input.podId, container.id, [
             "sh",
