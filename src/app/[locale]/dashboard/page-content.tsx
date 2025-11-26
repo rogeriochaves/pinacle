@@ -3,9 +3,9 @@
 import { Loader2, Server } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { PodDetailsPanel } from "@/components/dashboard/pod-details-panel";
 import { PodSelector } from "@/components/dashboard/pod-selector";
 import { Workbench } from "@/components/dashboard/workbench";
@@ -75,7 +75,9 @@ export default function Dashboard() {
 
   // Check for team invitation success message
   useEffect(() => {
-    const teamInvitationSuccess = sessionStorage.getItem("teamInvitationSuccess");
+    const teamInvitationSuccess = sessionStorage.getItem(
+      "teamInvitationSuccess",
+    );
     if (teamInvitationSuccess) {
       toast.success(t("welcomeToTeam"), {
         description: t("welcomeToTeamDescription"),
@@ -96,7 +98,7 @@ export default function Dashboard() {
     try {
       await startPodMutation.mutateAsync({ id: podId });
       toast.success(t("podStarting", { name: podName }), {
-        description: t("podStartingDescription"),
+        description: t("podStartingDescription", { name: podName }),
       });
       refetch();
     } catch (error) {
@@ -114,7 +116,7 @@ export default function Dashboard() {
     try {
       await stopPodMutation.mutateAsync({ id: podId });
       toast.success(t("podStopping", { name: podName }), {
-        description: t("podStoppingDescription"),
+        description: t("podStoppingDescription", { name: podName }),
       });
       refetch();
     } catch (error) {
