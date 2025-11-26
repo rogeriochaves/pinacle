@@ -1,12 +1,12 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GitHubProvider from "next-auth/providers/github";
 import { z } from "zod";
 import { db } from "./db";
-import { teamMembers, teams, users } from "./db/schema";
+import { accounts, teamMembers, teams, users } from "./db/schema";
 import { sendWelcomeEmail } from "./email";
 import { generateKSUID } from "./utils";
 
@@ -228,6 +228,23 @@ export const authOptions: NextAuthOptions = {
             // Store admin info for audit and exit
             session.user.isImpersonating = true;
             session.user.realAdminId = token.realAdminId as string;
+
+            // Fetch impersonated user's GitHub account for OAuth token
+            const [githubAccount] = await db
+              .select()
+              .from(accounts)
+              .where(
+                and(
+                  eq(accounts.userId, impersonatedUser.id),
+                  eq(accounts.provider, "github")
+                )
+              )
+              .limit(1);
+
+            if (githubAccount) {
+              session.user.githubAccessToken = githubAccount.access_token ?? undefined;
+              session.user.githubId = githubAccount.providerAccountId;
+            }
           }
         } else {
           // Normal session
