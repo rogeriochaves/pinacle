@@ -84,6 +84,25 @@ export const getResourceTierByName = (name: string): ResourceTier | undefined =>
 };
 
 /**
+ * Ordered list of tier IDs from smallest to largest
+ */
+export const TIER_ORDER: TierId[] = ["dev.small", "dev.medium", "dev.large", "dev.xlarge"];
+
+/**
+ * Get the index of a tier in the ordered list (for comparison)
+ */
+export const getTierIndex = (tierId: TierId): number => {
+  return TIER_ORDER.indexOf(tierId);
+};
+
+/**
+ * Check if a tier is at or above the minimum required tier
+ */
+export const isTierAtOrAbove = (tierId: TierId, minimumTierId: TierId): boolean => {
+  return getTierIndex(tierId) >= getTierIndex(minimumTierId);
+};
+
+/**
  * Pricing table with all currencies
  * Single source of truth for all pricing across the application
  * Used by: frontend (pricing pages), backend (billing), scripts (Stripe setup)

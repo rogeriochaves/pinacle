@@ -11,7 +11,11 @@ import {
 } from "../../lib/dotenv";
 import type { PinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
 import { parsePinacleConfig } from "../../lib/pod-orchestration/pinacle-config";
-import { RESOURCE_TIERS } from "../../lib/pod-orchestration/resource-tier-registry";
+import {
+  isTierAtOrAbove,
+  RESOURCE_TIERS,
+  type TierId,
+} from "../../lib/pod-orchestration/resource-tier-registry";
 import type { ServiceId } from "../../lib/pod-orchestration/service-registry";
 import {
   getCodingAssistantByUrlParam,
@@ -23,6 +27,7 @@ import { api } from "../../lib/trpc/client";
 import type { GitHubOrg, GitHubRepo, SetupFormValues } from "../../types/setup";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
+import { TooltipProvider } from "../ui/tooltip";
 import { ConfigurationSummary } from "./configuration-summary";
 import { EnvironmentVariables } from "./environment-variables";
 import { RepositorySelector } from "./repository-selector";
@@ -330,6 +335,13 @@ export const ConfigureForm = ({
       setDotenvContent(generatedDotenv);
       setDefaultDotenvContent(generatedDotenv);
 
+      // Auto-bump tier if current selection is below template's minimum
+      const currentTier = (tier || "dev.small") as TierId;
+      const templateMinTier = (selectedTemplate.tier || "dev.small") as TierId;
+      if (!isTierAtOrAbove(currentTier, templateMinTier)) {
+        form.setValue("tier", templateMinTier);
+      }
+
       // Intelligently merge template services with current selection
       setCustomServices((currentServices) => {
         // 1. Preserve the currently selected coding assistant
@@ -372,7 +384,7 @@ export const ConfigureForm = ({
 
       form.setValue("bundle", selectedTemplate.id);
     }
-  }, [selectedTemplate, form, agent, isRestoringFromCheckout]);
+  }, [selectedTemplate, form, agent, isRestoringFromCheckout, tier]);
 
   const handleSubmit = async (data: SetupFormValues) => {
     // Validate env vars before submission
@@ -410,9 +422,10 @@ export const ConfigureForm = ({
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Form */}
-      <div className="flex-4 bg-slate-50 flex justify-end overflow-y-auto">
+    <TooltipProvider delayDuration={200}>
+      <div className="min-h-screen flex">
+        {/* Left side - Form */}
+        <div className="flex-4 bg-slate-50 flex justify-end overflow-y-auto">
         <div className="w-full max-w-3xl px-8 py-8">
           {/* Back button with title */}
           <div className="flex items-center gap-3 mb-8">
@@ -632,6 +645,7 @@ export const ConfigureForm = ({
                 }
                 currency={currency}
                 isCurrencyLoading={isCurrencyLoading}
+                minimumTier={(selectedTemplate?.tier || "dev.small") as TierId}
               />
             </div>
 
@@ -689,6 +703,7 @@ export const ConfigureForm = ({
         isCreating={isCreating}
         selectedServices={customServices}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };

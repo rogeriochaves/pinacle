@@ -376,6 +376,7 @@
     "applicationUrl": "Application URL (optional)",
     "applicationUrlPlaceholder": "z.B.: http://localhost:3000",
     "computeResources": "COMPUTE RESOURCES",
+    "tierTooSmall": "Diese Stufe ist zu klein für die ausgewählte Vorlage. Minimum: {minimumTier}",
     "serverAdminOnly": "SERVER (NUR ADMIN)",
     "autoAssign": "Auto-assign (Standard)",
     "serverSelectionNote": "Lass \"Auto-assign\" für Production. Server nur für Testing angeben.",

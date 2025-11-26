@@ -12882,3 +12882,514 @@ The "Pull from container" button is still available for manual refresh if needed
 
 ---
 
+_**User (2025-11-26 22:04Z)**_
+
+now add all the files and commit EVERYTHING you did, with a nice conventional commit message
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit all the changes with a nice conventional commit message. Let me stage all files and create a comprehensive commit message that covers all the work done.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git status</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add -A && git status
+```
+
+```
+On branch main
+Your branch is up to date with &#39;origin/main&#39;.
+
+Changes to be committed:
+  (use &quot;git restore --staged &lt;file&gt;...&quot; to unstage)
+	new file:   .specstory/history/2025-11-26_19-37Z-switching-to-dotenv-file-for-env-vars.md
+	new file:   drizzle/0028_silent_karnak.sql
+	new file:   drizzle/0029_neat_puck.sql
+	new file:   drizzle/meta/0028_snapshot.json
+	new file:   drizzle/meta/0029_snapshot.json
+	modified:   drizzle/meta/_journal.json
+	modified:   package.json
+	modified:   pnpm-lock.yaml
+	new file:   scripts/migrate-env-to-dotenv.ts
+	modified:   src/components/admin/metrics-chart.tsx
+	modified:   src/components/analytics/google-analytics.tsx
+	modified:   src/components/analytics/posthog-identifier.tsx
+	modified:   src/components/analytics/utm-capture.tsx
+	modified:   src/components/analytics/utm-persister.tsx
+	new file:   src/components/dashboard/env-editor.tsx
+	modified:   src/components/dashboard/pod-details-panel.tsx
+	modified:   src/components/dashboard/pod-selector.tsx
+	modified:   src/components/dashboard/screenshot-iframe.tsx
+	modified:   src/components/dashboard/use-screenshot.ts
+	modified:   src/components/dashboard/workbench.tsx
+	modified:   src/components/icons/docker.tsx
+	modified:   src/components/landing/cta.tsx
+	modified:   src/components/landing/footer.tsx
+	modified:   src/components/landing/hero.tsx
+	modified:   src/components/landing/jump-right-back.tsx
+	modified:   src/components/landing/pricing.tsx
+	modified:   src/components/loading-fallback.tsx
+	modified:   src/components/setup/checkout-status-banner.tsx
+	modified:   src/components/setup/configure-form.tsx
+	modified:   src/components/setup/environment-variables.tsx
+	modified:   src/components/setup/service-customizer.tsx
+	modified:   src/components/setup/setup-form.tsx
+	modified:   src/components/setup/setup-progress.tsx
+	modified:   src/components/setup/template-selector.tsx
+	modified:   src/components/shared/github-reauth-button.tsx
+	modified:   src/components/ui/alert-dialog.tsx
+	modified:   src/components/ui/avatar.tsx
+	modified:   src/components/ui/badge.tsx
+	modified:   src/components/ui/command.tsx
+	modified:   src/components/ui/dialog.tsx
+	new file:   src/components/ui/dotenv-editor.tsx
+	modified:   src/components/ui/dropdown-menu.tsx
+	modified:   src/components/ui/form.tsx
+	modified:   src/components/ui/label.tsx
+	modified:   src/components/ui/navigation-menu.tsx
+	modified:   src/components/ui/radio-group.tsx
+	modified:   src/components/ui/scroll-area.tsx
+	modified:   src/components/ui/sonner.tsx
+	modified:   src/components/ui/tabs.tsx
+	modified:   src/components/ui/textarea.tsx
+	modified:   src/components/ui/tooltip.tsx
+	modified:   src/lib/db/schema.ts
+	new file:   src/lib/dotenv.ts
+	modified:   src/lib/pod-orchestration/__tests__/integration.test.ts
+	modified:   src/lib/pod-orchestration/container-runtime.ts
+	modified:   src/lib/pod-orchestration/pod-provisioning-service.ts
+	modified:   src/lib/pod-orchestration/template-registry.ts
+	modified:   src/lib/proxy/__tests__/proxy.test.ts
+	modified:   src/lib/trpc/helpers/pod-recreate-helper.ts
+	modified:   src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts
+	modified:   src/lib/trpc/routers/env-sets.ts
+	modified:   src/lib/trpc/routers/pods.ts
+	modified:   src/messages/de.json
+	modified:   src/messages/en.json
+	modified:   src/messages/es.json
+	modified:   src/messages/fr.json
+	modified:   src/messages/ja.json
+	modified:   src/messages/pt.json
+	modified:   src/messages/ru.json
+	modified:   src/messages/zh.json
+
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+That's a lot of files. Let me create a nice conventional commit message that covers all these changes. The main changes are:
+
+1. Refactored env vars from JSON to dotenv format
+2. Added bidirectional sync between DB and container .env file
+3. Added syntax highlighting with prismjs
+4. Added validation
+5. Renamed env_set table to dotenv
+6. Created migration script
+7. Added auto-sync when container changes detected
+8. i18n updates
+
+Let me create a comprehensive commit message.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat(env): refactor environment variables to dotenv format with bidirectional sync
+
+BREAKING CHANGE: env_set table renamed to dotenv, variables column renamed to content
+
+- Replace JSON key/value env vars with free-text dotenv format
+- Add bidirectional sync between DB and container .env file
+- Auto-sync from container when changes detected (no manual action needed)
+- Add syntax highlighting with prismjs for dotenv editor
+- Add comprehensive dotenv validation (variable names, quotes, format)
+- Create reusable DotenvEditor component with show/hide toggle
+- Allow templates to define full default .env content via generateDefaultEnv()
+- Remove Docker -e flag injection (apps read .env directly)
+- Add SHA-256 hash tracking for change detection
+- Add migration script: pnpm db:migrate-env-to-dotenv
+
+Database changes:
+- Rename env_set -> dotenv table
+- Rename variables -> content column
+- Rename env_set_id -> dotenv_id in pods table
+- Add content_hash, last_synced_at, last_modified_source columns
+
+New dependencies: react-simple-code-editor, prismjs"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git commit -m "feat(env): refactor environment variables to dotenv format with bidirectional sync
+
+BREAKING CHANGE: env_set table renamed to dotenv, variables column renamed to content
+
+- Replace JSON key/value env vars with free-text dotenv format
+- Add bidirectional sync between DB and container .env file
+- Auto-sync from container when changes detected (no manual action needed)
+- Add syntax highlighting with prismjs for dotenv editor
+- Add comprehensive dotenv validation (variable names, quotes, format)
+- Create reusable DotenvEditor component with show/hide toggle
+- Allow templates to define full default .env content via generateDefaultEnv()
+- Remove Docker -e flag injection (apps read .env directly)
+- Add SHA-256 hash tracking for change detection
+- Add migration script: pnpm db:migrate-env-to-dotenv
+
+Database changes:
+- Rename env_set -> dotenv table
+- Rename variables -> content column
+- Rename env_set_id -> dotenv_id in pods table
+- Add content_hash, last_synced_at, last_modified_source columns
+
+New dependencies: react-simple-code-editor, prismjs"
+```
+
+```
+[main cf72cca] feat(env): refactor environment variables to dotenv format with bidirectional sync
+ 70 files changed, 7440 insertions(+), 589 deletions(-)
+ create mode 100644 .specstory/history/2025-11-26_19-37Z-switching-to-dotenv-file-for-env-vars.md
+ create mode 100644 drizzle/0028_silent_karnak.sql
+ create mode 100644 drizzle/0029_neat_puck.sql
+ create mode 100644 drizzle/meta/0028_snapshot.json
+ create mode 100644 drizzle/meta/0029_snapshot.json
+ create mode 100644 scripts/migrate-env-to-dotenv.ts
+ create mode 100644 src/components/dashboard/env-editor.tsx
+ create mode 100644 src/components/ui/dotenv-editor.tsx
+ create mode 100644 src/lib/dotenv.ts
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The commit was successful. 70 files changed with 7440 insertions and 589 deletions.</details></think>
+
+---
+
+Done! Committed `cf72cca` with 70 files changed:
+
+```
+feat(env): refactor environment variables to dotenv format with bidirectional sync
+
+BREAKING CHANGE: env_set table renamed to dotenv, variables column renamed to content
+
+- Replace JSON key/value env vars with free-text dotenv format
+- Add bidirectional sync between DB and container .env file
+- Auto-sync from container when changes detected (no manual action needed)
+- Add syntax highlighting with prismjs for dotenv editor
+- Add comprehensive dotenv validation (variable names, quotes, format)
+- Create reusable DotenvEditor component with show/hide toggle
+- Allow templates to define full default .env content via generateDefaultEnv()
+- Remove Docker -e flag injection (apps read .env directly)
+- Add SHA-256 hash tracking for change detection
+- Add migration script: pnpm db:migrate-env-to-dotenv
+
+Database changes:
+- Rename env_set -> dotenv table
+- Rename variables -> content column  
+- Rename env_set_id -> dotenv_id in pods table
+- Add content_hash, last_synced_at, last_modified_source columns
+
+New dependencies: react-simple-code-editor, prismjs
+```
+
+---
+
+_**User (2025-11-26 22:08Z)**_
+
+ok one problem missing, during provisioning:
+
+
+
+$ sh -c 'cd /workspace/testing20251126 && pnpm db:migrate'
+
+
+
+> ai-chatbot@3.1.0 db:migrate /workspace/testing20251126
+
+> npx tsx lib/db/migrate.ts
+
+ ELIFECYCLE  Command failed with exit code 1.
+
+❌ Migration failed
+
+Error: POSTGRES_URL is not defined
+
+    at runMigrate (/workspace/testing20251126/lib/db/migrate.ts:12:11)
+
+    at postgres (/workspace/testing20251126/lib/db/migrate.ts:28:1)
+
+    at Object.<anonymous> (/workspace/testing20251126/lib/db/migrate.ts:32:2)
+
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+
+    at Object.transformer (/workspace/testing20251126/node_modules/.pnpm/tsx@4.19.3/node_modules/tsx/dist/register-DCnOAxY2.cjs:2:1186)
+
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+
+    at cjsLoader (node:internal/modules/esm/translators:309:5)
+
+
+
+
+
+
+
+we need to inject the .env file in the folder during provisioning
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is saying that during pod provisioning, the migration script runs but fails because POSTGRES_URL is not defined. This means the `.env` file needs to be written to the container BEFORE any setup commands (like `pnpm db:migrate`) are run.
+
+Let me check the pod provisioning service to see where the .env file is being written and where the setup commands are being executed:</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the problem! The `.env` file is written **after** the pod is created and started (step 7.5), but the setup commands like `pnpm db:migrate` run as part of the pod creation process (inside `podManager.createPod(spec)`).
+
+The `.env` file needs to be written **before** any setup commands run. Let me check how `createPod` works and where setup commands are executed:</details></think>
+
+---
+
+I see the issue! The `.env` file is written at step 7.5 **after** `podManager.createPod(spec)`, but the setup commands (like `pnpm db:migrate`) run **during** `createPod`. Let me check where setup commands are executed:
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "setup|install|migrate" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-manager.ts" • 9 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/pod-manager.ts` | `await this.networkManager.setupPortForwarding(spec.id, port);` | L107 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `await this.setupGitHubRepository(spec, pinacleConfig);` | L125 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `// Run install command if present` | L140 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `if (spec.installCommand) \{` | L141 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `console.log(`[PodManager] Running install command for pod $\{spec.id\}`);` | L142 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `private async setupGitHubRepository(` | L538 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `const setup: GitHubRepoSetup = \{` | L546 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `await this.githubIntegration.setupRepository(` | L560 |
+| `src/lib/pod-orchestration/pod-manager.ts` | `setup,` | L562 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see - the install command runs as step 5 in `createPod`, after the GitHub repository is set up. The issue is that the `.env` file is written **after** `createPod()` completes, but the `installCommand` (which includes `pnpm db:migrate` for the chatbot template) runs **during** `createPod()`.
+
+The fix is to write the `.env` file **before** running the install command. I need to pass the dotenvContent to `createPod` so it can write the `.env` file at the right time.
+
+Let me look at the pod-manager more closely to see where exactly to inject the .env writing:</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-manager.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the flow now:
+1. Container is created (line 92)
+2. Container is started (line 101)
+3. GitHub repo is cloned (line 125)
+4. `installCommand` runs (line 143) - this is where `pnpm db:migrate` happens
+
+The `.env` file needs to be written **after** the repo is cloned (so the directory exists) but **before** the `installCommand` runs.
+
+The simplest fix is to:
+1. Pass `dotenvContent` to `createPod` via `spec`
+2. Write the `.env` file right after GitHub setup, before `installCommand` runs
+
+Let me modify the code:
+
+1. First, update the PodSpec type to include `dotenvContent`
+2. Then update `PodManager.createPod` to write the `.env` file before `installCommand`
+3. Update `PodProvisioningService` to pass `dotenvContent` to `createPod` via `spec`
+4. Remove the old `.env` writing code from provisioning service (step 7.5)
+
+Let me check the PodSpec type first:</details></think>
+
+---
+
+I see the issue. The `.env` needs to be written **after** the repo is cloned but **before** the `installCommand` runs. Let me fix this:
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "type PodSpec|interface PodSpec" in "/Users/rchaves/Projects/pinacle/src/lib/pod-orchestration" • 1 match</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/lib/pod-orchestration/types.ts` | `export interface PodSpec` | L75 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me read the types.ts file to see the PodSpec interface.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/types.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add `dotenvContent` to the `PodSpec` interface and then use it in the `PodManager` to write the `.env` file before running the install command.Let me:
+1. Add `dotenvContent?: string` to the PodSpec interface
+2. Pass it from `PodProvisioningService` via the spec
+3. Write it in `PodManager.createPod` after GitHub setup and before install command
+4. Remove the old .env writing code from provisioning service</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/types.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -103,4 +103,7 @@
+    environment: Record&lt;string, string&gt;;
+    secrets?: Record&lt;string, string&gt;;
++ 
++   // Raw dotenv content to write to .env file in container
++   dotenvContent?: string;
+  
+    // GitHub integration (runtime expanded)
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to:1. Update `PodManager.createPod` to write `.env` file after GitHub setup but before installCommand
+2. Update `PodProvisioningService` to pass `dotenvContent` in the spec, and remove the old step 7.5</details></think>
+
+---
+
+Now update `PodManager` to write `.env` after GitHub setup, before install command:
+
+---
+
+Cancelled
+
+---
+
+_**User (2025-11-26 22:08Z)**_
+
+sorry continue
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+<tool-use data-tool-type="unknown" data-tool-name="read_file">
+<details>
+<summary>Tool use: **read_file**</summary>
+
+Status: **loading**
+
+
+</details>
+</tool-use>
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+
+
+
+---
+

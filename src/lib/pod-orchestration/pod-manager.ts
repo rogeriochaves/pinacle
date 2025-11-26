@@ -132,6 +132,36 @@ export class PodManager extends EventEmitter {
         }
       }
 
+      // Write .env file to the container if we have dotenv content
+      if (spec.dotenvContent && podInstance.container?.id && spec.githubRepo) {
+        try {
+          const repoName = spec.githubRepo.split("/")[1];
+          const envFilePath = `/workspace/${repoName}/.env`;
+
+          // Write .env file using heredoc to avoid escaping issues
+          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
+${spec.dotenvContent}
+PINACLE_ENV_EOF`;
+
+          await this.containerRuntime.execInContainer(
+            spec.id,
+            podInstance.container.id,
+            ["sh", "-c", writeCommand],
+          );
+
+          console.log(
+            `[PodManager] Wrote .env file to ${envFilePath}`,
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[PodManager] Failed to write .env file: ${errorMessage}`,
+          );
+          // Don't fail provisioning if .env write fails
+        }
+      }
+
       // Determine if this is an existing repo (affects error handling)
       const isExistingRepo: boolean = !!(
         spec.githubRepo && spec.githubRepoSetup?.type === "existing"

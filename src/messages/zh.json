@@ -376,6 +376,7 @@
     "applicationUrl": "应用 URL（可选）",
     "applicationUrlPlaceholder": "例如：http://localhost:3000",
     "computeResources": "计算资源",
+    "tierTooSmall": "此级别对选定的模板来说太小了。最小: {minimumTier}",
     "serverAdminOnly": "服务器（仅 ADMIN）",
     "autoAssign": "自动分配（默认）",
     "serverSelectionNote": "生产环境保持\"自动分配\"。仅测试时指定服务器。",

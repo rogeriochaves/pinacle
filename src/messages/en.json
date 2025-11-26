@@ -377,6 +377,7 @@
     "applicationUrl": "Application URL (optional)",
     "applicationUrlPlaceholder": "e.g., http://localhost:3000",
     "computeResources": "COMPUTE RESOURCES",
+    "tierTooSmall": "This tier is too small for the selected template. Minimum: {minimumTier}",
     "serverAdminOnly": "SERVER (ADMIN ONLY)",
     "autoAssign": "Auto-assign (default)",
     "serverSelectionNote": "Leave as \"Auto-assign\" for production. Specify server only for testing.",

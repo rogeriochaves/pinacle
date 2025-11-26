@@ -167,6 +167,9 @@ export class PodProvisioningService {
         hasPinacleYaml: hasPinacleYaml,
       });
 
+      // Attach dotenv content to spec so PodManager can write .env before install command
+      spec.dotenvContent = dotenvContent || undefined;
+
       console.log(
         "[PodProvisioningService] Provisioning pod with spec:",
         JSON.stringify(spec, null, 2),
@@ -174,54 +177,30 @@ export class PodProvisioningService {
 
       // 7. Provision the pod
       // Attention: this will mutate the spec, adding for example the proxy port
+      // Note: PodManager writes .env file after GitHub clone but before install command
       const podInstance = await podManager.createPod(spec);
 
-      // 7.5 Write .env file to the container if we have env vars
-      if (dotenvContent && podInstance.container?.id && podRecord.githubRepo) {
+      // 7.5 Update dotenv hash tracking in DB after provisioning
+      if (dotenvContent && podRecord.dotenvId) {
         try {
-          const { KataRuntime } = await import("./container-runtime");
-          const runtime = new KataRuntime(serverConnection);
+          const { calculateEnvHash } = await import("../dotenv");
+          const contentHash = await calculateEnvHash(dotenvContent);
 
-          const repoName = podRecord.githubRepo.split("/")[1];
-          const envFilePath = `/workspace/${repoName}/.env`;
-
-          // Write .env file using heredoc to avoid escaping issues
-          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
-${dotenvContent}
-PINACLE_ENV_EOF`;
-
-          await runtime.execInContainer(podId, podInstance.container.id, [
-            "sh",
-            "-c",
-            writeCommand,
-          ]);
-
-          console.log(
-            `[PodProvisioningService] Wrote .env file to ${envFilePath}`,
-          );
-
-          // Update the dotenv with content hash for sync tracking
-          if (podRecord.dotenvId) {
-            const { calculateEnvHash } = await import("../dotenv");
-            const contentHash = await calculateEnvHash(dotenvContent);
-
-            await db
-              .update(dotenvs)
-              .set({
-                contentHash,
-                lastSyncedAt: new Date(),
-                lastModifiedSource: "db",
-                updatedAt: new Date(),
-              })
-              .where(eq(dotenvs.id, podRecord.dotenvId));
-          }
+          await db
+            .update(dotenvs)
+            .set({
+              contentHash,
+              lastSyncedAt: new Date(),
+              lastModifiedSource: "db",
+              updatedAt: new Date(),
+            })
+            .where(eq(dotenvs.id, podRecord.dotenvId));
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           console.warn(
-            `[PodProvisioningService] Failed to write .env file: ${errorMessage}`,
+            `[PodProvisioningService] Failed to update dotenv hash: ${errorMessage}`,
           );
-          // Don't fail provisioning if .env write fails
         }
       }
 

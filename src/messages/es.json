@@ -376,6 +376,7 @@
     "applicationUrl": "URL de la Aplicación (opcional)",
     "applicationUrlPlaceholder": "ej: http://localhost:3000",
     "computeResources": "RECURSOS DE CÓMPUTO",
+    "tierTooSmall": "Este nivel es demasiado pequeño para la plantilla seleccionada. Mínimo: {minimumTier}",
     "serverAdminOnly": "SERVIDOR (SOLO ADMIN)",
     "autoAssign": "Auto-asignar (predeterminado)",
     "serverSelectionNote": "Deja como \"Auto-asignar\" para producción. Especifica servidor solo para pruebas.",

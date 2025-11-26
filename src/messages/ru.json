@@ -376,6 +376,7 @@
     "applicationUrl": "URL приложения (опционально)",
     "applicationUrlPlaceholder": "напр: http://localhost:3000",
     "computeResources": "ВЫЧИСЛИТЕЛЬНЫЕ РЕСУРСЫ",
+    "tierTooSmall": "Этот уровень слишком мал для выбранного шаблона. Минимум: {minimumTier}",
     "serverAdminOnly": "СЕРВЕР (ТОЛЬКО АДМИН)",
     "autoAssign": "Авто-назначение (по умолчанию)",
     "serverSelectionNote": "Оставь \"Авто-назначение\" для продакшена. Указывай сервер только для тестов.",

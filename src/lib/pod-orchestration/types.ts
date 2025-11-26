@@ -103,6 +103,9 @@ export interface PodSpec
   environment: Record<string, string>;
   secrets?: Record<string, string>;
 
+  // Raw dotenv content to write to .env file in container
+  dotenvContent?: string;
+
   // GitHub integration (runtime expanded)
   githubRepo?: string;
   githubBranch?: string;

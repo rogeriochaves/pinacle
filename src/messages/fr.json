@@ -363,6 +363,7 @@
     "applicationUrl": "URL de l'Application (optionnel)",
     "applicationUrlPlaceholder": "ex: http://localhost:3000",
     "computeResources": "RESSOURCES DE CALCUL",
+    "tierTooSmall": "Ce niveau est trop petit pour le modèle sélectionné. Minimum: {minimumTier}",
     "serverAdminOnly": "SERVEUR (ADMIN SEULEMENT)",
     "autoAssign": "Auto-assigner (par défaut)",
     "serverSelectionNote": "Laisse \"Auto-assigner\" pour la prod. Spécifie un serveur uniquement pour les tests.",

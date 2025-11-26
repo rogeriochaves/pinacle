@@ -376,6 +376,7 @@
     "applicationUrl": "アプリケーション URL（オプション）",
     "applicationUrlPlaceholder": "例：http://localhost:3000",
     "computeResources": "コンピュートリソース",
+    "tierTooSmall": "このレベルは選択されたテンプレートに対して小さすぎます。最小: {minimumTier}",
     "serverAdminOnly": "サーバー（ADMIN のみ）",
     "autoAssign": "自動割り当て（デフォルト）",
     "serverSelectionNote": "本番環境では「自動割り当て」のままにしてください。テスト時のみサーバーを指定します。",
