@@ -1,0 +1,75 @@
+# Troubleshooting [Common issues and solutions]
+
+## My App/Process Keeps Being Killed
+
+If your application or processes are unexpectedly terminating, the most common cause is exceeding CPU or memory limits.
+
+### Check Resource Usage
+
+1. Click on the pod dropdown (top-left corner of the workbench)
+2. Click "Pod Details"
+3. Check the CPU and memory usage graphs
+
+### Causes
+
+**High CPU Usage**: If your process consistently uses CPU above your tier's limit, the system may throttle or kill it to protect other workloads.
+
+**Memory Exceeded**: Pods have hard memory limits. When a process exceeds available RAM, the kernel's OOM (Out of Memory) killer terminates it.
+
+### Solutions
+
+- **Optimize your code**: Look for infinite loops, inefficient algorithms, or memory leaks
+- **Upgrade your tier**: If your workload legitimately needs more resources, consider upgrading to a higher [resource tier](/resource-tiers)
+- **Reduce concurrent processes**: Run fewer background processes or services simultaneously
+- **Check for runaway builds**: Large `npm install` or compilation tasks can spike resource usage temporarily
+
+## Network Connections Failing or Timing Out
+
+Pods run inside Firecracker microVMs with virtualized networking. Some network behaviors differ from a standard Linux environment.
+
+### Common Issues
+
+**Outbound connections blocked**: By default, pods can reach the internet, but some protocols or ports may be restricted.
+
+**Services not accessible**: Your app might be running but not reachable from the browser.
+
+### Solutions
+
+- **Bind to 0.0.0.0**: Ensure your server binds to `0.0.0.0` instead of `127.0.0.1` or `localhost`. Firecracker's network bridge requires services to listen on all interfaces.
+
+  ```javascript
+  // ❌ Won't be accessible from outside the VM
+  app.listen(3000, 'localhost')
+
+  // ✅ Accessible through Pinacle's proxy
+  app.listen(3000, '0.0.0.0')
+  ```
+
+- **Use standard ports**: Pinacle automatically exposes common development ports (3000, 5173, 8080, etc.). Check that your app uses a supported port.
+
+- **Check firewall rules**: If you've modified iptables or installed a firewall inside the pod, it may be blocking traffic.
+
+- **DNS resolution**: If DNS lookups fail, try using explicit IP addresses or check that `/etc/resolv.conf` hasn't been corrupted.
+
+## Pod Won't Start or Gets Stuck Provisioning
+
+### Causes
+
+- **Invalid pinacle.yaml**: Syntax errors or invalid configuration
+- **Large repository**: Repositories with many large files take longer to clone
+- **Service conflicts**: Incompatible service combinations
+
+### Solutions
+
+- **Check pinacle.yaml syntax**: Validate your YAML at [yamllint.com](https://www.yamllint.com/)
+- **Use .gitignore**: Exclude `node_modules`, build artifacts, and large binaries from your repository
+- **Start minimal**: Create a pod without extra services, then add them one at a time
+- **Check status**: If stuck for more than 5 minutes, try stopping and restarting the pod
+
+## Still Need Help?
+
+If you're experiencing an issue not covered here:
+
+- Email: hello@pinacle.dev
+- Include your pod ID and a description of the problem
+
