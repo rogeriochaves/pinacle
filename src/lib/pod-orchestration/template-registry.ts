@@ -512,30 +512,41 @@ EOF`,
     name: "Next.js AI Chatbot",
     icon: "/logos/nextjs.svg",
     iconAlt: "Next.js",
-    techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS",
+    techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS, PostgreSQL",
     mainUseCaseKey: "templates.buildAiAgents",
     category: "ai",
     popular: false,
 
     baseImage: "pinacledev/pinacle-base",
-    tier: "dev.small",
-    cpuCores: 0.5,
-    memoryGb: 1,
-    storageGb: 10,
+    tier: "dev.medium",
+    cpuCores: 1,
+    memoryGb: 2,
+    storageGb: 20,
 
-    services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
+    services: [
+      "claude-code",
+      "vibe-kanban",
+      "code-server",
+      "web-terminal",
+      "postgres",
+    ],
     defaultPorts: [
       { name: "code", internal: 8726 },
       { name: "kanban", internal: 5262 },
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
+      { name: "postgres", internal: 5432 },
     ],
     environment: {
       NODE_ENV: "development",
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: [],
+    requiredEnvVars: ["AUTH_SECRET", "POSTGRES_URL"],
+    envVarDefaults: {
+      AUTH_SECRET: () => generateRandomSecret(32),
+      POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
+    },
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -549,9 +560,21 @@ EOF`,
 
     templateType: "nextjs",
     initScript: [
-      "cd /workspace",
-      "npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias '@/*' --no-git",
-      "npm install ai @ai-sdk/anthropic",
+      // 1. Clone the Vercel AI Chatbot
+      "git clone https://github.com/vercel/ai-chatbot.git temp-ai-chatbot",
+      "rm -rf temp-ai-chatbot/.git",
+      "mv temp-ai-chatbot/* .",
+      "mv temp-ai-chatbot/.* . 2>/dev/null || true",
+      "rm -rf temp-ai-chatbot",
+
+      // 2. Install dependencies
+      "pnpm install",
+
+      // 3. Wait for Postgres to be ready
+      "until pg_isready -h localhost -U postgres; do echo 'Waiting for postgres...'; sleep 2; done",
+
+      // 4. Run database migrations
+      "pnpm db:migrate",
     ],
   },
 
