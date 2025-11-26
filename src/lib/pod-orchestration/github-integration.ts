@@ -172,7 +172,7 @@ export class GitHubIntegration {
 
     try {
       // Extract project folder name from repository
-      const projectFolder = getProjectFolderFromRepository(repository);
+      const projectFolder = getProjectFolderFromRepository(repository)?.toLowerCase();
       if (!projectFolder) {
         throw new Error(
           `Could not extract project folder from repository: ${repository}`,
@@ -262,13 +262,13 @@ export class GitHubIntegration {
         );
         const yamlContent = serializePinacleConfig(pinacleConfig);
         const escapedContent = yamlContent.replace(/'/g, "'\\''");
-        
+
         await this.podManager.execInPod([
           "sh",
           "-c",
           `echo '${escapedContent}' > ${projectPath}/pinacle.yaml`,
         ]);
-        
+
         console.log(
           `[GitHubIntegration] Successfully wrote pinacle.yaml to ${projectPath}`,
         );

@@ -8,6 +8,7 @@ server-agent/dist
 # server.js - KEEP THIS
 # src/worker.js - KEEP THIS
 .next/cache
+.next/static/chunks/main.js
 dist
 build
 *.tsbuildinfo

@@ -13,14 +13,14 @@ export const setupFormSchema = z
       .refine(
         (val) => {
           if (!val) return true; // Optional field, only validate if provided
-          // GitHub repo name rules: alphanumeric, hyphens, underscores
+          // GitHub repo name rules: lowercase alphanumeric, hyphens, underscores
           // Cannot start/end with special chars, no spaces
-          const validPattern = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+          const validPattern = /^[a-z0-9][a-z0-9._-]*[a-z0-9]$|^[a-z0-9]$/;
           return validPattern.test(val);
         },
         {
           message:
-            "Repository name can only contain letters, numbers, hyphens and underscores. No spaces allowed.",
+            "Repository name can only contain lowercase letters, numbers, hyphens and underscores. Must end with a letter or number. No spaces allowed.",
         },
       ),
     podName: z.string().optional(), // Auto-generated on backend

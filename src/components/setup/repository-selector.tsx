@@ -151,7 +151,13 @@ export const RepositorySelector = ({
                   </Label>
                   <Input
                     placeholder="my-awesome-project"
-                    {...form.register("newRepoName")}
+                    {...form.register("newRepoName", {
+                      onChange: (e) => {
+                        e.target.value = e.target.value
+                          .toLowerCase()
+                          .replace(" ", "-");
+                      },
+                    })}
                     className="font-mono"
                   />
                   {errors.newRepoName?.message && (
