@@ -73,9 +73,7 @@ export const SetupProgress = ({
         {/* Title */}
         <div className="text-center">
           <h1 className="text-3xl sm:text-4xl font-bold font-mono text-white mb-2">
-            {currentStep === "project"
-              ? t("selectProject")
-              : t("configurePod")}
+            {currentStep === "project" ? t("selectProject") : t("configurePod")}
           </h1>
           <p className="text-slate-400 font-mono text-sm">
             {currentStep === "project"

@@ -18,4 +18,3 @@ export const LoadingFallback = ({ message }: LoadingFallbackProps) => {
     </div>
   );
 };
-

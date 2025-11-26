@@ -70,7 +70,8 @@ export const MetricsChart = ({
               padding: "8px 12px",
             }}
             formatter={(value: unknown) => {
-              const numValue = typeof value === "number" ? value : Number(value) || 0;
+              const numValue =
+                typeof value === "number" ? value : Number(value) || 0;
               return [`${numValue.toFixed(2)}${unit}`, title];
             }}
             labelStyle={{ color: "#374151", fontWeight: 600 }}
@@ -87,4 +88,3 @@ export const MetricsChart = ({
     </div>
   );
 };
-

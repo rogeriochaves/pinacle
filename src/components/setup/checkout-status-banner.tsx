@@ -41,7 +41,8 @@ export const CheckoutStatusBanner = ({
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-yellow-800 font-mono">
-              Checkout cancelled. You need an active subscription to create pods.
+              Checkout cancelled. You need an active subscription to create
+              pods.
             </p>
           </div>
         </div>
@@ -51,4 +52,3 @@ export const CheckoutStatusBanner = ({
 
   return null;
 };
-

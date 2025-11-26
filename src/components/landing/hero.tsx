@@ -1,8 +1,8 @@
 "use client";
 
 import { GithubIcon, Plus } from "lucide-react";
-import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "../ui/button";
 import { Header } from "./header";
 
@@ -120,9 +120,7 @@ export const Hero = () => {
             <h1 className="text-4xl font-bold font-mono tracking-tight">
               {t("title")}
             </h1>
-            <h2>
-              {t("subtitle")}
-            </h2>
+            <h2>{t("subtitle")}</h2>
             <div className="flex gap-4 pt-4">
               <Button asChild>
                 <a href="/setup?type=repository">

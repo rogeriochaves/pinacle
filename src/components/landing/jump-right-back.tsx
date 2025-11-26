@@ -92,11 +92,13 @@ export const JumpRightBack = () => {
                       </div>
                     )}
 
-                    <div className="font-mono font-bold pb-2">
-                      {pod.name}
-                    </div>
+                    <div className="font-mono font-bold pb-2">{pod.name}</div>
                     <div className="text-sm text-muted-foreground font-mono">
-                      {t("editedAgo", { time: formatRelativeTime(new Date(pod.screenshot.createdAt)) })}
+                      {t("editedAgo", {
+                        time: formatRelativeTime(
+                          new Date(pod.screenshot.createdAt),
+                        ),
+                      })}
                     </div>
                   </CardContent>
                 </Card>

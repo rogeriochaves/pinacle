@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import {
-  envSets,
+  dotenvs,
   pods,
   servers,
   teamMembers,
@@ -207,15 +207,14 @@ describe("Proxy Integration Tests", () => {
       customServices: ["claude-code"],
     });
 
-    // Create env set
+    // Create dotenv
     const [envSet] = await db
-      .insert(envSets)
+      .insert(dotenvs)
       .values({
-        id: generateKSUID("env_set"),
         name: "Proxy Test Env",
         ownerId: testUserId,
         teamId: testTeamId,
-        variables: JSON.stringify({ TEST_VAR: "proxy-test" }),
+        content: "TEST_VAR=proxy-test",
       })
       .returning();
 
@@ -230,7 +229,7 @@ describe("Proxy Integration Tests", () => {
         teamId: testTeamId,
         ownerId: testUserId,
         config: pinacleConfigToJSON(pinacleConfig),
-        envSetId: envSet.id,
+        dotenvId: envSet.id,
         monthlyPrice: 1000, // $10
         status: "creating",
       })

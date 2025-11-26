@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import {
-  envSets,
+  dotenvs,
   pods,
   servers,
   teamMembers,
@@ -203,15 +203,14 @@ describe("Pod Orchestration Integration Tests", () => {
       customServices: ["claude-code"],
     });
 
-    // Create env set
+    // Create dotenv
     const [envSet] = await db
-      .insert(envSets)
+      .insert(dotenvs)
       .values({
-        id: generateKSUID("env_set"),
         name: "Integration Test Env",
         ownerId: testUserId,
         teamId: testTeamId,
-        variables: JSON.stringify({ TEST_VAR: "integration-test" }),
+        content: "TEST_VAR=integration-test",
       })
       .returning();
 
@@ -226,7 +225,7 @@ describe("Pod Orchestration Integration Tests", () => {
         teamId: testTeamId,
         ownerId: testUserId,
         config: pinacleConfigToJSON(pinacleConfig),
-        envSetId: envSet.id,
+        dotenvId: envSet.id,
         monthlyPrice: 1000, // $10
         status: "creating",
       })
@@ -503,16 +502,12 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Create env set
     const [templateEnvSet] = await db
-      .insert(envSets)
+      .insert(dotenvs)
       .values({
-        id: generateKSUID("env_set"),
         name: "Template Test Env",
         ownerId: testUserId,
         teamId: testTeamId,
-        variables: JSON.stringify({
-          CUSTOM_VAR: "template-test",
-          NODE_ENV: "development",
-        }),
+        content: "CUSTOM_VAR=template-test\nNODE_ENV=development",
       })
       .returning();
 
@@ -524,7 +519,7 @@ describe("Pod Orchestration Integration Tests", () => {
       teamId: testTeamId,
       ownerId: testUserId,
       config: pinacleConfigToJSON(pinacleConfig),
-      envSetId: templateEnvSet.id,
+      dotenvId: templateEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });
@@ -589,13 +584,12 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Create env set
     const [proxyEnvSet] = await db
-      .insert(envSets)
+      .insert(dotenvs)
       .values({
-        id: generateKSUID("env_set"),
         name: "Proxy Test Env",
         ownerId: testUserId,
         teamId: testTeamId,
-        variables: JSON.stringify({ TEST_ENV: "hostname-routing" }),
+        content: "TEST_ENV=hostname-routing",
       })
       .returning();
 
@@ -607,7 +601,7 @@ describe("Pod Orchestration Integration Tests", () => {
       teamId: testTeamId,
       ownerId: testUserId,
       config: pinacleConfigToJSON(pinacleConfig),
-      envSetId: proxyEnvSet.id,
+      dotenvId: proxyEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });
@@ -751,13 +745,12 @@ describe("Pod Orchestration Integration Tests", () => {
 
     // Create env set
     const [githubEnvSet] = await db
-      .insert(envSets)
+      .insert(dotenvs)
       .values({
-        id: generateKSUID("env_set"),
         name: "GitHub Test Env",
         ownerId: testUserId,
         teamId: testTeamId,
-        variables: JSON.stringify({ NODE_ENV: "development" }),
+        content: "NODE_ENV=development",
       })
       .returning();
 
@@ -770,7 +763,7 @@ describe("Pod Orchestration Integration Tests", () => {
       ownerId: testUserId,
       githubRepo: testRepo,
       config: pinacleConfigToJSON(pinacleConfig),
-      envSetId: githubEnvSet.id,
+      dotenvId: githubEnvSet.id,
       monthlyPrice: 1000,
       status: "creating",
     });

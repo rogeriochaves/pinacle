@@ -127,7 +127,9 @@ export class KataRuntime {
     const containerName = this.generateContainerName(spec.id);
     const resourceLimits = this.parseResourceLimits(spec);
     const portMappings = this.parsePortMappings(spec.network.ports);
-    const envVars = this.parseEnvironmentVars(spec.environment);
+    // NOTE: Environment variables are no longer injected via Docker -e flags
+    // They are now managed via .env files in the workspace
+    // Apps should read from .env files using dotenv or similar libraries
 
     // If container already exists, remove it
     const { stdout } = await this.exec(
@@ -164,7 +166,7 @@ export class KataRuntime {
       containerName,
       ...resourceLimits.split(" ").filter(Boolean),
       ...portMappings.split(" ").filter(Boolean),
-      ...envVars.split(" ").filter(Boolean),
+      // No env vars - they're managed via .env files now
       ...volumeMounts.split(" ").filter(Boolean),
       "--workdir",
       spec.workingDir || "/workspace",

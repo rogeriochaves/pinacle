@@ -197,6 +197,20 @@
       "when": 1763850477312,
       "tag": "0027_workable_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1764190698495,
+      "tag": "0028_silent_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1764194486138,
+      "tag": "0029_neat_puck",
+      "breakpoints": true
     }
   ]
 }

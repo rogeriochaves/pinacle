@@ -41,4 +41,3 @@ export const PostHogIdentifier = () => {
 
   return null; // This component doesn't render anything
 };
-

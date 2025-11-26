@@ -35,9 +35,7 @@ export const Pricing = () => {
               <h1 className="text-4xl font-bold font-mono tracking-tight mb-4">
                 {t("title")}
               </h1>
-              <p className="text-lg text-gray-300 mb-2">
-                {t("subtitle")}
-              </p>
+              <p className="text-lg text-gray-300 mb-2">{t("subtitle")}</p>
             </div>
           </div>
         </div>
@@ -108,8 +106,8 @@ export const Pricing = () => {
                               {isLoading
                                 ? "..."
                                 : formatCurrency(monthlyPrice, currency, {
-                                  showDecimals: false,
-                                })}
+                                    showDecimals: false,
+                                  })}
                               <span className="text-sm text-gray-600 font-normal">
                                 {t("perMonth")}
                               </span>
@@ -127,7 +125,9 @@ export const Pricing = () => {
                               asChild
                               className="w-full"
                             >
-                              <Link href={"/setup?type=new"}>{t("getStarted")}</Link>
+                              <Link href={"/setup?type=new"}>
+                                {t("getStarted")}
+                              </Link>
                             </Button>
                           </td>
                         </tr>
@@ -171,18 +171,24 @@ export const Pricing = () => {
                         </div>
                       </div>
 
-                        <div className="space-y-3 mb-6">
+                      <div className="space-y-3 mb-6">
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.cpu} {t("vcpu")}</span>
+                          <span>
+                            {tier.cpu} {t("vcpu")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.memory} {t("gbMemory")}</span>
+                          <span>
+                            {tier.memory} {t("gbMemory")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700">
                           <Check className="h-4 w-4 text-orange-500" />
-                          <span>{tier.storage} {t("gbStorage")}</span>
+                          <span>
+                            {tier.storage} {t("gbStorage")}
+                          </span>
                         </div>
                       </div>
 
@@ -202,16 +208,16 @@ export const Pricing = () => {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
-                    <tr className="border-b-2 border-gray-300">
-                      <th className="text-left py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        {t("snapshots")}
-                      </th>
-                      <th className="text-right py-4 px-6 font-mono font-bold text-sm text-gray-700">
-                        {t("price")}
-                      </th>
-                      <th className="w-40 py-4 px-6"></th>
-                    </tr>
-                  </thead>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="text-left py-4 px-6 font-mono font-bold text-sm text-gray-700">
+                      {t("snapshots")}
+                    </th>
+                    <th className="text-right py-4 px-6 font-mono font-bold text-sm text-gray-700">
+                      {t("price")}
+                    </th>
+                    <th className="w-40 py-4 px-6"></th>
+                  </tr>
+                </thead>
                 <tbody>
                   <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                     <td className="py-5 px-6">
@@ -225,37 +231,37 @@ export const Pricing = () => {
                         </span>
                       </div>
                     </td>
-                      <td className="text-right py-5 px-6">
-                        <div className="font-mono font-bold text-gray-900">
-                          {isLoading
-                            ? "..."
-                            : formatCurrency(
-                                SNAPSHOT_STORAGE_PRICING[currency],
-                                currency,
-                                { showDecimals: true },
-                              )}
-                          <span className="text-sm text-gray-600 font-normal">
-                            {t("perGbMonth")}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-500 font-mono mt-1">
-                          {isLoading
-                            ? "(....... per hour)"
-                            : `(${formatHourlyPrice(
-                                SNAPSHOT_STORAGE_PRICING[currency],
-                                currency,
-                              )} ${t("perGbPerHour")})`}
-                        </div>
-                      </td>
-                      <td className="py-5 px-6 text-center">
-                        <Link
-                          href="/docs/snapshots"
-                          className="text-sm underline font-mono"
-                          target="_blank"
-                        >
-                          {t("viewDocs")}
-                        </Link>
-                      </td>
+                    <td className="text-right py-5 px-6">
+                      <div className="font-mono font-bold text-gray-900">
+                        {isLoading
+                          ? "..."
+                          : formatCurrency(
+                              SNAPSHOT_STORAGE_PRICING[currency],
+                              currency,
+                              { showDecimals: true },
+                            )}
+                        <span className="text-sm text-gray-600 font-normal">
+                          {t("perGbMonth")}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 font-mono mt-1">
+                        {isLoading
+                          ? "(....... per hour)"
+                          : `(${formatHourlyPrice(
+                              SNAPSHOT_STORAGE_PRICING[currency],
+                              currency,
+                            )} ${t("perGbPerHour")})`}
+                      </div>
+                    </td>
+                    <td className="py-5 px-6 text-center">
+                      <Link
+                        href="/docs/snapshots"
+                        className="text-sm underline font-mono"
+                        target="_blank"
+                      >
+                        {t("viewDocs")}
+                      </Link>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -320,7 +326,9 @@ export const Pricing = () => {
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">{t("features.vsCodeIntegration")}</span>
+                  <span className="text-gray-700">
+                    {t("features.vsCodeIntegration")}
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
@@ -330,7 +338,9 @@ export const Pricing = () => {
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-700">{t("features.githubSync")}</span>
+                  <span className="text-gray-700">
+                    {t("features.githubSync")}
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />

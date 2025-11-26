@@ -4,7 +4,10 @@ import { Check, LucidePlus, X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import type { CodingAssistantId, ServiceId } from "../../lib/pod-orchestration/service-registry";
+import type {
+  CodingAssistantId,
+  ServiceId,
+} from "../../lib/pod-orchestration/service-registry";
 import {
   CODING_ASSISTANTS,
   SERVICE_TEMPLATES,
@@ -26,7 +29,9 @@ import {
   SelectValue,
 } from "../ui/select";
 
-const CODING_ASSISTANT_KEYS = Object.keys(CODING_ASSISTANTS) as CodingAssistantId[];
+const CODING_ASSISTANT_KEYS = Object.keys(
+  CODING_ASSISTANTS,
+) as CodingAssistantId[];
 
 const AVAILABLE_TOOLS: ServiceId[] = ["vibe-kanban", "code-server"];
 
@@ -46,8 +51,12 @@ export const ServiceCustomizer = ({
 
   // Find the current coding assistant
   const currentCodingAssistant =
-    selectedServices.find((s) => CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId)) ||
-    defaultServices.find((s) => CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId)) ||
+    selectedServices.find((s) =>
+      CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId),
+    ) ||
+    defaultServices.find((s) =>
+      CODING_ASSISTANT_KEYS.includes(s as CodingAssistantId),
+    ) ||
     "claude-code";
 
   // Get selected tools (non-coding assistants)

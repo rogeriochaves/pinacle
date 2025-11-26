@@ -47,4 +47,3 @@ export const UTMPersister = () => {
 
   return null; // This component doesn't render anything
 };
-

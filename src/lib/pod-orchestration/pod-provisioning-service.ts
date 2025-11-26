@@ -7,7 +7,7 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { envSets, podLogs, pods, servers } from "../db/schema";
+import { dotenvs, podLogs, pods, servers } from "../db/schema";
 import { getPostHogServer } from "../posthog-server";
 import { getNextAvailableServer } from "../servers";
 import type { GitHubRepoSetup } from "./github-integration";
@@ -126,19 +126,30 @@ export class PodProvisioningService {
         `[PodProvisioningService] Expanding config${pinacleConfig.template ? ` with template: ${pinacleConfig.template}` : ""}`,
       );
 
-      // Load environment variables from env set if attached
+      // Load environment variables from dotenv if attached
       let environment: Record<string, string> = {};
-      if (podRecord.envSetId) {
-        const [envSet] = await db
+      let dotenvContent = "";
+      if (podRecord.dotenvId) {
+        const [dotenv] = await db
           .select()
-          .from(envSets)
-          .where(eq(envSets.id, podRecord.envSetId))
+          .from(dotenvs)
+          .where(eq(dotenvs.id, podRecord.dotenvId))
           .limit(1);
 
-        if (envSet) {
-          environment = JSON.parse(envSet.variables);
+        if (dotenv) {
+          // Import dotenv utilities
+          const { getEnvVars, isJsonFormat } = await import("../dotenv");
+
+          // Parse env vars from either JSON (legacy) or dotenv format
+          environment = getEnvVars(dotenv.content);
+
+          // Keep raw dotenv content for writing to .env file
+          dotenvContent = isJsonFormat(dotenv.content)
+            ? "" // Legacy format - will generate from parsed vars
+            : dotenv.content;
+
           console.log(
-            `[PodProvisioningService] Loaded ${Object.keys(environment).length} env vars from env set: ${envSet.name}`,
+            `[PodProvisioningService] Loaded ${Object.keys(environment).length} env vars from dotenv: ${dotenv.name}`,
           );
         }
       }
@@ -164,6 +175,55 @@ export class PodProvisioningService {
       // 7. Provision the pod
       // Attention: this will mutate the spec, adding for example the proxy port
       const podInstance = await podManager.createPod(spec);
+
+      // 7.5 Write .env file to the container if we have env vars
+      if (dotenvContent && podInstance.container?.id && podRecord.githubRepo) {
+        try {
+          const { KataRuntime } = await import("./container-runtime");
+          const runtime = new KataRuntime(serverConnection);
+
+          const repoName = podRecord.githubRepo.split("/")[1];
+          const envFilePath = `/workspace/${repoName}/.env`;
+
+          // Write .env file using heredoc to avoid escaping issues
+          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
+${dotenvContent}
+PINACLE_ENV_EOF`;
+
+          await runtime.execInContainer(podId, podInstance.container.id, [
+            "sh",
+            "-c",
+            writeCommand,
+          ]);
+
+          console.log(
+            `[PodProvisioningService] Wrote .env file to ${envFilePath}`,
+          );
+
+          // Update the dotenv with content hash for sync tracking
+          if (podRecord.dotenvId) {
+            const { calculateEnvHash } = await import("../dotenv");
+            const contentHash = await calculateEnvHash(dotenvContent);
+
+            await db
+              .update(dotenvs)
+              .set({
+                contentHash,
+                lastSyncedAt: new Date(),
+                lastModifiedSource: "db",
+                updatedAt: new Date(),
+              })
+              .where(eq(dotenvs.id, podRecord.dotenvId));
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.warn(
+            `[PodProvisioningService] Failed to write .env file: ${errorMessage}`,
+          );
+          // Don't fail provisioning if .env write fails
+        }
+      }
 
       // 8. Convert PodSpec back to PinacleConfig to update database
       // This ensures database has the complete config including processes/install/tabs from template

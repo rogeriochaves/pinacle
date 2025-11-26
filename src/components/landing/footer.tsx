@@ -56,7 +56,11 @@ export const Footer = () => {
                       <Link
                         href={item.href}
                         className="text-sm leading-6 text-gray-300 hover:text-white"
-                        target={item.href === "/docs" || item.href.startsWith("http") ? "_blank" : undefined}
+                        target={
+                          item.href === "/docs" || item.href.startsWith("http")
+                            ? "_blank"
+                            : undefined
+                        }
                       >
                         {item.name}
                       </Link>
@@ -106,9 +110,7 @@ export const Footer = () => {
             <p className="text-sm leading-6 text-gray-300">
               {t("description")}
             </p>
-            <p className="text-sm leading-6 text-gray-300">
-              hello@pinacle.dev
-            </p>
+            <p className="text-sm leading-6 text-gray-300">hello@pinacle.dev</p>
             <div className="flex space-x-6">
               {navigation.social.map((item) => {
                 const Icon = item.icon;

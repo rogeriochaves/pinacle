@@ -10,14 +10,14 @@ type GitHubReauthButtonProps = {
 
 /**
  * Button component that triggers GitHub re-authentication flow.
- * 
+ *
  * When clicked, redirects to GitHub OAuth and returns the user
  * to the current page after successful authentication.
- * 
+ *
  * @example
  * ```tsx
  * <GitHubReauthButton />
- * 
+ *
  * // Custom styling
  * <GitHubReauthButton className="bg-blue-500">
  *   Refresh GitHub Auth
@@ -48,4 +48,3 @@ export const GitHubReauthButton = ({
     </button>
   );
 };
-

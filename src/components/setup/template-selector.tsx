@@ -37,7 +37,8 @@ export const TemplateSelector = ({
   if (compact) {
     // Get the template ID from pinacle.yaml config if it exists
     const pinacleTemplateId = pinacleConfig?.template || "nodejs-blank";
-    const isPinacleTemplate = pinacleConfig && showOnlyBlank && selectedTemplate === pinacleTemplateId;
+    const isPinacleTemplate =
+      pinacleConfig && showOnlyBlank && selectedTemplate === pinacleTemplateId;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -72,7 +73,9 @@ export const TemplateSelector = ({
                 </Badge>
               </div>
               <p className="text-xs text-slate-600 truncate">
-                {pinacleConfig.template ? `Template: ${pinacleConfig.template}` : t("usingConfigFromRepo")}
+                {pinacleConfig.template
+                  ? `Template: ${pinacleConfig.template}`
+                  : t("usingConfigFromRepo")}
               </p>
             </div>
 

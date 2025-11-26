@@ -92,9 +92,7 @@ export const PodDetailsPanel = ({ pod, onClose }: PodDetailsPanelProps) => {
     { enabled: pod.status === "running", refetchInterval: 10000 }, // Reduced from 5s to 10s
   );
 
-  const { data: metricsHistory } = (
-    api.pods
-  ).getMetricsAggregated.useQuery(
+  const { data: metricsHistory } = api.pods.getMetricsAggregated.useQuery(
     { podId: pod.id, hoursAgo: timeRange },
     {
       enabled: activeTab === "metrics" && pod.status === "running",

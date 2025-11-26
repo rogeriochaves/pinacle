@@ -152,18 +152,24 @@ export const servers = pgTable("server", {
 });
 
 // Env Sets (reusable environment variable collections)
-export const envSets = pgTable("env_set", {
+// Dotenv storage - stores .env file content (free text with comments)
+// Use lib/dotenv.ts utilities to parse/format.
+export const dotenvs = pgTable("dotenv", {
   id: text("id")
     .primaryKey()
     .notNull()
-    .$defaultFn(generateKsuidBuilder("env_set")),
+    .$defaultFn(generateKsuidBuilder("dotenv")),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   ownerId: text("owner_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   teamId: text("team_id").references(() => teams.id, { onDelete: "cascade" }),
-  variables: text("variables").notNull(), // JSON string of key-value pairs
+  content: text("content").notNull(), // Dotenv format (free text with comments)
+  // Sync tracking for bidirectional .env file sync
+  contentHash: varchar("content_hash", { length: 64 }), // SHA-256 hash for change detection
+  lastSyncedAt: timestamp("last_synced_at", { mode: "date" }), // When last synced to/from container
+  lastModifiedSource: varchar("last_modified_source", { length: 20 }).default("db"), // "db" or "container"
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
@@ -195,8 +201,8 @@ export const pods = pgTable("pod", {
   // All pod configuration (tier, services, tabs) is stored here
   config: text("config").notNull(), // JSON string of PinacleConfig (validated pinacle.yaml)
 
-  // Environment variables - reference to env set
-  envSetId: text("env_set_id").references(() => envSets.id),
+  // Environment variables - reference to dotenv
+  dotenvId: text("dotenv_id").references(() => dotenvs.id),
 
   // Runtime state
   ports: text("ports"), // JSON string of actual port mappings (runtime info)

@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import {
-  envSets,
+  dotenvs,
   pods,
   servers,
   teamMembers,
@@ -72,12 +72,12 @@ describe("Pod E2E Integration Tests", () => {
         .where(eq(pods.serverId, server.id));
 
       for (const pod of serverPods) {
-        const envSetId = pod.envSetId;
+        const dotenvId = pod.dotenvId;
         // Delete pod first (to release foreign key)
         await db.delete(pods).where(eq(pods.id, pod.id));
         // Then delete associated env set
-        if (envSetId) {
-          await db.delete(envSets).where(eq(envSets.id, envSetId));
+        if (dotenvId) {
+          await db.delete(dotenvs).where(eq(dotenvs.id, dotenvId));
         }
       }
 
@@ -99,18 +99,18 @@ describe("Pod E2E Integration Tests", () => {
         .where(eq(pods.teamId, existingTestTeam.id));
 
       // Collect env set IDs before deleting pods
-      const envSetIds = teamPods
-        .map((pod) => pod.envSetId)
+      const dotenvIds = teamPods
+        .map((pod) => pod.dotenvId)
         .filter((id): id is string => id !== null);
 
-      // Delete pods first (they reference env_sets)
+      // Delete pods first (they reference dotenvs)
       for (const pod of teamPods) {
         await db.delete(pods).where(eq(pods.id, pod.id));
       }
 
       // Then delete env sets
-      for (const envSetId of envSetIds) {
-        await db.delete(envSets).where(eq(envSets.id, envSetId));
+      for (const dotenvId of dotenvIds) {
+        await db.delete(dotenvs).where(eq(dotenvs.id, dotenvId));
       }
 
       // Delete team
@@ -223,16 +223,17 @@ describe("Pod E2E Integration Tests", () => {
     expect(pod.name).toBe("E2E Test Pod");
 
     // 3. Verify env set was created
-    expect(pod.envSetId).toBeTruthy();
+    expect(pod.dotenvId).toBeTruthy();
     const [envSet] = await db
       .select()
-      .from(envSets)
-      .where(eq(envSets.id, pod.envSetId!))
+      .from(dotenvs)
+      .where(eq(dotenvs.id, pod.dotenvId!))
       .limit(1);
 
     expect(envSet).toBeTruthy();
     expect(envSet.name).toBe("E2E Test Pod-env");
-    const variables = JSON.parse(envSet.variables);
+    const { getEnvVars } = await import("../../../dotenv");
+    const variables = getEnvVars(envSet.content);
     expect(variables.TEST_VAR).toBe("e2e-test-value");
     expect(variables.NODE_ENV).toBe("test");
 

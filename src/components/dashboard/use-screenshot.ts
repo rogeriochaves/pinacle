@@ -21,7 +21,9 @@ export const useScreenshot = () => {
       try {
         const iframe = document.getElementById(iframeId) as HTMLIFrameElement;
         if (!iframe || !iframe.contentWindow) {
-          console.warn(`[Screenshot] Iframe ${iframeId} not found or not accessible`);
+          console.warn(
+            `[Screenshot] Iframe ${iframeId} not found or not accessible`,
+          );
           return;
         }
 
@@ -48,7 +50,9 @@ export const useScreenshot = () => {
               if (event.data.type === "pinacle-screenshot-captured") {
                 resolve(event.data.dataUrl);
               } else {
-                reject(new Error(event.data.error || "Screenshot capture failed"));
+                reject(
+                  new Error(event.data.error || "Screenshot capture failed"),
+                );
               }
             }
           };
@@ -186,4 +190,3 @@ export const useIframeScreenshot = (
     };
   }, [iframeId, resetTracking]);
 };
-

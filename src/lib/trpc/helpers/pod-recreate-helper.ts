@@ -71,20 +71,21 @@ export const recreatePodWithSnapshot = async ({
     name: pod.name,
   });
 
-  // Load environment variables from env set if attached
+  // Load environment variables from dotenv if attached
   let environment: Record<string, string> = {};
-  if (pod.envSetId) {
-    const { envSets } = await import("../../db/schema");
+  if (pod.dotenvId) {
+    const { dotenvs } = await import("../../db/schema");
     const { eq } = await import("drizzle-orm");
+    const { getEnvVars } = await import("../../dotenv");
 
-    const [envSet] = await db
+    const [dotenv] = await db
       .select()
-      .from(envSets)
-      .where(eq(envSets.id, pod.envSetId))
+      .from(dotenvs)
+      .where(eq(dotenvs.id, pod.dotenvId))
       .limit(1);
 
-    if (envSet) {
-      environment = JSON.parse(envSet.variables);
+    if (dotenv) {
+      environment = getEnvVars(dotenv.content);
     }
   }
 
@@ -193,9 +194,7 @@ export const recreatePodWithSnapshot = async ({
         }
       }
     }
-    console.log(
-      `[recreatePodWithSnapshot] All services restarted`,
-    );
+    console.log(`[recreatePodWithSnapshot] All services restarted`);
   }
 
   console.log(

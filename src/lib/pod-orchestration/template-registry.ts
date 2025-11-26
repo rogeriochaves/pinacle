@@ -1,6 +1,9 @@
 import type { TierId } from "./resource-tier-registry";
 import type { ServiceId } from "./service-registry";
-import { getServiceTemplateUnsafe, isCodingAssistant } from "./service-registry";
+import {
+  getServiceTemplateUnsafe,
+  isCodingAssistant,
+} from "./service-registry";
 import type { PodSpec, ServiceConfig } from "./types";
 
 export type TemplateId =
@@ -40,8 +43,7 @@ export type PodTemplate = {
   serviceConfigs?: ServiceConfig[]; // Optional custom service configs
   defaultPorts: Array<{ name: string; internal: number; external?: number }>;
   environment: Record<string, string>;
-  requiredEnvVars: string[];
-  envVarDefaults?: Record<string, string | (() => string)>; // Default values or generator functions for env vars
+  generateDefaultEnv?: () => string; // Returns the full default .env file content
 
   // Installation and user processes
   installCommand?: string | string[];
@@ -100,7 +102,6 @@ export const POD_TEMPLATES = {
       NODE_ENV: "development",
       PORT: "5173",
     },
-    requiredEnvVars: [],
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -289,12 +290,21 @@ EOF`,
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: ["NEXTAUTH_SECRET", "POSTGRES_URL", "STRIPE_SECRET_KEY"],
-    envVarDefaults: {
-      NEXTAUTH_SECRET: () => generateRandomSecret(32),
-      POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
-      STRIPE_SECRET_KEY: () => `sk_test_${generateRandomSecret(32)}`,
-    },
+    generateDefaultEnv: () => `# Next.js SaaS Starter Environment Variables
+# https://github.com/nextjs/saas-starter
+
+# Authentication
+# Generate with: openssl rand -base64 32
+AUTH_SECRET=${generateRandomSecret(32)}
+
+# Database
+POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
+
+# Stripe (use test keys for development)
+# Get your keys at: https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_${generateRandomSecret(24)}
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+`.trim(),
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -351,7 +361,6 @@ EOF`,
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: [],
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -393,7 +402,6 @@ EOF`,
     environment: {
       NODE_ENV: "development",
     },
-    requiredEnvVars: [],
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -439,7 +447,6 @@ EOF`,
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: [],
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -485,7 +492,6 @@ EOF`,
       PYTHON_ENV: "development",
       PYTHONPATH: "/workspace",
     },
-    requiredEnvVars: [],
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -542,11 +548,27 @@ EOF`,
       PORT: "3000",
       NEXT_TELEMETRY_DISABLED: "1",
     },
-    requiredEnvVars: ["AUTH_SECRET", "POSTGRES_URL"],
-    envVarDefaults: {
-      AUTH_SECRET: () => generateRandomSecret(32),
-      POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
-    },
+    generateDefaultEnv: () => `# Vercel AI Chatbot Environment Variables
+# https://github.com/vercel/ai-chatbot
+
+# Authentication
+# Generate a random secret: https://generate-secret.vercel.app/32 or \`openssl rand -base64 32\`
+AUTH_SECRET=${generateRandomSecret(32)}
+
+# Database
+POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
+
+# AI Provider (choose one or more)
+
+# Create a Vercel AI Gateway API key here: https://vercel.com/ai-gateway
+# AI_GATEWAY_API_KEY=xxx
+
+# Or use OpenAI: https://platform.openai.com/api-keys
+# OPENAI_API_KEY=sk-xxx
+
+# Or Anthropic: https://console.anthropic.com/
+# ANTHROPIC_API_KEY=sk-ant-xxx
+`.trim(),
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -604,7 +626,6 @@ EOF`,
       PYTHONPATH: "/workspace",
       LANGFLOW_DATABASE_URL: "sqlite:///./langflow.db",
     },
-    requiredEnvVars: [],
 
     installCommand: "uv sync",
     defaultProcesses: [

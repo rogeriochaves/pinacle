@@ -22,6 +22,7 @@ import {
   ChevronDown,
   Code2,
   Database,
+  FileKey,
   GitBranch,
   Globe,
   Kanban,
@@ -68,6 +69,7 @@ import {
 } from "../ui/tooltip";
 import { AddTabPopover } from "./add-tab-popover";
 import { AddressBar } from "./address-bar";
+import { EnvEditor } from "./env-editor";
 import { ScreenshotIframe } from "./screenshot-iframe";
 import { TerminalTabs } from "./terminal-tabs";
 
@@ -254,7 +256,11 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   const [tabPaths, setTabPaths] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Track which postgres tabs have been refreshed (pgweb hack)
-  const [refreshedPostgresTabs, setRefreshedPostgresTabs] = useState<Set<string>>(new Set());
+  const [refreshedPostgresTabs, setRefreshedPostgresTabs] = useState<
+    Set<string>
+  >(new Set());
+  // Track if env editor is open
+  const [showEnvEditor, setShowEnvEditor] = useState(false);
   // Setup drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -275,6 +281,16 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       refetchInterval: 10000, // Poll every 10 seconds
       refetchOnWindowFocus: true, // Only poll when tab is focused
       enabled: pod.status === "running" && !!pod.githubRepo, // Only poll if pod is running and has a repo
+    },
+  );
+
+  // Poll env sync status to show badge for .env changes
+  const { data: envSyncStatus } = api.pods.getEnvSyncStatus.useQuery(
+    { podId: pod.id },
+    {
+      refetchInterval: 15000, // Poll every 15 seconds
+      refetchOnWindowFocus: true, // Only poll when tab is focused
+      enabled: pod.status === "running", // Only poll if pod is running
     },
   );
 
@@ -385,9 +401,12 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   // Hack: Refresh postgres tabs on first load (pgweb issue)
   useEffect(() => {
     const currentTab = tabs.find((tab) => tab.id === activeTab);
-    if (currentTab?.serviceRef === "postgres" && !refreshedPostgresTabs.has(activeTab)) {
+    if (
+      currentTab?.serviceRef === "postgres" &&
+      !refreshedPostgresTabs.has(activeTab)
+    ) {
       // Mark this tab as refreshed
-      setRefreshedPostgresTabs(prev => new Set(prev).add(activeTab));
+      setRefreshedPostgresTabs((prev) => new Set(prev).add(activeTab));
 
       // Trigger refresh after a short delay to let iframe load
       setTimeout(() => {
@@ -920,6 +939,29 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
             </TooltipContent>
           </Tooltip>
 
+          {/* Environment Variables Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setShowEnvEditor(true)}
+                className="relative flex items-center justify-center mr-1 w-8 h-8 rounded-lg hover:bg-neutral-800 transition-colors text-neutral-400 hover:text-white cursor-pointer"
+              >
+                <FileKey className="w-4 h-4" />
+                {envSyncStatus?.needsSync && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {envSyncStatus?.needsSync
+                  ? "Environment variables changed in container"
+                  : "Environment Variables"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
           {/* Source Control Icon (only if VSCode tab exists) */}
           {tabs.some((tab) => tab.serviceRef === "code-server") && (
             <Tooltip>
@@ -1197,6 +1239,14 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           )}
         </div>
       </div>
+
+      {/* Environment Variables Editor Modal */}
+      <EnvEditor
+        podId={pod.id}
+        podStatus={pod.status}
+        isOpen={showEnvEditor}
+        onClose={() => setShowEnvEditor(false)}
+      />
     </TooltipProvider>
   );
 };

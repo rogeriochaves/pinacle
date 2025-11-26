@@ -114,7 +114,9 @@ export const PodSelector = ({
       <div className="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-slate-50 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="bg-slate-900 border-b border-slate-800 p-4 flex items-center justify-between shrink-0">
-          <h2 className="text-white font-mono text-lg font-bold">{t("yourPods")}</h2>
+          <h2 className="text-white font-mono text-lg font-bold">
+            {t("yourPods")}
+          </h2>
           <button
             type="button"
             onClick={onClose}

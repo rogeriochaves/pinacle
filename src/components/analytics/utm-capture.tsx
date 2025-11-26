@@ -17,4 +17,3 @@ export const UTMCapture = () => {
 
   return null; // This component doesn't render anything
 };
-

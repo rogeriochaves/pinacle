@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gte, isNull, not, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
-  envSets,
+  dotenvs,
   githubInstallations,
   podLogs,
   podMetrics,
@@ -376,20 +376,26 @@ export const podsRouter = createTRPCRouter({
       // Create env set and pod in a transaction
       const pod = await ctx.db.transaction(async (tx) => {
         // Create env set if there are environment variables
-        let envSetId: string | undefined;
+        let dotenvId: string | undefined;
         if (envVars && Object.keys(envVars).length > 0) {
-          const [envSet] = await tx
-            .insert(envSets)
+          // Check if envVars is in the new dotenv format (marked with __dotenv_content__)
+          const isDotenvFormat = "__dotenv_content__" in envVars;
+          const envContent = isDotenvFormat
+            ? (envVars as Record<string, string>).__dotenv_content__
+            : JSON.stringify(envVars); // Legacy JSON format for backward compatibility
+
+          const [newDotenv] = await tx
+            .insert(dotenvs)
             .values({
-              id: generateKSUID("env_set"),
               name: `${name}-env`,
               description: `Environment variables for ${name}`,
               ownerId: userId,
               teamId,
-              variables: JSON.stringify(envVars),
+              content: envContent,
+              lastModifiedSource: "db", // Initially set from database/UI
             })
             .returning();
-          envSetId = envSet.id;
+          dotenvId = newDotenv.id;
         }
 
         // Create pod with env set reference
@@ -408,7 +414,7 @@ export const podsRouter = createTRPCRouter({
             githubBranch,
             isNewProject,
             config: configJSON, // Store the validated PinacleConfig
-            envSetId, // Attach env set if created
+            dotenvId, // Attach env set if created
             monthlyPrice,
             status: "creating",
           })
@@ -2180,4 +2186,453 @@ export const podsRouter = createTRPCRouter({
     // Filter out pods without screenshots
     return podsWithScreenshots.filter((pod) => pod.screenshot !== null);
   }),
+
+  /**
+   * Get .env file sync status for a pod
+   * Used for polling to detect changes between DB and container .env file
+   */
+  getEnvSyncStatus: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Get pod with team membership check
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          envSet: dotenvs,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(dotenvs, eq(pods.dotenvId, dotenvs.id))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found or access denied",
+        });
+      }
+
+      const { pod, envSet } = result;
+
+      if (!envSet) {
+        return {
+          hasEnvSet: false,
+          dbContent: "",
+          dbHash: null,
+          containerHash: null,
+          lastSyncedAt: null,
+          needsSync: false,
+        };
+      }
+
+      // If pod is not running, just return DB state
+      if (pod.status !== "running" || !pod.serverId || !pod.containerId) {
+        return {
+          hasEnvSet: true,
+          dbContent: envSet.content,
+          dbHash: envSet.contentHash,
+          containerHash: null,
+          lastSyncedAt: envSet.lastSyncedAt,
+          needsSync: false,
+        };
+      }
+
+      try {
+        // Get container .env file hash
+        const { PodProvisioningService } = await import(
+          "../../pod-orchestration/pod-provisioning-service"
+        );
+        const provisioningService = new PodProvisioningService();
+        const serverConnection =
+          await provisioningService.getServerConnectionDetails(pod.serverId);
+
+        const { KataRuntime } = await import(
+          "../../pod-orchestration/container-runtime"
+        );
+        const runtime = new KataRuntime(serverConnection);
+
+        const container = await runtime.getActiveContainerForPodOrThrow(
+          input.podId,
+        );
+
+        const repoName = pod.githubRepo?.split("/")[1];
+        if (!repoName) {
+          return {
+            hasEnvSet: true,
+            dbContent: envSet.content,
+            dbHash: envSet.contentHash,
+            containerHash: null,
+            lastSyncedAt: envSet.lastSyncedAt,
+            needsSync: false,
+          };
+        }
+
+        const envFilePath = `/workspace/${repoName}/.env`;
+
+        // Get container .env file content and hash it
+        const { stdout: containerContent } = await runtime.execInContainer(
+          input.podId,
+          container.id,
+          ["sh", "-c", `cat ${envFilePath} 2>/dev/null || echo ""`],
+        );
+
+        const { calculateEnvHash } = await import("../../dotenv");
+        const containerHash = await calculateEnvHash(containerContent.trim());
+
+        // Check if they differ
+        const needsSync =
+          envSet.contentHash !== containerHash &&
+          containerContent.trim() !== "";
+
+        return {
+          hasEnvSet: true,
+          dbContent: envSet.content,
+          dbHash: envSet.contentHash,
+          containerHash,
+          containerContent: containerContent.trim(),
+          lastSyncedAt: envSet.lastSyncedAt,
+          needsSync,
+        };
+      } catch (error) {
+        console.error(
+          `[getEnvSyncStatus] Failed to check container .env:`,
+          error,
+        );
+        return {
+          hasEnvSet: true,
+          dbContent: envSet.content,
+          dbHash: envSet.contentHash,
+          containerHash: null,
+          lastSyncedAt: envSet.lastSyncedAt,
+          needsSync: false,
+        };
+      }
+    }),
+
+  /**
+   * Get .env file content from the container
+   */
+  getEnvFileContent: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Get pod with team membership check
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          envSet: dotenvs,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(dotenvs, eq(pods.dotenvId, dotenvs.id))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found or access denied",
+        });
+      }
+
+      const { pod, envSet } = result;
+
+      // Return DB content if no container is running
+      if (pod.status !== "running" || !pod.serverId || !pod.containerId) {
+        return {
+          content: envSet?.content || "",
+          source: "db" as const,
+        };
+      }
+
+      try {
+        const { PodProvisioningService } = await import(
+          "../../pod-orchestration/pod-provisioning-service"
+        );
+        const provisioningService = new PodProvisioningService();
+        const serverConnection =
+          await provisioningService.getServerConnectionDetails(pod.serverId);
+
+        const { KataRuntime } = await import(
+          "../../pod-orchestration/container-runtime"
+        );
+        const runtime = new KataRuntime(serverConnection);
+
+        const container = await runtime.getActiveContainerForPodOrThrow(
+          input.podId,
+        );
+
+        const repoName = pod.githubRepo?.split("/")[1];
+        if (!repoName) {
+          return {
+            content: envSet?.content || "",
+            source: "db" as const,
+          };
+        }
+
+        const envFilePath = `/workspace/${repoName}/.env`;
+
+        const { stdout: containerContent } = await runtime.execInContainer(
+          input.podId,
+          container.id,
+          ["sh", "-c", `cat ${envFilePath} 2>/dev/null || echo ""`],
+        );
+
+        return {
+          content: containerContent.trim() || envSet?.content || "",
+          source: containerContent.trim()
+            ? ("container" as const)
+            : ("db" as const),
+        };
+      } catch (error) {
+        console.error(`[getEnvFileContent] Failed:`, error);
+        return {
+          content: envSet?.content || "",
+          source: "db" as const,
+        };
+      }
+    }),
+
+  /**
+   * Update .env file content (syncs to both DB and container)
+   */
+  updateEnvFile: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+        content: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Get pod with team membership check
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          envSet: dotenvs,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(dotenvs, eq(pods.dotenvId, dotenvs.id))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found or access denied",
+        });
+      }
+
+      const { pod, envSet } = result;
+      const { calculateEnvHash } = await import("../../dotenv");
+      const contentHash = await calculateEnvHash(input.content);
+
+      // Update or create env set in DB
+      if (envSet) {
+        await ctx.db
+          .update(dotenvs)
+          .set({
+            content: input.content,
+            contentHash,
+            lastSyncedAt: new Date(),
+            lastModifiedSource: "db",
+            updatedAt: new Date(),
+          })
+          .where(eq(dotenvs.id, envSet.id));
+      } else {
+        // Create new dotenv
+        const newDotenvId = generateKSUID("dotenv");
+        await ctx.db.insert(dotenvs).values({
+          name: `${pod.name}-env`,
+          description: `Environment variables for ${pod.name}`,
+          ownerId: userId,
+          teamId: pod.teamId,
+          content: input.content,
+          contentHash,
+          lastSyncedAt: new Date(),
+          lastModifiedSource: "db",
+        });
+
+        // Link to pod
+        await ctx.db
+          .update(pods)
+          .set({ dotenvId: newDotenvId, updatedAt: new Date() })
+          .where(eq(pods.id, input.podId));
+      }
+
+      // Write to container if running
+      if (
+        pod.status === "running" &&
+        pod.serverId &&
+        pod.containerId &&
+        pod.githubRepo
+      ) {
+        try {
+          const { PodProvisioningService } = await import(
+            "../../pod-orchestration/pod-provisioning-service"
+          );
+          const provisioningService = new PodProvisioningService();
+          const serverConnection =
+            await provisioningService.getServerConnectionDetails(pod.serverId);
+
+          const { KataRuntime } = await import(
+            "../../pod-orchestration/container-runtime"
+          );
+          const runtime = new KataRuntime(serverConnection);
+
+          const container = await runtime.getActiveContainerForPodOrThrow(
+            input.podId,
+          );
+
+          const repoName = pod.githubRepo.split("/")[1];
+          const envFilePath = `/workspace/${repoName}/.env`;
+
+          // Write .env file
+          const writeCommand = `cat > ${envFilePath} << 'PINACLE_ENV_EOF'
+${input.content}
+PINACLE_ENV_EOF`;
+
+          await runtime.execInContainer(input.podId, container.id, [
+            "sh",
+            "-c",
+            writeCommand,
+          ]);
+
+          console.log(
+            `[updateEnvFile] Wrote .env to container for pod ${input.podId}`,
+          );
+        } catch (error) {
+          console.error(`[updateEnvFile] Failed to write to container:`, error);
+          // Don't fail - DB is updated successfully
+        }
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Sync .env file from container to DB (pull changes from container)
+   */
+  syncEnvFromContainer: protectedProcedure
+    .input(
+      z.object({
+        podId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Get pod with team membership check
+      const [result] = await ctx.db
+        .select({
+          pod: pods,
+          envSet: dotenvs,
+        })
+        .from(pods)
+        .innerJoin(teamMembers, eq(pods.teamId, teamMembers.teamId))
+        .leftJoin(dotenvs, eq(pods.dotenvId, dotenvs.id))
+        .where(and(eq(pods.id, input.podId), eq(teamMembers.userId, userId)))
+        .limit(1);
+
+      if (!result) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Pod not found or access denied",
+        });
+      }
+
+      const { pod, envSet } = result;
+
+      if (pod.status !== "running" || !pod.serverId || !pod.containerId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Pod is not running",
+        });
+      }
+
+      if (!pod.githubRepo) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Pod has no GitHub repository",
+        });
+      }
+
+      const { PodProvisioningService } = await import(
+        "../../pod-orchestration/pod-provisioning-service"
+      );
+      const provisioningService = new PodProvisioningService();
+      const serverConnection =
+        await provisioningService.getServerConnectionDetails(pod.serverId);
+
+      const { KataRuntime } = await import(
+        "../../pod-orchestration/container-runtime"
+      );
+      const runtime = new KataRuntime(serverConnection);
+
+      const container = await runtime.getActiveContainerForPodOrThrow(
+        input.podId,
+      );
+
+      const repoName = pod.githubRepo.split("/")[1];
+      const envFilePath = `/workspace/${repoName}/.env`;
+
+      const { stdout: containerContent } = await runtime.execInContainer(
+        input.podId,
+        container.id,
+        ["sh", "-c", `cat ${envFilePath} 2>/dev/null || echo ""`],
+      );
+
+      const content = containerContent.trim();
+      const { calculateEnvHash } = await import("../../dotenv");
+      const contentHash = await calculateEnvHash(content);
+
+      // Update DB with container content
+      if (envSet) {
+        await ctx.db
+          .update(dotenvs)
+          .set({
+            content,
+            contentHash,
+            lastSyncedAt: new Date(),
+            lastModifiedSource: "container",
+            updatedAt: new Date(),
+          })
+          .where(eq(dotenvs.id, envSet.id));
+      } else if (content) {
+        // Create new dotenv from container content
+        const newDotenvId = generateKSUID("dotenv");
+        await ctx.db.insert(dotenvs).values({
+          name: `${pod.name}-env`,
+          description: `Environment variables for ${pod.name}`,
+          ownerId: userId,
+          teamId: pod.teamId,
+          content,
+          contentHash,
+          lastSyncedAt: new Date(),
+          lastModifiedSource: "container",
+        });
+
+        // Link to pod
+        await ctx.db
+          .update(pods)
+          .set({ dotenvId: newDotenvId, updatedAt: new Date() })
+          .where(eq(pods.id, input.podId));
+      }
+
+      return { success: true, content };
+    }),
 });

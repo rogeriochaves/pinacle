@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { envSets, teamMembers } from "../../db/schema";
+import { dotenvs, teamMembers } from "../../db/schema";
+import { formatAsDotenv } from "../../dotenv";
 import { generateKSUID } from "../../utils";
 import { createTRPCRouter, protectedProcedure } from "../server";
 
@@ -11,7 +12,8 @@ export const envSetsRouter = createTRPCRouter({
         name: z.string().min(1).max(255),
         description: z.string().optional(),
         teamId: z.string(),
-        variables: z.record(z.string(), z.string()),
+        variables: z.record(z.string(), z.string()).optional(), // Legacy support
+        content: z.string().optional(), // New dotenv format
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -33,20 +35,25 @@ export const envSetsRouter = createTRPCRouter({
         throw new Error("Team not found or access denied");
       }
 
-      // Create env set
-      const [envSet] = await ctx.db
-        .insert(envSets)
+      // Use content if provided, otherwise convert variables to dotenv format
+      const content =
+        input.content ||
+        (input.variables ? formatAsDotenv(input.variables) : "");
+
+      // Create dotenv
+      const [dotenv] = await ctx.db
+        .insert(dotenvs)
         .values({
-          id: generateKSUID("env_set"),
+          id: generateKSUID("dotenv"),
           name: input.name,
           description: input.description,
           ownerId: userId,
           teamId: input.teamId,
-          variables: JSON.stringify(input.variables),
+          content,
         })
         .returning();
 
-      return envSet;
+      return dotenv;
     }),
 
   list: protectedProcedure
@@ -74,13 +81,13 @@ export const envSetsRouter = createTRPCRouter({
         throw new Error("Team not found or access denied");
       }
 
-      // Get all env sets for this team
-      const teamEnvSets = await ctx.db
+      // Get all dotenvs for this team
+      const teamDotenvs = await ctx.db
         .select()
-        .from(envSets)
-        .where(eq(envSets.teamId, input.teamId));
+        .from(dotenvs)
+        .where(eq(dotenvs.teamId, input.teamId));
 
-      return teamEnvSets;
+      return teamDotenvs;
     }),
 
   getById: protectedProcedure
@@ -88,21 +95,19 @@ export const envSetsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Get env set with team membership check
-      const [envSet] = await ctx.db
+      // Get dotenv with team membership check
+      const [result] = await ctx.db
         .select()
-        .from(envSets)
-        .innerJoin(teamMembers, eq(envSets.teamId, teamMembers.teamId))
-        .where(
-          and(eq(envSets.id, input.id), eq(teamMembers.userId, userId)),
-        )
+        .from(dotenvs)
+        .innerJoin(teamMembers, eq(dotenvs.teamId, teamMembers.teamId))
+        .where(and(eq(dotenvs.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
-      if (!envSet) {
-        throw new Error("Env set not found or access denied");
+      if (!result) {
+        throw new Error("Dotenv not found or access denied");
       }
 
-      return envSet.env_set;
+      return result.dotenv;
     }),
 
   update: protectedProcedure
@@ -111,43 +116,50 @@ export const envSetsRouter = createTRPCRouter({
         id: z.string(),
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
-        variables: z.record(z.string(), z.string()).optional(),
+        variables: z.record(z.string(), z.string()).optional(), // Legacy support
+        content: z.string().optional(), // New dotenv format
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Verify user has access to this env set
-      const [envSet] = await ctx.db
+      // Verify user has access to this dotenv
+      const [result] = await ctx.db
         .select()
-        .from(envSets)
-        .innerJoin(teamMembers, eq(envSets.teamId, teamMembers.teamId))
-        .where(
-          and(eq(envSets.id, input.id), eq(teamMembers.userId, userId)),
-        )
+        .from(dotenvs)
+        .innerJoin(teamMembers, eq(dotenvs.teamId, teamMembers.teamId))
+        .where(and(eq(dotenvs.id, input.id), eq(teamMembers.userId, userId)))
         .limit(1);
 
-      if (!envSet) {
-        throw new Error("Env set not found or access denied");
+      if (!result) {
+        throw new Error("Dotenv not found or access denied");
       }
 
-      // Update env set
-      const [updatedEnvSet] = await ctx.db
-        .update(envSets)
+      // Determine content to update
+      let contentUpdate: string | undefined;
+      if (input.content !== undefined) {
+        contentUpdate = input.content;
+      } else if (input.variables) {
+        contentUpdate = formatAsDotenv(input.variables);
+      }
+
+      // Update dotenv
+      const [updatedDotenv] = await ctx.db
+        .update(dotenvs)
         .set({
           ...(input.name && { name: input.name }),
           ...(input.description !== undefined && {
             description: input.description,
           }),
-          ...(input.variables && {
-            variables: JSON.stringify(input.variables),
+          ...(contentUpdate !== undefined && {
+            content: contentUpdate,
           }),
           updatedAt: new Date(),
         })
-        .where(eq(envSets.id, input.id))
+        .where(eq(dotenvs.id, input.id))
         .returning();
 
-      return updatedEnvSet;
+      return updatedDotenv;
     }),
 
   delete: protectedProcedure
@@ -156,20 +168,19 @@ export const envSetsRouter = createTRPCRouter({
       const userId = ctx.session.user.id;
 
       // Verify user has access and is owner
-      const [envSet] = await ctx.db
+      const [dotenv] = await ctx.db
         .select()
-        .from(envSets)
-        .where(and(eq(envSets.id, input.id), eq(envSets.ownerId, userId)))
+        .from(dotenvs)
+        .where(and(eq(dotenvs.id, input.id), eq(dotenvs.ownerId, userId)))
         .limit(1);
 
-      if (!envSet) {
-        throw new Error("Env set not found or permission denied");
+      if (!dotenv) {
+        throw new Error("Dotenv not found or permission denied");
       }
 
-      // Delete env set
-      await ctx.db.delete(envSets).where(eq(envSets.id, input.id));
+      // Delete dotenv
+      await ctx.db.delete(dotenvs).where(eq(dotenvs.id, input.id));
 
       return { success: true };
     }),
 });
-
