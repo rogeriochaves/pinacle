@@ -206,12 +206,7 @@ export default function PodProvisioningPage() {
 
   // Programmatic scroll that doesn't trigger manual scroll detection
   const autoScrollToBottom = useCallback(() => {
-    isAutoScrollingRef.current = true;
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Reset the flag after smooth scroll animation completes (~500ms)
-    setTimeout(() => {
-      isAutoScrollingRef.current = false;
-    }, 600);
   }, []);
 
   // Auto-scroll to bottom when new logs arrive, but only if user hasn't scrolled up
@@ -219,6 +214,7 @@ export default function PodProvisioningPage() {
     if (allLogs.length > 0) {
       if (!userHasScrolledUp) {
         // User hasn't manually scrolled up, auto-scroll to bottom
+        isAutoScrollingRef.current = true;
         autoScrollToBottom();
         if (secondScrollTimeoutRef.current) {
           clearTimeout(secondScrollTimeoutRef.current);
@@ -226,6 +222,10 @@ export default function PodProvisioningPage() {
         secondScrollTimeoutRef.current = setTimeout(() => {
           autoScrollToBottom();
         }, 500);
+        // Reset the flag after both smooth scroll animation completes (~1000ms)
+        setTimeout(() => {
+          isAutoScrollingRef.current = false;
+        }, 1100);
         setHasNewLogs(false);
       } else {
         // User has scrolled up, show indicator
