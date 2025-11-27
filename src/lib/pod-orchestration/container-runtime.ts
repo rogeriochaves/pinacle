@@ -66,12 +66,6 @@ export class KataRuntime {
       .join(" ");
   }
 
-  private parseEnvironmentVars(env: Record<string, string>): string {
-    return Object.entries(env)
-      .map(([key, value]) => `-e "${key}=${value}"`)
-      .join(" ");
-  }
-
   /**
    * Get universal volumes that should be persisted for all pods
    * This covers the entire filesystem except virtual/temporary directories

@@ -26,6 +26,25 @@ export const getProxyInjectionScript = (nonce?: string) => {
     }
   }
 
+  // Report when navigation starts (before page unloads)
+  function reportNavigationStart() {
+    try {
+      window.parent.postMessage({
+        type: 'pinacle-navigation-start',
+        url: window.location.href
+      }, '*');
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  // Detect navigation via beforeunload (catches all actual navigation including programmatic)
+  // Note: We don't use click/submit listeners because they fire before preventDefault()
+  // is called, causing false positives for SPA navigation (React Router, etc.)
+  window.addEventListener('beforeunload', function() {
+    reportNavigationStart();
+  });
+
   // Report initial navigation
   if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', reportNavigation);

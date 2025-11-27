@@ -225,4 +225,42 @@
   @keyframes showShadow {
     to { opacity: 1; }
   }
+
+  /* Shimmer animation for loading bar */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Firefox-style horizontal bounce animation with stretch for tab loading */
+  @keyframes bounce-stretch {
+    0%, 100% {
+      transform: translateX(-6px) translateY(1px) scaleX(1) scaleY(1);
+      animation-timing-function: cubic-bezier(0.65, 0, 1, 1); /* strong ease-in: slow start, fast end */
+    }
+    25% {
+      transform: translateX(0px) translateY(1px) scaleX(2) scaleY(1);
+      animation-timing-function: cubic-bezier(0, 0, 0.35, 1); /* strong ease-out: fast start, slow end */
+    }
+    50% {
+      transform: translateX(6px) translateY(1px) scaleX(1) scaleY(1);
+      animation-timing-function: cubic-bezier(0.65, 0, 1, 1); /* strong ease-in: slow start, fast end */
+    }
+    75% {
+      transform: translateX(0px) translateY(1px) scaleX(1.4) scaleY(1);
+      animation-timing-function: cubic-bezier(0, 0, 0.35, 1); /* strong ease-out: fast start, slow end */
+    }
+  }
+
+  .animate-bounce-stretch {
+    animation: bounce-stretch 0.9s linear infinite;
+  }
 }

@@ -162,10 +162,80 @@ const extractPortFromUrl = (url: string): number => {
   }
 };
 
+// Firefox-style bouncing loader for tab icon
+const TabLoadingIndicator = ({ className }: { className?: string }) => {
+  return (
+    <div
+      className={`relative w-4 h-4 flex items-center justify-center ${className}`}
+    >
+      <div className="w-1 h-1 rounded-full bg-orange-400 animate-bounce-stretch" />
+    </div>
+  );
+};
+
+// Loading progress bar component (NProgress-style)
+const IframeLoadingBar = ({ isLoading }: { isLoading: boolean }) => {
+  const [progress, setProgress] = React.useState(0);
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isLoading) {
+      setVisible(true);
+      setProgress(0);
+
+      // Animate progress from 0 to ~90% with easing slowdown
+      const stages = [
+        { target: 30, duration: 200 },
+        { target: 50, duration: 300 },
+        { target: 70, duration: 500 },
+        { target: 85, duration: 1000 },
+        { target: 92, duration: 2000 },
+      ];
+
+      let currentStage = 0;
+      const runStage = () => {
+        if (currentStage >= stages.length) return;
+        const stage = stages[currentStage];
+        setProgress(stage.target);
+        currentStage++;
+        setTimeout(runStage, stage.duration);
+      };
+
+      const timer = setTimeout(runStage, 50);
+      return () => clearTimeout(timer);
+    }
+    // When loading completes, animate to 100% then fade out
+    setProgress(100);
+    const hideTimer = setTimeout(() => {
+      setVisible(false);
+      setProgress(0);
+    }, 300);
+    return () => clearTimeout(hideTimer);
+  }, [isLoading]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="absolute top-0 left-0 right-0 h-[3px] z-50 overflow-hidden bg-transparent">
+      <div
+        className="h-full bg-gradient-to-r from-orange-400 via-orange-500 to-amber-400 transition-all ease-out shadow-[0_0_10px_rgba(251,146,60,0.5)]"
+        style={{
+          width: `${progress}%`,
+          transitionDuration: isLoading ? "300ms" : "150ms",
+        }}
+      />
+      {isLoading && (
+        <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+      )}
+    </div>
+  );
+};
+
 // Sortable tab component for drag and drop
 interface SortableTabProps {
   tab: TabConfig;
   isActive: boolean;
+  isLoading?: boolean;
   onTabClick: () => void;
   onDelete: (tabId: string) => void;
 }
@@ -173,6 +243,7 @@ interface SortableTabProps {
 function SortableTab({
   tab,
   isActive,
+  isLoading,
   onTabClick,
   onDelete,
 }: SortableTabProps) {
@@ -219,7 +290,11 @@ function SortableTab({
         `}
         title={tab.shortcut ? `${tab.label} (⌘${tab.shortcut})` : tab.label}
       >
-        <Icon className="w-4 h-4" />
+        {isLoading && isActive ? (
+          <TabLoadingIndicator />
+        ) : (
+          <Icon className="w-4 h-4" />
+        )}
         <span className="hidden sm:inline">{tab.label}</span>
         {tab.shortcut && (
           <button
@@ -261,6 +336,38 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   >(new Set());
   // Track if env editor is open
   const [showEnvEditor, setShowEnvEditor] = useState(false);
+  // Track loading state for each tab
+  const [loadingTabs, setLoadingTabs] = useState<Set<string>>(new Set());
+
+  // Helper to set loading state for a tab
+  const setTabLoading = useCallback((tabId: string, loading: boolean) => {
+    setLoadingTabs((prev) => {
+      const next = new Set(prev);
+      if (loading) {
+        next.add(tabId);
+      } else {
+        next.delete(tabId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Track which tabs have had their loading state initialized
+  const initializedTabsRef = useRef<Set<string>>(new Set());
+
+  // Set initial loading state for tabs when they first render (excluding process tabs which handle their own)
+  useEffect(() => {
+    for (const tab of tabs) {
+      // Skip terminal tabs and process tabs (they handle their own loading)
+      const isTerminal = tab.serviceRef === "web-terminal";
+      const isProcessTab = !tab.serviceRef && tab.customUrl;
+
+      if (!isTerminal && !isProcessTab && !initializedTabsRef.current.has(tab.id)) {
+        initializedTabsRef.current.add(tab.id);
+        setTabLoading(tab.id, true);
+      }
+    }
+  }, [tabs, setTabLoading]);
   // Setup drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -416,6 +523,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
         if (iframe) {
           setIsRefreshing(true);
+          setTabLoading(activeTab, true);
           const currentSrc = iframe.src;
           iframe.src = "";
           setTimeout(() => {
@@ -428,7 +536,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
         }
       }, 500); // Wait 500ms for iframe to start loading
     }
-  }, [activeTab, tabs, refreshedPostgresTabs]);
+  }, [activeTab, tabs, refreshedPostgresTabs, setTabLoading]);
 
   const { data: session } = useSession();
   const isRunning = pod.status === "running";
@@ -618,6 +726,9 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       ) as HTMLIFrameElement;
 
       if (iframe) {
+        // Trigger loading state for the tab
+        setTabLoading(currentTab.id, true);
+
         // Store the current src and reload it
         const currentSrc = iframe.src;
         iframe.src = "";
@@ -711,11 +822,22 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       }
     };
 
-    // Listen for keyboard shortcuts and port navigation from iframes
+    // Listen for keyboard shortcuts, port navigation, and navigation start from iframes
     const handleMessage = (e: MessageEvent) => {
       if (e.data && e.data.type === "pinacle-keyboard-shortcut") {
         // Shortcut forwarded from iframe
         handleShortcut(e.data.key);
+      } else if (e.data && e.data.type === "pinacle-navigation-start") {
+        // Navigation started inside iframe - find which tab and set loading
+        for (const tab of tabs) {
+          const iframe = document.getElementById(
+            `js-iframe-tab-${tab.id}`,
+          ) as HTMLIFrameElement;
+          if (iframe?.contentWindow === e.source) {
+            setTabLoading(tab.id, true);
+            break;
+          }
+        }
       } else if (e.data && e.data.type === "pinacle-navigate-port") {
         // Port navigation from 502 discovery page
         const port = e.data.port;
@@ -723,6 +845,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           // Find the active tab and navigate it to the new port
           const currentTab = tabs.find((t) => t.id === activeTab);
           if (currentTab) {
+            setTabLoading(currentTab.id, true);
             const authUrl = `/api/proxy-auth?pod=${encodeURIComponent(pod.slug)}&port=${port}`;
             const iframe = document.getElementById(
               `js-iframe-tab-${currentTab.id}`,
@@ -741,7 +864,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("message", handleMessage);
     };
-  }, [tabs, activeTab, pod.slug]);
+  }, [tabs, activeTab, pod.slug, setTabLoading]);
 
   const getTabUrl = useCallback(
     (tabId: string, terminalSession?: string): string => {
@@ -862,6 +985,7 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                       key={tab.id}
                       tab={tab}
                       isActive={isActive}
+                      isLoading={loadingTabs.has(tab.id)}
                       onTabClick={() => {
                         setActiveTab(tab.id);
 
@@ -1207,30 +1331,43 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
                               [tab.id]: path,
                             }));
                           }}
+                          onRefresh={() => setTabLoading(tab.id, true)}
                         />
                       )}
-                      {/* Use ScreenshotIframe for process tabs to auto-capture screenshots */}
-                      {isProcessTab ? (
-                        <ScreenshotIframe
-                          iframeId={`js-iframe-tab-${tab.id}`}
-                          podId={pod.id}
-                          port={tab.port}
-                          path={tabPaths[tab.id] || "/"}
-                          isActive={isActive}
-                          src={getTabUrl(tab.id)}
-                          title={tab.label}
-                          className="w-full h-full border-0 flex-1"
-                        />
-                      ) : (
-                        <iframe
-                          key={tab.id}
-                          id={`js-iframe-tab-${tab.id}`}
-                          src={getTabUrl(tab.id)}
-                          className="w-full h-full border-0 flex-1"
-                          title={tab.label}
-                          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
-                        />
-                      )}
+                      {/* Iframe container with loading bar */}
+                      <div className="relative flex-1">
+                        {/* NProgress-style loading bar at top of iframe */}
+                        {isActive && (
+                          <IframeLoadingBar
+                            isLoading={loadingTabs.has(tab.id)}
+                          />
+                        )}
+                        {/* Use ScreenshotIframe for process tabs to auto-capture screenshots */}
+                        {isProcessTab ? (
+                          <ScreenshotIframe
+                            iframeId={`js-iframe-tab-${tab.id}`}
+                            podId={pod.id}
+                            port={tab.port}
+                            path={tabPaths[tab.id] || "/"}
+                            isActive={isActive}
+                            src={getTabUrl(tab.id)}
+                            title={tab.label}
+                            className="w-full h-full border-0"
+                            onLoadStart={() => setTabLoading(tab.id, true)}
+                            onLoad={() => setTabLoading(tab.id, false)}
+                          />
+                        ) : (
+                          <iframe
+                            key={tab.id}
+                            id={`js-iframe-tab-${tab.id}`}
+                            src={getTabUrl(tab.id)}
+                            className="w-full h-full border-0"
+                            title={tab.label}
+                            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-top-navigation-by-user-activation allow-presentation allow-orientation-lock"
+                            onLoad={() => setTabLoading(tab.id, false)}
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </React.Fragment>

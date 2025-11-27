@@ -12,6 +12,7 @@ export type AddressBarProps = {
   initialPath?: string;
   onNavigate: (url: string) => void;
   onPathChange?: (path: string, port: number) => void;
+  onRefresh?: () => void;
 };
 
 /**
@@ -60,6 +61,7 @@ export const AddressBar = ({
   initialPath = "/",
   onNavigate,
   onPathChange,
+  onRefresh,
 }: AddressBarProps) => {
   const [displayUrl, setDisplayUrl] = useState(
     `localhost:${initialPort}${initialPath}`,
@@ -235,6 +237,9 @@ export const AddressBar = ({
   };
 
   const handleRefresh = () => {
+    // Notify parent that we're refreshing (for loading indicator)
+    onRefresh?.();
+
     // Reload the iframe with its current URL (not the original src)
     if (iframeRef.current) {
       // If we have the current iframe URL, use that
