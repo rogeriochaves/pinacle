@@ -387,6 +387,34 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
     };
   }, []);
 
+  // Periodically check loading tabs to see if they're actually still loading
+  // This catches cases where onLoad was missed
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (loadingTabs.size === 0) return;
+
+      // For each loading tab, ask the iframe if it's still loading
+      for (const tabId of loadingTabs) {
+        const iframe = document.getElementById(
+          `js-iframe-tab-${tabId}`,
+        ) as HTMLIFrameElement;
+
+        if (iframe?.contentWindow) {
+          try {
+            iframe.contentWindow.postMessage(
+              { type: "pinacle-check-loading", requestId: tabId },
+              "*",
+            );
+          } catch {
+            // Cross-origin error, can't check
+          }
+        }
+      }
+    }, 15000); // Check every 15 seconds
+
+    return () => clearInterval(checkInterval);
+  }, [loadingTabs]);
+
   // Track which tabs have had their loading state initialized
   const initializedTabsRef = useRef<Set<string>>(new Set());
 
@@ -871,6 +899,32 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
           if (iframe?.contentWindow === e.source) {
             setTabLoading(tab.id, true);
             break;
+          }
+        }
+      } else if (e.data && e.data.type === "pinacle-navigation-cancelled") {
+        // Navigation was cancelled (e.g., user cancelled "Leave page?" dialog)
+        // Clear loading state for the tab that sent this message
+        for (const tab of tabs) {
+          const iframe = document.getElementById(
+            `js-iframe-tab-${tab.id}`,
+          ) as HTMLIFrameElement;
+          if (iframe?.contentWindow === e.source) {
+            setTabLoading(tab.id, false);
+            break;
+          }
+        }
+      } else if (e.data && e.data.type === "pinacle-loading-status") {
+        // Response from iframe about its loading status
+        // If it reports complete, clear loading state for that tab
+        if (!e.data.isLoading) {
+          for (const tab of tabs) {
+            const iframe = document.getElementById(
+              `js-iframe-tab-${tab.id}`,
+            ) as HTMLIFrameElement;
+            if (iframe?.contentWindow === e.source) {
+              setTabLoading(tab.id, false);
+              break;
+            }
           }
         }
       } else if (e.data && e.data.type === "pinacle-navigate-port") {

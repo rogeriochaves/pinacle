@@ -27,7 +27,12 @@ export const getProxyInjectionScript = (nonce?: string) => {
   }
 
   // Report when navigation starts (before page unloads)
+  var navigationPending = false;
+
   function reportNavigationStart() {
+    if (navigationPending) return; // Already reported
+    navigationPending = true;
+
     try {
       window.parent.postMessage({
         type: 'pinacle-navigation-start',
@@ -36,6 +41,22 @@ export const getProxyInjectionScript = (nonce?: string) => {
     } catch (e) {
       // Ignore errors
     }
+
+    // After a short delay, check if we're still on the page
+    // If we are, the navigation was cancelled (e.g., user cancelled "Leave page?" dialog)
+    setTimeout(function() {
+      if (navigationPending) {
+        navigationPending = false;
+        try {
+          window.parent.postMessage({
+            type: 'pinacle-navigation-cancelled',
+            url: window.location.href
+          }, '*');
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+    }, 500);
   }
 
   // Detect navigation via beforeunload (catches all actual navigation including programmatic)
@@ -278,6 +299,20 @@ export const getProxyInjectionScript = (nonce?: string) => {
         }, 1000);
       } else {
         // alreaty opened or not found, do nothing
+      }
+    }
+
+    // Handle loading status check from parent
+    if (event.data && event.data.type === 'pinacle-check-loading') {
+      try {
+        window.parent.postMessage({
+          type: 'pinacle-loading-status',
+          readyState: document.readyState, // 'loading', 'interactive', or 'complete'
+          isLoading: document.readyState !== 'complete',
+          requestId: event.data.requestId
+        }, '*');
+      } catch (e) {
+        // Ignore errors
       }
     }
   });
