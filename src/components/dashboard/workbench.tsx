@@ -290,7 +290,7 @@ function SortableTab({
         `}
         title={tab.shortcut ? `${tab.label} (⌘${tab.shortcut})` : tab.label}
       >
-        {isLoading && isActive ? (
+        {isLoading ? (
           <TabLoadingIndicator />
         ) : (
           <Icon className="w-4 h-4" />
