@@ -126,7 +126,7 @@ export default function PodProvisioningPage() {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewLogs, setHasNewLogs] = useState(false);
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
-  const isAutoScrollingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
 
   // Poll status and logs every 500ms for faster updates
   const { data, isLoading, error, refetch } =
@@ -182,22 +182,25 @@ export default function PodProvisioningPage() {
     return scrollHeight - scrollTop - clientHeight < 24;
   };
 
-  // Handle scroll events - only track manual scrolling, not programmatic
+  // Handle scroll events - detect upward scrolling as human intervention
   const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+
+    const currentScrollTop = scrollContainerRef.current.scrollTop;
     const atBottom = checkIfAtBottom();
     setIsAtBottom(atBottom);
 
-    // Only detect manual scroll when we're NOT auto-scrolling
-    if (!isAutoScrollingRef.current) {
-      // User manually scrolled up (not at bottom)
-      if (!atBottom) {
-        setUserHasScrolledUp(true);
-        // Clear any pending auto-scroll when user manually scrolls up
-        if (secondScrollTimeoutRef.current) {
-          clearTimeout(secondScrollTimeoutRef.current);
-        }
+    // Detect upward scroll (human intervention) - auto-scroll only goes down
+    if (currentScrollTop < lastScrollTopRef.current - 5) {
+      // Scrolled up by more than 5px (threshold to avoid micro-jitter)
+      setUserHasScrolledUp(true);
+      // Clear any pending auto-scroll when user scrolls up
+      if (secondScrollTimeoutRef.current) {
+        clearTimeout(secondScrollTimeoutRef.current);
       }
     }
+
+    lastScrollTopRef.current = currentScrollTop;
 
     if (atBottom) {
       setHasNewLogs(false);
@@ -214,7 +217,6 @@ export default function PodProvisioningPage() {
     if (allLogs.length > 0) {
       if (!userHasScrolledUp) {
         // User hasn't manually scrolled up, auto-scroll to bottom
-        isAutoScrollingRef.current = true;
         autoScrollToBottom();
         if (secondScrollTimeoutRef.current) {
           clearTimeout(secondScrollTimeoutRef.current);
@@ -222,10 +224,6 @@ export default function PodProvisioningPage() {
         secondScrollTimeoutRef.current = setTimeout(() => {
           autoScrollToBottom();
         }, 500);
-        // Reset the flag after both smooth scroll animation completes (~1000ms)
-        setTimeout(() => {
-          isAutoScrollingRef.current = false;
-        }, 1100);
         setHasNewLogs(false);
       } else {
         // User has scrolled up, show indicator
