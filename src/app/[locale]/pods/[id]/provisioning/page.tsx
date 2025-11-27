@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GitHubReauthButton } from "@/components/shared/github-reauth-button";
 import { Button } from "@/components/ui/button";
 import { isGitHubAuthError } from "@/lib/github-error-detection";
@@ -125,7 +125,8 @@ export default function PodProvisioningPage() {
   const [shouldRefetchLogs, setShouldRefetchLogs] = useState(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [hasNewLogs, setHasNewLogs] = useState(false);
-  const [scrolledManually, setScrolledManually] = useState(false);
+  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+  const isAutoScrollingRef = useRef(false);
 
   // Poll status and logs every 500ms for faster updates
   const { data, isLoading, error, refetch } =
@@ -177,35 +178,53 @@ export default function PodProvisioningPage() {
     if (!scrollContainerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } =
       scrollContainerRef.current;
-    // Consider at bottom if within 50px of the bottom (safe zone for smooth scrolling)
+    // Consider at bottom if within 24px of the bottom (safe zone for smooth scrolling)
     return scrollHeight - scrollTop - clientHeight < 24;
   };
 
-  // Handle scroll events to detect manual scrolling
+  // Handle scroll events - only track manual scrolling, not programmatic
   const handleScroll = () => {
-    setScrolledManually(true);
     const atBottom = checkIfAtBottom();
     setIsAtBottom(atBottom);
+
+    // Only detect manual scroll when we're NOT auto-scrolling
+    if (!isAutoScrollingRef.current) {
+      // User manually scrolled up (not at bottom)
+      if (!atBottom) {
+        setUserHasScrolledUp(true);
+        // Clear any pending auto-scroll when user manually scrolls up
+        if (secondScrollTimeoutRef.current) {
+          clearTimeout(secondScrollTimeoutRef.current);
+        }
+      }
+    }
+
     if (atBottom) {
       setHasNewLogs(false);
     }
-    // Clear any pending second scroll when user manually scrolls
-    if (secondScrollTimeoutRef.current) {
-      clearTimeout(secondScrollTimeoutRef.current);
-    }
   };
 
-  // Auto-scroll to bottom when new logs arrive, but only if user is at bottom
+  // Programmatic scroll that doesn't trigger manual scroll detection
+  const autoScrollToBottom = useCallback(() => {
+    isAutoScrollingRef.current = true;
+    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Reset the flag after smooth scroll animation completes (~500ms)
+    setTimeout(() => {
+      isAutoScrollingRef.current = false;
+    }, 600);
+  }, []);
+
+  // Auto-scroll to bottom when new logs arrive, but only if user hasn't scrolled up
   useEffect(() => {
     if (allLogs.length > 0) {
-      if (isAtBottom || !scrolledManually) {
-        // User is at bottom, scroll smoothly
-        consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      if (!userHasScrolledUp) {
+        // User hasn't manually scrolled up, auto-scroll to bottom
+        autoScrollToBottom();
         if (secondScrollTimeoutRef.current) {
           clearTimeout(secondScrollTimeoutRef.current);
         }
         secondScrollTimeoutRef.current = setTimeout(() => {
-          consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          autoScrollToBottom();
         }, 500);
         setHasNewLogs(false);
       } else {
@@ -213,11 +232,12 @@ export default function PodProvisioningPage() {
         setHasNewLogs(true);
       }
     }
-  }, [allLogs, isAtBottom, scrolledManually]);
+  }, [allLogs, userHasScrolledUp, autoScrollToBottom]);
 
   // Handler to scroll to bottom and restore auto-scroll
   const scrollToBottom = () => {
-    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    autoScrollToBottom();
+    setUserHasScrolledUp(false);
     setIsAtBottom(true);
     setHasNewLogs(false);
   };
@@ -395,7 +415,8 @@ export default function PodProvisioningPage() {
                 {t("provisioningConsole")}
               </h2>
               <span className="text-slate-400 font-mono text-xs">
-                {allLogs.length} {allLogs.length !== 1 ? t("logEntries") : t("logEntry")}
+                {allLogs.length}{" "}
+                {allLogs.length !== 1 ? t("logEntries") : t("logEntry")}
               </span>
             </div>
           </div>
@@ -478,12 +499,16 @@ export default function PodProvisioningPage() {
                       ) : log.exitCode === 0 ? (
                         <>
                           <CheckCircle className="h-3 w-3 text-green-400" />
-                          <span>{t("exit")}: {log.exitCode}</span>
+                          <span>
+                            {t("exit")}: {log.exitCode}
+                          </span>
                         </>
                       ) : (
                         <>
                           <XCircle className="h-3 w-3 text-red-400" />
-                          <span>{t("exit")}: {log.exitCode}</span>
+                          <span>
+                            {t("exit")}: {log.exitCode}
+                          </span>
                         </>
                       )}
                     </div>
