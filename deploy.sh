@@ -15,6 +15,13 @@ if [[ -f .env ]] && grep -q "^[[:space:]]*NEXTAUTH_URL=http://localhost:4000" .e
   exit 1
 fi
 
+# Check if local dev server is running on port 3000 or 4000
+if lsof -i :3000 -sTCP:LISTEN >/dev/null 2>&1 || lsof -i :4000 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "❌ Error: A server is already running on port 3000 or 4000"
+  echo "   Please kill the local dev server first to avoid .next folder conflicts."
+  exit 1
+fi
+
 echo "🔨 Building locally..."
 pnpm build
 

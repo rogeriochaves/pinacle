@@ -2477,3 +2477,87 @@ Commit done (`feat(workbench): improve iframe loading feedback`). Let me know if
 
 ---
 
+_**User (2025-11-27 00:06Z)**_
+
+nah sorry change back, I think we need to show the loading indicators even for non active tabs
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to revert the change where I made the loading indicator only show for active tabs. Let me find that change and revert it.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -291,5 +291,5 @@
+          title={tab.shortcut ? &#96;${tab.label} (⌘${tab.shortcut})&#96; : tab.label}
+        &gt;
+-         {isLoading &amp;&amp; isActive ? (
++         {isLoading ? (
+            &lt;TabLoadingIndicator /&gt;
+          ) : (
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Done, reverted back to showing loading indicators for all tabs, not just the active one.</details></think>
+
+---
+
+Done! Loading indicators will now show on all tabs, not just the active one.
+
+---
+
+_**User (2025-11-27 00:06Z)**_
+
+@.cursor/rules/commit.md 
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit the change I just made.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/dashboard/workbench.tsx && git commit -m "fix(workbench): show loading indicator on all tabs, not just active"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/components/dashboard/workbench.tsx && git commit -m "fix(workbench): show loading indicator on all tabs, not just active"
+```
+
+```
+[main a89f0a3] fix(workbench): show loading indicator on all tabs, not just active
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Done, committed the change.</details></think>
+
+---
+
+Done! Committed: `fix(workbench): show loading indicator on all tabs, not just active`
+
+---
+
