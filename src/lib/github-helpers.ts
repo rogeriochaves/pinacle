@@ -119,21 +119,22 @@ export const getOctokitForRepo = async (
     (inst) => inst.accountLogin === owner,
   );
 
-  if (targetInstallation && targetInstallation.accountType === "Organization") {
-    // Use GitHub App installation token for organizations
+  if (targetInstallation) {
+    // Use GitHub App installation token for both organizations AND personal accounts
+    // This is required for workflow file permissions which OAuth tokens can't have
     console.log(
-      `[GitHubHelpers] Using GitHub App installation token for organization ${owner}`,
+      `[GitHubHelpers] Using GitHub App installation token for ${targetInstallation.accountType === "Organization" ? "organization" : "user"} ${owner}`,
     );
     return await getInstallationOctokit(targetInstallation.installationId);
   }
 
-  // Use user's OAuth token for personal accounts
+  // Fallback to user's OAuth token only if no GitHub App installation found
   console.log(
-    `[GitHubHelpers] Using user OAuth token for personal account ${owner}`,
+    `[GitHubHelpers] No GitHub App installation found for ${owner}, falling back to user OAuth token`,
   );
   if (!userGithubToken) {
     throw new Error(
-      "User's GitHub OAuth token not found. Please sign out and sign in again.",
+      "No GitHub App installation found and no OAuth token available. Please install the Pinacle GitHub App on your account.",
     );
   }
   return new Octokit({ auth: userGithubToken });
