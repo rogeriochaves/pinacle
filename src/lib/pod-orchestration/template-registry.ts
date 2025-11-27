@@ -98,10 +98,7 @@ export const POD_TEMPLATES = {
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      NODE_ENV: "development",
-      PORT: "5173",
-    },
+    environment: {},
 
     installCommand: "pnpm install",
     defaultProcesses: [
@@ -285,12 +282,9 @@ EOF`,
       { name: "terminal", internal: 7681 },
       { name: "postgres", internal: 5432 },
     ],
-    environment: {
-      NODE_ENV: "development",
-      PORT: "3000",
-      NEXT_TELEMETRY_DISABLED: "1",
-    },
-    generateDefaultEnv: () => `# Next.js SaaS Starter Environment Variables
+    environment: {},
+    generateDefaultEnv: () =>
+      `# Next.js SaaS Starter Environment Variables
 # https://github.com/nextjs/saas-starter
 
 # Authentication
@@ -357,10 +351,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      PYTHON_ENV: "development",
-      PYTHONPATH: "/workspace",
-    },
+    environment: {},
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -399,10 +390,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      NODE_ENV: "development",
-    },
-
+    environment: {},
     installCommand: "pnpm install",
     defaultProcesses: [
       {
@@ -443,10 +431,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      PYTHON_ENV: "development",
-      PYTHONPATH: "/workspace",
-    },
+    environment: {},
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -488,10 +473,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "claude", internal: 2528 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      PYTHON_ENV: "development",
-      PYTHONPATH: "/workspace",
-    },
+    environment: {},
 
     installCommand: "uv sync",
     defaultProcesses: [
@@ -543,12 +525,9 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "terminal", internal: 7681 },
       { name: "postgres", internal: 5432 },
     ],
-    environment: {
-      NODE_ENV: "development",
-      PORT: "3000",
-      NEXT_TELEMETRY_DISABLED: "1",
-    },
-    generateDefaultEnv: () => `# Vercel AI Chatbot Environment Variables
+    environment: {},
+    generateDefaultEnv: () =>
+      `# Vercel AI Chatbot Environment Variables
 # https://github.com/vercel/ai-chatbot
 
 # Authentication
@@ -592,13 +571,18 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
       // 2. Patch migrate.ts to use .env instead of .env.local (Pinacle uses .env)
       "sed -i 's/.env.local/.env/g' lib/db/migrate.ts",
 
-      // 3. Install dependencies
+      // 3. Patch middleware.ts to use secure cookies when behind HTTPS proxy (Pinacle)
+      // Original: secureCookie: !isDevelopmentEnvironment
+      // Patched: secureCookie: true if X-Forwarded-Proto is 'https', else fallback to original behavior
+      `sed -i "s/secureCookie: !isDevelopmentEnvironment/secureCookie: request.headers.get('x-forwarded-proto') === 'https' || !isDevelopmentEnvironment/g" middleware.ts`,
+
+      // 4. Install dependencies
       "pnpm install",
 
-      // 4. Wait for Postgres to be ready
+      // 5. Wait for Postgres to be ready
       "until pg_isready -h localhost -U postgres; do echo 'Waiting for postgres...'; sleep 2; done",
 
-      // 5. Run database migrations
+      // 6. Run database migrations
       "pnpm db:migrate",
     ],
   },
@@ -624,11 +608,7 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
       { name: "code", internal: 8726 },
       { name: "terminal", internal: 7681 },
     ],
-    environment: {
-      PYTHON_ENV: "development",
-      PYTHONPATH: "/workspace",
-      LANGFLOW_DATABASE_URL: "sqlite:///./langflow.db",
-    },
+    environment: {},
 
     installCommand: "uv sync",
     defaultProcesses: [

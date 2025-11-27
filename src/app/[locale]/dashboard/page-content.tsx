@@ -140,7 +140,7 @@ export default function Dashboard() {
     try {
       await deletePodMutation.mutateAsync({ id: podId });
       toast.success(t("podArchived", { name: podName }), {
-        description: t("podArchivedDescription"),
+        description: t("podArchivedDescription", { name: podName }),
       });
       refetch();
       if (selectedPodId === podId) {
