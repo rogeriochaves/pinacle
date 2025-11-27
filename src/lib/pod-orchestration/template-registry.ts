@@ -300,7 +300,7 @@ STRIPE_SECRET_KEY=sk_test_${generateRandomSecret(24)}
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 `.trim(),
 
-    installCommand: "pnpm install",
+    installCommand: "pnpm db:migrate && pnpm install",
     defaultProcesses: [
       {
         name: "app",
@@ -549,7 +549,7 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
 # ANTHROPIC_API_KEY=sk-ant-xxx
 `.trim(),
 
-    installCommand: "pnpm install",
+    installCommand: "pnpm db:migrate && pnpm install",
     defaultProcesses: [
       {
         name: "app",
