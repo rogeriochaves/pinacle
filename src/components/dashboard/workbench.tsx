@@ -339,8 +339,34 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
   // Track loading state for each tab
   const [loadingTabs, setLoadingTabs] = useState<Set<string>>(new Set());
 
-  // Helper to set loading state for a tab
+  // Track loading timeouts to auto-clear stuck loading states
+  const loadingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Helper to set loading state for a tab with timeout management
   const setTabLoading = useCallback((tabId: string, loading: boolean) => {
+    // Clear any existing timeout for this tab
+    const existingTimeout = loadingTimeoutsRef.current.get(tabId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      loadingTimeoutsRef.current.delete(tabId);
+    }
+
+    if (loading) {
+      // Set a catch-all timeout to clear loading state after 120 seconds
+      // This handles cases where onLoad event is missed (cross-origin issues, etc.)
+      const timeout = setTimeout(() => {
+        console.warn(`[Workbench] Loading timeout for tab ${tabId}, clearing stuck loading state`);
+        setLoadingTabs((prev) => {
+          const next = new Set(prev);
+          next.delete(tabId);
+          return next;
+        });
+        loadingTimeoutsRef.current.delete(tabId);
+      }, 120_000); // 120 second catch-all timeout
+
+      loadingTimeoutsRef.current.set(tabId, timeout);
+    }
+
     setLoadingTabs((prev) => {
       const next = new Set(prev);
       if (loading) {
@@ -350,6 +376,15 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
       }
       return next;
     });
+  }, []);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      for (const timeout of loadingTimeoutsRef.current.values()) {
+        clearTimeout(timeout);
+      }
+    };
   }, []);
 
   // Track which tabs have had their loading state initialized
