@@ -45,6 +45,18 @@ export const POST = async (request: Request) => {
     const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, "");
     const imageBuffer = Buffer.from(base64Data, "base64");
 
+    // Reject images that are too small (likely failed/corrupted captures)
+    const MIN_VALID_IMAGE_SIZE = 1024; // 1KB minimum
+    if (imageBuffer.length < MIN_VALID_IMAGE_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Invalid screenshot: image too small",
+          details: `Image size ${imageBuffer.length} bytes is below minimum ${MIN_VALID_IMAGE_SIZE} bytes`,
+        },
+        { status: 400 },
+      );
+    }
+
     // Generate screenshot ID
     const screenshotId = `${podId}-${Date.now()}`;
 
