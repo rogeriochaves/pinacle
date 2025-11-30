@@ -1,0 +1,33 @@
+FROM alpine
+
+RUN apk add --no-cache \
+    build-base \
+    readline-dev \
+    zlib-dev \
+    openssl-dev \
+    bison \
+    flex \
+    perl \
+    wget
+
+ENV PGVERSION=18.1
+
+RUN wget https://ftp.postgresql.org/pub/source/v${PGVERSION}/postgresql-${PGVERSION}.tar.gz && \
+    tar xf postgresql-${PGVERSION}.tar.gz && \
+    cd postgresql-${PGVERSION} && \
+    ./configure --prefix=/usr/local --without-readline --with-openssl --without-icu && \
+    # Remove root restriction
+    sed -i 's/if (geteuid() == 0)/if (0)/' src/backend/main/main.c && \
+    # Remove tools that won't build on musl (missing linux/fs.h)
+    sed -i '/pg_combinebackup/d' src/bin/Makefile && \
+    sed -i '/pg_upgrade/d' src/bin/Makefile && \
+    \
+    make -j4 && \
+    make install
+
+# Create postgres user ONLY in build stage (here we can su/chown freely)
+RUN adduser -D -h /var/lib/postgresql -s /bin/sh postgres && \
+    mkdir -p /build-data && \
+    chown -R postgres:postgres /build-data && \
+    su postgres -c "/usr/local/bin/initdb -D /build-data --auth=trust"
+

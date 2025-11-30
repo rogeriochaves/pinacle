@@ -474,24 +474,60 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
       { name: "terminal", internal: 7681 },
     ],
     environment: {},
+    generateDefaultEnv: () =>
+      `# Agno AgentUI Environment Variables
+# https://docs.agno.com/basics/agent-ui/overview
+
+# OpenAI API Key
+OPENAI_API_KEY="add your OpenAI API key here"
+`.trim(),
 
     installCommand: "uv sync",
     defaultProcesses: [
       {
         name: "app",
-        startCommand:
-          "uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
-        url: "http://localhost:8000",
-        healthCheck: "curl -f http://localhost:8000",
+        startCommand: `pnpx concurrently 'uv run python my_os.py' 'cd agent-ui && pnpm run dev'`,
+        url: "http://localhost:3000",
+        healthCheck:
+          "curl -f http://localhost:7777 && curl -f http://localhost:3000",
       },
     ],
 
     templateType: "python",
     initScript: [
-      "cd /workspace",
-      "python3 -m venv venv",
-      "source venv/bin/activate",
-      "pip install agno fastapi uvicorn",
+      "uv init .",
+      "uv add agno 'fastapi[standard]' uvicorn openai sqlalchemy aiosqlite greenlet",
+      `cat > my_os.py << 'EOF'
+  from agno.agent import Agent
+  from agno.models.openai import OpenAIChat
+  from agno.db.sqlite import AsyncSqliteDb
+  from agno.os import AgentOS
+
+  import dotenv
+
+  dotenv.load_dotenv()
+
+  assistant = Agent(
+      name="Assistant",
+      model=OpenAIChat(id="gpt-5-mini"),
+      db=AsyncSqliteDb(db_file="my_os.db"),
+      instructions=["You are a helpful AI assistant."],
+      markdown=True,
+  )
+
+  agent_os = AgentOS(
+      id="my-first-os",
+      description="My first AgentOS",
+      agents=[assistant],
+  )
+
+  app = agent_os.get_app()
+
+  if __name__ == "__main__":
+      # Default port is 7777; change with port=...
+      agent_os.serve(app="my_os:app", reload=True)
+  EOF`,
+      "yes | pnpx create-agent-ui@latest",
     ],
   },
 

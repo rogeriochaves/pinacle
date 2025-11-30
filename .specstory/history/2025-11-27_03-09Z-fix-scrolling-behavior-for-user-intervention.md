@@ -786,3 +786,129 @@ The 5px threshold prevents false positives from micro-jitter. This should work r
 
 ---
 
+_**User (2025-11-29 20:14Z)**_
+
+hey, I had another idea, if we detect we have scrolled fully to the bottom, can we set that the user scrolled manually to false back again? this way we "lock in" and keep scrolling again
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to automatically re-enable auto-scrolling when the user scrolls all the way to the bottom. This makes sense - if the user manually scrolls back to the bottom, they probably want to resume following the logs.
+
+I need to update the `handleScroll` function to reset `userHasScrolledUp` to `false` when `atBottom` is true.</details></think>
+
+---
+
+Great idea! If the user scrolls back to the bottom, they want to follow the logs again. Let me add that:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the current implementation. I just need to add `setUserHasScrolledUp(false)` when `atBottom` is true. This will re-enable auto-scrolling when the user scrolls back to the bottom.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -204,4 +204,6 @@
+  
+      if (atBottom) {
++       // User scrolled back to bottom, re-enable auto-scroll
++       setUserHasScrolledUp(false);
+        setHasNewLogs(false);
+      }
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me also check if we should update the scrollToBottom function to do the same thing (reset userHasScrolledUp). Let me check if it's already doing that.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "scrollToBottom" in "/Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx" • 2 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `src/app/[locale]/pods/[id]/provisioning/page.tsx` | `const scrollToBottom = () => \{` | L238 |
+| `src/app/[locale]/pods/[id]/provisioning/page.tsx` | `onClick=\{scrollToBottom\}` | L553 |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Good, the `scrollToBottom` function already resets `userHasScrolledUp` to false, so the button works correctly too. The changes are complete - now when the user scrolls to the bottom (either manually or via the button), auto-scroll will resume.</details></think>
+
+---
+
+Done! Now when the user scrolls back to the bottom (either manually or by clicking the "new logs" button), `userHasScrolledUp` gets reset to `false` and auto-scrolling resumes. The button handler already had this logic, so now both paths work consistently.
+
+---
+
+_**User (2025-11-29 20:35Z)**_
+
+@.cursor/rules/commit.md 
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit the changes I just made. Let me check the git status and commit only the changed files.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add "src/app/[locale]/pods/[id]/provisioning/page.tsx" && git commit -m "fix: re-enable auto-scroll when user scrolls back to bottom"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add "src/app/[locale]/pods/[id]/provisioning/page.tsx" && git commit -m "fix: re-enable auto-scroll when user scrolls back to bottom"
+```
+
+```
+[main 669b6e7] fix: re-enable auto-scroll when user scrolls back to bottom
+ 1 file changed, 2 insertions(+)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Done! The commit was successful.</details></think>
+
+---
+
+Done! Committed with message: `fix: re-enable auto-scroll when user scrolls back to bottom`
+
+---
+
