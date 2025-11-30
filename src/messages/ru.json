@@ -374,7 +374,12 @@
     "applicationConfiguration": "КОНФИГУРАЦИЯ ПРИЛОЖЕНИЯ",
     "installCommand": "Install команда (опционально)",
     "installCommandPlaceholder": "напр: pnpm install или uv sync",
-    "startCommand": "Start команда (опционально)",
+    "processes": "Процессы",
+    "processName": "Название процесса",
+    "processNamePlaceholder": "напр: app, backend, worker",
+    "startCommand": "Start команда",
+    "addProcess": "Добавить процесс",
+    "removeProcess": "Удалить",
     "startCommandPlaceholder": "напр: pnpm dev или uv run fastapi dev",
     "applicationUrl": "URL приложения (опционально)",
     "applicationUrlPlaceholder": "напр: http://localhost:3000",
@@ -438,6 +443,14 @@
     "detected": "Обнаружено",
     "usingConfigFromRepo": "Используется конфиг из репы",
     "popular": "Популярный",
+    "loading": "ЗАГРУЗКА...",
+    "loadedEnvFrom": "Env загружен из",
+    "reuseEnvVars": "Переиспользовать env vars",
+    "matchedByRepo": "Совпадение по репозиторию",
+    "matchedByTemplate": "Совпадение по шаблону",
+    "fromPod": "из",
+    "allSavedEnvVars": "Все сохраненные env vars",
+    "manageEnvVars": "Управлять всеми env vars...",
     "repositoryConnection": {
       "title": "Подключите ваш аккаунт GitHub для доступа к репозиториям",
       "newProjectTitle": "Подключите ваш аккаунт GitHub для создания нового проекта"
@@ -823,5 +836,27 @@
       "button": "Реактивировать подписку",
       "footer": "– Pinacle"
     }
+  },
+  "settings": {
+    "savedEnvVars": "Сохраненные Env Vars",
+    "savedConfigurations": "сохраненных конфигураций",
+    "noDotenvsSaved": "Переменные окружения еще не сохранены",
+    "pods": "подов",
+    "inUse": "Используется",
+    "selectDotenv": "Выберите dotenv",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "dotenvUpdated": "Переменные окружения обновлены",
+    "dotenvDeleted": "Переменные окружения удалены",
+    "cannotDeleteActiveDotenv": "Невозможно удалить: активные поды используют этот dotenv",
+    "confirmDeleteDotenv": "Вы уверены, что хотите удалить этот dotenv? Это действие нельзя отменить.",
+    "activePodWarning": "Предупреждение об активных подах",
+    "activePodWarningDetail": "{count} активных под(ов) используют этот dotenv. Изменения повлияют на них.",
+    "usedByPods": "Используется подами",
+    "archived": "архивирован",
+    "contentHidden": "Содержимое скрыто в целях безопасности",
+    "showContent": "Показать содержимое",
+    "selectDotenvToView": "Выберите dotenv для просмотра деталей",
+    "deleteDisabledTooltip": "Нельзя удалить, пока поды используют это. Сначала архивируйте поды."
   }
 }

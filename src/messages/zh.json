@@ -374,7 +374,12 @@
     "applicationConfiguration": "应用配置",
     "installCommand": "Install 命令（可选）",
     "installCommandPlaceholder": "例如：pnpm install 或 uv sync",
-    "startCommand": "启动命令（可选）",
+    "processes": "进程",
+    "processName": "进程名称",
+    "processNamePlaceholder": "例如：app, backend, worker",
+    "startCommand": "启动命令",
+    "addProcess": "添加进程",
+    "removeProcess": "删除",
     "startCommandPlaceholder": "例如：pnpm dev 或 uv run fastapi dev",
     "applicationUrl": "应用 URL（可选）",
     "applicationUrlPlaceholder": "例如：http://localhost:3000",
@@ -438,6 +443,14 @@
     "detected": "已检测",
     "usingConfigFromRepo": "使用 repo 中的配置",
     "popular": "热门",
+    "loading": "加载中...",
+    "loadedEnvFrom": "已从以下加载环境变量",
+    "reuseEnvVars": "重用环境变量",
+    "matchedByRepo": "按仓库匹配",
+    "matchedByTemplate": "按模板匹配",
+    "fromPod": "来自",
+    "allSavedEnvVars": "所有已保存的环境变量",
+    "manageEnvVars": "管理所有环境变量...",
     "repositoryConnection": {
       "title": "连接您的GitHub账户以访问您的仓库",
       "newProjectTitle": "连接您的GitHub账户以创建新项目"
@@ -823,5 +836,27 @@
       "button": "重新激活订阅",
       "footer": "– Pinacle"
     }
+  },
+  "settings": {
+    "savedEnvVars": "已保存的环境变量",
+    "savedConfigurations": "个已保存配置",
+    "noDotenvsSaved": "尚未保存任何环境变量",
+    "pods": "个 pods",
+    "inUse": "使用中",
+    "selectDotenv": "选择一个 dotenv",
+    "cancel": "取消",
+    "save": "保存",
+    "dotenvUpdated": "环境变量已更新",
+    "dotenvDeleted": "环境变量已删除",
+    "cannotDeleteActiveDotenv": "无法删除：活动的 pods 正在使用此 dotenv",
+    "confirmDeleteDotenv": "确定要删除此 dotenv 吗？此操作无法撤销。",
+    "activePodWarning": "活动 pods 警告",
+    "activePodWarningDetail": "{count} 个活动 pod 正在使用此 dotenv。更改将影响它们。",
+    "usedByPods": "被 pods 使用",
+    "archived": "已归档",
+    "contentHidden": "内容已隐藏以确保安全",
+    "showContent": "显示内容",
+    "selectDotenvToView": "选择一个 dotenv 查看详情",
+    "deleteDisabledTooltip": "有 pods 正在使用，无法删除。请先归档 pods。"
   }
 }

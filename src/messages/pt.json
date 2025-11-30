@@ -374,7 +374,12 @@
     "applicationConfiguration": "CONFIGURAÇÃO DA APLICAÇÃO",
     "installCommand": "Comando de Instalação (opcional)",
     "installCommandPlaceholder": "ex: pnpm install ou uv sync",
-    "startCommand": "Comando de Inicialização (opcional)",
+    "processes": "Processos",
+    "processName": "Nome do Processo",
+    "processNamePlaceholder": "ex: app, backend, worker",
+    "startCommand": "Comando de Inicialização",
+    "addProcess": "Adicionar Processo",
+    "removeProcess": "Remover",
     "startCommandPlaceholder": "ex: pnpm dev ou uv run fastapi dev",
     "applicationUrl": "URL da Aplicação (opcional)",
     "applicationUrlPlaceholder": "ex: http://localhost:3000",
@@ -438,6 +443,14 @@
     "detected": "Detectado",
     "usingConfigFromRepo": "Usando config do repo",
     "popular": "Popular",
+    "loading": "CARREGANDO...",
+    "loadedEnvFrom": "Env carregado de",
+    "reuseEnvVars": "Reutilizar env vars",
+    "matchedByRepo": "Correspondido por repositório",
+    "matchedByTemplate": "Correspondido por template",
+    "fromPod": "de",
+    "allSavedEnvVars": "Todas as env vars salvas",
+    "manageEnvVars": "Gerenciar todas as env vars...",
     "repositoryConnection": {
       "title": "Conecte sua conta GitHub para acessar seus repositórios",
       "newProjectTitle": "Conecte sua conta GitHub para criar um novo projeto"
@@ -823,5 +836,27 @@
       "button": "Reativar Assinatura",
       "footer": "– Pinacle"
     }
+  },
+  "settings": {
+    "savedEnvVars": "Env Vars Salvas",
+    "savedConfigurations": "configurações salvas",
+    "noDotenvsSaved": "Nenhuma variável de ambiente salva ainda",
+    "pods": "pods",
+    "inUse": "Em uso",
+    "selectDotenv": "Selecione um dotenv",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "dotenvUpdated": "Variáveis de ambiente atualizadas",
+    "dotenvDeleted": "Variáveis de ambiente excluídas",
+    "cannotDeleteActiveDotenv": "Não é possível excluir: pods ativos estão usando este dotenv",
+    "confirmDeleteDotenv": "Tem certeza que deseja excluir este dotenv? Esta ação não pode ser desfeita.",
+    "activePodWarning": "Aviso de pods ativos",
+    "activePodWarningDetail": "{count} pod(s) ativo(s) estão usando este dotenv. Alterações os afetarão.",
+    "usedByPods": "Usado por pods",
+    "archived": "arquivado",
+    "contentHidden": "Conteúdo oculto por segurança",
+    "showContent": "Mostrar conteúdo",
+    "selectDotenvToView": "Selecione um dotenv para ver os detalhes",
+    "deleteDisabledTooltip": "Não é possível excluir enquanto pods estão usando. Arquive os pods primeiro."
   }
 }

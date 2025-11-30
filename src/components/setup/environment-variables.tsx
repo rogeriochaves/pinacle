@@ -8,14 +8,20 @@ type EnvironmentVariablesProps = {
   value: string;
   onChange: (value: string) => void;
   onValidationChange?: (result: DotenvValidationResult) => void;
+  onEnvVarCountChange?: (count: number) => void;
   defaultValue?: string;
+  hideLabel?: boolean;
+  controlsPosition?: "header" | "footer" | "none";
 };
 
 export const EnvironmentVariables = ({
   value,
   onChange,
   onValidationChange,
+  onEnvVarCountChange,
   defaultValue,
+  hideLabel,
+  controlsPosition = "header",
 }: EnvironmentVariablesProps) => {
   const t = useTranslations("setup");
 
@@ -24,8 +30,11 @@ export const EnvironmentVariables = ({
       value={value}
       onChange={onChange}
       onValidationChange={onValidationChange}
+      onEnvVarCountChange={onEnvVarCountChange}
       defaultValue={defaultValue}
       label={t("environmentVariables")}
+      showLabel={!hideLabel}
+      controlsPosition={controlsPosition}
       variant="light"
       minHeight="200px"
       helpText={t("envSetupHelp")}

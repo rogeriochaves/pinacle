@@ -375,10 +375,15 @@
     "applicationConfiguration": "APPLICATION CONFIGURATION",
     "installCommand": "Install Command (optional)",
     "installCommandPlaceholder": "e.g., pnpm install or uv sync",
-    "startCommand": "Start Command (optional)",
+    "processes": "Processes",
+    "processName": "Process Name",
+    "processNamePlaceholder": "e.g., app, backend, worker",
+    "startCommand": "Start Command",
     "startCommandPlaceholder": "e.g., pnpm dev or uv run fastapi dev",
     "applicationUrl": "Application URL (optional)",
     "applicationUrlPlaceholder": "e.g., http://localhost:3000",
+    "addProcess": "Add Process",
+    "removeProcess": "Remove",
     "computeResources": "COMPUTE RESOURCES",
     "tierTooSmall": "This tier is too small for the selected template. Minimum: {minimumTier}",
     "serverAdminOnly": "SERVER (ADMIN ONLY)",
@@ -440,6 +445,13 @@
     "usingConfigFromRepo": "Using config from repo",
     "popular": "Popular",
     "loading": "LOADING...",
+    "loadedEnvFrom": "Loaded env from",
+    "reuseEnvVars": "Reuse env vars",
+    "matchedByRepo": "Matched by repository",
+    "matchedByTemplate": "Matched by template",
+    "fromPod": "from",
+    "allSavedEnvVars": "All saved env vars",
+    "manageEnvVars": "Manage all env vars...",
     "repositoryConnection": {
       "title": "Connect your GitHub account to access your repositories",
       "newProjectTitle": "Connect your GitHub account to create a new project"
@@ -825,5 +837,27 @@
       "button": "Update Payment Method",
       "footer": "– Pinacle"
     }
+  },
+  "settings": {
+    "savedEnvVars": "Saved Env Vars",
+    "savedConfigurations": "saved configurations",
+    "noDotenvsSaved": "No environment variables saved yet",
+    "pods": "pods",
+    "inUse": "In use",
+    "selectDotenv": "Select a dotenv",
+    "cancel": "Cancel",
+    "save": "Save",
+    "dotenvUpdated": "Environment variables updated",
+    "dotenvDeleted": "Environment variables deleted",
+    "cannotDeleteActiveDotenv": "Cannot delete: active pods are using this dotenv",
+    "confirmDeleteDotenv": "Are you sure you want to delete this dotenv? This cannot be undone.",
+    "activePodWarning": "Active pods warning",
+    "activePodWarningDetail": "{count} active pod(s) are using this dotenv. Changes will affect them.",
+    "usedByPods": "Used by pods",
+    "archived": "archived",
+    "contentHidden": "Content hidden for security",
+    "showContent": "Show content",
+    "selectDotenvToView": "Select a dotenv to view its details",
+    "deleteDisabledTooltip": "Cannot delete while pods are using this. Archive the pods first."
   }
 }

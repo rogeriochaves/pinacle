@@ -374,7 +374,12 @@
     "applicationConfiguration": "アプリケーション設定",
     "installCommand": "Install コマンド（オプション）",
     "installCommandPlaceholder": "例：pnpm install または uv sync",
-    "startCommand": "Start コマンド（オプション）",
+    "processes": "プロセス",
+    "processName": "プロセス名",
+    "processNamePlaceholder": "例：app, backend, worker",
+    "startCommand": "Start コマンド",
+    "addProcess": "プロセスを追加",
+    "removeProcess": "削除",
     "startCommandPlaceholder": "例：pnpm dev または uv run fastapi dev",
     "applicationUrl": "アプリケーション URL（オプション）",
     "applicationUrlPlaceholder": "例：http://localhost:3000",
@@ -438,6 +443,14 @@
     "detected": "検出済み",
     "usingConfigFromRepo": "Repo の設定を使用",
     "popular": "人気",
+    "loading": "読み込み中...",
+    "loadedEnvFrom": "環境変数を読み込み",
+    "reuseEnvVars": "環境変数を再利用",
+    "matchedByRepo": "リポジトリで一致",
+    "matchedByTemplate": "テンプレートで一致",
+    "fromPod": "から",
+    "allSavedEnvVars": "すべての保存済み環境変数",
+    "manageEnvVars": "すべての環境変数を管理...",
     "repositoryConnection": {
       "title": "リポジトリにアクセスするためにGitHubアカウントを接続",
       "newProjectTitle": "新しいプロジェクトを作成するためにGitHubアカウントを接続"
@@ -823,5 +836,27 @@
       "button": "サブスクリプションを再アクティブ化",
       "footer": "– Pinacle"
     }
+  },
+  "settings": {
+    "savedEnvVars": "保存済み環境変数",
+    "savedConfigurations": "保存済み設定",
+    "noDotenvsSaved": "まだ環境変数が保存されていません",
+    "pods": "ポッド",
+    "inUse": "使用中",
+    "selectDotenv": "dotenvを選択",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "dotenvUpdated": "環境変数が更新されました",
+    "dotenvDeleted": "環境変数が削除されました",
+    "cannotDeleteActiveDotenv": "削除できません：アクティブなポッドがこのdotenvを使用しています",
+    "confirmDeleteDotenv": "このdotenvを削除してもよろしいですか？この操作は取り消せません。",
+    "activePodWarning": "アクティブポッドの警告",
+    "activePodWarningDetail": "{count}個のアクティブなポッドがこのdotenvを使用しています。変更は影響します。",
+    "usedByPods": "ポッドで使用中",
+    "archived": "アーカイブ済み",
+    "contentHidden": "セキュリティのためコンテンツは非表示",
+    "showContent": "コンテンツを表示",
+    "selectDotenvToView": "詳細を表示するdotenvを選択してください",
+    "deleteDisabledTooltip": "ポッドが使用中のため削除できません。先にポッドをアーカイブしてください。"
   }
 }

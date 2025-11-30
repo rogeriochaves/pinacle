@@ -85,12 +85,16 @@ type DotenvEditorProps = {
   value: string;
   onChange: (value: string) => void;
   onValidationChange?: (result: DotenvValidationResult) => void;
+  onEnvVarCountChange?: (count: number) => void;
+  onEditRequest?: () => void; // Called when user clicks on a readOnly editor
   defaultValue?: string;
   label?: string;
   showLabel?: boolean;
+  controlsPosition?: "header" | "footer" | "none";
   minHeight?: string;
   variant?: "light" | "dark";
   disabled?: boolean;
+  readOnly?: boolean;
   helpText?: string;
 };
 
@@ -98,12 +102,16 @@ export const DotenvEditor = ({
   value,
   onChange,
   onValidationChange,
+  onEnvVarCountChange,
+  onEditRequest,
   defaultValue,
   label,
   showLabel = true,
+  controlsPosition = "header",
   minHeight = "200px",
   variant = "light",
   disabled = false,
+  readOnly = false,
   helpText,
 }: DotenvEditorProps) => {
   const t = useTranslations("setup");
@@ -134,6 +142,11 @@ export const DotenvEditor = ({
 
   const envVarCount = countEnvVars(value);
 
+  // Notify parent of count changes
+  useMemo(() => {
+    onEnvVarCountChange?.(envVarCount);
+  }, [envVarCount, onEnvVarCountChange]);
+
   const handleReset = () => {
     if (defaultValue) {
       onChange(defaultValue);
@@ -152,7 +165,7 @@ export const DotenvEditor = ({
             className={`text-xs font-mono font-medium ${isDark ? "text-neutral-400" : "text-slate-600"}`}
           >
             {label || t("environmentVariables")}
-            {envVarCount > 0 && (
+            {controlsPosition === "header" && envVarCount > 0 && (
               <span
                 className={
                   isDark ? "text-neutral-500 ml-2" : "text-slate-400 ml-2"
@@ -163,74 +176,87 @@ export const DotenvEditor = ({
               </span>
             )}
           </Label>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowContent(!showContent)}
-              className={`h-7 px-2 text-xs font-mono ${isDark ? "text-neutral-300 hover:text-white" : ""}`}
-            >
-              {showContent ? (
-                <>
-                  <EyeOff className="h-3 w-3 mr-1" />
-                  {t("hide")}
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3 mr-1" />
-                  {t("show")}
-                </>
-              )}
-            </Button>
-            {defaultValue && value !== defaultValue && (
+          {controlsPosition === "header" && (
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={handleReset}
-                className="h-7 px-2 text-xs font-mono text-orange-600 hover:text-orange-700"
+                onClick={() => setShowContent(!showContent)}
+                className={`h-7 px-2 text-xs font-mono ${isDark ? "text-neutral-300 hover:text-white" : ""}`}
               >
-                <RotateCcw className="h-3 w-3 mr-1" />
-                {t("resetToDefault")}
+                {showContent ? (
+                  <>
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    {t("hide")}
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3 w-3 mr-1" />
+                    {t("show")}
+                  </>
+                )}
               </Button>
-            )}
-          </div>
+              {defaultValue && value !== defaultValue && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                  className="h-7 px-2 text-xs font-mono text-orange-600 hover:text-orange-700"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  {t("resetToDefault")}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       <div className="relative flex-1">
+        {/* biome-ignore lint/a11y/useKeyWithClickEvents: click to edit is intentional UX */}
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: click to edit is intentional UX */}
         <div
           className={`w-full h-full border rounded-lg overflow-hidden ${
             isDark
               ? `bg-neutral-800 ${!validation.valid ? "border-red-500/50" : "border-neutral-700"}`
               : `bg-white ${!validation.valid ? "border-red-300" : "border-slate-200"}`
-          } ${disabled ? "opacity-50" : ""}`}
+          } ${disabled ? "opacity-50" : ""} ${readOnly && onEditRequest ? "cursor-pointer" : ""}`}
           style={{ minHeight }}
+          onClick={() => {
+            if (readOnly && onEditRequest) {
+              onEditRequest();
+            }
+          }}
         >
           <Editor
             value={showContent ? value : maskedValue}
             onValueChange={(code) => {
-              if (showContent && !disabled) {
+              if (showContent && !disabled && !readOnly) {
                 onChange(code);
               }
             }}
             highlight={(code) => highlightDotenv(code, isDark, errorLines)}
             padding={16}
-            readOnly={!showContent || disabled}
+            readOnly={!showContent || disabled || readOnly}
             style={{
               fontFamily: "ui-monospace, monospace",
               fontSize: "0.875rem",
               lineHeight: "1.6",
               minHeight,
               backgroundColor: "transparent",
+              // wordBreak: "break-all",
+              // whiteSpace: "pre-wrap",
+              overflowWrap: "break-word",
             }}
             className={`focus-within:ring-2 focus-within:ring-orange-500 focus-within:ring-inset rounded-lg ${
               !showContent ? "cursor-default select-none" : ""
             }`}
             textareaClassName={`focus:outline-none ${
               isDark ? "caret-white" : "caret-slate-900"
-            }`}
+            } editor-break-all`}
+            preClassName="editor-break-all"
           />
         </div>
         {!showContent && (
@@ -290,13 +316,50 @@ export const DotenvEditor = ({
         </div>
       )}
 
-      {/* Help text (only show when no errors) */}
+      {/* Footer with help text and optional controls */}
       {(validation.valid || !showContent) && (
-        <p
-          className={`text-xs font-mono mt-2 ${isDark ? "text-neutral-500" : "text-slate-500"}`}
-        >
-          {helpText || t("dotenvHelp")}
-        </p>
+        <div className="flex items-center justify-between mt-2">
+          <p
+            className={`text-xs font-mono ${isDark ? "text-neutral-500" : "text-slate-500"}`}
+          >
+            {helpText || t("dotenvHelp")}
+          </p>
+          {controlsPosition === "footer" && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowContent(!showContent)}
+                className={`h-7 px-2 text-xs font-mono ${isDark ? "text-neutral-300 hover:text-white" : ""}`}
+              >
+                {showContent ? (
+                  <>
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    {t("hide")}
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3 w-3 mr-1" />
+                    {t("show")}
+                  </>
+                )}
+              </Button>
+              {defaultValue && value !== defaultValue && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleReset}
+                  className="h-7 px-2 text-xs font-mono text-orange-600 hover:text-orange-700"
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  {t("resetToDefault")}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
