@@ -519,6 +519,7 @@
     "errorUnknown": "不明なエラー",
     "provisioningStalled": "プロビジョニングが停止している可能性",
     "provisioningStalledDesc": "10分以上更新がありません。プロビジョニングプロセスで問題が発生した可能性があります。下でプロビジョニングを再試行できます。",
+    "provisioningTimedOut": "プロビジョニングがタイムアウト - 5分以上更新がありません",
     "retryProvisioning": "プロビジョニングを再試行",
     "retrying": "再試行中...",
     "provisioningConsole": "プロビジョニングコンソール",

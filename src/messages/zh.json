@@ -519,6 +519,7 @@
     "errorUnknown": "未知错误",
     "provisioningStalled": "配置可能已停滞",
     "provisioningStalledDesc": "超过10分钟未更新。配置过程可能遇到问题。您可以在下方重试配置。",
+    "provisioningTimedOut": "配置超时 - 超过5分钟未更新",
     "retryProvisioning": "重试配置",
     "retrying": "重试中...",
     "provisioningConsole": "配置控制台",

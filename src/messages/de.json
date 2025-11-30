@@ -519,6 +519,7 @@
     "errorUnknown": "Unbekannter Fehler",
     "provisioningStalled": "Bereitstellung Könnte Blockiert Sein",
     "provisioningStalledDesc": "Keine Updates seit über 10 Minuten. Der Bereitstellungsprozess könnte auf ein Problem gestoßen sein. Du kannst die Bereitstellung unten wiederholen.",
+    "provisioningTimedOut": "Bereitstellung Zeitüberschreitung - keine Updates seit über 5 Minuten",
     "retryProvisioning": "Bereitstellung Wiederholen",
     "retrying": "Wiederhole...",
     "provisioningConsole": "Bereitstellungskonsole",

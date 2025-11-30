@@ -519,6 +519,7 @@
     "errorUnknown": "Erro Desconhecido",
     "provisioningStalled": "O Provisionamento Pode Ter Parado",
     "provisioningStalledDesc": "Sem atualizações por mais de 10 minutos. O processo de provisionamento pode ter encontrado um problema. Você pode tentar novamente abaixo.",
+    "provisioningTimedOut": "Provisionamento expirou - sem atualizações por mais de 5 minutos",
     "retryProvisioning": "Tentar Provisionamento Novamente",
     "retrying": "Tentando novamente...",
     "provisioningConsole": "Console de Provisionamento",

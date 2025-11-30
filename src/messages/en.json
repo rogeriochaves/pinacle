@@ -489,6 +489,7 @@
     "errorUnknown": "Error Unknown",
     "provisioningStalled": "Provisioning May Have Stalled",
     "provisioningStalledDesc": "No updates for over 10 minutes. The provisioning process may have encountered an issue. You can retry provisioning below.",
+    "provisioningTimedOut": "Provisioning timed out - no updates for over 5 minutes",
     "retryProvisioning": "Retry Provisioning",
     "retrying": "Retrying...",
     "provisioningConsole": "Provisioning Console",

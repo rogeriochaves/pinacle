@@ -255,19 +255,36 @@ export default function PodProvisioningPage() {
     }
   }, [data?.pod.status, router, podId, utils.pods.getUserPods]);
 
-  // Detect stale provisioning (last log >10 min old and updatedAt is more than 10 min old)
+  // Detect stale provisioning:
+  // - "creating" status: last log >10 min old
+  // - "provisioning" status: last log >5 min old (considered timed out)
   const isStaleProvisioning = (): boolean => {
-    if (!data?.pod || data.pod.status !== "creating") return false;
+    if (!data?.pod) return false;
+
+    const status = data.pod.status;
+    if (status !== "creating" && status !== "provisioning") return false;
     if (allLogs.length === 0) return false;
 
     const lastLog = allLogs[allLogs.length - 1];
     const lastLogTime = new Date(lastLog.timestamp).getTime();
     const now = Date.now();
-    const tenMinutes = 10 * 60 * 1000;
+
+    // Use 5 minutes for provisioning (treat as timed out), 10 minutes for creating
+    const timeoutMs =
+      status === "provisioning" ? 5 * 60 * 1000 : 10 * 60 * 1000;
 
     const updatedAt = new Date(data.pod.updatedAt).getTime();
 
-    return now - lastLogTime > tenMinutes && now - updatedAt > tenMinutes;
+    return now - lastLogTime > timeoutMs && now - updatedAt > timeoutMs;
+  };
+
+  // Compute effective status - treat timed out provisioning as error
+  const getEffectiveStatus = (): PodStatus => {
+    if (!pod) return "creating";
+    if (pod.status === "provisioning" && isStaleProvisioning()) {
+      return "error";
+    }
+    return pod.status as PodStatus;
   };
 
   const handleRetry = async () => {
@@ -284,7 +301,10 @@ export default function PodProvisioningPage() {
   };
 
   const { pod } = data || {};
-  const showRetryButton = pod?.status === "error" || isStaleProvisioning();
+  const effectiveStatus = getEffectiveStatus();
+  const isTimedOut = pod?.status === "provisioning" && isStaleProvisioning();
+  const showRetryButton =
+    pod?.status === "error" || isStaleProvisioning();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: force listen to shouldRefetchLogs
   useEffect(() => {
@@ -354,12 +374,14 @@ export default function PodProvisioningPage() {
               <h1 className="text-white font-mono text-2xl font-bold">
                 {pod.name}
               </h1>
-              <StatusBadge status={pod.status as PodStatus} />
+              <StatusBadge status={effectiveStatus} />
             </div>
             <p className="text-slate-400 font-mono text-sm">
-              {pod.status === "error"
-                ? pod.lastErrorMessage || t("errorUnknown")
-                : t("settingUp")}
+              {isTimedOut
+                ? t("provisioningTimedOut")
+                : pod.status === "error"
+                  ? pod.lastErrorMessage || t("errorUnknown")
+                  : t("settingUp")}
             </p>
           </div>
           <Button asChild variant="ghost" className="text-slate-400 font-mono">

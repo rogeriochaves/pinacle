@@ -519,6 +519,7 @@
     "errorUnknown": "Error Desconocido",
     "provisioningStalled": "El Aprovisionamiento Puede Haberse Detenido",
     "provisioningStalledDesc": "Sin actualizaciones durante más de 10 minutos. El proceso de aprovisionamiento puede haber encontrado un problema. Puedes reintentar el aprovisionamiento a continuación.",
+    "provisioningTimedOut": "Aprovisionamiento expiró - sin actualizaciones por más de 5 minutos",
     "retryProvisioning": "Reintentar Aprovisionamiento",
     "retrying": "Reintentando...",
     "provisioningConsole": "Consola de Aprovisionamiento",

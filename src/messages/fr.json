@@ -495,6 +495,7 @@
     "errorUnknown": "Erreur Inconnue",
     "provisioningStalled": "Le Provisionnement Peut Avoir Bloqué",
     "provisioningStalledDesc": "Aucune mise à jour depuis plus de 10 minutes. Le processus de provisionnement a peut-être rencontré un problème. Vous pouvez réessayer le provisionnement ci-dessous.",
+    "provisioningTimedOut": "Provisionnement expiré - aucune mise à jour depuis plus de 5 minutes",
     "retryProvisioning": "Réessayer le Provisionnement",
     "retrying": "Nouvelle tentative...",
     "provisioningConsole": "Console de Provisionnement",

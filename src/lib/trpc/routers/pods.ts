@@ -1569,8 +1569,12 @@ export const podsRouter = createTRPCRouter({
 
       const pod = result.pod;
 
-      // Only allow retry if pod is in error state
-      if (pod.status !== "error") {
+      // Only allow retry if pod is in error state or stuck in provisioning/creating
+      if (
+        pod.status !== "error" &&
+        pod.status !== "provisioning" &&
+        pod.status !== "creating"
+      ) {
         throw new Error(
           `Can only retry failed provisioning. Current status: ${pod.status}`,
         );
