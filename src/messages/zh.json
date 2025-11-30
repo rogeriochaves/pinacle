@@ -28,7 +28,10 @@
     "refreshCurrentTab": "刷新当前标签页",
     "uncommittedChange": "未提交的更改",
     "uncommittedChanges": "未提交的更改",
-    "commitChanges": "提交更改"
+    "commitChanges": "提交更改",
+    "tabDeleted": "{name} 标签页已删除",
+    "tabRestored": "{name} 标签页已恢复",
+    "undo": "撤销"
   },
   "header": {
     "features": "产品",

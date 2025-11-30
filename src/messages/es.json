@@ -28,7 +28,10 @@
     "refreshCurrentTab": "Actualizar pestaña actual",
     "uncommittedChange": "cambio sin confirmar",
     "uncommittedChanges": "cambios sin confirmar",
-    "commitChanges": "Commitear cambios"
+    "commitChanges": "Commitear cambios",
+    "tabDeleted": "Pestaña {name} eliminada",
+    "tabRestored": "Pestaña {name} restaurada",
+    "undo": "Deshacer"
   },
   "header": {
     "features": "Producto",

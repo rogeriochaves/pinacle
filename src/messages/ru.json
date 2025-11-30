@@ -28,7 +28,10 @@
     "refreshCurrentTab": "Обновить текущую вкладку",
     "uncommittedChange": "незафиксированное изменение",
     "uncommittedChanges": "незафиксированные изменения",
-    "commitChanges": "Зафиксировать изменения"
+    "commitChanges": "Зафиксировать изменения",
+    "tabDeleted": "Вкладка {name} удалена",
+    "tabRestored": "Вкладка {name} восстановлена",
+    "undo": "Отменить"
   },
   "header": {
     "features": "Продукт",

@@ -28,7 +28,10 @@
     "refreshCurrentTab": "Aktuellen Tab aktualisieren",
     "uncommittedChange": "nicht übertragene Änderung",
     "uncommittedChanges": "nicht übertragene Änderungen",
-    "commitChanges": "Committen"
+    "commitChanges": "Committen",
+    "tabDeleted": "{name}-Tab gelöscht",
+    "tabRestored": "{name}-Tab wiederhergestellt",
+    "undo": "Rückgängig"
   },
   "header": {
     "features": "Produkt",

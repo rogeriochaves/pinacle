@@ -15,7 +15,10 @@
     "close": "Fermer",
     "search": "Rechercher",
     "filter": "Filtrer",
-    "sort": "Trier"
+    "sort": "Trier",
+    "tabDeleted": "Onglet {name} supprimé",
+    "tabRestored": "Onglet {name} restauré",
+    "undo": "Annuler"
   },
   "header": {
     "features": "Produit",

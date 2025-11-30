@@ -28,7 +28,10 @@
     "refreshCurrentTab": "Atualizar aba atual",
     "uncommittedChange": "mudança não confirmada",
     "uncommittedChanges": "mudanças não confirmadas",
-    "commitChanges": "Comitar mudanças"
+    "commitChanges": "Comitar mudanças",
+    "tabDeleted": "Aba {name} excluída",
+    "tabRestored": "Aba {name} restaurada",
+    "undo": "Desfazer"
   },
   "header": {
     "features": "Produto",

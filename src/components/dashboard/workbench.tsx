@@ -718,13 +718,39 @@ export const Workbench = ({ pod, onPodSwitch }: WorkbenchProps) => {
 
   // Handle deleting a tab
   const handleDeleteTab = (tabId: string) => {
+    const deletedTab = tabs.find((tab) => tab.id === tabId);
+    if (!deletedTab) return;
+
     const updatedTabs = tabs.filter((tab) => tab.id !== tabId);
+    const previousActiveTab = activeTab;
+
     setTabs(updatedTabs);
     if (activeTab === tabId) {
       setActiveTab(updatedTabs[0]?.id || "code-server");
     }
     saveTabs(updatedTabs);
-    toast.success("Tab deleted");
+
+    toast.success(t("tabDeleted", { name: deletedTab.label }), {
+      duration: 8000,
+      closeButton: true,
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          // Find the original position and restore the tab
+          const originalIndex = tabs.findIndex((tab) => tab.id === tabId);
+          const restoredTabs = [...updatedTabs];
+          restoredTabs.splice(
+            originalIndex >= 0 ? originalIndex : updatedTabs.length,
+            0,
+            deletedTab
+          );
+          setTabs(restoredTabs);
+          setActiveTab(previousActiveTab);
+          saveTabs(restoredTabs);
+          toast.success(t("tabRestored", { name: deletedTab.label }));
+        },
+      },
+    });
   };
 
   // Handle drag end

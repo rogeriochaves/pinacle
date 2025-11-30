@@ -263,4 +263,9 @@
   .animate-bounce-stretch {
     animation: bounce-stretch 0.9s linear infinite;
   }
+
+  .toast-action-button {
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    margin-right: 20px!important;
+  }
 }

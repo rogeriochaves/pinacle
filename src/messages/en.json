@@ -28,7 +28,10 @@
     "refreshCurrentTab": "Refresh current tab",
     "uncommittedChange": "uncommitted change",
     "uncommittedChanges": "uncommitted changes",
-    "commitChanges": "Commit changes"
+    "commitChanges": "Commit changes",
+    "tabDeleted": "{name} tab deleted",
+    "tabRestored": "{name} tab restored",
+    "undo": "Undo"
   },
   "header": {
     "features": "Features",
