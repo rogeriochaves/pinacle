@@ -268,4 +268,9 @@
     /* biome-ignore lint/complexity/noImportantStyles: meh */
     margin-right: 20px!important;
   }
+
+  .editor-break-all {
+    /* biome-ignore lint/complexity/noImportantStyles: meh */
+    word-break: break-all!important;
+  }
 }

@@ -14,6 +14,30 @@ export const generateKSUID = (resource: string): string => {
 };
 
 /**
+ * Build the pod host portion of proxy URLs
+ * Format: pod-{SLUG}.{DOMAIN}
+ *
+ * This is the stable identifier that users can use to construct proxy URLs,
+ * exposed as PINACLE_POD_HOST environment variable inside pods.
+ *
+ * @param podSlug - The pod slug
+ * @param domain - Base domain (defaults to env var or pinacle.dev)
+ * @returns Pod host string (e.g., "pod-my-slug.pinacle.dev")
+ */
+export const buildPodHost = ({
+  podSlug,
+  domain,
+}: {
+  podSlug: string;
+  domain?: string;
+}): string => {
+  const baseDomain =
+    domain || process.env.NEXTAUTH_URL?.split("://")[1] || "pinacle.dev";
+
+  return `pod-${podSlug}.${baseDomain}`;
+};
+
+/**
  * Build proxy URL
  *
  * @param podSlug - The pod slug
@@ -33,11 +57,10 @@ export const buildProxyUrl = ({
   returnUrl?: string;
   domain?: string;
 }): string => {
-  const baseDomain =
-    domain || process.env.NEXTAUTH_URL?.split("://")[1] || "undefined";
+  const podHost = buildPodHost({ podSlug, domain });
 
-  // Format: http://localhost-{PORT}-pod-{SLUG}.{DOMAIN}
-  return `http://localhost-${port}-pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}`;
+  // Format: http://localhost-{PORT}-{POD_HOST}
+  return `http://localhost-${port}-${podHost}${returnUrl ?? "/"}`;
 };
 
 /**

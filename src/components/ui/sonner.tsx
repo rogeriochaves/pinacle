@@ -17,7 +17,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           description:
             "group-[.toast]:text-slate-700 group-[.toast]:font-mono group-[.toast]:text-sm",
           actionButton:
-            "group-[.toast]:bg-slate-200 group-[.toast]:text-slate-900 group-[.toast]:border-2 group-[.toast]:border-slate-950 group-[.toast]:shadow-btn group-[.toast]:rounded-sm group-[.toast]:font-mono group-[.toast]:font-medium hover:group-[.toast]:shadow-btn-hover hover:group-[.toast]:bg-slate-300 active:group-[.toast]:shadow-btn-active",
+            "toast-action-button group-[.toast]:bg-slate-200 group-[.toast]:text-slate-900 group-[.toast]:border-2 group-[.toast]:border-slate-950 group-[.toast]:shadow-btn group-[.toast]:rounded-sm group-[.toast]:font-mono group-[.toast]:font-medium hover:group-[.toast]:shadow-btn-hover hover:group-[.toast]:bg-slate-300 active:group-[.toast]:shadow-btn-active",
           cancelButton:
             "group-[.toast]:bg-white group-[.toast]:text-slate-900 group-[.toast]:border-2 group-[.toast]:border-slate-950 group-[.toast]:shadow-btn group-[.toast]:rounded-sm group-[.toast]:font-mono group-[.toast]:font-medium hover:group-[.toast]:shadow-btn-hover hover:group-[.toast]:bg-slate-50 active:group-[.toast]:shadow-btn-active",
           closeButton:

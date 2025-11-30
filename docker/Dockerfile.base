@@ -64,6 +64,27 @@ RUN echo 'export PATH="/root/.local/share/pnpm:/workspace/.local/bin:$PATH"' >> 
 RUN pnpm add -g @anthropic-ai/claude-code
 RUN pnpm add -g vibe-kanban
 
+# Create a base .gitignore with common patterns
+RUN cat > /workspace/.gitignore << 'EOF'
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*$py.class
+.venv/
+venv/
+*.egg-info/
+EOF
+
 # Configure Nginx for transparent port proxying
 RUN mkdir -p /etc/nginx/http.d && \
     rm -f /etc/nginx/http.d/default.conf

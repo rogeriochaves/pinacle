@@ -88,15 +88,18 @@ export class ProcessProvisioner {
       const startCmd = this.commandToShellString(process.startCommand);
       const workDir = this.getWorkDir(spec);
 
-      // Create detached tmux session running the process
-      // -d: detached
-      // -s: session name
-      const tmuxCmd = `tmux new -d -s "${sessionName}" "cd ${workDir} && ${startCmd}"`;
+      // Create detached tmux session with a shell, then send the command
+      // This approach:
+      // - Shell sources /etc/profile (gets PINACLE_POD_HOST etc)
+      // - Ctrl+C kills the process, not the session
+      // - Session stays alive for debugging after process exits
+      const createSession = `tmux new -d -s "${sessionName}" -c "${workDir}"`;
+      const sendCommand = `tmux send-keys -t "${sessionName}" '${startCmd.replace(/'/g, "'\\''")}' Enter`;
 
       await this.containerRuntime.execInContainer(this.podId, container.id, [
         "sh",
         "-c",
-        tmuxCmd,
+        `${createSession} && ${sendCommand}`,
       ]);
 
       console.log(
@@ -139,8 +142,15 @@ export class ProcessProvisioner {
       const workDir = this.getWorkDir(spec);
 
       // Kill existing session if it exists (it might be empty from persisted volumes)
-      // Then create a new session with the command
-      const tmuxCmd = `tmux kill-session -t "${sessionName}" 2>/dev/null || true; tmux new -d -s "${sessionName}" "cd ${workDir} && ${startCmd}"`;
+      // Then create a new session with a shell and send the command
+      // This approach:
+      // - Shell sources /etc/profile (gets PINACLE_POD_HOST etc)
+      // - Ctrl+C kills the process, not the session
+      // - Session stays alive for debugging after process exits
+      const killExisting = `tmux kill-session -t "${sessionName}" 2>/dev/null || true`;
+      const createSession = `tmux new -d -s "${sessionName}" -c "${workDir}"`;
+      const sendCommand = `tmux send-keys -t "${sessionName}" '${startCmd.replace(/'/g, "'\\''")}' Enter`;
+      const tmuxCmd = `${killExisting}; ${createSession} && ${sendCommand}`;
       console.log('tmuxCmd', tmuxCmd);
 
       await this.containerRuntime.execInContainer(this.podId, container.id, [

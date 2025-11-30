@@ -178,6 +178,7 @@ export class PodProvisioningService {
       // 7. Provision the pod
       // Attention: this will mutate the spec, adding for example the proxy port
       // Note: PodManager writes .env file after GitHub clone but before install command
+      // Note: PINACLE_POD_HOST is injected inside createPod before services start
       const podInstance = await podManager.createPod(spec);
 
       // 7.5 Update dotenv hash tracking in DB after provisioning

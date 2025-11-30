@@ -100,6 +100,16 @@ export class PodManager extends EventEmitter {
       console.log(`[PodManager] Starting container for pod ${spec.id}`);
       await this.containerRuntime.startContainer(container.id);
 
+      // Inject PINACLE_POD_HOST env var before services/processes use /etc/profile
+      console.log(`[PodManager] Injecting pod environment variables for ${spec.id}`);
+      const { injectPodHostEnv } = await import("./env-injection");
+      await injectPodHostEnv(
+        this.containerRuntime,
+        spec.id,
+        container.id,
+        spec.slug,
+      );
+
       // Set up port forwarding
       console.log(`[PodManager] Setting up port forwarding for pod ${spec.id}`);
       for (const port of spec.network.ports) {

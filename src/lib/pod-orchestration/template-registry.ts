@@ -461,10 +461,10 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
     popular: false,
 
     baseImage: "pinacledev/pinacle-base",
-    tier: "dev.small",
-    cpuCores: 0.5,
-    memoryGb: 1,
-    storageGb: 10,
+    tier: "dev.medium",
+    cpuCores: 1,
+    memoryGb: 2,
+    storageGb: 20,
 
     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
     defaultPorts: [
@@ -482,52 +482,97 @@ STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
 OPENAI_API_KEY="add your OpenAI API key here"
 `.trim(),
 
-    installCommand: "uv sync",
+    installCommand: "uv sync && cd agent-ui && pnpm install",
     defaultProcesses: [
       {
         name: "app",
-        startCommand: `pnpx concurrently 'uv run python my_os.py' 'cd agent-ui && pnpm run dev'`,
+        startCommand: `cd agent-ui && pnpm dev`,
         url: "http://localhost:3000",
-        healthCheck:
-          "curl -f http://localhost:7777 && curl -f http://localhost:3000",
+        healthCheck: "curl -f http://localhost:3000",
+      },
+      {
+        name: "backend",
+        startCommand: `uv run python my_os.py`,
+        url: "http://localhost:7777",
+        healthCheck: "curl -f http://localhost:7777",
       },
     ],
 
     templateType: "python",
     initScript: [
       "uv init .",
+      `cat > .gitignore << 'EOF'
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+.DS_Store
+*.log
+EOF`,
       "uv add agno 'fastapi[standard]' uvicorn openai sqlalchemy aiosqlite greenlet",
       `cat > my_os.py << 'EOF'
-  from agno.agent import Agent
-  from agno.models.openai import OpenAIChat
-  from agno.db.sqlite import AsyncSqliteDb
-  from agno.os import AgentOS
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.db.sqlite import AsyncSqliteDb
+from agno.os import AgentOS
 
-  import dotenv
+import dotenv
 
-  dotenv.load_dotenv()
+dotenv.load_dotenv()
 
-  assistant = Agent(
-      name="Assistant",
-      model=OpenAIChat(id="gpt-5-mini"),
-      db=AsyncSqliteDb(db_file="my_os.db"),
-      instructions=["You are a helpful AI assistant."],
-      markdown=True,
-  )
+assistant = Agent(
+    name="Assistant",
+    model=OpenAIChat(id="gpt-5-mini"),
+    db=AsyncSqliteDb(db_file="my_os.db"),
+    instructions=["You are a helpful AI assistant."],
+    markdown=True,
+)
 
-  agent_os = AgentOS(
-      id="my-first-os",
-      description="My first AgentOS",
-      agents=[assistant],
-  )
+agent_os = AgentOS(
+    id="my-first-os",
+    description="My first AgentOS",
+    agents=[assistant],
+)
 
-  app = agent_os.get_app()
+app = agent_os.get_app()
 
-  if __name__ == "__main__":
-      # Default port is 7777; change with port=...
-      agent_os.serve(app="my_os:app", reload=True)
-  EOF`,
+if __name__ == "__main__":
+    # Default port is 7777; change with port=...
+    agent_os.serve(app="my_os:app", reload=True)
+EOF`,
       "yes | pnpx create-agent-ui@latest",
+      `sed -i "s/devIndicators: false/devIndicators: false,\\n    async rewrites() {\\n      return [\\n        {\\n          source: '\\\\/agent\\\\/:path*',\\n          destination: 'http:\\/\\/localhost:7777\\\\/:path*',\\n        },\\n      ]\\n    },/" agent-ui/next.config.ts`,
+      `sed -i "s/selectedEndpoint: 'http:\\/\\/localhost:7777',/selectedEndpoint: process.env.NEXT_PUBLIC_PINACLE_POD_HOST ? \\\`\\\${typeof window !== 'undefined' ? window.location.protocol : 'https:'}\\/\\/localhost-3000-\\\${process.env.NEXT_PUBLIC_PINACLE_POD_HOST}\\/agent\\\` : 'http:\\/\\/localhost:7777',/" agent-ui/src/store.ts`
     ],
   },
 

@@ -150,6 +150,15 @@ export const recreatePodWithSnapshot = async ({
   await runtime.startContainer(newContainer.id);
   console.log(`[recreatePodWithSnapshot] Container ${newContainer.id} started`);
 
+  // Inject PINACLE_POD_HOST env var before services use /etc/profile
+  console.log(
+    `[recreatePodWithSnapshot] Injecting pod environment variables for ${pod.id}`,
+  );
+  const { injectPodHostEnv } = await import(
+    "../../pod-orchestration/env-injection"
+  );
+  await injectPodHostEnv(runtime, pod.id, newContainer.id, pod.slug);
+
   // Set up port forwarding - same logic as PodManager.createPod()
   console.log(
     `[recreatePodWithSnapshot] Setting up port forwarding for pod ${pod.id}`,

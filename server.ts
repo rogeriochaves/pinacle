@@ -584,7 +584,7 @@ const handleProxy = async (
 
     if (!token) {
       // No token - redirect to auth endpoint to get one
-      const baseUrl = env.NEXTAUTH_URL || `http://localhost:${port}`;
+      const baseUrl = process.env.NEXTAUTH_URL || `https://pinacle.dev`;
       const authUrl = `${baseUrl}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,
@@ -598,7 +598,7 @@ const handleProxy = async (
     const payload = verifyProxyToken(token);
     if (!payload) {
       // Invalid/expired token - redirect to auth to get a new one
-      const baseUrl = env.NEXTAUTH_URL || `http://localhost:${port}`;
+      const baseUrl = process.env.NEXTAUTH_URL || `https://pinacle.dev`;
       const authUrl = `${baseUrl}/api/proxy-auth?pod=${encodeURIComponent(parsed.podSlug)}&port=${parsed.port}&return_url=${encodeURIComponent(req.url || "/")}`;
       res.writeHead(302, {
         Location: authUrl,

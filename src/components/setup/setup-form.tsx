@@ -55,8 +55,7 @@ const SetupForm = () => {
       serverId: undefined,
       envVars: {},
       processInstallCommand: "",
-      processStartCommand: "",
-      processAppUrl: "",
+      processes: [],
       hasPinacleYaml: false,
     },
   });
@@ -419,13 +418,9 @@ const SetupForm = () => {
                   envVars: formData.envVars,
                   processConfig:
                     formData.setupType === "repository" &&
-                    (formData.processInstallCommand ||
-                      formData.processStartCommand ||
-                      formData.processAppUrl)
+                    formData.processInstallCommand
                       ? {
                           installCommand: formData.processInstallCommand,
-                          startCommand: formData.processStartCommand,
-                          appUrl: formData.processAppUrl,
                         }
                       : undefined,
                   hasPinacleYaml: formData.hasPinacleYaml,
@@ -632,18 +627,13 @@ const SetupForm = () => {
           (data.customServices as typeof selectedTemplate.services) ||
           selectedTemplate.services, // Use form's selected services
         tabs: data.tabs, // Pass tabs from existing pinacle.yaml (if any)
-        processes: data.processes, // Pass full processes from existing pinacle.yaml (preserves healthCheck)
+        processes: data.processes, // Pass full processes array
         envVars: data.envVars,
-        // Process configuration for existing repos
+        // Process configuration for existing repos (install command is separate from processes)
         processConfig:
-          data.setupType === "repository" &&
-          (data.processInstallCommand ||
-            data.processStartCommand ||
-            data.processAppUrl)
+          data.setupType === "repository" && data.processInstallCommand
             ? {
                 installCommand: data.processInstallCommand,
-                startCommand: data.processStartCommand,
-                appUrl: data.processAppUrl,
               }
             : undefined,
         // Pass flag to indicate if repo already has pinacle.yaml
