@@ -203,6 +203,8 @@ export default function PodProvisioningPage() {
     lastScrollTopRef.current = currentScrollTop;
 
     if (atBottom) {
+      // User scrolled back to bottom, re-enable auto-scroll
+      setUserHasScrolledUp(false);
       setHasNewLogs(false);
     }
   };
