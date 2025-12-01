@@ -65,7 +65,8 @@ RUN pnpm add -g @anthropic-ai/claude-code
 RUN pnpm add -g vibe-kanban
 
 # Create a base .gitignore with common patterns
-RUN cat > /workspace/.gitignore << 'EOF'
+RUN git config --global core.excludesfile '/workspace/.gitignore' && \
+    cat > /workspace/.gitignore << 'EOF'
 # Environment variables
 .env
 .env.*

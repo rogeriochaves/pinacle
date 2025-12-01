@@ -122,9 +122,7 @@ export const ConfigurationSummary = ({
                           src={
                             selectedTemplate.icon.includes("nextjs")
                               ? "/logos/nextjs-white.svg"
-                              : selectedTemplate.icon.includes("langflow")
-                                ? "/logos/langflow-white.svg"
-                                : selectedTemplate.icon
+                              : selectedTemplate.icon
                           }
                           alt={
                             selectedTemplate.iconAlt || selectedTemplate.name

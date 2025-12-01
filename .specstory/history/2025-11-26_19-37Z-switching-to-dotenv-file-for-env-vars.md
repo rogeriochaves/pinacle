@@ -17704,39 +17704,335 @@ Now I understand the implementation properly. Let me write documentation that ac
 
 ---
 
-<tool-use data-tool-type="unknown" data-tool-name="write">
-<details>
-<summary>Tool use: **write**</summary>
+<tool-use data-tool-type="write" data-tool-name="write">
 
+<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx</summary>
 
-Parameters:
+**Chunk 1**
+Lines added: 138, lines removed: 1
 
-```json
-{
-  &quot;relativeWorkspacePath&quot;: &quot;/Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx&quot;,
-  &quot;code&quot;: {
-    &quot;code&quot;: &quot;# Environment Variables [Secrets&quot;
-  }
-}
+```diff
+@@ -1,1 +1,138 @@
+- 
++ # Environment Variables [Secrets and configuration made simple]
++ 
++ If you&#39;ve ever built a web application, you&#39;ve probably needed to store API keys, database passwords, or configuration values somewhere. Environment variables are the standard way to do this—they keep sensitive data out of your code and let you change settings without modifying your application.
++ 
++ Pinacle makes managing environment variables effortless. Instead of manually creating &#96;.env&#96; files or copying secrets around, everything is handled through a visual editor with smart defaults, automatic syncing, and the ability to reuse configurations across projects.
++ 
++ ## The Basics
++ 
++ When you create a pod in Pinacle, your environment variables are written to a &#96;.env&#96; file in your project folder:
++ 
++ &#96;&#96;&#96;
++ /workspace/my-project/.env
++ &#96;&#96;&#96;
++ 
++ This file follows the standard dotenv format that virtually every framework understands—Next.js, Express, Django, Flask, Rails, and countless others will automatically load it when your application starts.
++ 
++ The format is simple: one variable per line, with the name and value separated by an equals sign:
++ 
++ &#96;&#96;&#96;bash
++ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/myapp
++ OPENAI_API_KEY=sk-proj-abc123...
++ NODE_ENV=development
++ &#96;&#96;&#96;
++ 
++ Lines starting with &#96;#&#96; are comments, which is useful for documenting what each variable does or where to get the values:
++ 
++ &#96;&#96;&#96;bash
++ # Get your API key at https://platform.openai.com/api-keys
++ OPENAI_API_KEY=
++ 
++ # Authentication secret - keep this private!
++ # Generate with: openssl rand -base64 32
++ AUTH_SECRET=a1b2c3d4e5f6...
++ &#96;&#96;&#96;
++ 
++ ## Smart Defaults for Every Template
++ 
++ When you select a template like **Next.js AI Chatbot** or **Next.js SaaS Starter**, Pinacle pre-fills the environment variables with sensible defaults and helpful comments. You don&#39;t have to guess what variables your project needs or hunt through documentation.
++ 
++ For example, the AI Chatbot template starts you off with:
++ 
++ &#96;&#96;&#96;bash
++ # Vercel AI Chatbot Environment Variables
++ # https://github.com/vercel/ai-chatbot
++ 
++ # Authentication
++ # Generate a random secret: https://generate-secret.vercel.app/32
++ AUTH_SECRET=&lt;auto-generated&gt;
++ 
++ # Database
++ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
++ 
++ # AI Provider (choose one or more)
++ 
++ # Create a Vercel AI Gateway API key here: https://vercel.com/ai-gateway
++ # AI_GATEWAY_API_KEY=xxx
++ 
++ # Or use OpenAI: https://platform.openai.com/api-keys
++ # OPENAI_API_KEY=sk-xxx
++ &#96;&#96;&#96;
++ 
++ Notice a few things: secrets like &#96;AUTH_SECRET&#96; are auto-generated for you, database URLs are pre-configured to work with Pinacle&#39;s built-in PostgreSQL service, and there are clear instructions on where to get values you&#39;ll need to fill in yourself.
++ 
++ ## Reusing Environment Variables
++ 
++ Here&#39;s where things get really convenient. Once you&#39;ve set up environment variables for a project, Pinacle remembers them. The next time you create a pod—whether you&#39;re recreating a project, spinning up a new branch, or starting fresh after archiving—Pinacle will automatically suggest your previous configuration.
++ 
++ The matching works in two ways:
++ 
++ **By repository**: If you&#39;re creating a pod for the same GitHub repository you&#39;ve used before, Pinacle will load the environment variables from your most recent pod for that repo. This is perfect for when you need to recreate a project or want a fresh environment with all your API keys intact.
++ 
++ **By template**: If there&#39;s no matching repository, Pinacle looks for environment variables you&#39;ve used with the same template. If you&#39;ve built three different AI chatbots, your OpenAI key will be waiting for you on the fourth one.
++ 
++ When Pinacle finds a match, you&#39;ll see a confirmation showing which configuration was loaded. You can always modify the values before creating your pod, or choose a different saved configuration from the dropdown.
++ 
++ ## Editing After Creation
++ 
++ Environment variables aren&#39;t locked in at pod creation. You can edit them anytime from the **Env** tab in your pod&#39;s dashboard.
++ 
++ The editor works just like during setup—a code editor with syntax highlighting where you can add, modify, or remove variables. When you make changes:
++ 
++ 1. Click **Save** to store your changes in Pinacle&#39;s database
++ 2. Click **Push to container** to write the updated &#96;.env&#96; file to your pod
++ 
++ This two-step process lets you save drafts without immediately affecting your running application.
++ 
++ ### Two-Way Sync
++ 
++ Sometimes you might edit the &#96;.env&#96; file directly inside your pod—through VS Code, the terminal, or your coding assistant. Pinacle monitors for these changes and automatically syncs them back to the dashboard.
++ 
++ This means your saved configuration always reflects the actual state of your pod. If you make a quick tweak via &#96;nano .env&#96; in the terminal, the dashboard will pick it up within a few seconds.
++ 
++ ## Managing All Your Saved Configurations
++ 
++ Over time, you&#39;ll accumulate saved environment configurations from various projects. Pinacle keeps these organized and lets you manage them from one place.
++ 
++ Click **&quot;Manage all&quot;** in the Environment Variables section during setup, or look for the dotenv manager in your account. From there you can:
++ 
++ - See all your saved configurations at a glance
++ - View which pods are using each configuration
++ - Edit names and content
++ - Delete configurations you no longer need
++ 
++ A configuration can only be deleted if no active pods are using it. If you try to delete one that&#39;s in use, you&#39;ll need to archive those pods first—this prevents accidentally breaking running applications.
++ 
++ ## Validation
++ 
++ Before saving, Pinacle validates your &#96;.env&#96; content to catch common mistakes:
++ 
++ - Variable names must start with a letter or underscore
++ - Names can only contain letters, numbers, and underscores
++ - Empty names (like &#96;=value&#96;) aren&#39;t allowed
++ - Syntax errors are highlighted directly in the editor
++ 
++ If there&#39;s a problem, you&#39;ll see the issue highlighted with a red border and a clear error message. Invalid content can&#39;t be saved, so you won&#39;t accidentally deploy broken configuration.
++ 
++ ## Security
++ 
++ Your environment variables often contain sensitive information—API keys, database passwords, authentication secrets. Pinacle handles these carefully:
++ 
++ - Configurations are stored encrypted in our database
++ - Variables are never logged in our systems
++ - The &#96;.env&#96; file in your pod has restricted permissions
++ - Only you (and your team members for team pods) can access your saved configurations
++ 
++ That said, good security is a shared responsibility:
++ 
++ - **Do** use Pinacle&#39;s environment variables for all secrets
++ - **Don&#39;t** commit secrets to your repository or &#96;pinacle.yaml&#96;
++ - **Don&#39;t** log environment variables in your application
++ - **Do** use different API keys for development versus production
++ 
++ ## Built-In Variables
++ 
++ In addition to your custom variables, Pinacle automatically injects a few useful runtime variables into every pod. These help you build applications that work seamlessly with Pinacle&#39;s proxy system.
++ 
++ See [Pinacle Runtime Variables](/runtime-variables) for details on &#96;PINACLE_POD_HOST&#96; and other automatically-available values.
++ 
 ```
-Additional data:
 
-```json
-{
-  &quot;codeblockId&quot;: &quot;66b7853b-1d7c-45db-b2e4-4e9961f89c78&quot;
-}
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+That's much better documentation. It:
+
+1. Opens by explaining what environment variables are for newcomers
+2. Uses proper prose with flowing paragraphs, not just bullet points
+3. Has the correct path `/workspace/<project-folder>/.env`
+4. Explains the cool features we built:
+   - Smart defaults per template with helpful comments
+   - Auto-reuse by repo then template
+   - Two-way sync
+   - Centralized management
+5. Covers validation and security without being preachy
+6. Links to runtime variables
+
+Let me commit all the changes.</details></think>
+
+---
+
+Now let me commit these documentation changes:
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git status</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add -A && git status
 ```
-User decision: **accepted**
 
-Status: **loading**
+```
+On branch main
+Your branch is ahead of &#39;origin/main&#39; by 1 commit.
+  (use &quot;git push&quot; to publish your local commits)
+
+Changes to be committed:
+  (use &quot;git restore --staged &lt;file&gt;...&quot; to unstage)
+	modified:   .specstory/history/2025-11-26_19-37Z-switching-to-dotenv-file-for-env-vars.md
+	modified:   .specstory/history/2025-11-30_18-00Z-inject-pod-url-as-environment-variable.md
+	modified:   docs/pages/environment-variables.mdx
+	modified:   docs/pages/getting-started.mdx
 
 
+```
 </details>
 </tool-use>
 
 ---
 
+<think><details><summary>Thought Process</summary>
+Perfect, all the documentation files are staged. Let me commit them.</details></think>
 
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "docs(env): rewrite environment variables documentation
+
+Complete rewrite of environment variables docs with proper prose:
+- Explain what env vars are and why they matter
+- Document the .env file location (/workspace/<project>/.env)
+- Cover smart template defaults with helpful comments
+- Explain auto-reuse by repository and template matching
+- Document two-way sync between dashboard and container
+- Cover centralized dotenv management
+- Add validation and security sections
+- Update getting-started.mdx to reflect new workflow"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git commit -m "docs(env): rewrite environment variables documentation
+
+Complete rewrite of environment variables docs with proper prose:
+- Explain what env vars are and why they matter
+- Document the .env file location (/workspace/<project>/.env)
+- Cover smart template defaults with helpful comments
+- Explain auto-reuse by repository and template matching
+- Document two-way sync between dashboard and container
+- Cover centralized dotenv management
+- Add validation and security sections
+- Update getting-started.mdx to reflect new workflow"
+```
+
+```
+[main 7e363e6] docs(env): rewrite environment variables documentation
+ 4 files changed, 118 insertions(+), 57 deletions(-)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Documentation has been rewritten and committed. Let me give the user a summary of what I've done.</details></think>
+
+---
+
+Done! The documentation has been completely rewritten. Here's what changed:
+
+**`docs/pages/environment-variables.mdx`** - Complete rewrite with proper prose:
+
+- **Opens with context** - Explains what env vars are for newcomers who might not know
+- **Correct path** - `/workspace/<project-folder>/.env`, not the wrong path from before
+- **Smart defaults** - Shows how templates come with helpful comments, auto-generated secrets, and pre-configured service URLs
+- **Reuse feature** - Explains the auto-matching by repository first, then template, and why it's convenient
+- **Two-way sync** - How edits in the dashboard push to the pod, and edits in the pod sync back
+- **Management** - Centralized place to see all configs, which pods use them, delete unused ones
+- **Validation & security** - Covered without being preachy bullet points
+
+**`docs/pages/getting-started.mdx`** - Updated the Environment Variables section to reflect the new workflow (Env tab, save, push to container).
+
+---
+
+_**User (2025-12-01 07:31Z)**_
+
+@.cursor/rules/commit.md 
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking me to commit, but I already committed the changes in my previous response. Let me check the git status to see if there's anything else to commit.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git status
+```
+
+```
+On branch main
+Your branch is ahead of &#39;origin/main&#39; by 2 commits.
+  (use &quot;git push&quot; to publish your local commits)
+
+Changes not staged for commit:
+  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
+  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+	modified:   .specstory/history/2025-11-26_19-37Z-switching-to-dotenv-file-for-env-vars.md
+
+no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The only remaining uncommitted file is the specstory history file, which is auto-generated and not something I changed. The documentation changes I made (`docs/pages/environment-variables.mdx` and `docs/pages/getting-started.mdx`) were already committed in my previous response.
+
+I should let the user know the docs changes are already committed.</details></think>
+
+---
+
+The documentation changes are already committed! The only uncommitted file is `.specstory/history/...` which is auto-generated, not something I changed.
+
+Here's the commit I already made:
+
+```
+docs(env): rewrite environment variables documentation
+
+Complete rewrite of environment variables docs with proper prose:
+- Explain what env vars are and why they matter
+- Document the .env file location (/workspace/<project>/.env)
+- Cover smart template defaults with helpful comments
+- Explain auto-reuse by repository and template matching
+- Document two-way sync between dashboard and container
+- Cover centralized dotenv management
+- Add validation and security sections
+- Update getting-started.mdx to reflect new workflow
+```
 
 ---
 

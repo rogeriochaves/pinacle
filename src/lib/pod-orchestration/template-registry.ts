@@ -14,7 +14,7 @@ export type TemplateId =
   | "python-blank"
   | "agno"
   | "nextjs-chatbot"
-  | "langflow";
+  | "n8n";
 
 /**
  * Template definition that combines bundle info (pricing, display)
@@ -68,6 +68,21 @@ export const generateRandomSecret = (bytes = 32): string => {
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
     "",
   );
+};
+
+export const sedReplace = (
+  file: string,
+  pattern: string,
+  replacement: string,
+) => {
+  const escapeString = (str: string) =>
+    str
+      .replaceAll(/\\/g, "\\\\")
+      .replaceAll(/`/g, "\\`")
+      .replaceAll(/\$/g, "\\$");
+  const escapedPattern = escapeString(pattern);
+  const escapedReplacement = escapeString(replacement);
+  return `sed -i "s/${escapedPattern}/${escapedReplacement}/g" ${file}`;
 };
 
 /**
@@ -572,7 +587,7 @@ if __name__ == "__main__":
 EOF`,
       "yes | pnpx create-agent-ui@latest",
       `sed -i "s/devIndicators: false/devIndicators: false,\\n    async rewrites() {\\n      return [\\n        {\\n          source: '\\\\/agent\\\\/:path*',\\n          destination: 'http:\\/\\/localhost:7777\\\\/:path*',\\n        },\\n      ]\\n    },/" agent-ui/next.config.ts`,
-      `sed -i "s/selectedEndpoint: 'http:\\/\\/localhost:7777',/selectedEndpoint: process.env.NEXT_PUBLIC_PINACLE_POD_HOST ? \\\`\\\${typeof window !== 'undefined' ? window.location.protocol : 'https:'}\\/\\/localhost-3000-\\\${process.env.NEXT_PUBLIC_PINACLE_POD_HOST}\\/agent\\\` : 'http:\\/\\/localhost:7777',/" agent-ui/src/store.ts`
+      `sed -i "s/selectedEndpoint: 'http:\\/\\/localhost:7777',/selectedEndpoint: process.env.NEXT_PUBLIC_PINACLE_POD_HOST ? \\\`\\\${typeof window !== 'undefined' ? window.location.protocol : 'https:'}\\/\\/localhost-3000-\\\${process.env.NEXT_PUBLIC_PINACLE_POD_HOST}\\/agent\\\` : 'http:\\/\\/localhost:7777',/" agent-ui/src/store.ts`,
     ],
   },
 
@@ -668,12 +683,12 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
     ],
   },
 
-  langflow: {
-    id: "langflow",
-    name: "Langflow",
-    icon: "/logos/langflow.svg",
-    iconAlt: "Langflow",
-    techStack: "Python, Langflow",
+  n8n: {
+    id: "n8n",
+    name: "n8n",
+    icon: "/logos/n8n.svg",
+    iconAlt: "n8n",
+    techStack: "Node.js, n8n",
     mainUseCaseKey: "templates.buildAiAutomations",
     category: "ai",
     popular: false,
@@ -684,29 +699,45 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
     memoryGb: 1,
     storageGb: 10,
 
-    services: ["code-server", "web-terminal"],
+    services: ["claude-code", "code-server", "web-terminal", "vibe-kanban"],
     defaultPorts: [
       { name: "code", internal: 8726 },
       { name: "terminal", internal: 7681 },
     ],
     environment: {},
+    generateDefaultEnv: () =>
+      `# n8n Environment Variables
+# https://docs.n8n.io/hosting/configuration/environment-variables/
 
-    installCommand: "uv sync",
+N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
+`.trim(),
+    installCommand: "npm install",
     defaultProcesses: [
       {
-        name: "langflow",
-        startCommand: "uv run langflow run --host 0.0.0.0 --port 7860",
-        url: "http://localhost:7860",
-        healthCheck: "curl -f http://localhost:7860",
+        name: "n8n",
+        startCommand: "npm start",
+        url: "http://localhost:5678",
+        healthCheck: "curl -f http://localhost:5678/healthz",
       },
     ],
 
-    templateType: "python",
+    templateType: "nodejs",
     initScript: [
-      "cd /workspace",
-      "python3 -m venv venv",
-      "source venv/bin/activate",
-      "pip install langflow",
+      "npm init -y",
+      "npm install n8n sqlite3",
+      `cat > .gitignore << 'EOF'
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+EOF`,
+      sedReplace(
+        "package.json",
+        '"scripts": {',
+        '"scripts": {\n    "start": "n8n start",',
+      ),
     ],
   },
 } satisfies Record<TemplateId, PodTemplate>;
@@ -721,7 +752,7 @@ export const PUBLIC_TEMPLATES = [
   "agno",
   "mastra-ai",
   "nextjs-chatbot",
-  "langflow",
+  "n8n",
   "nodejs-blank",
   "python-blank",
 ] as const;
