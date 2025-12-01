@@ -68,6 +68,10 @@ export default defineConfig({
           link: "/environment-variables",
         },
         {
+          text: "Pinacle Runtime Variables",
+          link: "/runtime-variables",
+        },
+        {
           text: "Supermaven",
           link: "/supermaven",
         },

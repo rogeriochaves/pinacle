@@ -1,0 +1,79 @@
+# Pinacle Injected Runtime Variables [Built-in environment variables]
+
+Pinacle automatically injects runtime variables into every pod. These are always available and help you build applications that work seamlessly with the proxy system.
+
+## `PINACLE_POD_HOST`
+
+The pod's hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
+
+**Format:** `pod-{slug}.pinacle.dev`
+
+**Example value:** `pod-my-project-x7k2p.pinacle.dev`
+
+Use this to construct full URLs for any service running in your pod:
+
+```typescript
+// Redirect to your app running on port 3000
+const appUrl = `https://localhost-3000-${process.env.PINACLE_POD_HOST}`;
+// → https://localhost-3000-pod-my-project-x7k2p.pinacle.dev
+
+// API endpoint on port 8080
+const apiUrl = `https://localhost-8080-${process.env.PINACLE_POD_HOST}/api`;
+// → https://localhost-8080-pod-my-project-x7k2p.pinacle.dev/api
+
+// WebSocket connection
+const wsUrl = `wss://localhost-3001-${process.env.PINACLE_POD_HOST}`;
+// → wss://localhost-3001-pod-my-project-x7k2p.pinacle.dev
+```
+
+**Common use cases:**
+- OAuth callback URLs
+- Webhook endpoints
+- Self-referential redirects
+- API base URLs for frontend apps
+
+## `NEXT_PUBLIC_PINACLE_POD_HOST`
+
+Same as `PINACLE_POD_HOST`, but prefixed with `NEXT_PUBLIC_` for Next.js applications. This makes it available in client-side code.
+
+```tsx
+// In a Next.js component (client-side)
+export default function ShareButton({ itemId }: { itemId: string }) {
+  const shareUrl = `https://localhost-3000-${process.env.NEXT_PUBLIC_PINACLE_POD_HOST}/items/${itemId}`;
+
+  return (
+    <button onClick={() => navigator.clipboard.writeText(shareUrl)}>
+      Copy Share Link
+    </button>
+  );
+}
+```
+
+```typescript
+// In a Next.js API route or server component
+import { redirect } from "next/navigation";
+
+export async function GET() {
+  const callbackUrl = `https://localhost-3000-${process.env.PINACLE_POD_HOST}/auth/callback`;
+
+  // Use for OAuth flows
+  redirect(`https://oauth.provider.com/authorize?redirect_uri=${encodeURIComponent(callbackUrl)}`);
+}
+```
+
+## Accessing in Shell
+
+These variables are available in all terminal sessions:
+
+```bash
+# Check the value
+echo $PINACLE_POD_HOST
+
+# Use in a curl command
+curl https://localhost-3000-$PINACLE_POD_HOST/api/health
+```
+
+:::tip
+These variables are injected when your pod starts and are available in all shell sessions, processes, and services automatically.
+:::
+
