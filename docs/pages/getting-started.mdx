@@ -110,12 +110,16 @@ Commit this file to version control. See [pinacle.yaml reference](/pinacle-yaml)
 
 ### Environment Variables
 
-Add environment variables through the dashboard:
+Environment variables are configured during pod setup in standard `.env` format. After creation, you can edit them from the pod dashboard:
 
-1. Go to pod settings
-2. Click "Environment Variables"
-3. Add key-value pairs
-4. Restart pod to apply changes
+1. Open the **Env** tab in your pod dashboard
+2. Edit the `.env` content directly
+3. Click **Save** then **Push to container**
+4. Restart your application if needed
+
+If you've created pods before, Pinacle can automatically suggest environment variables from previous pods using the same repository or template.
+
+See [Environment Variables](/environment-variables) for full details.
 
 ## Pod Lifecycle
 
