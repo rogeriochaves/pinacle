@@ -79,7 +79,9 @@ export const sedReplace = (
     str
       .replaceAll(/\\/g, "\\\\")
       .replaceAll(/`/g, "\\`")
-      .replaceAll(/\$/g, "\\$");
+      .replaceAll(/\$/g, "\\$")
+      .replaceAll(/"/g, '\\"')
+      .replaceAll(/\n/g, "\\n");
   const escapedPattern = escapeString(pattern);
   const escapedReplacement = escapeString(replacement);
   return `sed -i "s/${escapedPattern}/${escapedReplacement}/g" ${file}`;
@@ -711,7 +713,7 @@ POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/postgres
 
 N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
 `.trim(),
-    installCommand: "npm install",
+    installCommand: "npm install --loglevel=verbose",
     defaultProcesses: [
       {
         name: "n8n",
@@ -724,7 +726,7 @@ N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
     templateType: "nodejs",
     initScript: [
       "npm init -y",
-      "npm install n8n sqlite3",
+      "npm install n8n sqlite3 --loglevel=verbose",
       `cat > .gitignore << 'EOF'
 node_modules/
 
