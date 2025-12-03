@@ -328,7 +328,7 @@ I'll implement this step by step. Let me create a todo list and start working on
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/utils.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/utils.ts</summary>
 
 **Chunk 1**
 Lines added: 24, lines removed: undefined
@@ -347,7 +347,7 @@ Lines added: 24, lines removed: undefined
 +  *
 +  * @param podSlug - The pod slug
 +  * @param domain - Base domain (defaults to env var or pinacle.dev)
-+  * @returns Pod host string (e.g., &quot;pod-my-slug.pinacle.dev&quot;)
++  * @returns Pod host string (e.g., "pod-my-slug.pinacle.dev")
 +  */
 + export const buildPodHost = ({
 +   podSlug,
@@ -357,7 +357,7 @@ Lines added: 24, lines removed: undefined
 +   domain?: string;
 + }): string =&gt; {
 +   const baseDomain =
-+     domain || process.env.NEXTAUTH_URL?.split(&quot;://&quot;)[1] || &quot;pinacle.dev&quot;;
++     domain || process.env.NEXTAUTH_URL?.split("://")[1] || "pinacle.dev";
 + 
 +   return &#96;pod-${podSlug}.${baseDomain}&#96;;
 + };
@@ -373,13 +373,13 @@ Lines added: 3, lines removed: 4
     domain?: string;
   }): string =&gt; {
 -   const baseDomain =
--     domain || process.env.NEXTAUTH_URL?.split(&quot;://&quot;)[1] || &quot;undefined&quot;;
+-     domain || process.env.NEXTAUTH_URL?.split("://")[1] || "undefined";
 +   const podHost = buildPodHost({ podSlug, domain });
   
 -   // Format: http://localhost-{PORT}-pod-{SLUG}.{DOMAIN}
--   return &#96;http://localhost-${port}-pod-${podSlug}.${baseDomain}${returnUrl ?? &quot;/&quot;}&#96;;
+-   return &#96;http://localhost-${port}-pod-${podSlug}.${baseDomain}${returnUrl ?? "/"}&#96;;
 +   // Format: http://localhost-{PORT}-{POD_HOST}
-+   return &#96;http://localhost-${port}-${podHost}${returnUrl ?? &quot;/&quot;}&#96;;
++   return &#96;http://localhost-${port}-${podHost}${returnUrl ?? "/"}&#96;;
   };
   
 ```
@@ -432,7 +432,7 @@ Let me add the injection code after line 181.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
 
 **Chunk 1**
 Lines added: 28, lines removed: undefined
@@ -446,16 +446,16 @@ Lines added: 28, lines removed: undefined
 +       // This allows users to construct proxy URLs inside their applications
 +       if (podInstance.container?.id) {
 +         try {
-+           const { buildPodHost } = await import(&quot;../utils&quot;);
-+           const { KataRuntime } = await import(&quot;./container-runtime&quot;);
++           const { buildPodHost } = await import("../utils");
++           const { KataRuntime } = await import("./container-runtime");
 +           const runtime = new KataRuntime(serverConnection);
 + 
 +           const podHost = buildPodHost({ podSlug: podRecord.slug });
-+           const injectEnvCmd = &#96;sed -i &#39;/^export PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; echo &#39;export PINACLE_POD_HOST=&quot;${podHost}&quot;&#39; &gt;&gt; /etc/profile&#96;;
++           const injectEnvCmd = &#96;sed -i '/^export PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; echo 'export PINACLE_POD_HOST="${podHost}"' &gt;&gt; /etc/profile&#96;;
 + 
 +           await runtime.execInContainer(podId, podInstance.container.id, [
-+             &quot;sh&quot;,
-+             &quot;-c&quot;,
++             "sh",
++             "-c",
 +             injectEnvCmd,
 +           ]);
 +           console.log(
@@ -502,7 +502,7 @@ Now let me add the injection in `pod-recreate-helper.ts` for snapshot restore:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/helpers/pod-recreate-helper.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/helpers/pod-recreate-helper.ts</summary>
 
 **Chunk 1**
 Lines added: 23, lines removed: undefined
@@ -515,13 +515,13 @@ Lines added: 23, lines removed: undefined
 +   // Inject PINACLE_POD_HOST env var into /etc/profile
 +   // This allows users to construct proxy URLs inside their applications
 +   try {
-+     const { buildPodHost } = await import(&quot;../../utils&quot;);
++     const { buildPodHost } = await import("../../utils");
 +     const podHost = buildPodHost({ podSlug: pod.slug });
-+     const injectEnvCmd = &#96;sed -i &#39;/^export PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; echo &#39;export PINACLE_POD_HOST=&quot;${podHost}&quot;&#39; &gt;&gt; /etc/profile&#96;;
++     const injectEnvCmd = &#96;sed -i '/^export PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; echo 'export PINACLE_POD_HOST="${podHost}"' &gt;&gt; /etc/profile&#96;;
 + 
 +     await runtime.execInContainer(pod.id, newContainer.id, [
-+       &quot;sh&quot;,
-+       &quot;-c&quot;,
++       "sh",
++       "-c",
 +       injectEnvCmd,
 +     ]);
 +     console.log(
@@ -765,7 +765,7 @@ Let me create a shared helper function for the injection:
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/env-injection.ts</summary>
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/env-injection.ts</summary>
 
 **Chunk 1**
 Lines added: 45, lines removed: 1
@@ -779,8 +779,8 @@ Lines added: 45, lines removed: 1
 +  * Handles injecting system environment variables into pod containers.
 +  */
 + 
-+ import { buildPodHost } from &quot;../utils&quot;;
-+ import type { KataRuntime } from &quot;./container-runtime&quot;;
++ import { buildPodHost } from "../utils";
++ import type { KataRuntime } from "./container-runtime";
 + 
 + /**
 +  * Inject PINACLE_POD_HOST environment variable into /etc/profile
@@ -807,13 +807,13 @@ Lines added: 45, lines removed: 1
 + 
 +   // Remove any existing entries first (idempotent), then add new ones
 +   const injectEnvCmd = [
-+     &#96;sed -i &#39;/^export PINACLE_POD_HOST=/d&#39; /etc/profile&#96;,
-+     &#96;sed -i &#39;/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d&#39; /etc/profile&#96;,
-+     &#96;echo &#39;export PINACLE_POD_HOST=&quot;${podHost}&quot;&#39; &gt;&gt; /etc/profile&#96;,
-+     &#96;echo &#39;export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST&#39; &gt;&gt; /etc/profile&#96;,
-+   ].join(&quot; &amp;&amp; &quot;);
++     &#96;sed -i '/^export PINACLE_POD_HOST=/d' /etc/profile&#96;,
++     &#96;sed -i '/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d' /etc/profile&#96;,
++     &#96;echo 'export PINACLE_POD_HOST="${podHost}"' &gt;&gt; /etc/profile&#96;,
++     &#96;echo 'export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST' &gt;&gt; /etc/profile&#96;,
++   ].join(" &amp;&amp; ");
 + 
-+   await runtime.execInContainer(podId, containerId, [&quot;sh&quot;, &quot;-c&quot;, injectEnvCmd]);
++   await runtime.execInContainer(podId, containerId, ["sh", "-c", injectEnvCmd]);
 + 
 +   console.log(&#96;[EnvInjection] Injected PINACLE_POD_HOST=${podHost} into /etc/profile&#96;);
 + };
@@ -850,7 +850,7 @@ Now let me update `pod-manager.ts` to use this helper:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-manager.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-manager.ts</summary>
 
 **Chunk 1**
 Lines added: 10, lines removed: undefined
@@ -862,7 +862,7 @@ Lines added: 10, lines removed: undefined
 + 
 +       // Inject PINACLE_POD_HOST env var before services/processes use /etc/profile
 +       console.log(&#96;[PodManager] Injecting pod environment variables for ${spec.id}&#96;);
-+       const { injectPodHostEnv } = await import(&quot;./env-injection&quot;);
++       const { injectPodHostEnv } = await import("./env-injection");
 +       await injectPodHostEnv(
 +         this.containerRuntime,
 +         spec.id,
@@ -916,7 +916,7 @@ I see the current injection code in pod-recreate-helper.ts. Let me replace it wi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/helpers/pod-recreate-helper.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/helpers/pod-recreate-helper.ts</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: 22
@@ -928,13 +928,13 @@ Lines added: 8, lines removed: 22
 -   // Inject PINACLE_POD_HOST env var into /etc/profile
 -   // This allows users to construct proxy URLs inside their applications
 -   try {
--     const { buildPodHost } = await import(&quot;../../utils&quot;);
+-     const { buildPodHost } = await import("../../utils");
 -     const podHost = buildPodHost({ podSlug: pod.slug });
--     const injectEnvCmd = &#96;sed -i &#39;/^export PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; sed -i &#39;/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; echo &#39;export PINACLE_POD_HOST=&quot;${podHost}&quot;&#39; &gt;&gt; /etc/profile &amp;&amp; echo &#39;export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST&#39; &gt;&gt; /etc/profile&#96;;
+-     const injectEnvCmd = &#96;sed -i '/^export PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; sed -i '/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; echo 'export PINACLE_POD_HOST="${podHost}"' &gt;&gt; /etc/profile &amp;&amp; echo 'export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST' &gt;&gt; /etc/profile&#96;;
 - 
 -     await runtime.execInContainer(pod.id, newContainer.id, [
--       &quot;sh&quot;,
--       &quot;-c&quot;,
+-       "sh",
+-       "-c",
 -       injectEnvCmd,
 -     ]);
 -     console.log(
@@ -952,7 +952,7 @@ Lines added: 8, lines removed: 22
 +     &#96;[recreatePodWithSnapshot] Injecting pod environment variables for ${pod.id}&#96;,
 +   );
 +   const { injectPodHostEnv } = await import(
-+     &quot;../../pod-orchestration/env-injection&quot;
++     "../../pod-orchestration/env-injection"
 +   );
 +   await injectPodHostEnv(runtime, pod.id, newContainer.id, pod.slug);
   
@@ -1002,7 +1002,7 @@ I need to remove the duplicate injection code from pod-provisioning-service.ts s
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 28
@@ -1018,16 +1018,16 @@ Lines added: 1, lines removed: 28
 -       // This allows users to construct proxy URLs inside their applications
 -       if (podInstance.container?.id) {
 -         try {
--           const { buildPodHost } = await import(&quot;../utils&quot;);
--           const { KataRuntime } = await import(&quot;./container-runtime&quot;);
+-           const { buildPodHost } = await import("../utils");
+-           const { KataRuntime } = await import("./container-runtime");
 -           const runtime = new KataRuntime(serverConnection);
 - 
 -           const podHost = buildPodHost({ podSlug: podRecord.slug });
--           const injectEnvCmd = &#96;sed -i &#39;/^export PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; sed -i &#39;/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d&#39; /etc/profile &amp;&amp; echo &#39;export PINACLE_POD_HOST=&quot;${podHost}&quot;&#39; &gt;&gt; /etc/profile &amp;&amp; echo &#39;export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST&#39; &gt;&gt; /etc/profile&#96;;
+-           const injectEnvCmd = &#96;sed -i '/^export PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; sed -i '/^export NEXT_PUBLIC_PINACLE_POD_HOST=/d' /etc/profile &amp;&amp; echo 'export PINACLE_POD_HOST="${podHost}"' &gt;&gt; /etc/profile &amp;&amp; echo 'export NEXT_PUBLIC_PINACLE_POD_HOST=$PINACLE_POD_HOST' &gt;&gt; /etc/profile&#96;;
 - 
 -           await runtime.execInContainer(podId, podInstance.container.id, [
--             &quot;sh&quot;,
--             &quot;-c&quot;,
+-             "sh",
+-             "-c",
 -             injectEnvCmd,
 -           ]);
 -           console.log(
@@ -1242,7 +1242,7 @@ Right! Alpine uses `ash`/`sh` by default, but bash is installed. Let me configur
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
@@ -1251,11 +1251,11 @@ Lines added: 4, lines removed: 1
 @@ -45,5 +45,8 @@
   
   # Set tmux config
-- RUN echo &quot;set -g status off&quot; &gt;&gt; /etc/tmux.conf
+- RUN echo "set -g status off" &gt;&gt; /etc/tmux.conf
 + # - status off: hide tmux status bar
 + # - default-command: use login shell to source /etc/profile (for PINACLE_POD_HOST etc)
-+ RUN echo &quot;set -g status off&quot; &gt;&gt; /etc/tmux.conf &amp;&amp; \
-+     echo &quot;set -g default-command &#39;bash -l&#39;&quot; &gt;&gt; /etc/tmux.conf
++ RUN echo "set -g status off" &gt;&gt; /etc/tmux.conf &amp;&amp; \
++     echo "set -g default-command 'bash -l'" &gt;&gt; /etc/tmux.conf
   
   # Copy PostgreSQL from builder stage (binaries + initialized data)
 ```
@@ -1314,7 +1314,7 @@ Ah, I see the issue - when you pass a command directly to `tmux new`, it runs th
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -1323,9 +1323,9 @@ Lines added: 2, lines removed: 1
 @@ -92,5 +92,6 @@
         // -d: detached
         // -s: session name
--       const tmuxCmd = &#96;tmux new -d -s &quot;${sessionName}&quot; &quot;cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
+-       const tmuxCmd = &#96;tmux new -d -s "${sessionName}" "cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
 +       // Source /etc/profile first to get PINACLE_POD_HOST and other env vars
-+       const tmuxCmd = &#96;tmux new -d -s &quot;${sessionName}&quot; &quot;source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
++       const tmuxCmd = &#96;tmux new -d -s "${sessionName}" "source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
   
         await this.containerRuntime.execInContainer(this.podId, container.id, [
 ```
@@ -1387,7 +1387,7 @@ Let me update this second tmux command too.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -1396,10 +1396,10 @@ Lines added: 2, lines removed: 1
 @@ -142,5 +142,6 @@
         // Kill existing session if it exists (it might be empty from persisted volumes)
         // Then create a new session with the command
--       const tmuxCmd = &#96;tmux kill-session -t &quot;${sessionName}&quot; 2&gt;/dev/null || true; tmux new -d -s &quot;${sessionName}&quot; &quot;cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
+-       const tmuxCmd = &#96;tmux kill-session -t "${sessionName}" 2&gt;/dev/null || true; tmux new -d -s "${sessionName}" "cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
 +       // Source /etc/profile first to get PINACLE_POD_HOST and other env vars
-+       const tmuxCmd = &#96;tmux kill-session -t &quot;${sessionName}&quot; 2&gt;/dev/null || true; tmux new -d -s &quot;${sessionName}&quot; &quot;source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
-        console.log(&#39;tmuxCmd&#39;, tmuxCmd);
++       const tmuxCmd = &#96;tmux kill-session -t "${sessionName}" 2&gt;/dev/null || true; tmux new -d -s "${sessionName}" "source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
+        console.log('tmuxCmd', tmuxCmd);
   
 ```
 
@@ -1612,7 +1612,7 @@ For the escaping of quotes in send-keys, I need to be careful. The send-keys com
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: 6
@@ -1625,18 +1625,18 @@ Lines added: 8, lines removed: 6
 -       // -d: detached
 -       // -s: session name
 -       // Source /etc/profile first to get PINACLE_POD_HOST and other env vars
--       const tmuxCmd = &#96;tmux new -d -s &quot;${sessionName}&quot; &quot;source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
+-       const tmuxCmd = &#96;tmux new -d -s "${sessionName}" "source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
 +       // Create detached tmux session with a shell, then send the command
 +       // This approach:
 +       // - Shell sources /etc/profile (gets PINACLE_POD_HOST etc)
 +       // - Ctrl+C kills the process, not the session
 +       // - Session stays alive for debugging after process exits
-+       const createSession = &#96;tmux new -d -s &quot;${sessionName}&quot; -c &quot;${workDir}&quot;&#96;;
-+       const sendCommand = &#96;tmux send-keys -t &quot;${sessionName}&quot; &#39;${startCmd.replace(/&#39;/g, &quot;&#39;\\&#39;&#39;&quot;)}&#39; Enter&#96;;
++       const createSession = &#96;tmux new -d -s "${sessionName}" -c "${workDir}"&#96;;
++       const sendCommand = &#96;tmux send-keys -t "${sessionName}" '${startCmd.replace(/'/g, "'\\''")}' Enter&#96;;
   
         await this.containerRuntime.execInContainer(this.podId, container.id, [
-          &quot;sh&quot;,
-          &quot;-c&quot;,
+          "sh",
+          "-c",
 -         tmuxCmd,
 +         &#96;${createSession} &amp;&amp; ${sendCommand}&#96;,
         ]);
@@ -1673,7 +1673,7 @@ Let me update the `startProcess` method with the same approach.</details></think
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/process-provisioner.ts</summary>
 
 **Chunk 1**
 Lines added: 9, lines removed: 3
@@ -1684,17 +1684,17 @@ Lines added: 9, lines removed: 3
         // Kill existing session if it exists (it might be empty from persisted volumes)
 -       // Then create a new session with the command
 -       // Source /etc/profile first to get PINACLE_POD_HOST and other env vars
--       const tmuxCmd = &#96;tmux kill-session -t &quot;${sessionName}&quot; 2&gt;/dev/null || true; tmux new -d -s &quot;${sessionName}&quot; &quot;source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/&quot;/g, &#39;\\&quot;&#39;)}&quot;&#96;;
+-       const tmuxCmd = &#96;tmux kill-session -t "${sessionName}" 2&gt;/dev/null || true; tmux new -d -s "${sessionName}" "source /etc/profile &amp;&amp; cd ${workDir} &amp;&amp; ${startCmd.replace(/"/g, '\\"')}"&#96;;
 +       // Then create a new session with a shell and send the command
 +       // This approach:
 +       // - Shell sources /etc/profile (gets PINACLE_POD_HOST etc)
 +       // - Ctrl+C kills the process, not the session
 +       // - Session stays alive for debugging after process exits
-+       const killExisting = &#96;tmux kill-session -t &quot;${sessionName}&quot; 2&gt;/dev/null || true&#96;;
-+       const createSession = &#96;tmux new -d -s &quot;${sessionName}&quot; -c &quot;${workDir}&quot;&#96;;
-+       const sendCommand = &#96;tmux send-keys -t &quot;${sessionName}&quot; &#39;${startCmd.replace(/&#39;/g, &quot;&#39;\\&#39;&#39;&quot;)}&#39; Enter&#96;;
++       const killExisting = &#96;tmux kill-session -t "${sessionName}" 2&gt;/dev/null || true&#96;;
++       const createSession = &#96;tmux new -d -s "${sessionName}" -c "${workDir}"&#96;;
++       const sendCommand = &#96;tmux send-keys -t "${sessionName}" '${startCmd.replace(/'/g, "'\\''")}' Enter&#96;;
 +       const tmuxCmd = &#96;${killExisting}; ${createSession} &amp;&amp; ${sendCommand}&#96;;
-        console.log(&#39;tmuxCmd&#39;, tmuxCmd);
+        console.log('tmuxCmd', tmuxCmd);
   
 ```
 
@@ -1780,7 +1780,7 @@ Let me first look at the docs structure to understand where to add this:
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -1809,7 +1809,7 @@ I'll add a section about Pinacle's built-in environment variables to the existin
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx</summary>
 
 **Chunk 1**
 Lines added: 69, lines removed: undefined
@@ -1824,7 +1824,7 @@ Lines added: 69, lines removed: undefined
 + 
 + ### &#96;PINACLE_POD_HOST&#96;
 + 
-+ The pod&#39;s hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
++ The pod's hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
 + 
 + **Format:** &#96;pod-{slug}.pinacle.dev&#96;
 + 
@@ -1871,7 +1871,7 @@ Lines added: 69, lines removed: undefined
 + 
 + &#96;&#96;&#96;typescript
 + // In a Next.js API route or server component
-+ import { redirect } from &quot;next/navigation&quot;;
++ import { redirect } from "next/navigation";
 + 
 + export async function GET() {
 +   const callbackUrl = &#96;https://localhost-3000-${process.env.PINACLE_POD_HOST}/auth/callback&#96;;
@@ -1967,7 +1967,7 @@ You're right! Let me create a separate page for Pinacle's built-in system variab
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/pinacle-variables.mdx</summary>
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/pinacle-variables.mdx</summary>
 
 **Chunk 1**
 Lines added: 79, lines removed: 1
@@ -1981,7 +1981,7 @@ Lines added: 79, lines removed: 1
 + 
 + ## &#96;PINACLE_POD_HOST&#96;
 + 
-+ The pod&#39;s hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
++ The pod's hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
 + 
 + **Format:** &#96;pod-{slug}.pinacle.dev&#96;
 + 
@@ -2028,7 +2028,7 @@ Lines added: 79, lines removed: 1
 + 
 + &#96;&#96;&#96;typescript
 + // In a Next.js API route or server component
-+ import { redirect } from &quot;next/navigation&quot;;
++ import { redirect } from "next/navigation";
 + 
 + export async function GET() {
 +   const callbackUrl = &#96;https://localhost-3000-${process.env.PINACLE_POD_HOST}/auth/callback&#96;;
@@ -2064,7 +2064,7 @@ Lines added: 79, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/environment-variables.mdx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 70
@@ -2079,7 +2079,7 @@ Lines added: 1, lines removed: 70
 - 
 - ### &#96;PINACLE_POD_HOST&#96;
 - 
-- The pod&#39;s hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
+- The pod's hostname for constructing proxy URLs. This is the stable identifier for your pod that you can use to build URLs for any port.
 - 
 - **Format:** &#96;pod-{slug}.pinacle.dev&#96;
 - 
@@ -2126,7 +2126,7 @@ Lines added: 1, lines removed: 70
 - 
 - &#96;&#96;&#96;typescript
 - // In a Next.js API route or server component
-- import { redirect } from &quot;next/navigation&quot;;
+- import { redirect } from "next/navigation";
 - 
 - export async function GET() {
 -   const callbackUrl = &#96;https://localhost-3000-${process.env.PINACLE_POD_HOST}/auth/callback&#96;;
@@ -2181,21 +2181,21 @@ I should add the new "Pinacle System Variables" page to the sidebar. It fits wel
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/vocs.config.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/vocs.config.tsx</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: undefined
 
 ```diff
 @@ -68,4 +68,8 @@
-            link: &quot;/environment-variables&quot;,
+            link: "/environment-variables",
           },
 +         {
-+           text: &quot;Pinacle System Variables&quot;,
-+           link: &quot;/pinacle-variables&quot;,
++           text: "Pinacle System Variables",
++           link: "/pinacle-variables",
 +         },
           {
-            text: &quot;Supermaven&quot;,
+            text: "Supermaven",
 ```
 
 </details>
@@ -2243,7 +2243,7 @@ I think "Runtime Variables" is cleaner - it conveys that these are variables ava
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: mv /Users/rchaves/Projects/pinacle/docs/pages/pinacle-variables.mdx /Users/rchaves/Projects/pinacle/docs/pages/runtime-variables.mdx</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: mv /Users/rchaves/Projects/pinacle/docs/pages/pinacle-variables.mdx /Users/rchaves/Projects/pinacle/docs/pages/runtime-variables.mdx</summary>
 
 ```bash
 mv /Users/rchaves/Projects/pinacle/docs/pages/pinacle-variables.mdx /Users/rchaves/Projects/pinacle/docs/pages/runtime-variables.mdx
@@ -2260,7 +2260,7 @@ Good, now let me update the content of the file and the vocs.config.tsx sidebar.
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/runtime-variables.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/runtime-variables.mdx</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -2284,7 +2284,7 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/vocs.config.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/vocs.config.tsx</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -2293,10 +2293,10 @@ Lines added: 2, lines removed: 2
 @@ -69,6 +69,6 @@
           },
           {
--           text: &quot;Pinacle System Variables&quot;,
--           link: &quot;/pinacle-variables&quot;,
-+           text: &quot;Runtime Variables&quot;,
-+           link: &quot;/runtime-variables&quot;,
+-           text: "Pinacle System Variables",
+-           link: "/pinacle-variables",
++           text: "Runtime Variables",
++           link: "/runtime-variables",
           },
           {
 ```
@@ -2338,7 +2338,7 @@ The user wants me to commit the changes I made. Let me look at what files I chan
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git add src/lib/utils.ts src/lib/pod-orchestration/env-injection.ts src/lib/pod-orchestration/pod-manager.ts src/lib/trpc/helpers/pod-recreate-helper.ts src/lib/pod-orchestration/pod-provisioning-service.ts src/lib/pod-orchestration/process-provisioner.ts docs/pages/runtime-variables.mdx docs/pages/environment-variables.mdx vocs.config.tsx</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git add src/lib/utils.ts src/lib/pod-orchestration/env-injection.ts src/lib/pod-orchestration/pod-manager.ts src/lib/trpc/helpers/pod-recreate-helper.ts src/lib/pod-orchestration/pod-provisioning-service.ts src/lib/pod-orchestration/process-provisioner.ts docs/pages/runtime-variables.mdx docs/pages/environment-variables.mdx vocs.config.tsx</summary>
 
 ```bash
 git add src/lib/utils.ts src/lib/pod-orchestration/env-injection.ts src/lib/pod-orchestration/pod-manager.ts src/lib/trpc/helpers/pod-recreate-helper.ts src/lib/pod-orchestration/pod-provisioning-service.ts src/lib/pod-orchestration/process-provisioner.ts docs/pages/runtime-variables.mdx docs/pages/environment-variables.mdx vocs.config.tsx
@@ -2354,7 +2354,7 @@ Now let me commit with a conventional commit message:</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git commit -m "feat: inject PINACLE_POD_HOST env var for proxy URL construction
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git commit -m "feat: inject PINACLE_POD_HOST env var for proxy URL construction
 
 - Add PINACLE_POD_HOST and NEXT_PUBLIC_PINACLE_POD_HOST env vars
 - Inject during pod provisioning and snapshot restore

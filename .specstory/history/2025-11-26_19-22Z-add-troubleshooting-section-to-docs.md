@@ -23,7 +23,7 @@ The user wants me to add a troubleshooting section to their docs/ folder. Let me
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -80,7 +80,7 @@ Now I'll create a troubleshooting document with the style matching the existing 
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/troubleshooting.mdx</summary>
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/troubleshooting.mdx</summary>
 
 **Chunk 1**
 Lines added: 75, lines removed: 1
@@ -97,14 +97,14 @@ Lines added: 75, lines removed: 1
 + ### Check Resource Usage
 + 
 + 1. Click on the pod dropdown (top-left corner of the workbench)
-+ 2. Click &quot;Pod Details&quot;
++ 2. Click "Pod Details"
 + 3. Check the CPU and memory usage graphs
 + 
 + ### Causes
 + 
-+ **High CPU Usage**: If your process consistently uses CPU above your tier&#39;s limit, the system may throttle or kill it to protect other workloads.
++ **High CPU Usage**: If your process consistently uses CPU above your tier's limit, the system may throttle or kill it to protect other workloads.
 + 
-+ **Memory Exceeded**: Pods have hard memory limits. When a process exceeds available RAM, the kernel&#39;s OOM (Out of Memory) killer terminates it.
++ **Memory Exceeded**: Pods have hard memory limits. When a process exceeds available RAM, the kernel's OOM (Out of Memory) killer terminates it.
 + 
 + ### Solutions
 + 
@@ -125,23 +125,23 @@ Lines added: 75, lines removed: 1
 + 
 + ### Solutions
 + 
-+ - **Bind to 0.0.0.0**: Ensure your server binds to &#96;0.0.0.0&#96; instead of &#96;127.0.0.1&#96; or &#96;localhost&#96;. Firecracker&#39;s network bridge requires services to listen on all interfaces.
++ - **Bind to 0.0.0.0**: Ensure your server binds to &#96;0.0.0.0&#96; instead of &#96;127.0.0.1&#96; or &#96;localhost&#96;. Firecracker's network bridge requires services to listen on all interfaces.
 + 
 +   &#96;&#96;&#96;javascript
-+   // ❌ Won&#39;t be accessible from outside the VM
-+   app.listen(3000, &#39;localhost&#39;)
++   // ❌ Won't be accessible from outside the VM
++   app.listen(3000, 'localhost')
 +   
-+   // ✅ Accessible through Pinacle&#39;s proxy
-+   app.listen(3000, &#39;0.0.0.0&#39;)
++   // ✅ Accessible through Pinacle's proxy
++   app.listen(3000, '0.0.0.0')
 +   &#96;&#96;&#96;
 + 
 + - **Use standard ports**: Pinacle automatically exposes common development ports (3000, 5173, 8080, etc.). Check that your app uses a supported port.
 + 
-+ - **Check firewall rules**: If you&#39;ve modified iptables or installed a firewall inside the pod, it may be blocking traffic.
++ - **Check firewall rules**: If you've modified iptables or installed a firewall inside the pod, it may be blocking traffic.
 + 
-+ - **DNS resolution**: If DNS lookups fail, try using explicit IP addresses or check that &#96;/etc/resolv.conf&#96; hasn&#39;t been corrupted.
++ - **DNS resolution**: If DNS lookups fail, try using explicit IP addresses or check that &#96;/etc/resolv.conf&#96; hasn't been corrupted.
 + 
-+ ## Pod Won&#39;t Start or Gets Stuck Provisioning
++ ## Pod Won't Start or Gets Stuck Provisioning
 + 
 + ### Causes
 + 
@@ -158,7 +158,7 @@ Lines added: 75, lines removed: 1
 + 
 + ## Still Need Help?
 + 
-+ If you&#39;re experiencing an issue not covered here:
++ If you're experiencing an issue not covered here:
 + 
 + - Email: hello@pinacle.dev
 + - Include your pod ID and a description of the problem
@@ -182,7 +182,7 @@ Let me also add a link to the troubleshooting page from the main docs index so u
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/index.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/index.mdx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -240,7 +240,7 @@ No meta files found. Let me check how the docs navigation is configured. Maybe i
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -304,7 +304,7 @@ The user wants me to commit only the files I changed with a conventional commit 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add docs/pages/troubleshooting.mdx docs/pages/index.mdx && git commit -m "docs: add troubleshooting page with common issues"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add docs/pages/troubleshooting.mdx docs/pages/index.mdx && git commit -m "docs: add troubleshooting page with common issues"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add docs/pages/troubleshooting.mdx docs/pages/index.mdx && git commit -m "docs: add troubleshooting page with common issues"

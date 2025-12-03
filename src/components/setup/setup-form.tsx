@@ -17,6 +17,7 @@ import {
   trackBeginCheckout as trackPHBeginCheckout,
   trackPurchase as trackPHPurchase,
 } from "../../lib/analytics/posthog";
+import { trackRedditPurchase } from "../../lib/analytics/reddit";
 import {
   type Currency,
   PRICING_TABLE,
@@ -305,6 +306,18 @@ const SetupForm = () => {
                     currency: currency.toUpperCase(),
                   });
                 }
+
+                // Reddit Pixel conversion tracking
+                trackRedditPurchase({
+                  transactionId: sessionId,
+                  currency: currency.toUpperCase(),
+                  value: tierPrice,
+                });
+                console.log("[Checkout] Reddit Pixel conversion tracked:", {
+                  transactionId: sessionId,
+                  value: tierPrice,
+                  currency: currency.toUpperCase(),
+                });
               } catch (error) {
                 console.error("[Checkout] Error tracking purchase:", error);
               }

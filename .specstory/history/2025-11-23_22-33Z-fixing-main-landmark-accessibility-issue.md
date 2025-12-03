@@ -43,7 +43,7 @@ The user is asking about a Lighthouse accessibility issue: "Document does not ha
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -203,7 +203,7 @@ Now I'll implement the fix by adding a `<main>` element to the locale layout aro
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/[locale]/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -314,7 +314,7 @@ The user is asking me to commit the changes I made to fix the accessibility issu
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git status</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git status
@@ -322,12 +322,12 @@ cd /Users/rchaves/Projects/pinacle && git status
 
 ```
 On branch main
-Your branch is ahead of &#39;origin/main&#39; by 2 commits.
-  (use &quot;git push&quot; to publish your local commits)
+Your branch is ahead of 'origin/main' by 2 commits.
+  (use "git push" to publish your local commits)
 
 Changes not staged for commit:
-  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
-  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+  (use "git add &lt;file&gt;..." to update what will be committed)
+  (use "git restore &lt;file&gt;..." to discard changes in working directory)
 	modified:   .specstory/history/2025-11-23_16-33Z-more-i18n.md
 	modified:   instrumentation-client.ts
 	modified:   src/app/[locale]/layout.tsx
@@ -346,12 +346,12 @@ Changes not staged for commit:
 	modified:   src/messages/zh.json
 
 Untracked files:
-  (use &quot;git add &lt;file&gt;...&quot; to include in what will be committed)
+  (use "git add &lt;file&gt;..." to include in what will be committed)
 	.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
 	.specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
 	.specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
 
-no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+no changes added to commit (use "git add" and/or "git commit -a")
 
 ```
 </details>
@@ -365,7 +365,7 @@ I can see that there are many modified files, but the user specifically asked me
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/layout.tsx</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/layout.tsx
@@ -386,7 +386,7 @@ It seems like the shell is interpreting the brackets as a glob pattern. Let me t
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/layout.tsx'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/layout.tsx'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/layout.tsx'
@@ -402,7 +402,7 @@ Good, now let me commit with a conventional commit message. For this accessibili
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add main landmark element for accessibility
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add main landmark element for accessibility
 
 - Add <main> element to locale layout to fix Lighthouse accessibility warning
 - Ensures screen readers can properly navigate to main content area"</summary>
@@ -416,23 +416,23 @@ cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add main landmark elem
 
 ```
 On branch main
-Your branch is ahead of &#39;origin/main&#39; by 3 commits.
-  (use &quot;git push&quot; to publish your local commits)
+Your branch is ahead of 'origin/main' by 3 commits.
+  (use "git push" to publish your local commits)
 
 Changes not staged for commit:
-  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
-  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+  (use "git add &lt;file&gt;..." to update what will be committed)
+  (use "git restore &lt;file&gt;..." to discard changes in working directory)
 	modified:   .specstory/history/2025-11-23_16-33Z-more-i18n.md
 	modified:   instrumentation-client.ts
 	modified:   src/lib/hreflang.ts
 
 Untracked files:
-  (use &quot;git add &lt;file&gt;...&quot; to include in what will be committed)
+  (use "git add &lt;file&gt;..." to include in what will be committed)
 	.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md
 	.specstory/history/2025-11-23_22-31Z-improving-button-accessibility-for-screen-readers.md
 	.specstory/history/2025-11-23_22-33Z-fixing-main-landmark-accessibility-issue.md
 
-no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+no changes added to commit (use "git add" and/or "git commit -a")
 
 ```
 </details>
@@ -446,7 +446,7 @@ It looks like the commit worked (the branch is now ahead by 3 commits instead of
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -1</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -1</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git log --oneline -1
@@ -467,7 +467,7 @@ It looks like the commit didn't include the layout.tsx file. Let me check what h
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git status --porcelain</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git status --porcelain</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git status --porcelain
@@ -493,7 +493,7 @@ It looks like the layout.tsx file is not showing in the porcelain status, which 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -3</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -3</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git log --oneline -3
@@ -501,7 +501,7 @@ cd /Users/rchaves/Projects/pinacle && git log --oneline -3
 
 ```
 1bad802 fix: improve button accessibility with proper aria-labels
-82cf665 fix: correct Spanish headline to use &#39;máquina virtual&#39; instead of &#39;caja de desarrollo&#39;
+82cf665 fix: correct Spanish headline to use 'máquina virtual' instead of 'caja de desarrollo'
 399f859 feat: update landing page headlines for clarity and impact
 
 ```
@@ -516,7 +516,7 @@ It seems like my commit didn't actually happen. The latest commit is still "fix:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git diff 'src/app/[locale]/layout.tsx'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git diff 'src/app/[locale]/layout.tsx'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git diff 'src/app/[locale]/layout.tsx'
@@ -532,7 +532,7 @@ No diff output means the file has no unstaged changes. Let me check if it was al
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git show --name-only 1bad802</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git show --name-only 1bad802</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git show --name-only 1bad802
@@ -578,7 +578,7 @@ Ah! I see what happened. The layout.tsx file was already committed in the previo
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git show 1bad802 -- 'src/app/[locale]/layout.tsx'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git show 1bad802 -- 'src/app/[locale]/layout.tsx'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git show 1bad802 -- 'src/app/[locale]/layout.tsx'

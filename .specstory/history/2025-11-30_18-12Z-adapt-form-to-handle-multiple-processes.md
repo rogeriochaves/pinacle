@@ -332,27 +332,27 @@ Let me add the translation strings for multi-process support, then update the UI
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -376,8 +376,13 @@
-      &quot;installCommand&quot;: &quot;Install Command (optional)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;e.g., pnpm install or uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Start Command (optional)&quot;,
-+     &quot;processes&quot;: &quot;Processes&quot;,
-+     &quot;processName&quot;: &quot;Process Name&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;e.g., app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Start Command&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;e.g., pnpm dev or uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;Application URL (optional)&quot;,
-      &quot;applicationUrlPlaceholder&quot;: &quot;e.g., http://localhost:3000&quot;,
-+     &quot;addProcess&quot;: &quot;Add Process&quot;,
-+     &quot;removeProcess&quot;: &quot;Remove&quot;,
-      &quot;computeResources&quot;: &quot;COMPUTE RESOURCES&quot;,
-      &quot;tierTooSmall&quot;: &quot;This tier is too small for the selected template. Minimum: {minimumTier}&quot;,
+      "installCommand": "Install Command (optional)",
+      "installCommandPlaceholder": "e.g., pnpm install or uv sync",
+-     "startCommand": "Start Command (optional)",
++     "processes": "Processes",
++     "processName": "Process Name",
++     "processNamePlaceholder": "e.g., app, backend, worker",
++     "startCommand": "Start Command",
+      "startCommandPlaceholder": "e.g., pnpm dev or uv run fastapi dev",
+      "applicationUrl": "Application URL (optional)",
+      "applicationUrlPlaceholder": "e.g., http://localhost:3000",
++     "addProcess": "Add Process",
++     "removeProcess": "Remove",
+      "computeResources": "COMPUTE RESOURCES",
+      "tierTooSmall": "This tier is too small for the selected template. Minimum: {minimumTier}",
 ```
 
 </details>
@@ -390,19 +390,19 @@ The key changes:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  &quot;use client&quot;;
+  "use client";
   
-- import { ArrowLeft } from &quot;lucide-react&quot;;
-+ import { ArrowLeft, Plus, Trash2 } from &quot;lucide-react&quot;;
-  import Link from &quot;next/link&quot;;
-  import { useTranslations } from &quot;next-intl&quot;;
+- import { ArrowLeft } from "lucide-react";
++ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+  import Link from "next/link";
+  import { useTranslations } from "next-intl";
 ```
 
 </details>
@@ -422,7 +422,7 @@ Now let me replace the Process Configuration section with multiple process suppo
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 132, lines removed: 37
@@ -433,34 +433,34 @@ Lines added: 132, lines removed: 37
                       &lt;/div&gt;
 + 
 +                     {/* Processes */}
-+                     &lt;div className=&quot;space-y-4&quot;&gt;
-+                       &lt;Label className=&quot;text-xs font-mono text-slate-700 block&quot;&gt;
-+                         {t(&quot;processes&quot;)}
++                     &lt;div className="space-y-4"&gt;
++                       &lt;Label className="text-xs font-mono text-slate-700 block"&gt;
++                         {t("processes")}
 +                       &lt;/Label&gt;
 + 
-+                       {(form.watch(&quot;processes&quot;) || []).map((process, index) =&gt; (
++                       {(form.watch("processes") || []).map((process, index) =&gt; (
 +                         &lt;div
 +                           key={index}
-+                           className=&quot;p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3&quot;
++                           className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3"
 +                         &gt;
-+                           &lt;div className=&quot;flex items-center justify-between&quot;&gt;
-+                             &lt;span className=&quot;text-xs font-mono font-medium text-slate-600&quot;&gt;
++                           &lt;div className="flex items-center justify-between"&gt;
++                             &lt;span className="text-xs font-mono font-medium text-slate-600"&gt;
 +                               Process {index + 1}
 +                             &lt;/span&gt;
-+                             {(form.watch(&quot;processes&quot;) || []).length &gt; 1 &amp;&amp; (
++                             {(form.watch("processes") || []).length &gt; 1 &amp;&amp; (
 +                               &lt;button
-+                                 type=&quot;button&quot;
++                                 type="button"
 +                                 onClick={() =&gt; {
-+                                   const processes = form.watch(&quot;processes&quot;) || [];
++                                   const processes = form.watch("processes") || [];
 +                                   const newProcesses = processes.filter(
 +                                     (_, i) =&gt; i !== index
 +                                   );
-+                                   form.setValue(&quot;processes&quot;, newProcesses);
++                                   form.setValue("processes", newProcesses);
 +                                 }}
-+                                 className=&quot;text-xs font-mono text-red-600 hover:text-red-800 flex items-center gap-1&quot;
++                                 className="text-xs font-mono text-red-600 hover:text-red-800 flex items-center gap-1"
 +                               &gt;
-+                                 &lt;Trash2 className=&quot;h-3 w-3&quot; /&gt;
-+                                 {t(&quot;removeProcess&quot;)}
++                                 &lt;Trash2 className="h-3 w-3" /&gt;
++                                 {t("removeProcess")}
 +                               &lt;/button&gt;
 +                             )}
 +                           &lt;/div&gt;
@@ -469,118 +469,118 @@ Lines added: 132, lines removed: 37
 +                           &lt;div&gt;
 +                             &lt;Label
 +                               htmlFor={&#96;processName-${index}&#96;}
-+                               className=&quot;text-xs font-mono text-slate-600 mb-1 block&quot;
++                               className="text-xs font-mono text-slate-600 mb-1 block"
 +                             &gt;
-+                               {t(&quot;processName&quot;)}
++                               {t("processName")}
 +                             &lt;/Label&gt;
 +                             &lt;input
 +                               id={&#96;processName-${index}&#96;}
-+                               type=&quot;text&quot;
-+                               placeholder={t(&quot;processNamePlaceholder&quot;)}
-+                               value={process.name || &quot;&quot;}
++                               type="text"
++                               placeholder={t("processNamePlaceholder")}
++                               value={process.name || ""}
 +                               onChange={(e) =&gt; {
-+                                 const processes = form.watch(&quot;processes&quot;) || [];
++                                 const processes = form.watch("processes") || [];
 +                                 const newProcesses = [...processes];
 +                                 newProcesses[index] = {
 +                                   ...newProcesses[index],
 +                                   name: e.target.value,
 +                                 };
-+                                 form.setValue(&quot;processes&quot;, newProcesses);
++                                 form.setValue("processes", newProcesses);
 +                               }}
-+                               className=&quot;w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent&quot;
++                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 +                             /&gt;
 +                           &lt;/div&gt;
   
 -                     {/* Start Command */}
 -                     &lt;div&gt;
 -                       &lt;Label
--                         htmlFor=&quot;processStartCommand&quot;
--                         className=&quot;text-xs font-mono text-slate-700 mb-2 block&quot;
+-                         htmlFor="processStartCommand"
+-                         className="text-xs font-mono text-slate-700 mb-2 block"
 -                       &gt;
--                         {t(&quot;startCommand&quot;)}
+-                         {t("startCommand")}
 -                       &lt;/Label&gt;
 -                       &lt;input
--                         id=&quot;processStartCommand&quot;
--                         type=&quot;text&quot;
--                         placeholder={t(&quot;startCommandPlaceholder&quot;)}
--                         value={form.watch(&quot;processStartCommand&quot;) || &quot;&quot;}
+-                         id="processStartCommand"
+-                         type="text"
+-                         placeholder={t("startCommandPlaceholder")}
+-                         value={form.watch("processStartCommand") || ""}
 -                         onChange={(e) =&gt;
--                           form.setValue(&quot;processStartCommand&quot;, e.target.value)
+-                           form.setValue("processStartCommand", e.target.value)
 -                         }
--                         className=&quot;w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent&quot;
+-                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 -                       /&gt;
 -                     &lt;/div&gt;
 +                           {/* Start Command */}
 +                           &lt;div&gt;
 +                             &lt;Label
 +                               htmlFor={&#96;processStartCommand-${index}&#96;}
-+                               className=&quot;text-xs font-mono text-slate-600 mb-1 block&quot;
++                               className="text-xs font-mono text-slate-600 mb-1 block"
 +                             &gt;
-+                               {t(&quot;startCommand&quot;)}
++                               {t("startCommand")}
 +                             &lt;/Label&gt;
 +                             &lt;input
 +                               id={&#96;processStartCommand-${index}&#96;}
-+                               type=&quot;text&quot;
-+                               placeholder={t(&quot;startCommandPlaceholder&quot;)}
++                               type="text"
++                               placeholder={t("startCommandPlaceholder")}
 +                               value={
-+                                 typeof process.startCommand === &quot;string&quot;
++                                 typeof process.startCommand === "string"
 +                                   ? process.startCommand
-+                                   : (process.startCommand || []).join(&quot; &amp;&amp; &quot;)
++                                   : (process.startCommand || []).join(" &amp;&amp; ")
 +                               }
 +                               onChange={(e) =&gt; {
-+                                 const processes = form.watch(&quot;processes&quot;) || [];
++                                 const processes = form.watch("processes") || [];
 +                                 const newProcesses = [...processes];
 +                                 newProcesses[index] = {
 +                                   ...newProcesses[index],
 +                                   startCommand: e.target.value,
 +                                 };
-+                                 form.setValue(&quot;processes&quot;, newProcesses);
++                                 form.setValue("processes", newProcesses);
 +                               }}
-+                               className=&quot;w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent&quot;
++                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 +                             /&gt;
 +                           &lt;/div&gt;
   
 -                     {/* App URL */}
 -                     &lt;div&gt;
 -                       &lt;Label
--                         htmlFor=&quot;processAppUrl&quot;
--                         className=&quot;text-xs font-mono text-slate-700 mb-2 block&quot;
+-                         htmlFor="processAppUrl"
+-                         className="text-xs font-mono text-slate-700 mb-2 block"
 -                       &gt;
--                         {t(&quot;applicationUrl&quot;)}
+-                         {t("applicationUrl")}
 -                       &lt;/Label&gt;
 -                       &lt;input
--                         id=&quot;processAppUrl&quot;
--                         type=&quot;text&quot;
--                         placeholder={t(&quot;applicationUrlPlaceholder&quot;)}
--                         value={form.watch(&quot;processAppUrl&quot;) || &quot;&quot;}
+-                         id="processAppUrl"
+-                         type="text"
+-                         placeholder={t("applicationUrlPlaceholder")}
+-                         value={form.watch("processAppUrl") || ""}
 -                         onChange={(e) =&gt;
--                           form.setValue(&quot;processAppUrl&quot;, e.target.value)
+-                           form.setValue("processAppUrl", e.target.value)
 -                         }
--                         className=&quot;w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent&quot;
+-                         className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 -                       /&gt;
 +                           {/* App URL */}
 +                           &lt;div&gt;
 +                             &lt;Label
 +                               htmlFor={&#96;processAppUrl-${index}&#96;}
-+                               className=&quot;text-xs font-mono text-slate-600 mb-1 block&quot;
++                               className="text-xs font-mono text-slate-600 mb-1 block"
 +                             &gt;
-+                               {t(&quot;applicationUrl&quot;)}
++                               {t("applicationUrl")}
 +                             &lt;/Label&gt;
 +                             &lt;input
 +                               id={&#96;processAppUrl-${index}&#96;}
-+                               type=&quot;text&quot;
-+                               placeholder={t(&quot;applicationUrlPlaceholder&quot;)}
-+                               value={process.url || &quot;&quot;}
++                               type="text"
++                               placeholder={t("applicationUrlPlaceholder")}
++                               value={process.url || ""}
 +                               onChange={(e) =&gt; {
-+                                 const processes = form.watch(&quot;processes&quot;) || [];
++                                 const processes = form.watch("processes") || [];
 +                                 const newProcesses = [...processes];
 +                                 newProcesses[index] = {
 +                                   ...newProcesses[index],
 +                                   url: e.target.value,
 +                                 };
-+                                 form.setValue(&quot;processes&quot;, newProcesses);
++                                 form.setValue("processes", newProcesses);
 +                               }}
-+                               className=&quot;w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent&quot;
++                               className="w-full px-3 py-2 bg-white border border-slate-200 rounded font-mono text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
 +                             /&gt;
 +                           &lt;/div&gt;
 +                         &lt;/div&gt;
@@ -588,19 +588,19 @@ Lines added: 132, lines removed: 37
 + 
 +                       {/* Add Process Button */}
 +                       &lt;button
-+                         type=&quot;button&quot;
++                         type="button"
 +                         onClick={() =&gt; {
-+                           const processes = form.watch(&quot;processes&quot;) || [];
++                           const processes = form.watch("processes") || [];
 +                           const newProcesses = [
 +                             ...processes,
-+                             { name: &quot;&quot;, startCommand: &quot;&quot;, url: &quot;&quot; },
++                             { name: "", startCommand: "", url: "" },
 +                           ];
-+                           form.setValue(&quot;processes&quot;, newProcesses);
++                           form.setValue("processes", newProcesses);
 +                         }}
-+                         className=&quot;flex items-center gap-2 text-xs font-mono text-orange-600 hover:text-orange-800&quot;
++                         className="flex items-center gap-2 text-xs font-mono text-orange-600 hover:text-orange-800"
 +                       &gt;
-+                         &lt;Plus className=&quot;h-3 w-3&quot; /&gt;
-+                         {t(&quot;addProcess&quot;)}
++                         &lt;Plus className="h-3 w-3" /&gt;
++                         {t("addProcess")}
 +                       &lt;/button&gt;
                       &lt;/div&gt;
                     &lt;/div&gt;
@@ -636,14 +636,14 @@ Now I need to update the places where we initialize/populate processes. Let me u
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -487,5 +487,5 @@
-                    form.clearErrors(&quot;bundle&quot;);
+                    form.clearErrors("bundle");
   
 -                   // If user is selecting the pinacle.yaml option, reload its config
 +                     // If user is selecting the pinacle.yaml option, reload its config
@@ -660,18 +660,18 @@ Lines added: 6, lines removed: 9
                       ) {
 -                       const firstProcess = pinacleConfig.processes[0];
 -                       const startCmd =
--                         typeof firstProcess.startCommand === &quot;string&quot;
+-                         typeof firstProcess.startCommand === "string"
 -                           ? firstProcess.startCommand
--                           : firstProcess.startCommand.join(&quot; &amp;&amp; &quot;);
--                       form.setValue(&quot;processStartCommand&quot;, startCmd);
+-                           : firstProcess.startCommand.join(" &amp;&amp; ");
+-                       form.setValue("processStartCommand", startCmd);
 -                       if (firstProcess.url) {
--                         form.setValue(&quot;processAppUrl&quot;, firstProcess.url);
+-                         form.setValue("processAppUrl", firstProcess.url);
 -                       }
-+                       form.setValue(&quot;processes&quot;, pinacleConfig.processes);
++                       form.setValue("processes", pinacleConfig.processes);
 +                     } else {
 +                       // Initialize with empty process if none exist
-+                       form.setValue(&quot;processes&quot;, [
-+                         { name: &quot;app&quot;, startCommand: &quot;&quot;, url: &quot;&quot; },
++                       form.setValue("processes", [
++                         { name: "app", startCommand: "", url: "" },
 +                       ]);
                       }
                       return;
@@ -682,29 +682,29 @@ Lines added: 11, lines removed: 11
 
 ```diff
 @@ -535,15 +532,15 @@
-                      form.setValue(&quot;processInstallCommand&quot;, installCmd);
+                      form.setValue("processInstallCommand", installCmd);
   
 -                     if (template.defaultProcesses?.[0]) {
 -                       const process = template.defaultProcesses[0];
 -                       form.setValue(
--                         &quot;processStartCommand&quot;,
--                         typeof process.startCommand === &quot;string&quot;
+-                         "processStartCommand",
+-                         typeof process.startCommand === "string"
 -                           ? process.startCommand
--                           : process.startCommand.join(&quot; &amp;&amp; &quot;),
+-                           : process.startCommand.join(" &amp;&amp; "),
 -                       );
 -                       if (process.url) {
--                         form.setValue(&quot;processAppUrl&quot;, process.url);
+-                         form.setValue("processAppUrl", process.url);
 -                       }
 +                     // Set processes from template defaults
 +                     if (
 +                       template.defaultProcesses &amp;&amp;
 +                       template.defaultProcesses.length &gt; 0
 +                     ) {
-+                       form.setValue(&quot;processes&quot;, template.defaultProcesses);
++                       form.setValue("processes", template.defaultProcesses);
 +                     } else {
 +                       // Initialize with empty process if template has no defaults
-+                       form.setValue(&quot;processes&quot;, [
-+                         { name: &quot;app&quot;, startCommand: &quot;&quot;, url: &quot;&quot; },
++                       form.setValue("processes", [
++                         { name: "app", startCommand: "", url: "" },
 +                       ]);
                       }
                     }
@@ -727,7 +727,7 @@ Now let me update the effect that parses pinacle.yaml to properly set processes:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 5, lines removed: 11
@@ -735,22 +735,22 @@ Lines added: 5, lines removed: 11
 ```diff
 @@ -254,15 +254,9 @@
           if (config.processes &amp;&amp; config.processes.length &gt; 0) {
-            form.setValue(&quot;processes&quot;, config.processes);
+            form.setValue("processes", config.processes);
 - 
 -           // Also set simplified form fields for UI display
 -           const firstProcess = config.processes[0];
 -           const startCmd =
--             typeof firstProcess.startCommand === &quot;string&quot;
+-             typeof firstProcess.startCommand === "string"
 -               ? firstProcess.startCommand
--               : firstProcess.startCommand.join(&quot; &amp;&amp; &quot;);
--           form.setValue(&quot;processStartCommand&quot;, startCmd);
+-               : firstProcess.startCommand.join(" &amp;&amp; ");
+-           form.setValue("processStartCommand", startCmd);
 -           if (firstProcess.url) {
--             form.setValue(&quot;processAppUrl&quot;, firstProcess.url);
+-             form.setValue("processAppUrl", firstProcess.url);
 -           }
 +         } else {
 +           // Initialize with empty process if none exist
-+           form.setValue(&quot;processes&quot;, [
-+             { name: &quot;app&quot;, startCommand: &quot;&quot;, url: &quot;&quot; },
++           form.setValue("processes", [
++             { name: "app", startCommand: "", url: "" },
 +           ]);
           }
         } catch (error) {
@@ -773,7 +773,7 @@ Now let me update the cleanup effect when switching setup types:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: undefined, lines removed: 2
@@ -781,11 +781,11 @@ Lines added: undefined, lines removed: 2
 ```diff
 @@ -176,6 +176,4 @@
           // Also clear process config that came from pinacle.yaml
-          form.setValue(&quot;processInstallCommand&quot;, &quot;&quot;);
--         form.setValue(&quot;processStartCommand&quot;, &quot;&quot;);
--         form.setValue(&quot;processAppUrl&quot;, &quot;&quot;);
+          form.setValue("processInstallCommand", "");
+-         form.setValue("processStartCommand", "");
+-         form.setValue("processAppUrl", "");
           // Clear tabs and processes
-          form.setValue(&quot;tabs&quot;, undefined);
+          form.setValue("tabs", undefined);
 ```
 
 </details>
@@ -915,14 +915,14 @@ Looking at the code, the backend already handles this correctly - it prioritizes
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 8
 
 ```diff
 @@ -633,16 +633,11 @@
-            selectedTemplate.services, // Use form&#39;s selected services
+            selectedTemplate.services, // Use form's selected services
           tabs: data.tabs, // Pass tabs from existing pinacle.yaml (if any)
 -         processes: data.processes, // Pass full processes from existing pinacle.yaml (preserves healthCheck)
 +         processes: data.processes, // Pass full processes array
@@ -930,11 +930,11 @@ Lines added: 3, lines removed: 8
 -         // Process configuration for existing repos
 +         // Process configuration for existing repos (install command is separate from processes)
           processConfig:
--           data.setupType === &quot;repository&quot; &amp;&amp;
+-           data.setupType === "repository" &amp;&amp;
 -           (data.processInstallCommand ||
 -             data.processStartCommand ||
 -             data.processAppUrl)
-+           data.setupType === &quot;repository&quot; &amp;&amp; data.processInstallCommand
++           data.setupType === "repository" &amp;&amp; data.processInstallCommand
               ? {
                   installCommand: data.processInstallCommand,
 -                 startCommand: data.processStartCommand,
@@ -960,7 +960,7 @@ Now let me update the checkout flow as well:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 5
@@ -968,7 +968,7 @@ Lines added: 1, lines removed: 5
 ```diff
 @@ -420,11 +420,7 @@
                     processConfig:
-                      formData.setupType === &quot;repository&quot; &amp;&amp;
+                      formData.setupType === "repository" &amp;&amp;
 -                     (formData.processInstallCommand ||
 -                       formData.processStartCommand ||
 -                       formData.processAppUrl)
@@ -1011,7 +1011,7 @@ The setup-form still has `processStartCommand` and `processAppUrl` in its defaul
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 2
@@ -1019,9 +1019,9 @@ Lines added: 1, lines removed: 2
 ```diff
 @@ -56,6 +56,5 @@
         envVars: {},
-        processInstallCommand: &quot;&quot;,
--       processStartCommand: &quot;&quot;,
--       processAppUrl: &quot;&quot;,
+        processInstallCommand: "",
+-       processStartCommand: "",
+-       processAppUrl: "",
 +       processes: [],
         hasPinacleYaml: false,
       },
@@ -1081,18 +1081,18 @@ I need to fix the linter error about using array index as key. Since processes d
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configure-form.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -581,5 +581,5 @@
-                        {(form.watch(&quot;processes&quot;) || []).map((process, index) =&gt; (
+                        {(form.watch("processes") || []).map((process, index) =&gt; (
                           &lt;div
 -                           key={index}
-+                           key={&#96;process-${index}-${process.name || &quot;unnamed&quot;}&#96;}
-                            className=&quot;p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3&quot;
++                           key={&#96;process-${index}-${process.name || "unnamed"}&#96;}
+                            className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3"
                           &gt;
 ```
 
@@ -1135,7 +1135,7 @@ Let me also check if there are other language files that need the same translati
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -1174,24 +1174,24 @@ Let me update the Portuguese translations:</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Comando de Instalação (opcional)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;ex: pnpm install ou uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Comando de Inicialização (opcional)&quot;,
-+     &quot;processes&quot;: &quot;Processos&quot;,
-+     &quot;processName&quot;: &quot;Nome do Processo&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;ex: app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Comando de Inicialização&quot;,
-+     &quot;addProcess&quot;: &quot;Adicionar Processo&quot;,
-+     &quot;removeProcess&quot;: &quot;Remover&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;ex: pnpm dev ou uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;URL da Aplicação (opcional)&quot;,
+      "installCommand": "Comando de Instalação (opcional)",
+      "installCommandPlaceholder": "ex: pnpm install ou uv sync",
+-     "startCommand": "Comando de Inicialização (opcional)",
++     "processes": "Processos",
++     "processName": "Nome do Processo",
++     "processNamePlaceholder": "ex: app, backend, worker",
++     "startCommand": "Comando de Inicialização",
++     "addProcess": "Adicionar Processo",
++     "removeProcess": "Remover",
+      "startCommandPlaceholder": "ex: pnpm dev ou uv run fastapi dev",
+      "applicationUrl": "URL da Aplicação (opcional)",
 ```
 
 </details>
@@ -1236,24 +1236,24 @@ Now let me update each language file to add the new translations. I'll update th
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Install 命令（可选）&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;例如：pnpm install 或 uv sync&quot;,
--     &quot;startCommand&quot;: &quot;启动命令（可选）&quot;,
-+     &quot;processes&quot;: &quot;进程&quot;,
-+     &quot;processName&quot;: &quot;进程名称&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;例如：app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;启动命令&quot;,
-+     &quot;addProcess&quot;: &quot;添加进程&quot;,
-+     &quot;removeProcess&quot;: &quot;删除&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;例如：pnpm dev 或 uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;应用 URL（可选）&quot;,
+      "installCommand": "Install 命令（可选）",
+      "installCommandPlaceholder": "例如：pnpm install 或 uv sync",
+-     "startCommand": "启动命令（可选）",
++     "processes": "进程",
++     "processName": "进程名称",
++     "processNamePlaceholder": "例如：app, backend, worker",
++     "startCommand": "启动命令",
++     "addProcess": "添加进程",
++     "removeProcess": "删除",
+      "startCommandPlaceholder": "例如：pnpm dev 或 uv run fastapi dev",
+      "applicationUrl": "应用 URL（可选）",
 ```
 
 </details>
@@ -1264,24 +1264,24 @@ Lines added: 6, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Install Command (optional)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;z.B.: pnpm install oder uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Start Command (optional)&quot;,
-+     &quot;processes&quot;: &quot;Prozesse&quot;,
-+     &quot;processName&quot;: &quot;Prozessname&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;z.B.: app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Start Command&quot;,
-+     &quot;addProcess&quot;: &quot;Prozess hinzufügen&quot;,
-+     &quot;removeProcess&quot;: &quot;Entfernen&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;z.B.: pnpm dev oder uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;Application URL (optional)&quot;,
+      "installCommand": "Install Command (optional)",
+      "installCommandPlaceholder": "z.B.: pnpm install oder uv sync",
+-     "startCommand": "Start Command (optional)",
++     "processes": "Prozesse",
++     "processName": "Prozessname",
++     "processNamePlaceholder": "z.B.: app, backend, worker",
++     "startCommand": "Start Command",
++     "addProcess": "Prozess hinzufügen",
++     "removeProcess": "Entfernen",
+      "startCommandPlaceholder": "z.B.: pnpm dev oder uv run fastapi dev",
+      "applicationUrl": "Application URL (optional)",
 ```
 
 </details>
@@ -1292,24 +1292,24 @@ Lines added: 6, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Install コマンド（オプション）&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;例：pnpm install または uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Start コマンド（オプション）&quot;,
-+     &quot;processes&quot;: &quot;プロセス&quot;,
-+     &quot;processName&quot;: &quot;プロセス名&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;例：app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Start コマンド&quot;,
-+     &quot;addProcess&quot;: &quot;プロセスを追加&quot;,
-+     &quot;removeProcess&quot;: &quot;削除&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;例：pnpm dev または uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;アプリケーション URL（オプション）&quot;,
+      "installCommand": "Install コマンド（オプション）",
+      "installCommandPlaceholder": "例：pnpm install または uv sync",
+-     "startCommand": "Start コマンド（オプション）",
++     "processes": "プロセス",
++     "processName": "プロセス名",
++     "processNamePlaceholder": "例：app, backend, worker",
++     "startCommand": "Start コマンド",
++     "addProcess": "プロセスを追加",
++     "removeProcess": "削除",
+      "startCommandPlaceholder": "例：pnpm dev または uv run fastapi dev",
+      "applicationUrl": "アプリケーション URL（オプション）",
 ```
 
 </details>
@@ -1320,24 +1320,24 @@ Lines added: 6, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Install команда (опционально)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;напр: pnpm install или uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Start команда (опционально)&quot;,
-+     &quot;processes&quot;: &quot;Процессы&quot;,
-+     &quot;processName&quot;: &quot;Название процесса&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;напр: app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Start команда&quot;,
-+     &quot;addProcess&quot;: &quot;Добавить процесс&quot;,
-+     &quot;removeProcess&quot;: &quot;Удалить&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;напр: pnpm dev или uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;URL приложения (опционально)&quot;,
+      "installCommand": "Install команда (опционально)",
+      "installCommandPlaceholder": "напр: pnpm install или uv sync",
+-     "startCommand": "Start команда (опционально)",
++     "processes": "Процессы",
++     "processName": "Название процесса",
++     "processNamePlaceholder": "напр: app, backend, worker",
++     "startCommand": "Start команда",
++     "addProcess": "Добавить процесс",
++     "removeProcess": "Удалить",
+      "startCommandPlaceholder": "напр: pnpm dev или uv run fastapi dev",
+      "applicationUrl": "URL приложения (опционально)",
 ```
 
 </details>
@@ -1348,24 +1348,24 @@ Lines added: 6, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -362,5 +362,10 @@
-      &quot;installCommand&quot;: &quot;Commande d&#39;Install (optionnel)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;ex: pnpm install ou uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Commande de Start (optionnel)&quot;,
-+     &quot;processes&quot;: &quot;Processus&quot;,
-+     &quot;processName&quot;: &quot;Nom du processus&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;ex: app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Commande de Start&quot;,
-+     &quot;addProcess&quot;: &quot;Ajouter un processus&quot;,
-+     &quot;removeProcess&quot;: &quot;Supprimer&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;ex: pnpm dev ou uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;URL de l&#39;Application (optionnel)&quot;,
+      "installCommand": "Commande d'Install (optionnel)",
+      "installCommandPlaceholder": "ex: pnpm install ou uv sync",
+-     "startCommand": "Commande de Start (optionnel)",
++     "processes": "Processus",
++     "processName": "Nom du processus",
++     "processNamePlaceholder": "ex: app, backend, worker",
++     "startCommand": "Commande de Start",
++     "addProcess": "Ajouter un processus",
++     "removeProcess": "Supprimer",
+      "startCommandPlaceholder": "ex: pnpm dev ou uv run fastapi dev",
+      "applicationUrl": "URL de l'Application (optionnel)",
 ```
 
 </details>
@@ -1376,24 +1376,24 @@ Lines added: 6, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
 
 ```diff
 @@ -375,5 +375,10 @@
-      &quot;installCommand&quot;: &quot;Comando de Instalación (opcional)&quot;,
-      &quot;installCommandPlaceholder&quot;: &quot;ej: pnpm install o uv sync&quot;,
--     &quot;startCommand&quot;: &quot;Comando de Inicio (opcional)&quot;,
-+     &quot;processes&quot;: &quot;Procesos&quot;,
-+     &quot;processName&quot;: &quot;Nombre del Proceso&quot;,
-+     &quot;processNamePlaceholder&quot;: &quot;ej: app, backend, worker&quot;,
-+     &quot;startCommand&quot;: &quot;Comando de Inicio&quot;,
-+     &quot;addProcess&quot;: &quot;Agregar Proceso&quot;,
-+     &quot;removeProcess&quot;: &quot;Eliminar&quot;,
-      &quot;startCommandPlaceholder&quot;: &quot;ej: pnpm dev o uv run fastapi dev&quot;,
-      &quot;applicationUrl&quot;: &quot;URL de la Aplicación (opcional)&quot;,
+      "installCommand": "Comando de Instalación (opcional)",
+      "installCommandPlaceholder": "ej: pnpm install o uv sync",
+-     "startCommand": "Comando de Inicio (opcional)",
++     "processes": "Procesos",
++     "processName": "Nombre del Proceso",
++     "processNamePlaceholder": "ej: app, backend, worker",
++     "startCommand": "Comando de Inicio",
++     "addProcess": "Agregar Proceso",
++     "removeProcess": "Eliminar",
+      "startCommandPlaceholder": "ej: pnpm dev o uv run fastapi dev",
+      "applicationUrl": "URL de la Aplicación (opcional)",
 ```
 
 </details>
@@ -1517,7 +1517,7 @@ Let me run a TypeScript check to make sure everything compiles correctly:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npx tsc --noEmit --skipLibCheck 2>&1 | head -50</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npx tsc --noEmit --skipLibCheck 2>&1 | head -50</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npx tsc --noEmit --skipLibCheck 2>&1 | head -50

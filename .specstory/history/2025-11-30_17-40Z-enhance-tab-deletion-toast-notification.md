@@ -121,7 +121,7 @@ Now let me check what language files exist to add translations:
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -216,7 +216,7 @@ Now I have a full picture. Let me implement the changes:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
 
 **Chunk 1**
 Lines added: 26, lines removed: 1
@@ -233,15 +233,15 @@ Lines added: 26, lines removed: 1
 + 
       setTabs(updatedTabs);
       if (activeTab === tabId) {
-        setActiveTab(updatedTabs[0]?.id || &quot;code-server&quot;);
+        setActiveTab(updatedTabs[0]?.id || "code-server");
       }
       saveTabs(updatedTabs);
--     toast.success(&quot;Tab deleted&quot;);
+-     toast.success("Tab deleted");
 + 
-+     toast.success(t(&quot;tabDeleted&quot;), {
++     toast.success(t("tabDeleted"), {
 +       duration: 8000,
 +       action: {
-+         label: t(&quot;undo&quot;),
++         label: t("undo"),
 +         onClick: () =&gt; {
 +           // Find the original position and restore the tab
 +           const originalIndex = tabs.findIndex((tab) =&gt; tab.id === tabId);
@@ -254,7 +254,7 @@ Lines added: 26, lines removed: 1
 +           setTabs(restoredTabs);
 +           setActiveTab(previousActiveTab);
 +           saveTabs(restoredTabs);
-+           toast.success(t(&quot;tabRestored&quot;));
++           toast.success(t("tabRestored"));
 +         },
 +       },
 +     });
@@ -270,22 +270,22 @@ Lines added: 26, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;uncommitted change&quot;,
-      &quot;uncommittedChanges&quot;: &quot;uncommitted changes&quot;,
--     &quot;commitChanges&quot;: &quot;Commit changes&quot;
-+     &quot;commitChanges&quot;: &quot;Commit changes&quot;,
-+     &quot;tabDeleted&quot;: &quot;Tab deleted&quot;,
-+     &quot;tabRestored&quot;: &quot;Tab restored&quot;,
-+     &quot;undo&quot;: &quot;Undo&quot;
+      "uncommittedChange": "uncommitted change",
+      "uncommittedChanges": "uncommitted changes",
+-     "commitChanges": "Commit changes"
++     "commitChanges": "Commit changes",
++     "tabDeleted": "Tab deleted",
++     "tabRestored": "Tab restored",
++     "undo": "Undo"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -343,22 +343,22 @@ Now I have the context for all files. Let me add the translations to each one. I
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;mudança não confirmada&quot;,
-      &quot;uncommittedChanges&quot;: &quot;mudanças não confirmadas&quot;,
--     &quot;commitChanges&quot;: &quot;Comitar mudanças&quot;
-+     &quot;commitChanges&quot;: &quot;Comitar mudanças&quot;,
-+     &quot;tabDeleted&quot;: &quot;Aba excluída&quot;,
-+     &quot;tabRestored&quot;: &quot;Aba restaurada&quot;,
-+     &quot;undo&quot;: &quot;Desfazer&quot;
+      "uncommittedChange": "mudança não confirmada",
+      "uncommittedChanges": "mudanças não confirmadas",
+-     "commitChanges": "Comitar mudanças"
++     "commitChanges": "Comitar mudanças",
++     "tabDeleted": "Aba excluída",
++     "tabRestored": "Aba restaurada",
++     "undo": "Desfazer"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -369,22 +369,22 @@ Lines added: 4, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;cambio sin confirmar&quot;,
-      &quot;uncommittedChanges&quot;: &quot;cambios sin confirmar&quot;,
--     &quot;commitChanges&quot;: &quot;Commitear cambios&quot;
-+     &quot;commitChanges&quot;: &quot;Commitear cambios&quot;,
-+     &quot;tabDeleted&quot;: &quot;Pestaña eliminada&quot;,
-+     &quot;tabRestored&quot;: &quot;Pestaña restaurada&quot;,
-+     &quot;undo&quot;: &quot;Deshacer&quot;
+      "uncommittedChange": "cambio sin confirmar",
+      "uncommittedChanges": "cambios sin confirmar",
+-     "commitChanges": "Commitear cambios"
++     "commitChanges": "Commitear cambios",
++     "tabDeleted": "Pestaña eliminada",
++     "tabRestored": "Pestaña restaurada",
++     "undo": "Deshacer"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -395,22 +395,22 @@ Lines added: 4, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;nicht übertragene Änderung&quot;,
-      &quot;uncommittedChanges&quot;: &quot;nicht übertragene Änderungen&quot;,
--     &quot;commitChanges&quot;: &quot;Committen&quot;
-+     &quot;commitChanges&quot;: &quot;Committen&quot;,
-+     &quot;tabDeleted&quot;: &quot;Tab gelöscht&quot;,
-+     &quot;tabRestored&quot;: &quot;Tab wiederhergestellt&quot;,
-+     &quot;undo&quot;: &quot;Rückgängig&quot;
+      "uncommittedChange": "nicht übertragene Änderung",
+      "uncommittedChanges": "nicht übertragene Änderungen",
+-     "commitChanges": "Committen"
++     "commitChanges": "Committen",
++     "tabDeleted": "Tab gelöscht",
++     "tabRestored": "Tab wiederhergestellt",
++     "undo": "Rückgängig"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -425,22 +425,22 @@ The string to replace was not found in the file.
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;コミットされていない変更&quot;,
-      &quot;uncommittedChanges&quot;: &quot;コミットされていない変更&quot;,
--     &quot;commitChanges&quot;: &quot;変更をコミット&quot;
-+     &quot;commitChanges&quot;: &quot;変更をコミット&quot;,
-+     &quot;tabDeleted&quot;: &quot;タブを削除しました&quot;,
-+     &quot;tabRestored&quot;: &quot;タブを復元しました&quot;,
-+     &quot;undo&quot;: &quot;元に戻す&quot;
+      "uncommittedChange": "コミットされていない変更",
+      "uncommittedChanges": "コミットされていない変更",
+-     "commitChanges": "変更をコミット"
++     "commitChanges": "変更をコミット",
++     "tabDeleted": "タブを削除しました",
++     "tabRestored": "タブを復元しました",
++     "undo": "元に戻す"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -451,22 +451,22 @@ Lines added: 4, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;未提交的更改&quot;,
-      &quot;uncommittedChanges&quot;: &quot;未提交的更改&quot;,
--     &quot;commitChanges&quot;: &quot;提交更改&quot;
-+     &quot;commitChanges&quot;: &quot;提交更改&quot;,
-+     &quot;tabDeleted&quot;: &quot;标签页已删除&quot;,
-+     &quot;tabRestored&quot;: &quot;标签页已恢复&quot;,
-+     &quot;undo&quot;: &quot;撤销&quot;
+      "uncommittedChange": "未提交的更改",
+      "uncommittedChanges": "未提交的更改",
+-     "commitChanges": "提交更改"
++     "commitChanges": "提交更改",
++     "tabDeleted": "标签页已删除",
++     "tabRestored": "标签页已恢复",
++     "undo": "撤销"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -477,22 +477,22 @@ Lines added: 4, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -29,5 +29,8 @@
-      &quot;uncommittedChange&quot;: &quot;незафиксированное изменение&quot;,
-      &quot;uncommittedChanges&quot;: &quot;незафиксированные изменения&quot;,
--     &quot;commitChanges&quot;: &quot;Зафиксировать изменения&quot;
-+     &quot;commitChanges&quot;: &quot;Зафиксировать изменения&quot;,
-+     &quot;tabDeleted&quot;: &quot;Вкладка удалена&quot;,
-+     &quot;tabRestored&quot;: &quot;Вкладка восстановлена&quot;,
-+     &quot;undo&quot;: &quot;Отменить&quot;
+      "uncommittedChange": "незафиксированное изменение",
+      "uncommittedChanges": "незафиксированные изменения",
+-     "commitChanges": "Зафиксировать изменения"
++     "commitChanges": "Зафиксировать изменения",
++     "tabDeleted": "Вкладка удалена",
++     "tabRestored": "Вкладка восстановлена",
++     "undo": "Отменить"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -525,22 +525,22 @@ I see - the French file has a different structure for the common section. It doe
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -16,5 +16,8 @@
-      &quot;search&quot;: &quot;Rechercher&quot;,
-      &quot;filter&quot;: &quot;Filtrer&quot;,
--     &quot;sort&quot;: &quot;Trier&quot;
-+     &quot;sort&quot;: &quot;Trier&quot;,
-+     &quot;tabDeleted&quot;: &quot;Onglet supprimé&quot;,
-+     &quot;tabRestored&quot;: &quot;Onglet restauré&quot;,
-+     &quot;undo&quot;: &quot;Annuler&quot;
+      "search": "Rechercher",
+      "filter": "Filtrer",
+-     "sort": "Trier"
++     "sort": "Trier",
++     "tabDeleted": "Onglet supprimé",
++     "tabRestored": "Onglet restauré",
++     "undo": "Annuler"
     },
-    &quot;header&quot;: {
+    "header": {
 ```
 
 </details>
@@ -698,7 +698,7 @@ Now I understand. Sonner needs `closeButton: true` to show the X button. Let me 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/dashboard/workbench.tsx</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -707,12 +707,12 @@ Lines added: 2, lines removed: 1
 @@ -731,6 +731,7 @@
       saveTabs(updatedTabs);
   
--     toast.success(t(&quot;tabDeleted&quot;), {
-+     toast.success(t(&quot;tabDeleted&quot;, { name: deletedTab.label }), {
+-     toast.success(t("tabDeleted"), {
++     toast.success(t("tabDeleted", { name: deletedTab.label }), {
         duration: 8000,
 +       closeButton: true,
         action: {
-          label: t(&quot;undo&quot;),
+          label: t("undo"),
 ```
 
 **Chunk 2**
@@ -722,8 +722,8 @@ Lines added: 1, lines removed: 1
 @@ -747,5 +748,5 @@
             setActiveTab(previousActiveTab);
             saveTabs(restoredTabs);
--           toast.success(t(&quot;tabRestored&quot;));
-+           toast.success(t(&quot;tabRestored&quot;, { name: deletedTab.label }));
+-           toast.success(t("tabRestored"));
++           toast.success(t("tabRestored", { name: deletedTab.label }));
           },
         },
 ```
@@ -736,20 +736,20 @@ Lines added: 1, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;uncommitted changes&quot;,
-      &quot;commitChanges&quot;: &quot;Commit changes&quot;,
--     &quot;tabDeleted&quot;: &quot;Tab deleted&quot;,
--     &quot;tabRestored&quot;: &quot;Tab restored&quot;,
-+     &quot;tabDeleted&quot;: &quot;Tab {name} deleted&quot;,
-+     &quot;tabRestored&quot;: &quot;Tab {name} restored&quot;,
-      &quot;undo&quot;: &quot;Undo&quot;
+      "uncommittedChanges": "uncommitted changes",
+      "commitChanges": "Commit changes",
+-     "tabDeleted": "Tab deleted",
+-     "tabRestored": "Tab restored",
++     "tabDeleted": "Tab {name} deleted",
++     "tabRestored": "Tab {name} restored",
+      "undo": "Undo"
     },
 ```
 
@@ -761,20 +761,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;mudanças não confirmadas&quot;,
-      &quot;commitChanges&quot;: &quot;Comitar mudanças&quot;,
--     &quot;tabDeleted&quot;: &quot;Aba excluída&quot;,
--     &quot;tabRestored&quot;: &quot;Aba restaurada&quot;,
-+     &quot;tabDeleted&quot;: &quot;Aba {name} excluída&quot;,
-+     &quot;tabRestored&quot;: &quot;Aba {name} restaurada&quot;,
-      &quot;undo&quot;: &quot;Desfazer&quot;
+      "uncommittedChanges": "mudanças não confirmadas",
+      "commitChanges": "Comitar mudanças",
+-     "tabDeleted": "Aba excluída",
+-     "tabRestored": "Aba restaurada",
++     "tabDeleted": "Aba {name} excluída",
++     "tabRestored": "Aba {name} restaurada",
+      "undo": "Desfazer"
     },
 ```
 
@@ -786,20 +786,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;cambios sin confirmar&quot;,
-      &quot;commitChanges&quot;: &quot;Commitear cambios&quot;,
--     &quot;tabDeleted&quot;: &quot;Pestaña eliminada&quot;,
--     &quot;tabRestored&quot;: &quot;Pestaña restaurada&quot;,
-+     &quot;tabDeleted&quot;: &quot;Pestaña {name} eliminada&quot;,
-+     &quot;tabRestored&quot;: &quot;Pestaña {name} restaurada&quot;,
-      &quot;undo&quot;: &quot;Deshacer&quot;
+      "uncommittedChanges": "cambios sin confirmar",
+      "commitChanges": "Commitear cambios",
+-     "tabDeleted": "Pestaña eliminada",
+-     "tabRestored": "Pestaña restaurada",
++     "tabDeleted": "Pestaña {name} eliminada",
++     "tabRestored": "Pestaña {name} restaurada",
+      "undo": "Deshacer"
     },
 ```
 
@@ -811,20 +811,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;nicht übertragene Änderungen&quot;,
-      &quot;commitChanges&quot;: &quot;Committen&quot;,
--     &quot;tabDeleted&quot;: &quot;Tab gelöscht&quot;,
--     &quot;tabRestored&quot;: &quot;Tab wiederhergestellt&quot;,
-+     &quot;tabDeleted&quot;: &quot;Tab {name} gelöscht&quot;,
-+     &quot;tabRestored&quot;: &quot;Tab {name} wiederhergestellt&quot;,
-      &quot;undo&quot;: &quot;Rückgängig&quot;
+      "uncommittedChanges": "nicht übertragene Änderungen",
+      "commitChanges": "Committen",
+-     "tabDeleted": "Tab gelöscht",
+-     "tabRestored": "Tab wiederhergestellt",
++     "tabDeleted": "Tab {name} gelöscht",
++     "tabRestored": "Tab {name} wiederhergestellt",
+      "undo": "Rückgängig"
     },
 ```
 
@@ -836,20 +836,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -17,6 +17,6 @@
-      &quot;filter&quot;: &quot;Filtrer&quot;,
-      &quot;sort&quot;: &quot;Trier&quot;,
--     &quot;tabDeleted&quot;: &quot;Onglet supprimé&quot;,
--     &quot;tabRestored&quot;: &quot;Onglet restauré&quot;,
-+     &quot;tabDeleted&quot;: &quot;Onglet {name} supprimé&quot;,
-+     &quot;tabRestored&quot;: &quot;Onglet {name} restauré&quot;,
-      &quot;undo&quot;: &quot;Annuler&quot;
+      "filter": "Filtrer",
+      "sort": "Trier",
+-     "tabDeleted": "Onglet supprimé",
+-     "tabRestored": "Onglet restauré",
++     "tabDeleted": "Onglet {name} supprimé",
++     "tabRestored": "Onglet {name} restauré",
+      "undo": "Annuler"
     },
 ```
 
@@ -861,20 +861,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;コミットされていない変更&quot;,
-      &quot;commitChanges&quot;: &quot;変更をコミット&quot;,
--     &quot;tabDeleted&quot;: &quot;タブを削除しました&quot;,
--     &quot;tabRestored&quot;: &quot;タブを復元しました&quot;,
-+     &quot;tabDeleted&quot;: &quot;タブ {name} を削除しました&quot;,
-+     &quot;tabRestored&quot;: &quot;タブ {name} を復元しました&quot;,
-      &quot;undo&quot;: &quot;元に戻す&quot;
+      "uncommittedChanges": "コミットされていない変更",
+      "commitChanges": "変更をコミット",
+-     "tabDeleted": "タブを削除しました",
+-     "tabRestored": "タブを復元しました",
++     "tabDeleted": "タブ {name} を削除しました",
++     "tabRestored": "タブ {name} を復元しました",
+      "undo": "元に戻す"
     },
 ```
 
@@ -886,20 +886,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;未提交的更改&quot;,
-      &quot;commitChanges&quot;: &quot;提交更改&quot;,
--     &quot;tabDeleted&quot;: &quot;标签页已删除&quot;,
--     &quot;tabRestored&quot;: &quot;标签页已恢复&quot;,
-+     &quot;tabDeleted&quot;: &quot;标签页 {name} 已删除&quot;,
-+     &quot;tabRestored&quot;: &quot;标签页 {name} 已恢复&quot;,
-      &quot;undo&quot;: &quot;撤销&quot;
+      "uncommittedChanges": "未提交的更改",
+      "commitChanges": "提交更改",
+-     "tabDeleted": "标签页已删除",
+-     "tabRestored": "标签页已恢复",
++     "tabDeleted": "标签页 {name} 已删除",
++     "tabRestored": "标签页 {name} 已恢复",
+      "undo": "撤销"
     },
 ```
 
@@ -911,20 +911,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;незафиксированные изменения&quot;,
-      &quot;commitChanges&quot;: &quot;Зафиксировать изменения&quot;,
--     &quot;tabDeleted&quot;: &quot;Вкладка удалена&quot;,
--     &quot;tabRestored&quot;: &quot;Вкладка восстановлена&quot;,
-+     &quot;tabDeleted&quot;: &quot;Вкладка {name} удалена&quot;,
-+     &quot;tabRestored&quot;: &quot;Вкладка {name} восстановлена&quot;,
-      &quot;undo&quot;: &quot;Отменить&quot;
+      "uncommittedChanges": "незафиксированные изменения",
+      "commitChanges": "Зафиксировать изменения",
+-     "tabDeleted": "Вкладка удалена",
+-     "tabRestored": "Вкладка восстановлена",
++     "tabDeleted": "Вкладка {name} удалена",
++     "tabRestored": "Вкладка {name} восстановлена",
+      "undo": "Отменить"
     },
 ```
 
@@ -1002,20 +1002,20 @@ You're right, that reads much more naturally! Let me update all the translations
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;uncommitted changes&quot;,
-      &quot;commitChanges&quot;: &quot;Commit changes&quot;,
--     &quot;tabDeleted&quot;: &quot;Tab {name} deleted&quot;,
--     &quot;tabRestored&quot;: &quot;Tab {name} restored&quot;,
-+     &quot;tabDeleted&quot;: &quot;{name} tab deleted&quot;,
-+     &quot;tabRestored&quot;: &quot;{name} tab restored&quot;,
-      &quot;undo&quot;: &quot;Undo&quot;
+      "uncommittedChanges": "uncommitted changes",
+      "commitChanges": "Commit changes",
+-     "tabDeleted": "Tab {name} deleted",
+-     "tabRestored": "Tab {name} restored",
++     "tabDeleted": "{name} tab deleted",
++     "tabRestored": "{name} tab restored",
+      "undo": "Undo"
     },
 ```
 
@@ -1035,20 +1035,20 @@ Model performed no edit
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;nicht übertragene Änderungen&quot;,
-      &quot;commitChanges&quot;: &quot;Committen&quot;,
--     &quot;tabDeleted&quot;: &quot;Tab {name} gelöscht&quot;,
--     &quot;tabRestored&quot;: &quot;Tab {name} wiederhergestellt&quot;,
-+     &quot;tabDeleted&quot;: &quot;{name}-Tab gelöscht&quot;,
-+     &quot;tabRestored&quot;: &quot;{name}-Tab wiederhergestellt&quot;,
-      &quot;undo&quot;: &quot;Rückgängig&quot;
+      "uncommittedChanges": "nicht übertragene Änderungen",
+      "commitChanges": "Committen",
+-     "tabDeleted": "Tab {name} gelöscht",
+-     "tabRestored": "Tab {name} wiederhergestellt",
++     "tabDeleted": "{name}-Tab gelöscht",
++     "tabRestored": "{name}-Tab wiederhergestellt",
+      "undo": "Rückgängig"
     },
 ```
 
@@ -1064,20 +1064,20 @@ Model performed no edit
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;コミットされていない変更&quot;,
-      &quot;commitChanges&quot;: &quot;変更をコミット&quot;,
--     &quot;tabDeleted&quot;: &quot;タブ {name} を削除しました&quot;,
--     &quot;tabRestored&quot;: &quot;タブ {name} を復元しました&quot;,
-+     &quot;tabDeleted&quot;: &quot;{name} タブを削除しました&quot;,
-+     &quot;tabRestored&quot;: &quot;{name} タブを復元しました&quot;,
-      &quot;undo&quot;: &quot;元に戻す&quot;
+      "uncommittedChanges": "コミットされていない変更",
+      "commitChanges": "変更をコミット",
+-     "tabDeleted": "タブ {name} を削除しました",
+-     "tabRestored": "タブ {name} を復元しました",
++     "tabDeleted": "{name} タブを削除しました",
++     "tabRestored": "{name} タブを復元しました",
+      "undo": "元に戻す"
     },
 ```
 
@@ -1089,20 +1089,20 @@ Lines added: 2, lines removed: 2
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -30,6 +30,6 @@
-      &quot;uncommittedChanges&quot;: &quot;未提交的更改&quot;,
-      &quot;commitChanges&quot;: &quot;提交更改&quot;,
--     &quot;tabDeleted&quot;: &quot;标签页 {name} 已删除&quot;,
--     &quot;tabRestored&quot;: &quot;标签页 {name} 已恢复&quot;,
-+     &quot;tabDeleted&quot;: &quot;{name} 标签页已删除&quot;,
-+     &quot;tabRestored&quot;: &quot;{name} 标签页已恢复&quot;,
-      &quot;undo&quot;: &quot;撤销&quot;
+      "uncommittedChanges": "未提交的更改",
+      "commitChanges": "提交更改",
+-     "tabDeleted": "标签页 {name} 已删除",
+-     "tabRestored": "标签页 {name} 已恢复",
++     "tabDeleted": "{name} 标签页已删除",
++     "tabRestored": "{name} 标签页已恢复",
+      "undo": "撤销"
     },
 ```
 
@@ -1162,7 +1162,7 @@ Let me commit these files with a proper conventional commit message.</details></
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/dashboard/workbench.tsx src/messages/en.json src/messages/pt.json src/messages/es.json src/messages/de.json src/messages/fr.json src/messages/ja.json src/messages/zh.json src/messages/ru.json src/app/globals.css && git commit -m "feat(workbench): add undo action to tab delete toast with i18n support
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/dashboard/workbench.tsx src/messages/en.json src/messages/pt.json src/messages/es.json src/messages/de.json src/messages/fr.json src/messages/ja.json src/messages/zh.json src/messages/ru.json src/app/globals.css && git commit -m "feat(workbench): add undo action to tab delete toast with i18n support
 
 - Extend toast duration to 8 seconds for accidental deletions
 - Add undo button to restore deleted tabs

@@ -5,6 +5,7 @@ import "../globals.css";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { RedditPixel } from "@/components/analytics/reddit-pixel";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { Toaster } from "@/components/ui/sonner";
 import { locales } from "@/i18n";
@@ -54,6 +55,7 @@ export default async function LocaleLayout({
   return (
     <div className={`${jetbrainsMono.variable} font-mono antialiased`}>
       <GoogleAnalytics />
+      <RedditPixel />
       <NextIntlClientProvider locale={locale} messages={messages}>
         <Providers>
           <ImpersonationBanner />

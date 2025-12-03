@@ -96,7 +96,7 @@ Looking at the code, I can see there's already an `isStaleProvisioning()` functi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
 
 **Chunk 1**
 Lines added: 21, lines removed: 4
@@ -107,14 +107,14 @@ Lines added: 21, lines removed: 4
   
 -   // Detect stale provisioning (last log &gt;10 min old and updatedAt is more than 10 min old)
 +   // Detect stale provisioning:
-+   // - &quot;creating&quot; status: last log &gt;10 min old
-+   // - &quot;provisioning&quot; status: last log &gt;5 min old (considered timed out)
++   // - "creating" status: last log &gt;10 min old
++   // - "provisioning" status: last log &gt;5 min old (considered timed out)
     const isStaleProvisioning = (): boolean =&gt; {
--     if (!data?.pod || data.pod.status !== &quot;creating&quot;) return false;
+-     if (!data?.pod || data.pod.status !== "creating") return false;
 +     if (!data?.pod) return false;
 + 
 +     const status = data.pod.status;
-+     if (status !== &quot;creating&quot; &amp;&amp; status !== &quot;provisioning&quot;) return false;
++     if (status !== "creating" &amp;&amp; status !== "provisioning") return false;
       if (allLogs.length === 0) return false;
   
       const lastLog = allLogs[allLogs.length - 1];
@@ -124,7 +124,7 @@ Lines added: 21, lines removed: 4
 + 
 +     // Use 5 minutes for provisioning (treat as timed out), 10 minutes for creating
 +     const timeoutMs =
-+       status === &quot;provisioning&quot; ? 5 * 60 * 1000 : 10 * 60 * 1000;
++       status === "provisioning" ? 5 * 60 * 1000 : 10 * 60 * 1000;
   
       const updatedAt = new Date(data.pod.updatedAt).getTime();
   
@@ -134,9 +134,9 @@ Lines added: 21, lines removed: 4
 + 
 +   // Compute effective status - treat timed out provisioning as error
 +   const getEffectiveStatus = (): PodStatus =&gt; {
-+     if (!pod) return &quot;creating&quot;;
-+     if (pod.status === &quot;provisioning&quot; &amp;&amp; isStaleProvisioning()) {
-+       return &quot;error&quot;;
++     if (!pod) return "creating";
++     if (pod.status === "provisioning" &amp;&amp; isStaleProvisioning()) {
++       return "error";
 +     }
 +     return pod.status as PodStatus;
     };
@@ -160,7 +160,7 @@ Now let me update the StatusBadge and the message below it to use the effective 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
@@ -169,11 +169,11 @@ Lines added: 4, lines removed: 1
 @@ -302,5 +302,8 @@
   
     const { pod } = data || {};
--   const showRetryButton = pod?.status === &quot;error&quot; || isStaleProvisioning();
+-   const showRetryButton = pod?.status === "error" || isStaleProvisioning();
 +   const effectiveStatus = getEffectiveStatus();
-+   const isTimedOut = pod?.status === &quot;provisioning&quot; &amp;&amp; isStaleProvisioning();
++   const isTimedOut = pod?.status === "provisioning" &amp;&amp; isStaleProvisioning();
 +   const showRetryButton =
-+     pod?.status === &quot;error&quot; || isStaleProvisioning();
++     pod?.status === "error" || isStaleProvisioning();
   
     // biome-ignore lint/correctness/useExhaustiveDependencies: force listen to shouldRefetchLogs
 ```
@@ -199,7 +199,7 @@ Now update the StatusBadge to use the effective status:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/pods/[id]/provisioning/page.tsx</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 4
@@ -211,15 +211,15 @@ Lines added: 6, lines removed: 4
 -               &lt;StatusBadge status={pod.status as PodStatus} /&gt;
 +               &lt;StatusBadge status={effectiveStatus} /&gt;
               &lt;/div&gt;
-              &lt;p className=&quot;text-slate-400 font-mono text-sm&quot;&gt;
--               {pod.status === &quot;error&quot;
--                 ? pod.lastErrorMessage || t(&quot;errorUnknown&quot;)
--                 : t(&quot;settingUp&quot;)}
+              &lt;p className="text-slate-400 font-mono text-sm"&gt;
+-               {pod.status === "error"
+-                 ? pod.lastErrorMessage || t("errorUnknown")
+-                 : t("settingUp")}
 +               {isTimedOut
-+                 ? t(&quot;provisioningTimedOut&quot;)
-+                 : pod.status === &quot;error&quot;
-+                   ? pod.lastErrorMessage || t(&quot;errorUnknown&quot;)
-+                   : t(&quot;settingUp&quot;)}
++                 ? t("provisioningTimedOut")
++                 : pod.status === "error"
++                   ? pod.lastErrorMessage || t("errorUnknown")
++                   : t("settingUp")}
               &lt;/p&gt;
             &lt;/div&gt;
 ```
@@ -312,18 +312,18 @@ Let me add the translation key after "provisioningStalledDesc" in all message fi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/en.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -490,4 +490,5 @@
-      &quot;provisioningStalled&quot;: &quot;Provisioning May Have Stalled&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;No updates for over 10 minutes. The provisioning process may have encountered an issue. You can retry provisioning below.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Provisioning timed out - no updates for over 5 minutes&quot;,
-      &quot;retryProvisioning&quot;: &quot;Retry Provisioning&quot;,
-      &quot;retrying&quot;: &quot;Retrying...&quot;,
+      "provisioningStalled": "Provisioning May Have Stalled",
+      "provisioningStalledDesc": "No updates for over 10 minutes. The provisioning process may have encountered an issue. You can retry provisioning below.",
++     "provisioningTimedOut": "Provisioning timed out - no updates for over 5 minutes",
+      "retryProvisioning": "Retry Provisioning",
+      "retrying": "Retrying...",
 ```
 
 </details>
@@ -339,18 +339,18 @@ Now I need to add translations for all the other language files. Let me do them 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/pt.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;O Provisionamento Pode Ter Parado&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;Sem atualizações por mais de 10 minutos. O processo de provisionamento pode ter encontrado um problema. Você pode tentar novamente abaixo.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Provisionamento expirou - sem atualizações por mais de 5 minutos&quot;,
-      &quot;retryProvisioning&quot;: &quot;Tentar Provisionamento Novamente&quot;,
-      &quot;retrying&quot;: &quot;Tentando novamente...&quot;,
+      "provisioningStalled": "O Provisionamento Pode Ter Parado",
+      "provisioningStalledDesc": "Sem atualizações por mais de 10 minutos. O processo de provisionamento pode ter encontrado um problema. Você pode tentar novamente abaixo.",
++     "provisioningTimedOut": "Provisionamento expirou - sem atualizações por mais de 5 minutos",
+      "retryProvisioning": "Tentar Provisionamento Novamente",
+      "retrying": "Tentando novamente...",
 ```
 
 </details>
@@ -361,18 +361,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/es.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;El Aprovisionamiento Puede Haberse Detenido&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;Sin actualizaciones durante más de 10 minutos. El proceso de aprovisionamiento puede haber encontrado un problema. Puedes reintentar el aprovisionamiento a continuación.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Aprovisionamiento expiró - sin actualizaciones por más de 5 minutos&quot;,
-      &quot;retryProvisioning&quot;: &quot;Reintentar Aprovisionamiento&quot;,
-      &quot;retrying&quot;: &quot;Reintentando...&quot;,
+      "provisioningStalled": "El Aprovisionamiento Puede Haberse Detenido",
+      "provisioningStalledDesc": "Sin actualizaciones durante más de 10 minutos. El proceso de aprovisionamiento puede haber encontrado un problema. Puedes reintentar el aprovisionamiento a continuación.",
++     "provisioningTimedOut": "Aprovisionamiento expiró - sin actualizaciones por más de 5 minutos",
+      "retryProvisioning": "Reintentar Aprovisionamiento",
+      "retrying": "Reintentando...",
 ```
 
 </details>
@@ -383,18 +383,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/de.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;Bereitstellung Könnte Blockiert Sein&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;Keine Updates seit über 10 Minuten. Der Bereitstellungsprozess könnte auf ein Problem gestoßen sein. Du kannst die Bereitstellung unten wiederholen.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Bereitstellung Zeitüberschreitung - keine Updates seit über 5 Minuten&quot;,
-      &quot;retryProvisioning&quot;: &quot;Bereitstellung Wiederholen&quot;,
-      &quot;retrying&quot;: &quot;Wiederhole...&quot;,
+      "provisioningStalled": "Bereitstellung Könnte Blockiert Sein",
+      "provisioningStalledDesc": "Keine Updates seit über 10 Minuten. Der Bereitstellungsprozess könnte auf ein Problem gestoßen sein. Du kannst die Bereitstellung unten wiederholen.",
++     "provisioningTimedOut": "Bereitstellung Zeitüberschreitung - keine Updates seit über 5 Minuten",
+      "retryProvisioning": "Bereitstellung Wiederholen",
+      "retrying": "Wiederhole...",
 ```
 
 </details>
@@ -405,18 +405,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/fr.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -496,4 +496,5 @@
-      &quot;provisioningStalled&quot;: &quot;Le Provisionnement Peut Avoir Bloqué&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;Aucune mise à jour depuis plus de 10 minutes. Le processus de provisionnement a peut-être rencontré un problème. Vous pouvez réessayer le provisionnement ci-dessous.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Provisionnement expiré - aucune mise à jour depuis plus de 5 minutes&quot;,
-      &quot;retryProvisioning&quot;: &quot;Réessayer le Provisionnement&quot;,
-      &quot;retrying&quot;: &quot;Nouvelle tentative...&quot;,
+      "provisioningStalled": "Le Provisionnement Peut Avoir Bloqué",
+      "provisioningStalledDesc": "Aucune mise à jour depuis plus de 10 minutes. Le processus de provisionnement a peut-être rencontré un problème. Vous pouvez réessayer le provisionnement ci-dessous.",
++     "provisioningTimedOut": "Provisionnement expiré - aucune mise à jour depuis plus de 5 minutes",
+      "retryProvisioning": "Réessayer le Provisionnement",
+      "retrying": "Nouvelle tentative...",
 ```
 
 </details>
@@ -427,18 +427,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/zh.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;配置可能已停滞&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;超过10分钟未更新。配置过程可能遇到问题。您可以在下方重试配置。&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;配置超时 - 超过5分钟未更新&quot;,
-      &quot;retryProvisioning&quot;: &quot;重试配置&quot;,
-      &quot;retrying&quot;: &quot;重试中...&quot;,
+      "provisioningStalled": "配置可能已停滞",
+      "provisioningStalledDesc": "超过10分钟未更新。配置过程可能遇到问题。您可以在下方重试配置。",
++     "provisioningTimedOut": "配置超时 - 超过5分钟未更新",
+      "retryProvisioning": "重试配置",
+      "retrying": "重试中...",
 ```
 
 </details>
@@ -449,18 +449,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ja.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;プロビジョニングが停止している可能性&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;10分以上更新がありません。プロビジョニングプロセスで問題が発生した可能性があります。下でプロビジョニングを再試行できます。&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;プロビジョニングがタイムアウト - 5分以上更新がありません&quot;,
-      &quot;retryProvisioning&quot;: &quot;プロビジョニングを再試行&quot;,
-      &quot;retrying&quot;: &quot;再試行中...&quot;,
+      "provisioningStalled": "プロビジョニングが停止している可能性",
+      "provisioningStalledDesc": "10分以上更新がありません。プロビジョニングプロセスで問題が発生した可能性があります。下でプロビジョニングを再試行できます。",
++     "provisioningTimedOut": "プロビジョニングがタイムアウト - 5分以上更新がありません",
+      "retryProvisioning": "プロビジョニングを再試行",
+      "retrying": "再試行中...",
 ```
 
 </details>
@@ -471,18 +471,18 @@ Lines added: 1, lines removed: undefined
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/messages/ru.json</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -520,4 +520,5 @@
-      &quot;provisioningStalled&quot;: &quot;Подготовка Могла Остановиться&quot;,
-      &quot;provisioningStalledDesc&quot;: &quot;Нет обновлений более 10 минут. Процесс подготовки мог столкнуться с проблемой. Вы можете повторить подготовку ниже.&quot;,
-+     &quot;provisioningTimedOut&quot;: &quot;Подготовка истекла по времени - нет обновлений более 5 минут&quot;,
-      &quot;retryProvisioning&quot;: &quot;Повторить Подготовку&quot;,
-      &quot;retrying&quot;: &quot;Повтор...&quot;,
+      "provisioningStalled": "Подготовка Могла Остановиться",
+      "provisioningStalledDesc": "Нет обновлений более 10 минут. Процесс подготовки мог столкнуться с проблемой. Вы можете повторить подготовку ниже.",
++     "provisioningTimedOut": "Подготовка истекла по времени - нет обновлений более 5 минут",
+      "retryProvisioning": "Повторить Подготовку",
+      "retrying": "Повтор...",
 ```
 
 </details>
@@ -620,7 +620,7 @@ Found it! The backend only allows retry for pods with `"error"` status. I need t
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 2
@@ -630,12 +630,12 @@ Lines added: 6, lines removed: 2
         const pod = result.pod;
   
 -       // Only allow retry if pod is in error state
--       if (pod.status !== &quot;error&quot;) {
+-       if (pod.status !== "error") {
 +       // Only allow retry if pod is in error state or stuck in provisioning/creating
 +       if (
-+         pod.status !== &quot;error&quot; &amp;&amp;
-+         pod.status !== &quot;provisioning&quot; &amp;&amp;
-+         pod.status !== &quot;creating&quot;
++         pod.status !== "error" &amp;&amp;
++         pod.status !== "provisioning" &amp;&amp;
++         pod.status !== "creating"
 +       ) {
           throw new Error(
             &#96;Can only retry failed provisioning. Current status: ${pod.status}&#96;,
@@ -705,7 +705,7 @@ I'll stage these specific files and commit with a conventional commit message.</
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/\[locale\]/pods/\[id\]/provisioning/page.tsx src/messages/en.json src/messages/pt.json src/messages/es.json src/messages/de.json src/messages/fr.json src/messages/zh.json src/messages/ja.json src/messages/ru.json src/lib/trpc/routers/pods.ts</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/\[locale\]/pods/\[id\]/provisioning/page.tsx src/messages/en.json src/messages/pt.json src/messages/es.json src/messages/de.json src/messages/fr.json src/messages/zh.json src/messages/ja.json src/messages/ru.json src/lib/trpc/routers/pods.ts</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/\[locale\]/pods/\[id\]/provisioning/page.tsx src/messages/en.json src/messages/pt.json src/messages/es.json src/messages/de.json src/messages/fr.json src/messages/zh.json src/messages/ja.json src/messages/ru.json src/lib/trpc/routers/pods.ts
@@ -721,7 +721,7 @@ Good, now let me commit with a conventional commit message.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git commit -m "feat(provisioning): treat pods stuck in provisioning for 5+ min as timed out
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git commit -m "feat(provisioning): treat pods stuck in provisioning for 5+ min as timed out
 
 - Show error status badge when provisioning has no updates for 5+ minutes
 - Allow retry provisioning for pods in provisioning/creating status

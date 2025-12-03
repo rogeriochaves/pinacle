@@ -78,7 +78,7 @@ Interesting, so the global error page does have html and body tags. This suggest
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -93,7 +93,7 @@ I don't see a `not-found.tsx` or `404.tsx` file in the `[locale]` directory. Let
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -136,7 +136,7 @@ The user is saying they want to keep the default Next.js 404 page. The issue is 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: 2
@@ -176,7 +176,7 @@ Now I need to update the locale layout to not include its own html/body tags, si
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/components/locale-provider.tsx</summary>
+<details><summary>Tool use: **write** • Edit file: src/components/locale-provider.tsx</summary>
 
 **Chunk 1**
 Lines added: 24, lines removed: 1
@@ -184,11 +184,11 @@ Lines added: 24, lines removed: 1
 ```diff
 @@ -1,1 +1,24 @@
 - 
-+ &quot;use client&quot;;
++ "use client";
 + 
-+ import { useEffect } from &quot;react&quot;;
-+ import { usePathname } from &quot;next/navigation&quot;;
-+ import { locales } from &quot;@/i18n&quot;;
++ import { useEffect } from "react";
++ import { usePathname } from "next/navigation";
++ import { locales } from "@/i18n";
 + 
 + interface LocaleProviderProps {
 +   children: React.ReactNode;
@@ -223,18 +223,18 @@ Now I need to update the locale layout to:</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/[locale]/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -7,4 +7,5 @@
-  import { GoogleAnalytics } from &quot;@/components/analytics/google-analytics&quot;;
-  import { ImpersonationBanner } from &quot;@/components/impersonation-banner&quot;;
-+ import { LocaleProvider } from &quot;@/components/locale-provider&quot;;
-  import { Toaster } from &quot;@/components/ui/sonner&quot;;
-  import { locales } from &quot;@/i18n&quot;;
+  import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+  import { ImpersonationBanner } from "@/components/impersonation-banner";
++ import { LocaleProvider } from "@/components/locale-provider";
+  import { Toaster } from "@/components/ui/sonner";
+  import { locales } from "@/i18n";
 ```
 
 </details>
@@ -250,7 +250,7 @@ Now I need to update the return statement of the LocaleLayout to remove the html
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/[locale]/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -339,7 +339,7 @@ I see the middleware is adding a `x-pathname` header. The locale layout is using
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 20, lines removed: 3
@@ -348,8 +348,8 @@ Lines added: 20, lines removed: 3
 @@ -1,9 +1,26 @@
 - // Root layout - just wraps everything, locale-specific layout is in [locale]/layout.tsx
 - export default function RootLayout({
-+ import { headers } from &quot;next/headers&quot;;
-+ import { locales } from &quot;@/i18n&quot;;
++ import { headers } from "next/headers";
++ import { locales } from "@/i18n";
 + 
 + // Root layout - provides basic HTML structure with locale detection
 + export default async function RootLayout({
@@ -359,12 +359,12 @@ Lines added: 20, lines removed: 3
   }) {
 -   return children;
 +   const headersList = await headers();
-+   const pathname = headersList.get(&quot;x-pathname&quot;) || &quot;/&quot;;
++   const pathname = headersList.get("x-pathname") || "/";
 + 
 +   // Extract locale from pathname
 +   const locale = locales.find((loc) =&gt;
-+     pathname.startsWith(&#96;/${loc}&#96;) || pathname === &#96;/${loc}&#96; || pathname === &quot;/&quot; &amp;&amp; loc === &quot;en&quot;
-+   ) || &quot;en&quot;;
++     pathname.startsWith(&#96;/${loc}&#96;) || pathname === &#96;/${loc}&#96; || pathname === "/" &amp;&amp; loc === "en"
++   ) || "en";
 + 
 +   return (
 +     &lt;html lang={locale}&gt;
@@ -390,7 +390,7 @@ Now I need to update the locale layout to remove the html and body tags, since t
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/app/[locale]/layout.tsx</summary>
 
 **Chunk 1**
 Lines added: 10, lines removed: 12
@@ -472,7 +472,7 @@ The user is saying that the solution worked and wants me to commit the changes u
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/layout.tsx src/app/[locale]/layout.tsx</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/layout.tsx src/app/[locale]/layout.tsx</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/layout.tsx src/app/[locale]/layout.tsx
@@ -493,7 +493,7 @@ The git add command failed because of the square brackets in the path. I need to
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add "src/app/layout.tsx" "src/app/[locale]/layout.tsx"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add "src/app/layout.tsx" "src/app/[locale]/layout.tsx"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add "src/app/layout.tsx" "src/app/[locale]/layout.tsx"
@@ -509,7 +509,7 @@ Good, now let me commit with a conventional commit message. The change fixes a l
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add html/body tags to root layout for i18n compatibility
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "fix: add html/body tags to root layout for i18n compatibility
 
 - Move HTML structure to root layout with locale detection
 - Remove html/body from locale layout to prevent nesting
@@ -631,7 +631,7 @@ The middleware is using next-intl with `localePrefix: "as-needed"`, which means 
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -710,7 +710,7 @@ Those are not routing patterns. Let me check if there are any dynamic routes tha
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && find src/app -name "*\[*\]*" -type d</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && find src/app -name "*\[*\]*" -type d</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && find src/app -name "*\[*\]*" -type d
@@ -798,7 +798,7 @@ The user is pointing out that if there were catch-all routes, they would also tr
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run dev
@@ -814,7 +814,7 @@ Let me test the route by making a curl request to see what happens with /foo in 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: sleep 5 && curl -I http://localhost:3000/foo</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: sleep 5 && curl -I http://localhost:3000/foo</summary>
 
 ```bash
 sleep 5 && curl -I http://localhost:3000/foo
@@ -825,7 +825,7 @@ sleep 5 && curl -I http://localhost:3000/foo
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0
 HTTP/1.1 404 Not Found
-link: &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;http://localhost:3000/zh/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;http://localhost:3000/es/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;http://localhost:3000/ru/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;http://localhost:3000/pt/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;http://localhost:3000/de/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;http://localhost:3000/ja/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;http://localhost:3000/fr/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
+link: &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="en", &lt;http://localhost:3000/zh/foo&gt;; rel="alternate"; hreflang="zh", &lt;http://localhost:3000/es/foo&gt;; rel="alternate"; hreflang="es", &lt;http://localhost:3000/ru/foo&gt;; rel="alternate"; hreflang="ru", &lt;http://localhost:3000/pt/foo&gt;; rel="alternate"; hreflang="pt", &lt;http://localhost:3000/de/foo&gt;; rel="alternate"; hreflang="de", &lt;http://localhost:3000/ja/foo&gt;; rel="alternate"; hreflang="ja", &lt;http://localhost:3000/fr/foo&gt;; rel="alternate"; hreflang="fr", &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="x-default"
 set-cookie: NEXT_LOCALE=en; Path=/; SameSite=lax
 x-middleware-rewrite: /en/foo
 Cache-Control: no-store, must-revalidate
@@ -853,14 +853,14 @@ Interesting! In development, `/foo` returns a 404, and I can see that the middle
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && curl http://localhost:3000/foo 2>/dev/null | head -20</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && curl http://localhost:3000/foo 2>/dev/null | head -20</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && curl http://localhost:3000/foo 2>/dev/null | head -20
 ```
 
 ```
-&lt;!DOCTYPE html&gt;&lt;html lang=&quot;en&quot;&gt;&lt;head&gt;&lt;meta charSet=&quot;utf-8&quot;/&gt;&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;/&gt;&lt;link rel=&quot;preload&quot; as=&quot;script&quot; fetchPriority=&quot;low&quot; href=&quot;/_next/static/chunks/webpack.js?v=1763918608771&quot;/&gt;&lt;script src=&quot;/_next/static/chunks/main-app.js?v=1763918608771&quot; async=&quot;&quot;&gt;&lt;/script&gt;&lt;script src=&quot;/_next/static/chunks/app-pages-internals.js&quot; async=&quot;&quot;&gt;&lt;/script&gt;&lt;meta name=&quot;robots&quot; content=&quot;noindex&quot;/&gt;&lt;link rel=&quot;icon&quot; href=&quot;/favicon.ico&quot; type=&quot;image/x-icon&quot; sizes=&quot;32x32&quot;/&gt;&lt;title&gt;404: This page could not be found.&lt;/title&gt;&lt;script src=&quot;/_next/static/chunks/polyfills.js&quot; noModule=&quot;&quot;&gt;&lt;/script&gt;&lt;/head&gt;&lt;body&gt;&lt;div hidden=&quot;&quot;&gt;&lt;!--$--&gt;&lt;!--/$--&gt;&lt;/div&gt;&lt;div style=&quot;font-family:system-ui,&amp;quot;Segoe UI&amp;quot;,Roboto,Helvetica,Arial,sans-serif,&amp;quot;Apple Color Emoji&amp;quot;,&amp;quot;Segoe UI Emoji&amp;quot;;height:100vh;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center&quot;&gt;&lt;div&gt;&lt;style&gt;body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}&lt;/style&gt;&lt;h1 class=&quot;next-error-h1&quot; style=&quot;display:inline-block;margin:0 20px 0 0;padding:0 23px 0 0;font-size:24px;font-weight:500;vertical-align:top;line-height:49px&quot;&gt;404&lt;/h1&gt;&lt;div style=&quot;display:inline-block&quot;&gt;&lt;h2 style=&quot;font-size:14px;font-weight:400;line-height:49px;margin:0&quot;&gt;This page could not be found.&lt;/h2&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;!--$--&gt;&lt;!--/$--&gt;&lt;script src=&quot;/_next/static/chunks/webpack.js?v=1763918608771&quot; id=&quot;_R_&quot; async=&quot;&quot;&gt;&lt;/script&gt;&lt;script&gt;(self.__next_f=self.__next_f||[]).push([0])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;4:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;SegmentViewNode\&quot;]\n6:\&quot;$Sreact.fragment\&quot;\n13:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/layout-router.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;\&quot;]\n15:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/render-from-template-context.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;\&quot;]\n25:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;OutletBoundary\&quot;]\n2c:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/metadata/async-metadata.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;AsyncMetadataOutlet\&quot;]\n35:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;ViewportBoundary\&quot;]\n3b:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;MetadataBoundary\&quot;]\n40:\&quot;$Sreact.suspense\&quot;\n44:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/d&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;ist/client/components/builtin/global-error.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;\&quot;]\n4a:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/metadata/generate/icon-mark.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;IconMark\&quot;]\n:N1763918608773.1633\n2:{\&quot;name\&quot;:\&quot;Preloads\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{\&quot;preloadCallbacks\&quot;:[]}}\n3:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n5:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n9:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/layout-router.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;\&quot;]\nc:I[\&quot;(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/render-from-template-context.js\&quot;,[\&quot;app-pages-internals\&quot;,\&quot;static/chunks/app-pages-internals.js\&quot;],\&quot;\&quot;]\nd:{}\ne:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\nb:{\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;$Lc\&quot;,null,\&quot;$d\&quot;,null,\&quot;$e\&quot;,1]}\nf:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\na:{\&quot;parallelRouterKey\&quot;:\&quot;children\&quot;,\&quot;error\&quot;:\&quot;$undefined\&quot;,\&quot;errorStyles\&quot;:\&quot;$undefined\&quot;,\&quot;errorScripts\&quot;:\&quot;$undefined\&quot;,\&quot;template\&quot;:[\&quot;$\&quot;,\&quot;$6\&quot;,null,\&quot;$b\&quot;,null,\&quot;$f\&quot;,0],\&quot;templateStyles\&quot;:\&quot;$undefined\&quot;,\&quot;templateScripts\&quot;:\&quot;$undefined\&quot;,\&quot;notFound\&quot;:\&quot;$undefined\&quot;,\&quot;forbidden\&quot;:\&quot;$undefined\&quot;,\&quot;unauthorized\&quot;:\&quot;$undefined\&quot;,\&quot;segmentViewBoundaries\&quot;:\&quot;$Y\&quot;}\n10:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n8:{\&quot;name\&quot;:\&quot;RootLayout\&quot;,\&quot;key\&quot;:null,\&quot;en&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;v\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;$L9\&quot;,null,\&quot;$a\&quot;,null,\&quot;$10\&quot;,1],\&quot;params\&quot;:\&quot;$Y\&quot;}}\n11:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n12:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n14:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n16:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n17:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n19:{\&quot;name\&quot;:\&quot;NotFound\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{\&quot;params\&quot;:\&quot;$@1a\&quot;,\&quot;searchParams\&quot;:\&quot;$@1b\&quot;}}\n1c:{\&quot;name\&quot;:\&quot;HTTPAccessErrorFallback\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;owner\&quot;:\&quot;$19\&quot;,\&quot;stack\&quot;:[],\&quot;props\&quot;:{\&quot;status\&quot;:404,\&quot;message\&quot;:\&quot;This page could not be found.\&quot;}}\n1d:[]\n1e:[]\n1f:[]\n20:[]\n21:[]\n22:[]\n23:[]\n24:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n28:\&quot;$EObject.defineProperty(async function getViewportReady() {\\n        await viewport();\\n        return undefined;\\n    },\\\&quot;name\\\&quot;,{value:\\\&quot;getViewportReady\\\&quot;})\&quot;\n27:{\&quot;name\&quot;:\&quot;__next_outlet_boundary__\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{\&quot;ready\&quot;:\&quot;$28\&quot;}}\n2a:{\&quot;name\&quot;:\&quot;StreamingMetadataOutletImpl\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Promise.&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{}}\n2b:[]\n2e:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n30:{\&quot;name\&quot;:\&quot;NonIndex\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{\&quot;pagePath\&quot;:\&quot;/_not-found\&quot;,\&quot;statusCode\&quot;:404,\&quot;isPossibleServerAction\&quot;:false}}\n31:[]\n33:{\&quot;name\&quot;:\&quot;ViewportTree\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{}}\n34:[]\n37:{\&quot;name\&quot;:\&quot;__next_viewport_boundary__\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;owner\&quot;:\&quot;$33\&quot;,\&quot;stack\&quot;:[],\&quot;props\&quot;:{}}\n39:{\&quot;name\&quot;:\&quot;MetadataTree\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]],\&quot;props\&quot;:{}}\n3a:[]\n3d:{\&quot;name\&quot;:\&quot;__next_metadata_boundary__\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;owner\&quot;:\&quot;$39\&quot;,\&quot;stack\&quot;:[],\&quot;props\&quot;:{}}\n3e:[]\n3f:[]\n42:{\&quot;name\&quot;:\&quot;MetadataResolver\&quot;,\&quot;key\&quot;:null,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;owner\&quot;:\&quot;$3d\&quot;,\&quot;stack\&quot;:[],\&quot;props\&quot;:{}}\n45:[[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n1a:{}\n1b:\n46:[]\n47:[]\n48:[[\&quot;Array.map\&quot;,\&quot;\&quot;,0,0,0,0,false]]\n49:[]\n1:D\&quot;$2\&quot;\n1:null\n7:D\&quot;$8\&quot;\n18:D\&quot;$19\&quot;\n18:D\&quot;$1c\&quot;\n&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;18:[[\&quot;$\&quot;,\&quot;title\&quot;,null,{\&quot;children\&quot;:\&quot;404: This page could not be found.\&quot;},\&quot;$1c\&quot;,\&quot;$1d\&quot;,1],[\&quot;$\&quot;,\&quot;div\&quot;,null,{\&quot;style\&quot;:{\&quot;fontFamily\&quot;:\&quot;system-ui,\\\&quot;Segoe UI\\\&quot;,Roboto,Helvetica,Arial,sans-serif,\\\&quot;Apple Color Emoji\\\&quot;,\\\&quot;Segoe UI Emoji\\\&quot;\&quot;,\&quot;height\&quot;:\&quot;100vh\&quot;,\&quot;textAlign\&quot;:\&quot;center\&quot;,\&quot;display\&quot;:\&quot;flex\&quot;,\&quot;flexDirection\&quot;:\&quot;column\&quot;,\&quot;alignItems\&quot;:\&quot;center\&quot;,\&quot;justifyContent\&quot;:\&quot;center\&quot;},\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;div\&quot;,null,{\&quot;children\&quot;:[[\&quot;$\&quot;,\&quot;style\&quot;,null,{\&quot;dangerouslySetInnerHTML\&quot;:{\&quot;__html\&quot;:\&quot;body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\&quot;}},\&quot;$1c\&quot;,\&quot;$20\&quot;,1],[\&quot;$\&quot;,\&quot;h1\&quot;,null,{\&quot;className\&quot;:\&quot;next-error-h1\&quot;,\&quot;style\&quot;:{\&quot;display\&quot;:\&quot;inline-block\&quot;,\&quot;margin\&quot;:\&quot;0 20px 0 0\&quot;,\&quot;padding\&quot;:\&quot;0 23px 0 0\&quot;,\&quot;fontSize\&quot;:24,\&quot;fontWeight\&quot;:500,\&quot;verticalAlign\&quot;:\&quot;top\&quot;,\&quot;lineHeight\&quot;:\&quot;49px\&quot;},\&quot;children\&quot;:404},\&quot;$1c\&quot;,\&quot;$21\&quot;,1],[\&quot;$\&quot;,\&quot;div\&quot;,null,{\&quot;style\&quot;:{\&quot;display\&quot;:\&quot;inline-block\&quot;},\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;h2\&quot;,null,{\&quot;style\&quot;:{\&quot;fontSize\&quot;:14,\&quot;fontWeight\&quot;:400,\&quot;lineHeight\&quot;:\&quot;49px\&quot;,\&quot;margin\&quot;:0},\&quot;children\&quot;:\&quot;This page could not be found.\&quot;},\&quot;$1c\&quot;,\&quot;$23\&quot;,1]},\&quot;$1c\&quot;,\&quot;$22\&quot;,1]]},\&quot;$1c\&quot;,\&quot;$1f\&quot;,1]},\&quot;$1c\&quot;,\&quot;$1e\&quot;,1]]\n&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;26:D\&quot;$27\&quot;\n29:D\&quot;$2a\&quot;\n29:[\&quot;$\&quot;,\&quot;$L2c\&quot;,null,{\&quot;promise\&quot;:\&quot;$@2d\&quot;},\&quot;$2a\&quot;,\&quot;$2b\&quot;,1]\n2f:D\&quot;$30\&quot;\n2f:[\&quot;$\&quot;,\&quot;meta\&quot;,null,{\&quot;name\&quot;:\&quot;robots\&quot;,\&quot;content\&quot;:\&quot;noindex\&quot;},null,\&quot;$31\&quot;,1]\n32:D\&quot;$33\&quot;\n36:D\&quot;$37\&quot;\n32:[[\&quot;$\&quot;,\&quot;$L35\&quot;,null,{\&quot;children\&quot;:\&quot;$L36\&quot;},\&quot;$33\&quot;,\&quot;$34\&quot;,1],null]\n38:D\&quot;$39\&quot;\n3c:D\&quot;$3d\&quot;\n41:D\&quot;$42\&quot;\n3c:[\&quot;$\&quot;,\&quot;div\&quot;,null,{\&quot;hidden\&quot;:true,\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;$40\&quot;,null,{\&quot;fallback\&quot;:null,\&quot;children\&quot;:\&quot;$L41\&quot;},\&quot;$3d\&quot;,\&quot;$3f\&quot;,1]},\&quot;$3d\&quot;,\&quot;$3e\&quot;,1]\n38:[\&quot;$\&quot;,\&quot;$L3b\&quot;,null,{\&quot;children\&quot;:\&quot;$3c\&quot;},\&quot;$39\&quot;,\&quot;$3a\&quot;,1]\n43:[]\n&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;0:{\&quot;P\&quot;:\&quot;$1\&quot;,\&quot;b\&quot;:\&quot;development\&quot;,\&quot;p\&quot;:\&quot;\&quot;,\&quot;c\&quot;:[\&quot;\&quot;,\&quot;foo\&quot;],\&quot;i\&quot;:false,\&quot;f\&quot;:[[[\&quot;\&quot;,{\&quot;children\&quot;:[\&quot;/_not-found\&quot;,{\&quot;children\&quot;:[\&quot;__PAGE__\&quot;,{}]}]},\&quot;$undefined\&quot;,\&quot;$undefined\&quot;,true],[\&quot;\&quot;,[\&quot;$\&quot;,\&quot;$L4\&quot;,\&quot;layout\&quot;,{\&quot;type\&quot;:\&quot;layout\&quot;,\&quot;pagePath\&quot;:\&quot;layout.tsx\&quot;,\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;$6\&quot;,\&quot;c\&quot;,{\&quot;children\&quot;:[null,\&quot;$L7\&quot;]},null,\&quot;$5\&quot;,1]},null,\&quot;$3\&quot;,0],{\&quot;children\&quot;:[\&quot;/_not-found\&quot;,[\&quot;$\&quot;,\&quot;$6\&quot;,\&quot;c\&quot;,{\&quot;children\&quot;:[null,[\&quot;$\&quot;,\&quot;$L13\&quot;,null,{\&quot;parallelRouterKey\&quot;:\&quot;children\&quot;,\&quot;error\&quot;:\&quot;$undefined\&quot;,\&quot;errorStyles\&quot;:\&quot;$undefined\&quot;,\&quot;errorScripts\&quot;:\&quot;$undefined\&quot;,\&quot;template\&quot;:[\&quot;$\&quot;,\&quot;$L15\&quot;,null,{},null,\&quot;$14\&quot;,1],\&quot;templateStyles\&quot;:\&quot;$undefined\&quot;,\&quot;templateScripts\&quot;:\&quot;$undefined\&quot;,\&quot;notFound\&quot;:\&quot;$undefined\&quot;,\&quot;forbidden\&quot;:\&quot;$undefined\&quot;,\&quot;unauthorized\&quot;:\&quot;$undefined\&quot;,\&quot;segmentViewBoundaries\&quot;:[\&quot;$undefined\&quot;,\&quot;$undefined\&quot;,\&quot;$undefined\&quot;,\&quot;$undefined\&quot;]},null,\&quot;$12\&quot;,1]]},null,\&quot;$11\&quot;,0],{\&quot;children\&quot;:[\&quot;__PAGE__\&quot;,[\&quot;$\&quot;,\&quot;$6\&quot;,\&quot;c\&quot;,{\&quot;children\&quot;:[[\&quot;$\&quot;,\&quot;$L4\&quot;,\&quot;c-page\&quot;,{\&quot;type\&quot;:\&quot;page\&quot;,\&quot;pagePath\&quot;:\&quot;__next_builtin__not-found.js\&quot;,\&quot;children\&quot;:\&quot;$18\&quot;},null,\&quot;$17\&quot;,1],null,[\&quot;$\&quot;,\&quot;$L25\&quot;,null,{\&quot;children\&quot;:[\&quot;$L26\&quot;,\&quot;$29\&quot;]},null,\&quot;$24\&quot;,1]]},null,\&quot;$16\&quot;,0],{},null,false]},null,false]},null,false],[\&quot;$\&quot;,\&quot;$6\&quot;,\&quot;h\&quot;,{\&quot;children\&quot;:[\&quot;$2f\&quot;,\&quot;$32\&quot;,\&quot;$38\&quot;]},null,\&quot;$2e\&quot;,0],false]],\&quot;m\&quot;:\&quot;$W43\&quot;,\&quot;G\&quot;:[\&quot;$44\&quot;,[\&quot;$\&quot;,\&quot;$L4\&quot;,\&quot;ge-svn\&quot;,{\&quot;type\&quot;:\&quot;global-error\&quot;,\&quot;pagePath\&quot;:\&quot;__next_builtin__global-error.js\&quot;,\&quot;children\&quot;:[]},null,\&quot;$45\&quot;,0]],\&quot;s\&quot;:false,\&quot;S\&quot;:false}\n&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;36:[[\&quot;$\&quot;,\&quot;meta\&quot;,\&quot;0\&quot;,{\&quot;charSet\&quot;:\&quot;utf-8\&quot;},\&quot;$27\&quot;,\&quot;$46\&quot;,0],[\&quot;$\&quot;,\&quot;meta\&quot;,\&quot;1\&quot;,{\&quot;name\&quot;:\&quot;viewport\&quot;,\&quot;content\&quot;:\&quot;width=device-width, initial-scale=1\&quot;},\&quot;$27\&quot;,\&quot;$47\&quot;,0]]\n26:null\n2d:{\&quot;metadata\&quot;:[[\&quot;$\&quot;,\&quot;link\&quot;,\&quot;0\&quot;,{\&quot;rel\&quot;:\&quot;icon\&quot;,\&quot;href\&quot;:\&quot;/favicon.ico\&quot;,\&quot;type\&quot;:\&quot;image/x-icon\&quot;,\&quot;sizes\&quot;:\&quot;32x32\&quot;},\&quot;$2a\&quot;,\&quot;$48\&quot;,0],[\&quot;$\&quot;,\&quot;$L4a\&quot;,\&quot;1\&quot;,{},\&quot;$2a\&quot;,\&quot;$49\&quot;,0]],\&quot;error\&quot;:null,\&quot;digest\&quot;:\&quot;$undefined\&quot;}\n41:\&quot;$2d:metadata\&quot;\n&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;4c:[[\&quot;RootLayout\&quot;,\&quot;webpack-internal:///(rsc)/./src/app/layout.tsx\&quot;,14,84,13,1,false]]\n4b:J{\&quot;name\&quot;:\&quot;headers\&quot;,\&quot;start\&quot;:1.4980830000004062,\&quot;end\&quot;:12.21020800000042,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;stack\&quot;:\&quot;$4c\&quot;,\&quot;owner\&quot;:\&quot;$8\&quot;,\&quot;value\&quot;:\&quot;$@4d\&quot;}\n4e:[[\&quot;RootLayout\&quot;,\&quot;webpack-internal:///(rsc)/./src/app/layout.tsx\&quot;,14,84,13,1,false]]\n4f:[\&quot;host\&quot;,\&quot;localhost:3000\&quot;]\n50:[\&quot;user-agent\&quot;,\&quot;curl/8.7.1\&quot;]\n51:[\&quot;accept\&quot;,\&quot;*/*\&quot;]\n52:[\&quot;x-forwarded-host\&quot;,\&quot;localhost:3000\&quot;]\n53:[\&quot;x-forwarded-port\&quot;,\&quot;3000\&quot;]\n54:[\&quot;x-forwarded-proto\&quot;,\&quot;http\&quot;]\n55:[\&quot;x-forwarded-for\&quot;,\&quot;::1\&quot;]\n56:[\&quot;x-next-intl-locale\&quot;,\&quot;en\&quot;]\n57:[\&quot;link\&quot;,\&quot;\u003chttp://localhost:3000/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;en\\\&quot;, \u003chttp://localhost:3000/zh/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;zh\\\&quot;, \u003chttp://localhost:3000/es/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;es\\\&quot;, \u003chttp://localhost:3000/ru/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;ru\\\&quot;, \u003chttp://localhost:3000/pt/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;pt\\\&quot;, \u003chttp://localhost:3000/de/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;de\\\&quot;, \u003chttp://localhost:3000/ja/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;ja\\\&quot;, \u003chttp://localhost:3000/fr/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;fr\\\&quot;, \u003chttp://localhost:3000/foo\u003e; rel=\\\&quot;alternate\\\&quot;; hreflang=\\\&quot;x-default\\\&quot;\&quot;]\n58:[\&quot;set-cookie\&quot;,\&quot;NEXT_LOCALE=en; Path=/; SameSite=lax\&quot;]\n59:[\&quot;x-middleware-set-cookie\&quot;,\&quot;NEXT_LOCALE=en; Path=/; SameSite=lax\&quot;]\n4d:[\&quot;$4f\&quot;,\&quot;$50\&quot;,\&quot;$51\&quot;,\&quot;$52\&quot;,\&quot;$53\&quot;,\&quot;$54\&quot;,\&quot;$55\&quot;,\&quot;$56\&quot;,\&quot;$57\&quot;,\&quot;$58\&quot;,\&quot;$59\&quot;]\n5a:[[\&quot;RootLayout\&quot;,\&quot;webpack-internal:///(rsc)/./src/app/layout.tsx\&quot;,18,87,13,1,false]]\n5b:[[\&quot;RootLayout\&quot;,\&quot;webpack-internal:///(rsc)/./src/app/layout.tsx\&quot;,20,94,13,1,false]]\n5c:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n5d:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n5e:[[\&quot;Promise.all\&quot;,\&quot;\&quot;,0,0,0,0,true],[\&quot;Server.\u003canonymous\u003e\&quot;,\&quot;/Users/rchaves/Projects/pinacle/server.ts\&quot;,2,13236,2,12373,true]]\n7:D{\&quot;awaited\&quot;:\&quot;$4b\&quot;,\&quot;env\&quot;:\&quot;Server\&quot;,\&quot;owner\&quot;:\&quot;$8\&quot;,\&quot;stack\&quot;:\&quot;$4e\&quot;}\n7:[\&quot;$\&quot;,\&quot;html\&quot;,null,{\&quot;lang\&quot;:\&quot;en\&quot;,\&quot;children\&quot;:[\&quot;$\&quot;,\&quot;body\&quot;,null,{\&quot;child&quot;])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,&quot;ren\&quot;:[\&quot;$\&quot;,\&quot;$L13\&quot;,null,{\&quot;parallelRouterKey\&quot;:\&quot;children\&quot;,\&quot;error\&quot;:\&quot;$undefined\&quot;,\&quot;errorStyles\&quot;:\&quot;$undefined\&quot;,\&quot;errorScripts\&quot;:\&quot;$undefined\&quot;,\&quot;template\&quot;:[\&quot;$\&quot;,\&quot;$L15\&quot;,null,{},null,\&quot;$5d\&quot;,1],\&quot;templateStyles\&quot;:\&quot;$undefined\&quot;,\&quot;templateScripts\&quot;:\&quot;$undefined\&quot;,\&quot;notFound\&quot;:\&quot;$undefined\&quot;,\&quot;forbidden\&quot;:\&quot;$undefined\&quot;,\&quot;unauthorized\&quot;:\&quot;$undefined\&quot;,\&quot;segmentViewBoundaries\&quot;:[\&quot;$undefined\&quot;,\&quot;$undefined\&quot;,\&quot;$undefined\&quot;,[\&quot;$\&quot;,\&quot;$L4\&quot;,null,{\&quot;type\&quot;:\&quot;boundary:global-error\&quot;,\&quot;pagePath\&quot;:\&quot;__next_builtin__global-error.js\&quot;},null,\&quot;$5e\&quot;,1]]},null,\&quot;$5c\&quot;,1]},\&quot;$8\&quot;,\&quot;$5b\&quot;,1]},\&quot;$8\&quot;,\&quot;$5a\&quot;,1]\n&quot;])&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
+&lt;!DOCTYPE html&gt;&lt;html lang="en"&gt;&lt;head&gt;&lt;meta charSet="utf-8"/&gt;&lt;meta name="viewport" content="width=device-width, initial-scale=1"/&gt;&lt;link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack.js?v=1763918608771"/&gt;&lt;script src="/_next/static/chunks/main-app.js?v=1763918608771" async=""&gt;&lt;/script&gt;&lt;script src="/_next/static/chunks/app-pages-internals.js" async=""&gt;&lt;/script&gt;&lt;meta name="robots" content="noindex"/&gt;&lt;link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="32x32"/&gt;&lt;title&gt;404: This page could not be found.&lt;/title&gt;&lt;script src="/_next/static/chunks/polyfills.js" noModule=""&gt;&lt;/script&gt;&lt;/head&gt;&lt;body&gt;&lt;div hidden=""&gt;&lt;!--$--&gt;&lt;!--/$--&gt;&lt;/div&gt;&lt;div style="font-family:system-ui,&amp;quot;Segoe UI&amp;quot;,Roboto,Helvetica,Arial,sans-serif,&amp;quot;Apple Color Emoji&amp;quot;,&amp;quot;Segoe UI Emoji&amp;quot;;height:100vh;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center"&gt;&lt;div&gt;&lt;style&gt;body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}&lt;/style&gt;&lt;h1 class="next-error-h1" style="display:inline-block;margin:0 20px 0 0;padding:0 23px 0 0;font-size:24px;font-weight:500;vertical-align:top;line-height:49px"&gt;404&lt;/h1&gt;&lt;div style="display:inline-block"&gt;&lt;h2 style="font-size:14px;font-weight:400;line-height:49px;margin:0"&gt;This page could not be found.&lt;/h2&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;!--$--&gt;&lt;!--/$--&gt;&lt;script src="/_next/static/chunks/webpack.js?v=1763918608771" id="_R_" async=""&gt;&lt;/script&gt;&lt;script&gt;(self.__next_f=self.__next_f||[]).push([0])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"4:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"SegmentViewNode\"]\n6:\"$Sreact.fragment\"\n13:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/layout-router.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"\"]\n15:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/render-from-template-context.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"\"]\n25:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"OutletBoundary\"]\n2c:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/metadata/async-metadata.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"AsyncMetadataOutlet\"]\n35:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"ViewportBoundary\"]\n3b:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/framework/boundary-components.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"MetadataBoundary\"]\n40:\"$Sreact.suspense\"\n44:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/d"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"ist/client/components/builtin/global-error.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"\"]\n4a:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/lib/metadata/generate/icon-mark.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"IconMark\"]\n:N1763918608773.1633\n2:{\"name\":\"Preloads\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{\"preloadCallbacks\":[]}}\n3:[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n5:[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n9:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/layout-router.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"\"]\nc:I[\"(app-pages-browser)/./node_modules/.pnpm/next@15.5.3_@babel+core@7.28.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/client/components/render-from-template-context.js\",[\"app-pages-internals\",\"static/chunks/app-pages-internals.js\"],\"\"]\nd:{}\ne:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\nb:{\"children\":[\"$\",\"$Lc\",null,\"$d\",null,\"$e\",1]}\nf:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\na:{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$6\",null,\"$b\",null,\"$f\",0],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\",\"segmentViewBoundaries\":\"$Y\"}\n10:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n8:{\"name\":\"RootLayout\",\"key\":null,\"en"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"v\":\"Server\",\"stack\":[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{\"children\":[\"$\",\"$L9\",null,\"$a\",null,\"$10\",1],\"params\":\"$Y\"}}\n11:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n12:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n14:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n16:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n17:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n19:{\"name\":\"NotFound\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{\"params\":\"$@1a\",\"searchParams\":\"$@1b\"}}\n1c:{\"name\":\"HTTPAccessErrorFallback\",\"key\":null,\"env\":\"Server\",\"owner\":\"$19\",\"stack\":[],\"props\":{\"status\":404,\"message\":\"This page could not be found.\"}}\n1d:[]\n1e:[]\n1f:[]\n20:[]\n21:[]\n22:[]\n23:[]\n24:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n28:\"$EObject.defineProperty(async function getViewportReady() {\\n        await viewport();\\n        return undefined;\\n    },\\\"name\\\",{value:\\\"getViewportReady\\\"})\"\n27:{\"name\":\"__next_outlet_boundary__\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Promise.all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{\"ready\":\"$28\"}}\n2a:{\"name\":\"StreamingMetadataOutletImpl\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Promise."])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"all\",\"\",0,0,0,0,true],[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{}}\n2b:[]\n2e:[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n30:{\"name\":\"NonIndex\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{\"pagePath\":\"/_not-found\",\"statusCode\":404,\"isPossibleServerAction\":false}}\n31:[]\n33:{\"name\":\"ViewportTree\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{}}\n34:[]\n37:{\"name\":\"__next_viewport_boundary__\",\"key\":null,\"env\":\"Server\",\"owner\":\"$33\",\"stack\":[],\"props\":{}}\n39:{\"name\":\"MetadataTree\",\"key\":null,\"env\":\"Server\",\"stack\":[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]],\"props\":{}}\n3a:[]\n3d:{\"name\":\"__next_metadata_boundary__\",\"key\":null,\"env\":\"Server\",\"owner\":\"$39\",\"stack\":[],\"props\":{}}\n3e:[]\n3f:[]\n42:{\"name\":\"MetadataResolver\",\"key\":null,\"env\":\"Server\",\"owner\":\"$3d\",\"stack\":[],\"props\":{}}\n45:[[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n1a:{}\n1b:\n46:[]\n47:[]\n48:[[\"Array.map\",\"\",0,0,0,0,false]]\n49:[]\n1:D\"$2\"\n1:null\n7:D\"$8\"\n18:D\"$19\"\n18:D\"$1c\"\n"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"18:[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"},\"$1c\",\"$1d\",1],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}},\"$1c\",\"$20\",1],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":404},\"$1c\",\"$21\",1],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"},\"$1c\",\"$23\",1]},\"$1c\",\"$22\",1]]},\"$1c\",\"$1f\",1]},\"$1c\",\"$1e\",1]]\n"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"26:D\"$27\"\n29:D\"$2a\"\n29:[\"$\",\"$L2c\",null,{\"promise\":\"$@2d\"},\"$2a\",\"$2b\",1]\n2f:D\"$30\"\n2f:[\"$\",\"meta\",null,{\"name\":\"robots\",\"content\":\"noindex\"},null,\"$31\",1]\n32:D\"$33\"\n36:D\"$37\"\n32:[[\"$\",\"$L35\",null,{\"children\":\"$L36\"},\"$33\",\"$34\",1],null]\n38:D\"$39\"\n3c:D\"$3d\"\n41:D\"$42\"\n3c:[\"$\",\"div\",null,{\"hidden\":true,\"children\":[\"$\",\"$40\",null,{\"fallback\":null,\"children\":\"$L41\"},\"$3d\",\"$3f\",1]},\"$3d\",\"$3e\",1]\n38:[\"$\",\"$L3b\",null,{\"children\":\"$3c\"},\"$39\",\"$3a\",1]\n43:[]\n"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"0:{\"P\":\"$1\",\"b\":\"development\",\"p\":\"\",\"c\":[\"\",\"foo\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"/_not-found\",{\"children\":[\"__PAGE__\",{}]}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$L4\",\"layout\",{\"type\":\"layout\",\"pagePath\":\"layout.tsx\",\"children\":[\"$\",\"$6\",\"c\",{\"children\":[null,\"$L7\"]},null,\"$5\",1]},null,\"$3\",0],{\"children\":[\"/_not-found\",[\"$\",\"$6\",\"c\",{\"children\":[null,[\"$\",\"$L13\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L15\",null,{},null,\"$14\",1],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\",\"segmentViewBoundaries\":[\"$undefined\",\"$undefined\",\"$undefined\",\"$undefined\"]},null,\"$12\",1]]},null,\"$11\",0],{\"children\":[\"__PAGE__\",[\"$\",\"$6\",\"c\",{\"children\":[[\"$\",\"$L4\",\"c-page\",{\"type\":\"page\",\"pagePath\":\"__next_builtin__not-found.js\",\"children\":\"$18\"},null,\"$17\",1],null,[\"$\",\"$L25\",null,{\"children\":[\"$L26\",\"$29\"]},null,\"$24\",1]]},null,\"$16\",0],{},null,false]},null,false]},null,false],[\"$\",\"$6\",\"h\",{\"children\":[\"$2f\",\"$32\",\"$38\"]},null,\"$2e\",0],false]],\"m\":\"$W43\",\"G\":[\"$44\",[\"$\",\"$L4\",\"ge-svn\",{\"type\":\"global-error\",\"pagePath\":\"__next_builtin__global-error.js\",\"children\":[]},null,\"$45\",0]],\"s\":false,\"S\":false}\n"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"36:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"},\"$27\",\"$46\",0],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"},\"$27\",\"$47\",0]]\n26:null\n2d:{\"metadata\":[[\"$\",\"link\",\"0\",{\"rel\":\"icon\",\"href\":\"/favicon.ico\",\"type\":\"image/x-icon\",\"sizes\":\"32x32\"},\"$2a\",\"$48\",0],[\"$\",\"$L4a\",\"1\",{},\"$2a\",\"$49\",0]],\"error\":null,\"digest\":\"$undefined\"}\n41:\"$2d:metadata\"\n"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"4c:[[\"RootLayout\",\"webpack-internal:///(rsc)/./src/app/layout.tsx\",14,84,13,1,false]]\n4b:J{\"name\":\"headers\",\"start\":1.4980830000004062,\"end\":12.21020800000042,\"env\":\"Server\",\"stack\":\"$4c\",\"owner\":\"$8\",\"value\":\"$@4d\"}\n4e:[[\"RootLayout\",\"webpack-internal:///(rsc)/./src/app/layout.tsx\",14,84,13,1,false]]\n4f:[\"host\",\"localhost:3000\"]\n50:[\"user-agent\",\"curl/8.7.1\"]\n51:[\"accept\",\"*/*\"]\n52:[\"x-forwarded-host\",\"localhost:3000\"]\n53:[\"x-forwarded-port\",\"3000\"]\n54:[\"x-forwarded-proto\",\"http\"]\n55:[\"x-forwarded-for\",\"::1\"]\n56:[\"x-next-intl-locale\",\"en\"]\n57:[\"link\",\"\u003chttp://localhost:3000/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"en\\\", \u003chttp://localhost:3000/zh/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"zh\\\", \u003chttp://localhost:3000/es/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"es\\\", \u003chttp://localhost:3000/ru/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"ru\\\", \u003chttp://localhost:3000/pt/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"pt\\\", \u003chttp://localhost:3000/de/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"de\\\", \u003chttp://localhost:3000/ja/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"ja\\\", \u003chttp://localhost:3000/fr/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"fr\\\", \u003chttp://localhost:3000/foo\u003e; rel=\\\"alternate\\\"; hreflang=\\\"x-default\\\"\"]\n58:[\"set-cookie\",\"NEXT_LOCALE=en; Path=/; SameSite=lax\"]\n59:[\"x-middleware-set-cookie\",\"NEXT_LOCALE=en; Path=/; SameSite=lax\"]\n4d:[\"$4f\",\"$50\",\"$51\",\"$52\",\"$53\",\"$54\",\"$55\",\"$56\",\"$57\",\"$58\",\"$59\"]\n5a:[[\"RootLayout\",\"webpack-internal:///(rsc)/./src/app/layout.tsx\",18,87,13,1,false]]\n5b:[[\"RootLayout\",\"webpack-internal:///(rsc)/./src/app/layout.tsx\",20,94,13,1,false]]\n5c:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n5d:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n5e:[[\"Promise.all\",\"\",0,0,0,0,true],[\"Server.\u003canonymous\u003e\",\"/Users/rchaves/Projects/pinacle/server.ts\",2,13236,2,12373,true]]\n7:D{\"awaited\":\"$4b\",\"env\":\"Server\",\"owner\":\"$8\",\"stack\":\"$4e\"}\n7:[\"$\",\"html\",null,{\"lang\":\"en\",\"children\":[\"$\",\"body\",null,{\"child"])&lt;/script&gt;&lt;script&gt;self.__next_f.push([1,"ren\":[\"$\",\"$L13\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L15\",null,{},null,\"$5d\",1],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":\"$undefined\",\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\",\"segmentViewBoundaries\":[\"$undefined\",\"$undefined\",\"$undefined\",[\"$\",\"$L4\",null,{\"type\":\"boundary:global-error\",\"pagePath\":\"__next_builtin__global-error.js\"},null,\"$5e\",1]]},null,\"$5c\",1]},\"$8\",\"$5b\",1]},\"$8\",\"$5a\",1]\n"])&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
 ```
 </details>
 </tool-use>
@@ -874,7 +874,7 @@ So in development, `/foo` correctly shows the Next.js built-in 404 page with "40
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run build
@@ -883,7 +883,7 @@ cd /Users/rchaves/Projects/pinacle && npm run build
 ```
 
 &gt; pinacle@0.1.0 build
-&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+&gt; echo 'Checking types...' &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo "$(git rev-parse HEAD)$(git diff --quiet || echo '-dirty')" &gt; .git-commit-hash &amp;&amp; next build --turbopack
 
 Checking types...
 
@@ -911,7 +911,7 @@ Checking if docs build is needed...
  ✓ Finished writing to disk in 199ms
 Turbopack build encountered 8 warnings:
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/plugins/html matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -919,7 +919,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/plugins/html matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -927,7 +927,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/plugins/html matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -935,7 +935,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/plugins/html matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -943,7 +943,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/standalone matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -951,7 +951,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/standalone matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -959,7 +959,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/standalone matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -967,7 +967,7 @@ Try to install it into the project directory by running npm install prettier fro
 
 
 ./node_modules/.pnpm/@react-email+render@1.4.0_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/@react-email/render/dist/node
-Package prettier can&#39;t be external
+Package prettier can't be external
 The request prettier/standalone matches serverExternalPackages (or the default list).
 The request could not be resolved by Node.js from the project directory.
 Packages that should be external need to be installed in the project directory, so they can be resolved from the output files.
@@ -1157,7 +1157,7 @@ The build completed successfully and I can see there's a `ƒ /_not-found` route 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run start</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run start</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run start
@@ -1173,7 +1173,7 @@ Let me wait a moment for the server to start and then test the /foo route.</deta
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: sleep 10 && curl -I http://localhost:3000/foo</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: sleep 10 && curl -I http://localhost:3000/foo</summary>
 
 ```bash
 sleep 10 && curl -I http://localhost:3000/foo
@@ -1183,7 +1183,7 @@ sleep 10 && curl -I http://localhost:3000/foo
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 404 Not Found
-link: &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;http://localhost:3000/zh/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;http://localhost:3000/es/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;http://localhost:3000/ru/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;http://localhost:3000/pt/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;http://localhost:3000/de/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;http://localhost:3000/ja/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;http://localhost:3000/fr/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
+link: &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="en", &lt;http://localhost:3000/zh/foo&gt;; rel="alternate"; hreflang="zh", &lt;http://localhost:3000/es/foo&gt;; rel="alternate"; hreflang="es", &lt;http://localhost:3000/ru/foo&gt;; rel="alternate"; hreflang="ru", &lt;http://localhost:3000/pt/foo&gt;; rel="alternate"; hreflang="pt", &lt;http://localhost:3000/de/foo&gt;; rel="alternate"; hreflang="de", &lt;http://localhost:3000/ja/foo&gt;; rel="alternate"; hreflang="ja", &lt;http://localhost:3000/fr/foo&gt;; rel="alternate"; hreflang="fr", &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="x-default"
 set-cookie: NEXT_LOCALE=en; Path=/; SameSite=lax
 x-middleware-rewrite: /en/foo
 Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
@@ -1213,7 +1213,7 @@ Interesting! In the production build running locally, `/foo` correctly returns 4
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -1236,7 +1236,7 @@ I don't see a `vercel.json` or any Vercel-specific config files. But I do see a 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && find .next -name "*not-found*" 2>/dev/null | head -10</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && find .next -name "*not-found*" 2>/dev/null | head -10</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && find .next -name "*not-found*" 2>/dev/null | head -10
@@ -1259,7 +1259,7 @@ There are not-found files in the build. Let me check what's in the `_not-found` 
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -1611,7 +1611,7 @@ The user wants me to try running `npm start` with `NODE_ENV=production` to see i
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && NODE_ENV=production npm start</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && NODE_ENV=production npm start</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && NODE_ENV=production npm start
@@ -1627,7 +1627,7 @@ The server is starting in the background. Let me wait a moment for it to fully s
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: sleep 10 && curl -I http://localhost:3000/foo</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: sleep 10 && curl -I http://localhost:3000/foo</summary>
 
 ```bash
 sleep 10 && curl -I http://localhost:3000/foo
@@ -1637,7 +1637,7 @@ sleep 10 && curl -I http://localhost:3000/foo
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 404 Not Found
-link: &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;http://localhost:3000/zh/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;http://localhost:3000/es/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;http://localhost:3000/ru/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;http://localhost:3000/pt/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;http://localhost:3000/de/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;http://localhost:3000/ja/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;http://localhost:3000/fr/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
+link: &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="en", &lt;http://localhost:3000/zh/foo&gt;; rel="alternate"; hreflang="zh", &lt;http://localhost:3000/es/foo&gt;; rel="alternate"; hreflang="es", &lt;http://localhost:3000/ru/foo&gt;; rel="alternate"; hreflang="ru", &lt;http://localhost:3000/pt/foo&gt;; rel="alternate"; hreflang="pt", &lt;http://localhost:3000/de/foo&gt;; rel="alternate"; hreflang="de", &lt;http://localhost:3000/ja/foo&gt;; rel="alternate"; hreflang="ja", &lt;http://localhost:3000/fr/foo&gt;; rel="alternate"; hreflang="fr", &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="x-default"
 set-cookie: NEXT_LOCALE=en; Path=/; SameSite=lax
 x-middleware-rewrite: /en/foo
 Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
@@ -1719,7 +1719,7 @@ Ah! This is a crucial clue. The user says:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -I http://localhost:3000/foo</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -I http://localhost:3000/foo</summary>
 
 ```bash
 curl -I http://localhost:3000/foo
@@ -1729,7 +1729,7 @@ curl -I http://localhost:3000/foo
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 404 Not Found
-link: &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;http://localhost:3000/zh/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;http://localhost:3000/es/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;http://localhost:3000/ru/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;http://localhost:3000/pt/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;http://localhost:3000/de/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;http://localhost:3000/ja/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;http://localhost:3000/fr/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
+link: &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="en", &lt;http://localhost:3000/zh/foo&gt;; rel="alternate"; hreflang="zh", &lt;http://localhost:3000/es/foo&gt;; rel="alternate"; hreflang="es", &lt;http://localhost:3000/ru/foo&gt;; rel="alternate"; hreflang="ru", &lt;http://localhost:3000/pt/foo&gt;; rel="alternate"; hreflang="pt", &lt;http://localhost:3000/de/foo&gt;; rel="alternate"; hreflang="de", &lt;http://localhost:3000/ja/foo&gt;; rel="alternate"; hreflang="ja", &lt;http://localhost:3000/fr/foo&gt;; rel="alternate"; hreflang="fr", &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="x-default"
 set-cookie: NEXT_LOCALE=en; Path=/; SameSite=lax
 x-pathname: /foo
 x-middleware-rewrite: /en/foo
@@ -1756,7 +1756,7 @@ Interesting! Now `/foo` is returning 404 correctly on port 3000. So the issue is
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -I http://localhost:3000/pt/foo</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -I http://localhost:3000/pt/foo</summary>
 
 ```bash
 curl -I http://localhost:3000/pt/foo
@@ -1766,7 +1766,7 @@ curl -I http://localhost:3000/pt/foo
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0HTTP/1.1 404 Not Found
-link: &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;http://localhost:3000/zh/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;http://localhost:3000/es/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;http://localhost:3000/ru/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;http://localhost:3000/pt/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;http://localhost:3000/de/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;http://localhost:3000/ja/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;http://localhost:3000/fr/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;http://localhost:3000/foo&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
+link: &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="en", &lt;http://localhost:3000/zh/foo&gt;; rel="alternate"; hreflang="zh", &lt;http://localhost:3000/es/foo&gt;; rel="alternate"; hreflang="es", &lt;http://localhost:3000/ru/foo&gt;; rel="alternate"; hreflang="ru", &lt;http://localhost:3000/pt/foo&gt;; rel="alternate"; hreflang="pt", &lt;http://localhost:3000/de/foo&gt;; rel="alternate"; hreflang="de", &lt;http://localhost:3000/ja/foo&gt;; rel="alternate"; hreflang="ja", &lt;http://localhost:3000/fr/foo&gt;; rel="alternate"; hreflang="fr", &lt;http://localhost:3000/foo&gt;; rel="alternate"; hreflang="x-default"
 set-cookie: NEXT_LOCALE=pt; Path=/; SameSite=lax
 x-pathname: /pt/foo
 Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate
@@ -1797,7 +1797,7 @@ Both `/foo` and `/pt/foo` are returning 404 correctly on the local server. So th
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>

@@ -40,7 +40,7 @@ I'll help you add a sitemap.xml and robots.txt for your site. Let me first explo
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -71,7 +71,7 @@ Now I have a good understanding of the project. Let me check for internationaliz
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -117,7 +117,7 @@ I'll use Next.js 15's metadata API for both files:
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/sitemap.ts</summary>
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/app/sitemap.ts</summary>
 
 **Chunk 1**
 Lines added: 94, lines removed: 1
@@ -125,23 +125,23 @@ Lines added: 94, lines removed: 1
 ```diff
 @@ -1,1 +1,94 @@
 - 
-+ import type { MetadataRoute } from &quot;next&quot;;
-+ import { locales, defaultLocale } from &quot;@/i18n&quot;;
-+ import fs from &quot;node:fs&quot;;
-+ import path from &quot;node:path&quot;;
++ import type { MetadataRoute } from "next";
++ import { locales, defaultLocale } from "@/i18n";
++ import fs from "node:fs";
++ import path from "node:path";
 + 
-+ const baseUrl = &quot;https://pinacle.dev&quot;;
++ const baseUrl = "https://pinacle.dev";
 + 
 + // Get all blog post slugs
 + const getBlogPosts = (): string[] =&gt; {
 +   try {
-+     const blogDir = path.join(process.cwd(), &quot;content/blog&quot;);
++     const blogDir = path.join(process.cwd(), "content/blog");
 +     const files = fs.readdirSync(blogDir);
 +     return files
-+       .filter((file) =&gt; file.endsWith(&quot;.mdx&quot;) || file.endsWith(&quot;.md&quot;))
-+       .map((file) =&gt; file.replace(/\.(mdx|md)$/, &quot;&quot;));
++       .filter((file) =&gt; file.endsWith(".mdx") || file.endsWith(".md"))
++       .map((file) =&gt; file.replace(/\.(mdx|md)$/, ""));
 +   } catch (error) {
-+     console.error(&quot;Error reading blog posts:&quot;, error);
++     console.error("Error reading blog posts:", error);
 +     return [];
 +   }
 + };
@@ -151,13 +151,13 @@ Lines added: 94, lines removed: 1
 + 
 +   // Public pages that should be in the sitemap
 +   const publicPages = [
-+     { path: &quot;&quot;, priority: 1.0, changeFreq: &quot;daily&quot; as const },
-+     { path: &quot;/pricing&quot;, priority: 0.9, changeFreq: &quot;weekly&quot; as const },
-+     { path: &quot;/blog&quot;, priority: 0.8, changeFreq: &quot;daily&quot; as const },
-+     { path: &quot;/privacy&quot;, priority: 0.5, changeFreq: &quot;monthly&quot; as const },
-+     { path: &quot;/terms&quot;, priority: 0.5, changeFreq: &quot;monthly&quot; as const },
-+     { path: &quot;/auth/signin&quot;, priority: 0.7, changeFreq: &quot;monthly&quot; as const },
-+     { path: &quot;/auth/signup&quot;, priority: 0.7, changeFreq: &quot;monthly&quot; as const },
++     { path: "", priority: 1.0, changeFreq: "daily" as const },
++     { path: "/pricing", priority: 0.9, changeFreq: "weekly" as const },
++     { path: "/blog", priority: 0.8, changeFreq: "daily" as const },
++     { path: "/privacy", priority: 0.5, changeFreq: "monthly" as const },
++     { path: "/terms", priority: 0.5, changeFreq: "monthly" as const },
++     { path: "/auth/signin", priority: 0.7, changeFreq: "monthly" as const },
++     { path: "/auth/signup", priority: 0.7, changeFreq: "monthly" as const },
 +   ];
 + 
 +   const sitemap: MetadataRoute.Sitemap = [];
@@ -200,7 +200,7 @@ Lines added: 94, lines removed: 1
 +       sitemap.push({
 +         url,
 +         lastModified: new Date(),
-+         changeFrequency: &quot;weekly&quot;,
++         changeFrequency: "weekly",
 +         priority: 0.7,
 +         alternates: {
 +           languages: Object.fromEntries(
@@ -229,7 +229,7 @@ Lines added: 94, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="write">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/robots.ts</summary>
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/app/robots.ts</summary>
 
 **Chunk 1**
 Lines added: 42, lines removed: 1
@@ -237,42 +237,42 @@ Lines added: 42, lines removed: 1
 ```diff
 @@ -1,1 +1,42 @@
 - 
-+ import type { MetadataRoute } from &quot;next&quot;;
++ import type { MetadataRoute } from "next";
 + 
 + export default function robots(): MetadataRoute.Robots {
-+   const baseUrl = &quot;https://pinacle.dev&quot;;
++   const baseUrl = "https://pinacle.dev";
 + 
 +   return {
 +     rules: [
 +       {
-+         userAgent: &quot;*&quot;,
-+         allow: [&quot;/&quot;, &quot;/pricing&quot;, &quot;/blog&quot;, &quot;/privacy&quot;, &quot;/terms&quot;, &quot;/auth/signin&quot;, &quot;/auth/signup&quot;],
++         userAgent: "*",
++         allow: ["/", "/pricing", "/blog", "/privacy", "/terms", "/auth/signin", "/auth/signup"],
 +         disallow: [
-+           &quot;/api/&quot;,
-+           &quot;/dashboard/&quot;,
-+           &quot;/admin/&quot;,
-+           &quot;/setup/&quot;,
-+           &quot;/pods/&quot;,
-+           &quot;/team/&quot;,
-+           &quot;/auth/forgot-password&quot;,
-+           &quot;/auth/reset-password&quot;,
-+           &quot;/auth/no-access&quot;,
-+           &quot;/auth/pod-unavailable&quot;,
-+           &quot;/auth/signin-required&quot;,
++           "/api/",
++           "/dashboard/",
++           "/admin/",
++           "/setup/",
++           "/pods/",
++           "/team/",
++           "/auth/forgot-password",
++           "/auth/reset-password",
++           "/auth/no-access",
++           "/auth/pod-unavailable",
++           "/auth/signin-required",
 +         ],
 +       },
-+       // Block AI crawlers that don&#39;t respect robots.txt properly
++       // Block AI crawlers that don't respect robots.txt properly
 +       {
 +         userAgent: [
-+           &quot;GPTBot&quot;,
-+           &quot;ChatGPT-User&quot;,
-+           &quot;CCBot&quot;,
-+           &quot;anthropic-ai&quot;,
-+           &quot;Claude-Web&quot;,
-+           &quot;ClaudeBot&quot;,
-+           &quot;Google-Extended&quot;,
++           "GPTBot",
++           "ChatGPT-User",
++           "CCBot",
++           "anthropic-ai",
++           "Claude-Web",
++           "ClaudeBot",
++           "Google-Extended",
 +         ],
-+         disallow: [&quot;/&quot;],
++         disallow: ["/"],
 +       },
 +     ],
 +     sitemap: &#96;${baseUrl}/sitemap.xml&#96;,
@@ -340,7 +340,7 @@ I need to update your middleware to exclude the sitemap and robots files:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/middleware.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/middleware.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -349,9 +349,9 @@ Lines added: 2, lines removed: 1
 @@ -21,5 +21,6 @@
     // - _next (Next.js internals)
     // - static files
--   matcher: [&quot;/((?!api|_next|.*\\..*).*)&quot;],
+-   matcher: ["/((?!api|_next|.*\\..*).*)"],
 +   // - sitemap.xml and robots.txt
-+   matcher: [&quot;/((?!api|_next|sitemap\\.xml|robots\\.txt|.*\\..*).*)&quot;],
++   matcher: ["/((?!api|_next|sitemap\\.xml|robots\\.txt|.*\\..*).*)"],
   };
   
 ```
@@ -446,7 +446,7 @@ I'll update the robots.txt to allow AI crawlers:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/robots.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/robots.ts</summary>
 
 **Chunk 1**
 Lines added: undefined, lines removed: 13
@@ -455,18 +455,18 @@ Lines added: undefined, lines removed: 13
 @@ -23,17 +23,4 @@
           ],
         },
--       // Block AI crawlers that don&#39;t respect robots.txt properly
+-       // Block AI crawlers that don't respect robots.txt properly
 -       {
 -         userAgent: [
--           &quot;GPTBot&quot;,
--           &quot;ChatGPT-User&quot;,
--           &quot;CCBot&quot;,
--           &quot;anthropic-ai&quot;,
--           &quot;Claude-Web&quot;,
--           &quot;ClaudeBot&quot;,
--           &quot;Google-Extended&quot;,
+-           "GPTBot",
+-           "ChatGPT-User",
+-           "CCBot",
+-           "anthropic-ai",
+-           "Claude-Web",
+-           "ClaudeBot",
+-           "Google-Extended",
 -         ],
--         disallow: [&quot;/&quot;],
+-         disallow: ["/"],
 -       },
       ],
       sitemap: &#96;${baseUrl}/sitemap.xml&#96;,
@@ -589,7 +589,7 @@ I'll commit the changes with a conventional commit message:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/sitemap.ts src/app/robots.ts src/middleware.ts</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/sitemap.ts src/app/robots.ts src/middleware.ts</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/sitemap.ts src/app/robots.ts src/middleware.ts
@@ -605,7 +605,7 @@ Now I'll commit with a conventional commit message.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat: add sitemap.xml and robots.txt for SEO
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat: add sitemap.xml and robots.txt for SEO
 
 - Add dynamic sitemap with multi-language support for all public pages
 - Add robots.txt to control crawler access

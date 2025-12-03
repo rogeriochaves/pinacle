@@ -83,7 +83,7 @@ Found it! The English translation expects a `{name}` parameter: `"{name} is star
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/dashboard/page-content.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/dashboard/page-content.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -91,9 +91,9 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -97,5 +97,5 @@
         await startPodMutation.mutateAsync({ id: podId });
-        toast.success(t(&quot;podStarting&quot;, { name: podName }), {
--         description: t(&quot;podStartingDescription&quot;),
-+         description: t(&quot;podStartingDescription&quot;, { name: podName }),
+        toast.success(t("podStarting", { name: podName }), {
+-         description: t("podStartingDescription"),
++         description: t("podStartingDescription", { name: podName }),
         });
         refetch();
 ```
@@ -148,7 +148,7 @@ Same issue there! Let me fix that one too:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/dashboard/page-content.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/dashboard/page-content.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -156,9 +156,9 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -115,5 +115,5 @@
         await stopPodMutation.mutateAsync({ id: podId });
-        toast.success(t(&quot;podStopping&quot;, { name: podName }), {
--         description: t(&quot;podStoppingDescription&quot;),
-+         description: t(&quot;podStoppingDescription&quot;, { name: podName }),
+        toast.success(t("podStopping", { name: podName }), {
+-         description: t("podStoppingDescription"),
++         description: t("podStoppingDescription", { name: podName }),
         });
         refetch();
 ```
@@ -226,7 +226,7 @@ I should stage only that file and commit with a conventional commit message.</de
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/dashboard/page-content.tsx && git commit -m "fix(i18n): pass name variable to pod toast descriptions"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/dashboard/page-content.tsx && git commit -m "fix(i18n): pass name variable to pod toast descriptions"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/[locale]/dashboard/page-content.tsx && git commit -m "fix(i18n): pass name variable to pod toast descriptions"
@@ -247,7 +247,7 @@ The square brackets in the path are being interpreted as a glob pattern. I need 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/dashboard/page-content.tsx' && git commit -m "fix(i18n): pass name variable to pod toast descriptions"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/dashboard/page-content.tsx' && git commit -m "fix(i18n): pass name variable to pod toast descriptions"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add 'src/app/[locale]/dashboard/page-content.tsx' && git commit -m "fix(i18n): pass name variable to pod toast descriptions"

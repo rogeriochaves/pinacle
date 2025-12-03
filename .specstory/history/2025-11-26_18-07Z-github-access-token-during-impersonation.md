@@ -113,7 +113,7 @@ Here's the fix:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
 
 **Chunk 1**
 Lines added: 12, lines removed: undefined
@@ -123,14 +123,14 @@ Lines added: 12, lines removed: undefined
               session.user.isImpersonating = true;
               session.user.realAdminId = token.realAdminId as string;
 + 
-+             // Fetch impersonated user&#39;s GitHub account for OAuth token
++             // Fetch impersonated user's GitHub account for OAuth token
 +             const [githubAccount] = await db
 +               .select()
 +               .from(accounts)
 +               .where(eq(accounts.userId, impersonatedUser.id))
 +               .limit(1);
 + 
-+             if (githubAccount &amp;&amp; githubAccount.provider === &quot;github&quot;) {
++             if (githubAccount &amp;&amp; githubAccount.provider === "github") {
 +               session.user.githubAccessToken = githubAccount.access_token ?? undefined;
 +               session.user.githubId = githubAccount.providerAccountId;
 +             }
@@ -186,19 +186,19 @@ I need to import `accounts` from the schema. Let me fix that:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -7,5 +7,5 @@
-  import { z } from &quot;zod&quot;;
-  import { db } from &quot;./db&quot;;
-- import { teamMembers, teams, users } from &quot;./db/schema&quot;;
-+ import { accounts, teamMembers, teams, users } from &quot;./db/schema&quot;;
-  import { sendWelcomeEmail } from &quot;./email&quot;;
-  import { generateKSUID } from &quot;./utils&quot;;
+  import { z } from "zod";
+  import { db } from "./db";
+- import { teamMembers, teams, users } from "./db/schema";
++ import { accounts, teamMembers, teams, users } from "./db/schema";
+  import { sendWelcomeEmail } from "./email";
+  import { generateKSUID } from "./utils";
 ```
 
 </details>
@@ -266,7 +266,7 @@ The fix works, but I can make the query more efficient by filtering by provider 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -275,10 +275,10 @@ Lines added: 2, lines removed: 1
 @@ -235,7 +235,8 @@
                 .from(accounts)
                 .where(eq(accounts.userId, impersonatedUser.id))
-+               .where(eq(accounts.provider, &quot;github&quot;))
++               .where(eq(accounts.provider, "github"))
                 .limit(1);
   
--             if (githubAccount &amp;&amp; githubAccount.provider === &quot;github&quot;) {
+-             if (githubAccount &amp;&amp; githubAccount.provider === "github") {
 +             if (githubAccount) {
                 session.user.githubAccessToken = githubAccount.access_token ?? undefined;
                 session.user.githubId = githubAccount.providerAccountId;
@@ -301,7 +301,7 @@ Actually, I need to combine the where conditions properly with `and()`:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 2
@@ -311,11 +311,11 @@ Lines added: 6, lines removed: 2
                 .select()
                 .from(accounts)
 -               .where(eq(accounts.userId, impersonatedUser.id))
--               .where(eq(accounts.provider, &quot;github&quot;))
+-               .where(eq(accounts.provider, "github"))
 +               .where(
 +                 and(
 +                   eq(accounts.userId, impersonatedUser.id),
-+                   eq(accounts.provider, &quot;github&quot;)
++                   eq(accounts.provider, "github")
 +                 )
 +               )
                 .limit(1);
@@ -369,19 +369,19 @@ I need to import `and` from drizzle-orm:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/auth.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { DrizzleAdapter } from &quot;@auth/drizzle-adapter&quot;;
-  import bcrypt from &quot;bcryptjs&quot;;
-- import { eq } from &quot;drizzle-orm&quot;;
-+ import { and, eq } from &quot;drizzle-orm&quot;;
-  import type { NextAuthOptions } from &quot;next-auth&quot;;
-  import CredentialsProvider from &quot;next-auth/providers/credentials&quot;;
+  import { DrizzleAdapter } from "@auth/drizzle-adapter";
+  import bcrypt from "bcryptjs";
+- import { eq } from "drizzle-orm";
++ import { and, eq } from "drizzle-orm";
+  import type { NextAuthOptions } from "next-auth";
+  import CredentialsProvider from "next-auth/providers/credentials";
 ```
 
 </details>
@@ -471,7 +471,7 @@ The user wants me to commit the changes I made to the auth.ts file with a conven
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/auth.ts && git commit -m "fix(auth): include GitHub access token when impersonating users"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/auth.ts && git commit -m "fix(auth): include GitHub access token when impersonating users"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/lib/auth.ts && git commit -m "fix(auth): include GitHub access token when impersonating users"

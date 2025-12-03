@@ -384,109 +384,109 @@ The user is right, I should use curl to fetch the XML directly instead of trying
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -s https://pinacle.dev/sitemap.xml | head -100</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -s https://pinacle.dev/sitemap.xml | head -100</summary>
 
 ```bash
 curl -s https://pinacle.dev/sitemap.xml | head -100
 ```
 
 ```
-&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
-&lt;urlset xmlns=&quot;http://www.sitemaps.org/schemas/sitemap/0.9&quot; xmlns:xhtml=&quot;http://www.w3.org/1999/xhtml&quot;&gt;
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml"&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/zh&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/es&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/ru&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/pt&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/de&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
 &lt;/url&gt;
 &lt;url&gt;
 &lt;loc&gt;https://pinacle.dev/ja&lt;/loc&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;en&quot; href=&quot;https://pinacle.dev&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;zh&quot; href=&quot;https://pinacle.dev/zh&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;es&quot; href=&quot;https://pinacle.dev/es&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ru&quot; href=&quot;https://pinacle.dev/ru&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;pt&quot; href=&quot;https://pinacle.dev/pt&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;de&quot; href=&quot;https://pinacle.dev/de&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;ja&quot; href=&quot;https://pinacle.dev/ja&quot; /&gt;
-&lt;xhtml:link rel=&quot;alternate&quot; hreflang=&quot;fr&quot; href=&quot;https://pinacle.dev/fr&quot; /&gt;
+&lt;xhtml:link rel="alternate" hreflang="en" href="https://pinacle.dev" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="zh" href="https://pinacle.dev/zh" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="es" href="https://pinacle.dev/es" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ru" href="https://pinacle.dev/ru" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="pt" href="https://pinacle.dev/pt" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="de" href="https://pinacle.dev/de" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="ja" href="https://pinacle.dev/ja" /&gt;
+&lt;xhtml:link rel="alternate" hreflang="fr" href="https://pinacle.dev/fr" /&gt;
 &lt;lastmod&gt;2025-11-27T04:37:35.095Z&lt;/lastmod&gt;
 &lt;changefreq&gt;daily&lt;/changefreq&gt;
 &lt;priority&gt;1&lt;/priority&gt;
@@ -504,7 +504,7 @@ Good, the sitemap looks fine. Now let me check what happens when someone tries /
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -s https://pinacle.dev/sitemap.xml | grep -c "pinacle.dev/fr"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -s https://pinacle.dev/sitemap.xml | grep -c "pinacle.dev/fr"</summary>
 
 ```bash
 curl -s https://pinacle.dev/sitemap.xml | grep -c "pinacle.dev/fr"
@@ -520,7 +520,7 @@ curl -s https://pinacle.dev/sitemap.xml | grep -c "pinacle.dev/fr"
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -sI https://pinacle.dev/fr/sitemap.xml</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -sI https://pinacle.dev/fr/sitemap.xml</summary>
 
 ```bash
 curl -sI https://pinacle.dev/fr/sitemap.xml
@@ -535,10 +535,10 @@ cache-control: private, no-cache, no-store, max-age=0, must-revalidate
 vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
 x-powered-by: Next.js
 cf-cache-status: DYNAMIC
-report-to: {&quot;group&quot;:&quot;cf-nel&quot;,&quot;max_age&quot;:604800,&quot;endpoints&quot;:[{&quot;url&quot;:&quot;https://a.nel.cloudflare.com/report/v4?s=PiYsx5DHtkDJd72O1rRBdot1axJQzRrAFT8zQv2U1NgeQkQ%2FsQ%2F2HM0J946mpkUZdko%2Fq1M17%2Fu42b9Y7S4%2FBM%2Bz59kIedB%2FBE6p&quot;}]}
-nel: {&quot;report_to&quot;:&quot;cf-nel&quot;,&quot;success_fraction&quot;:0.0,&quot;max_age&quot;:604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=PiYsx5DHtkDJd72O1rRBdot1axJQzRrAFT8zQv2U1NgeQkQ%2FsQ%2F2HM0J946mpkUZdko%2Fq1M17%2Fu42b9Y7S4%2FBM%2Bz59kIedB%2FBE6p"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
 cf-ray: 9a6106a88d04cbb9-AMS
-alt-svc: h3=&quot;:443&quot;; ma=86400
+alt-svc: h3=":443"; ma=86400
 
 
 ```
@@ -570,7 +570,7 @@ Let me check the robots.txt - maybe there's something there telling Google about
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -s https://pinacle.dev/robots.txt</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -s https://pinacle.dev/robots.txt</summary>
 
 ```bash
 curl -s https://pinacle.dev/robots.txt
@@ -622,7 +622,7 @@ However, one thing I should check is if maybe there's a redirect happening on th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: curl -sI https://pinacle.dev/fr</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: curl -sI https://pinacle.dev/fr</summary>
 
 ```bash
 curl -sI https://pinacle.dev/fr
@@ -633,18 +633,18 @@ HTTP/2 200
 date: Sat, 29 Nov 2025 09:20:12 GMT
 content-type: text/html; charset=utf-8
 server: cloudflare
-link: &lt;https://pinacle.dev/&gt;; rel=&quot;alternate&quot;; hreflang=&quot;en&quot;, &lt;https://pinacle.dev/zh&gt;; rel=&quot;alternate&quot;; hreflang=&quot;zh&quot;, &lt;https://pinacle.dev/es&gt;; rel=&quot;alternate&quot;; hreflang=&quot;es&quot;, &lt;https://pinacle.dev/ru&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ru&quot;, &lt;https://pinacle.dev/pt&gt;; rel=&quot;alternate&quot;; hreflang=&quot;pt&quot;, &lt;https://pinacle.dev/de&gt;; rel=&quot;alternate&quot;; hreflang=&quot;de&quot;, &lt;https://pinacle.dev/ja&gt;; rel=&quot;alternate&quot;; hreflang=&quot;ja&quot;, &lt;https://pinacle.dev/fr&gt;; rel=&quot;alternate&quot;; hreflang=&quot;fr&quot;, &lt;https://pinacle.dev/&gt;; rel=&quot;alternate&quot;; hreflang=&quot;x-default&quot;
-link: &lt;/_next/static/media/70bc3e132a0a741e-s.p.15008bfb.woff2&gt;; rel=preload; as=&quot;font&quot;; crossorigin=&quot;&quot;; type=&quot;font/woff2&quot;
+link: &lt;https://pinacle.dev/&gt;; rel="alternate"; hreflang="en", &lt;https://pinacle.dev/zh&gt;; rel="alternate"; hreflang="zh", &lt;https://pinacle.dev/es&gt;; rel="alternate"; hreflang="es", &lt;https://pinacle.dev/ru&gt;; rel="alternate"; hreflang="ru", &lt;https://pinacle.dev/pt&gt;; rel="alternate"; hreflang="pt", &lt;https://pinacle.dev/de&gt;; rel="alternate"; hreflang="de", &lt;https://pinacle.dev/ja&gt;; rel="alternate"; hreflang="ja", &lt;https://pinacle.dev/fr&gt;; rel="alternate"; hreflang="fr", &lt;https://pinacle.dev/&gt;; rel="alternate"; hreflang="x-default"
+link: &lt;/_next/static/media/70bc3e132a0a741e-s.p.15008bfb.woff2&gt;; rel=preload; as="font"; crossorigin=""; type="font/woff2"
 x-pathname: /fr
 vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding
 x-powered-by: Next.js
 cache-control: private, no-cache, no-store, max-age=0, must-revalidate
 cf-cache-status: DYNAMIC
-report-to: {&quot;group&quot;:&quot;cf-nel&quot;,&quot;max_age&quot;:604800,&quot;endpoints&quot;:[{&quot;url&quot;:&quot;https://a.nel.cloudflare.com/report/v4?s=4eZ930lAYpoIn1rvc06emR94Pg6cG5sG2jYPLe3d3O5l%2FH8Z0HNkBr4B49cfgb3eSytd6svqEKJzHzoEmHrwCGmAYvqSPVArtqET&quot;}]}
-nel: {&quot;report_to&quot;:&quot;cf-nel&quot;,&quot;success_fraction&quot;:0.0,&quot;max_age&quot;:604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=4eZ930lAYpoIn1rvc06emR94Pg6cG5sG2jYPLe3d3O5l%2FH8Z0HNkBr4B49cfgb3eSytd6svqEKJzHzoEmHrwCGmAYvqSPVArtqET"}]}
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
 set-cookie: NEXT_LOCALE=fr; SameSite=Lax; Path=/
 cf-ray: 9a61071d187e9724-AMS
-alt-svc: h3=&quot;:443&quot;; ma=86400
+alt-svc: h3=":443"; ma=86400
 
 
 ```

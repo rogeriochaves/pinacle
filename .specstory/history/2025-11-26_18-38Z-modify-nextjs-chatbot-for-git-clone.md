@@ -71,45 +71,45 @@ I can see the current `nextjs-chatbot` template and how the `nextjs` template is
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 13, lines removed: 6
 
 ```diff
 @@ -513,21 +513,28 @@
-      icon: &quot;/logos/nextjs.svg&quot;,
-      iconAlt: &quot;Next.js&quot;,
--     techStack: &quot;AI SDK, Next.js, TypeScript, Tailwind CSS&quot;,
-+     techStack: &quot;AI SDK, Next.js, TypeScript, Tailwind CSS, PostgreSQL&quot;,
-      mainUseCaseKey: &quot;templates.buildAiAgents&quot;,
-      category: &quot;ai&quot;,
+      icon: "/logos/nextjs.svg",
+      iconAlt: "Next.js",
+-     techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS",
++     techStack: "AI SDK, Next.js, TypeScript, Tailwind CSS, PostgreSQL",
+      mainUseCaseKey: "templates.buildAiAgents",
+      category: "ai",
       popular: false,
   
-      baseImage: &quot;pinacledev/pinacle-base&quot;,
--     tier: &quot;dev.small&quot;,
+      baseImage: "pinacledev/pinacle-base",
+-     tier: "dev.small",
 -     cpuCores: 0.5,
 -     memoryGb: 1,
 -     storageGb: 10,
-+     tier: &quot;dev.medium&quot;,
++     tier: "dev.medium",
 +     cpuCores: 1,
 +     memoryGb: 2,
 +     storageGb: 20,
   
--     services: [&quot;claude-code&quot;, &quot;vibe-kanban&quot;, &quot;code-server&quot;, &quot;web-terminal&quot;],
+-     services: ["claude-code", "vibe-kanban", "code-server", "web-terminal"],
 +     services: [
-+       &quot;claude-code&quot;,
-+       &quot;vibe-kanban&quot;,
-+       &quot;code-server&quot;,
-+       &quot;web-terminal&quot;,
-+       &quot;postgres&quot;,
++       "claude-code",
++       "vibe-kanban",
++       "code-server",
++       "web-terminal",
++       "postgres",
 +     ],
       defaultPorts: [
-        { name: &quot;code&quot;, internal: 8726 },
-        { name: &quot;kanban&quot;, internal: 5262 },
-        { name: &quot;claude&quot;, internal: 2528 },
-        { name: &quot;terminal&quot;, internal: 7681 },
-+       { name: &quot;postgres&quot;, internal: 5432 },
+        { name: "code", internal: 8726 },
+        { name: "kanban", internal: 5262 },
+        { name: "claude", internal: 2528 },
+        { name: "terminal", internal: 7681 },
++       { name: "postgres", internal: 5432 },
       ],
       environment: {
 ```
@@ -119,16 +119,16 @@ Lines added: 5, lines removed: 1
 
 ```diff
 @@ -536,5 +543,9 @@
-        NEXT_TELEMETRY_DISABLED: &quot;1&quot;,
+        NEXT_TELEMETRY_DISABLED: "1",
       },
 -     requiredEnvVars: [],
-+     requiredEnvVars: [&quot;AUTH_SECRET&quot;, &quot;POSTGRES_URL&quot;],
++     requiredEnvVars: ["AUTH_SECRET", "POSTGRES_URL"],
 +     envVarDefaults: {
 +       AUTH_SECRET: () =&gt; generateRandomSecret(32),
-+       POSTGRES_URL: &quot;postgresql://postgres:postgres@localhost:5432/postgres&quot;,
++       POSTGRES_URL: "postgresql://postgres:postgres@localhost:5432/postgres",
 +     },
   
-      installCommand: &quot;pnpm install&quot;,
+      installCommand: "pnpm install",
 ```
 
 **Chunk 3**
@@ -136,26 +136,26 @@ Lines added: 15, lines removed: 3
 
 ```diff
 @@ -550,7 +561,19 @@
-      templateType: &quot;nextjs&quot;,
+      templateType: "nextjs",
       initScript: [
--       &quot;cd /workspace&quot;,
--       &quot;npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias &#39;@/*&#39; --no-git&quot;,
--       &quot;npm install ai @ai-sdk/anthropic&quot;,
+-       "cd /workspace",
+-       "npx create-next-app@latest . --typescript --tailwind --app --src-dir --import-alias '@/*' --no-git",
+-       "npm install ai @ai-sdk/anthropic",
 +       // 1. Clone the Vercel AI Chatbot
-+       &quot;git clone https://github.com/vercel/ai-chatbot.git temp-ai-chatbot&quot;,
-+       &quot;rm -rf temp-ai-chatbot/.git&quot;,
-+       &quot;mv temp-ai-chatbot/* .&quot;,
-+       &quot;mv temp-ai-chatbot/.* . 2&gt;/dev/null || true&quot;,
-+       &quot;rm -rf temp-ai-chatbot&quot;,
++       "git clone https://github.com/vercel/ai-chatbot.git temp-ai-chatbot",
++       "rm -rf temp-ai-chatbot/.git",
++       "mv temp-ai-chatbot/* .",
++       "mv temp-ai-chatbot/.* . 2&gt;/dev/null || true",
++       "rm -rf temp-ai-chatbot",
 + 
 +       // 2. Install dependencies
-+       &quot;pnpm install&quot;,
++       "pnpm install",
 + 
 +       // 3. Wait for Postgres to be ready
-+       &quot;until pg_isready -h localhost -U postgres; do echo &#39;Waiting for postgres...&#39;; sleep 2; done&quot;,
++       "until pg_isready -h localhost -U postgres; do echo 'Waiting for postgres...'; sleep 2; done",
 + 
 +       // 4. Run database migrations
-+       &quot;pnpm db:migrate&quot;,
++       "pnpm db:migrate",
       ],
     },
 ```
@@ -239,7 +239,7 @@ The user wants me to commit the changes I made to the template-registry.ts file 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/pod-orchestration/template-registry.ts && git commit -m "feat(templates): update nextjs-chatbot to clone vercel/ai-chatbot repo
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/pod-orchestration/template-registry.ts && git commit -m "feat(templates): update nextjs-chatbot to clone vercel/ai-chatbot repo
 
 - Clone from https://github.com/vercel/ai-chatbot instead of create-next-app
 - Add postgres as a service dependency
@@ -441,7 +441,7 @@ The code only uses the GitHub App installation token for **Organizations**. For 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/github-helpers.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/github-helpers.ts</summary>
 
 **Chunk 1**
 Lines added: 7, lines removed: 6
@@ -450,28 +450,28 @@ Lines added: 7, lines removed: 6
 @@ -120,19 +120,20 @@
     );
   
--   if (targetInstallation &amp;&amp; targetInstallation.accountType === &quot;Organization&quot;) {
+-   if (targetInstallation &amp;&amp; targetInstallation.accountType === "Organization") {
 -     // Use GitHub App installation token for organizations
 +   if (targetInstallation) {
 +     // Use GitHub App installation token for both organizations AND personal accounts
-+     // This is required for workflow file permissions which OAuth tokens can&#39;t have
++     // This is required for workflow file permissions which OAuth tokens can't have
       console.log(
 -       &#96;[GitHubHelpers] Using GitHub App installation token for organization ${owner}&#96;,
-+       &#96;[GitHubHelpers] Using GitHub App installation token for ${targetInstallation.accountType === &quot;Organization&quot; ? &quot;organization&quot; : &quot;user&quot;} ${owner}&#96;,
++       &#96;[GitHubHelpers] Using GitHub App installation token for ${targetInstallation.accountType === "Organization" ? "organization" : "user"} ${owner}&#96;,
       );
       return await getInstallationOctokit(targetInstallation.installationId);
     }
   
--   // Use user&#39;s OAuth token for personal accounts
-+   // Fallback to user&#39;s OAuth token only if no GitHub App installation found
+-   // Use user's OAuth token for personal accounts
++   // Fallback to user's OAuth token only if no GitHub App installation found
     console.log(
 -     &#96;[GitHubHelpers] Using user OAuth token for personal account ${owner}&#96;,
 +     &#96;[GitHubHelpers] No GitHub App installation found for ${owner}, falling back to user OAuth token&#96;,
     );
     if (!userGithubToken) {
       throw new Error(
--       &quot;User&#39;s GitHub OAuth token not found. Please sign out and sign in again.&quot;,
-+       &quot;No GitHub App installation found and no OAuth token available. Please install the Pinacle GitHub App on your account.&quot;,
+-       "User's GitHub OAuth token not found. Please sign out and sign in again.",
++       "No GitHub App installation found and no OAuth token available. Please install the Pinacle GitHub App on your account.",
       );
     }
 ```
@@ -535,7 +535,7 @@ The user wants me to commit the changes to the github-helpers.ts file. I need to
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/github-helpers.ts && git commit -m "fix(github): use GitHub App installation token for personal accounts
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/github-helpers.ts && git commit -m "fix(github): use GitHub App installation token for personal accounts
 
 - Previously only used GitHub App token for orgs, fell back to OAuth for users
 - OAuth tokens cannot access workflow files (security restriction)

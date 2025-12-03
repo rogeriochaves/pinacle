@@ -89,7 +89,7 @@ I'll modify the Input to automatically lowercase the value as the user types. We
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/repository-selector.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/repository-selector.tsx</summary>
 
 **Chunk 1**
 Lines added: 5, lines removed: 1
@@ -97,14 +97,14 @@ Lines added: 5, lines removed: 1
 ```diff
 @@ -152,5 +152,9 @@
                     &lt;Input
-                      placeholder=&quot;my-awesome-project&quot;
--                     {...form.register(&quot;newRepoName&quot;)}
-+                     {...form.register(&quot;newRepoName&quot;, {
+                      placeholder="my-awesome-project"
+-                     {...form.register("newRepoName")}
++                     {...form.register("newRepoName", {
 +                       onChange: (e) =&gt; {
 +                         e.target.value = e.target.value.toLowerCase();
 +                       },
 +                     })}
-                      className=&quot;font-mono&quot;
+                      className="font-mono"
                     /&gt;
 ```
 

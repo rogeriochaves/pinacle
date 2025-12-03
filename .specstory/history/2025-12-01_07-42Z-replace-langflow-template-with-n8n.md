@@ -101,17 +101,17 @@ Now I understand the structure. Let me replace the langflow template with an n8n
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -15,5 +15,5 @@
-    | &quot;agno&quot;
-    | &quot;nextjs-chatbot&quot;
--   | &quot;langflow&quot;;
-+   | &quot;n8n&quot;;
+    | "agno"
+    | "nextjs-chatbot"
+-   | "langflow";
++   | "n8n";
   
   /**
 ```
@@ -124,7 +124,7 @@ Lines added: 1, lines removed: 1
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 6
@@ -134,19 +134,19 @@ Lines added: 6, lines removed: 6
     },
   
 -   langflow: {
--     id: &quot;langflow&quot;,
--     name: &quot;Langflow&quot;,
--     icon: &quot;/logos/langflow.svg&quot;,
--     iconAlt: &quot;Langflow&quot;,
--     techStack: &quot;Python, Langflow&quot;,
+-     id: "langflow",
+-     name: "Langflow",
+-     icon: "/logos/langflow.svg",
+-     iconAlt: "Langflow",
+-     techStack: "Python, Langflow",
 +   n8n: {
-+     id: &quot;n8n&quot;,
-+     name: &quot;n8n&quot;,
-+     icon: &quot;/logos/n8n.svg&quot;,
-+     iconAlt: &quot;n8n&quot;,
-+     techStack: &quot;Node.js, n8n&quot;,
-      mainUseCaseKey: &quot;templates.buildAiAutomations&quot;,
-      category: &quot;ai&quot;,
++     id: "n8n",
++     name: "n8n",
++     icon: "/logos/n8n.svg",
++     iconAlt: "n8n",
++     techStack: "Node.js, n8n",
+      mainUseCaseKey: "templates.buildAiAutomations",
+      category: "ai",
 ```
 
 **Chunk 2**
@@ -154,39 +154,39 @@ Lines added: 13, lines removed: 10
 
 ```diff
 @@ -690,22 +690,25 @@
-        { name: &quot;terminal&quot;, internal: 7681 },
+        { name: "terminal", internal: 7681 },
       ],
 -     environment: {},
 +     environment: {
-+       N8N_HOST: &quot;0.0.0.0&quot;,
-+       N8N_PORT: &quot;5678&quot;,
-+       N8N_PROTOCOL: &quot;http&quot;,
++       N8N_HOST: "0.0.0.0",
++       N8N_PORT: "5678",
++       N8N_PROTOCOL: "http",
 +     },
   
--     installCommand: &quot;uv sync&quot;,
-+     installCommand: &quot;pnpm install&quot;,
+-     installCommand: "uv sync",
++     installCommand: "pnpm install",
       defaultProcesses: [
         {
--         name: &quot;langflow&quot;,
--         startCommand: &quot;uv run langflow run --host 0.0.0.0 --port 7860&quot;,
--         url: &quot;http://localhost:7860&quot;,
--         healthCheck: &quot;curl -f http://localhost:7860&quot;,
-+         name: &quot;n8n&quot;,
-+         startCommand: &quot;pnpm n8n start&quot;,
-+         url: &quot;http://localhost:5678&quot;,
-+         healthCheck: &quot;curl -f http://localhost:5678/healthz&quot;,
+-         name: "langflow",
+-         startCommand: "uv run langflow run --host 0.0.0.0 --port 7860",
+-         url: "http://localhost:7860",
+-         healthCheck: "curl -f http://localhost:7860",
++         name: "n8n",
++         startCommand: "pnpm n8n start",
++         url: "http://localhost:5678",
++         healthCheck: "curl -f http://localhost:5678/healthz",
         },
       ],
   
--     templateType: &quot;python&quot;,
-+     templateType: &quot;nodejs&quot;,
+-     templateType: "python",
++     templateType: "nodejs",
       initScript: [
-        &quot;cd /workspace&quot;,
--       &quot;python3 -m venv venv&quot;,
--       &quot;source venv/bin/activate&quot;,
--       &quot;pip install langflow&quot;,
-+       &quot;pnpm init&quot;,
-+       &quot;pnpm add n8n&quot;,
+        "cd /workspace",
+-       "python3 -m venv venv",
+-       "source venv/bin/activate",
+-       "pip install langflow",
++       "pnpm init",
++       "pnpm add n8n",
       ],
     },
 ```
@@ -287,19 +287,19 @@ I need to replace "langflow" with "n8n" in the PUBLIC_TEMPLATES array.</details>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -725,5 +725,5 @@
-    &quot;mastra-ai&quot;,
-    &quot;nextjs-chatbot&quot;,
--   &quot;langflow&quot;,
-+   &quot;n8n&quot;,
-    &quot;nodejs-blank&quot;,
-    &quot;python-blank&quot;,
+    "mastra-ai",
+    "nextjs-chatbot",
+-   "langflow",
++   "n8n",
+    "nodejs-blank",
+    "python-blank",
 ```
 
 </details>
@@ -361,7 +361,7 @@ There's a special case in the configuration summary for white logos on dark back
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -393,17 +393,17 @@ I should remove the langflow special case since we no longer have that template.
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configuration-summary.tsx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/configuration-summary.tsx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 3
 
 ```diff
 @@ -123,7 +123,5 @@
-                              selectedTemplate.icon.includes(&quot;nextjs&quot;)
-                                ? &quot;/logos/nextjs-white.svg&quot;
--                               : selectedTemplate.icon.includes(&quot;langflow&quot;)
--                                 ? &quot;/logos/langflow-white.svg&quot;
+                              selectedTemplate.icon.includes("nextjs")
+                                ? "/logos/nextjs-white.svg"
+-                               : selectedTemplate.icon.includes("langflow")
+-                                 ? "/logos/langflow-white.svg"
 -                                 : selectedTemplate.icon
 +                               : selectedTemplate.icon
                             }
@@ -508,7 +508,7 @@ Let me update both doc files to replace langflow with n8n.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/templates.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/templates.mdx</summary>
 
 **Chunk 1**
 Lines added: 7, lines removed: 7
@@ -547,7 +547,7 @@ Lines added: 7, lines removed: 7
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/pinacle-yaml.mdx</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docs/pages/pinacle-yaml.mdx</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1

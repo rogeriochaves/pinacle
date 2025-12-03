@@ -68,7 +68,7 @@ The user is asking me to add a bash command to the init script in the template-r
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -76,8 +76,8 @@ Lines added: 1, lines removed: undefined
 ```diff
 @@ -529,4 +529,5 @@
   EOF&#96;,
-        &quot;yes | pnpx create-agent-ui@latest&quot;,
-+       &quot;sed -i &#39;s/devIndicators: false/devIndicators: false,\\n    async rewrites() {\\n      return [\\n        {\\n          source: \\&#39;\\\\/agent\\\\/:path*\\&#39;,\\n          destination: \\&#39;http:\\/\\/localhost:7777\\\\/:path*\\&#39;,\\n        },\\n      ]\\n    },/&#39; agent-ui/next.config.ts&quot;,
+        "yes | pnpx create-agent-ui@latest",
++       "sed -i 's/devIndicators: false/devIndicators: false,\\n    async rewrites() {\\n      return [\\n        {\\n          source: \\'\\\\/agent\\\\/:path*\\',\\n          destination: \\'http:\\/\\/localhost:7777\\\\/:path*\\',\\n        },\\n      ]\\n    },/' agent-ui/next.config.ts",
       ],
     },
 ```

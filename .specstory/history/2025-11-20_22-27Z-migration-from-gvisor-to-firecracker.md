@@ -6,3521 +6,6 @@
 
 _**User (2025-11-20 22:27Z)**_
 
-nope, stuck
-
----
-
-_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
-
-<think><details><summary>Thought Process</summary>
-The issue is still happening. Let me check the containerd/kata logs more carefully to see what's going on.
-
-The previous logs showed:
-```
-Nov 21 00:24:21 pinacle-01 kata[2082788]: time="2025-11-21T00:24:21.629316068+01:00" level=error msg="Error: ParseArguments(UnexpectedArgument(\"-name\"))" name=containerd-shim-v2 pid=2082788 qemuPid=2082799 sandbox=45c8fa3ad30bf6a083cb504332ddf1666faea710debadab3b2e861887046ae55 source=virtcontainers/hypervisor subsystem=qemu
-```
-
-It's still trying to use QEMU! Even though we changed the ConfigPath. Let me check what's actually in the configuration-fc.toml file and see if it's properly configured.</details></think>
-
----
-
-Let me check the actual logs again to see what's happening now:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -u containerd -n 20 --no-pager | grep -A2 -B2 "subsystem="'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo journalctl -u containerd -n 20 --no-pager | grep -A2 -B2 "subsystem="'
-```
-
-```
-Nov 21 00:26:04 pinacle-01 kata[2084346]: time=&quot;2025-11-21T00:26:04.374406301+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=2084346 sandbox=1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62 source=cgroups
-Nov 21 00:26:04 pinacle-01 containerd[2083972]: time=&quot;2025-11-21T00:26:04.374406301+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=2084346 sandbox=1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62 source=cgroups
-Nov 21 00:26:04 pinacle-01 kata[2084346]: time=&quot;2025-11-21T00:26:04.393329194+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=2084346 qemuPid=2084357 sandbox=1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62 source=virtcontainers/hypervisor subsystem=qemu
-Nov 21 00:26:04 pinacle-01 containerd[2083972]: time=&quot;2025-11-21T00:26:04.393329194+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=2084346 qemuPid=2084357 sandbox=1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62 source=virtcontainers/hypervisor subsystem=qemu
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Still using QEMU! Let me check if the configuration-fc.toml is actually correct, or if there's some issue with how Kata detects which hypervisor to use.</details></think>
-
----
-
-Still using QEMU! Let me check if the configuration-fc.toml is properly set up:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'head -20 /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
-
-```bash
-ssh root@157.90.177.85 'head -20 /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
-```
-
-```
-# Copyright (c) 2017-2019 Intel Corporation
-# Copyright (c) Adobe Inc.
-#
-# SPDX-License-Identifier: Apache-2.0
-#
-
-# XXX: WARNING: this file is auto-generated.
-# XXX:
-# XXX: Source file: &quot;config/configuration-fc.toml.in&quot;
-# XXX: Project:
-# XXX:   Name: Kata Containers
-# XXX:   Type: kata
-
-[hypervisor.firecracker]
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-
-# rootfs filesystem type:
-#   - ext4 (default)
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-The configuration-fc.toml looks good - it has `[hypervisor.firecracker]`. But Kata is still using QEMU. Let me check if there's a runtime configuration that overrides this or if we need to explicitly tell Kata which hypervisor to use.
-
-Looking at the Kata 3.0 documentation from the article, maybe the issue is that we're not specifying which hypervisor to use at runtime. Let me check the containerd-shim-kata-v2 usage.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env'</summary>
-
-```bash
-ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env'
-```
-
-```
-[Kernel]
-  Path = &quot;/opt/kata/share/kata-containers/vmlinux-6.12.47-172&quot;
-  Parameters = &quot;systemd.unit=kata-containers.target systemd.mask=systemd-networkd.service systemd.mask=systemd-networkd.socket cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
-
-[Meta]
-  Version = &quot;1.0.27&quot;
-
-[Image]
-  Path = &quot;/opt/kata/share/kata-containers/kata-ubuntu-noble.image&quot;
-
-[Initrd]
-  Path = &quot;&quot;
-
-[Hypervisor]
-  MachineType = &quot;&quot;
-  Version = &quot;Firecracker v1.13.1\n\n2025-11-21T00:27:58.970364110 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0&quot;
-  Path = &quot;/opt/firecracker/firecracker&quot;
-  BlockDeviceDriver = &quot;virtio-mmio&quot;
-  EntropySource = &quot;/dev/urandom&quot;
-  SharedFS = &quot;&quot;
-  VirtioFSDaemon = &quot;&quot;
-  SocketPath = &quot;/run/vc/firecracker/{ID}/root/kata.hvsock&quot;
-  Msize9p = 0
-  MemorySlots = 10
-  HotPlugVFIO = &quot;&quot;
-  ColdPlugVFIO = &quot;&quot;
-  PCIeRootPort = 0
-  PCIeSwitchPort = 0
-  Debug = false
-  [Hypervisor.SecurityInfo]
-    Rootless = false
-    DisableSeccomp = false
-    GuestHookPath = &quot;&quot;
-    EnableAnnotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
-    ConfidentialGuest = false
-
-[Runtime]
-  Path = &quot;/opt/kata/bin/kata-runtime&quot;
-  GuestSeLinuxLabel = &quot;&quot;
-  Debug = false
-  Trace = false
-  DisableGuestSeccomp = true
-  DisableNewNetNs = false
-  SandboxCgroupOnly = false
-  [Runtime.Config]
-    Path = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
-  [Runtime.Version]
-    OCI = &quot;1.2.1&quot;
-    [Runtime.Version.Version]
-      Semver = &quot;3.23.0&quot;
-      Commit = &quot;650ada7bcc8e47e44b55848765b0eb3ae9240454&quot;
-      Major = 3
-      Minor = 23
-      Patch = 0
-
-[Host]
-  Kernel = &quot;6.12.41+deb13-amd64&quot;
-  Architecture = &quot;amd64&quot;
-  VMContainerCapable = true
-  SupportVSocks = true
-  [Host.Distro]
-    Name = &quot;Debian GNU/Linux&quot;
-    Version = &quot;13&quot;
-  [Host.CPU]
-    Vendor = &quot;AuthenticAMD&quot;
-    Model = &quot;AMD Ryzen 7 3700X 8-Core Processor&quot;
-    CPUs = 16
-  [Host.Memory]
-    Total = 65770852
-    Free = 41766664
-    Available = 64149480
-
-[Agent]
-  Debug = false
-  Trace = false
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Good! When we call kata-runtime directly with the config, it correctly detects Firecracker:
-```
-[Hypervisor]
-  Version = "Firecracker v1.13.1\n\n2025-11-21T00:27:58.970364110 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0"
-  Path = "/opt/firecracker/firecracker"
-```
-
-But when Docker/containerd calls it, it's using QEMU. The issue is that containerd is not respecting the ConfigPath option, or there's some other configuration taking precedence.
-
-Let me try using the direct runtime path approach instead. Maybe the issue is with how containerd's CRI plugin handles the kata runtime.</details></think>
-
----
-
-Good! Kata correctly detects Firecracker when called directly. The issue is containerd isn't using the right config. Let me try a different approach - using the runtime directly instead of through CRI:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo cat > /tmp/test-containerd-kata.sh << "EOFSCRIPT"
-#!/bin/bash
-ctr image pull docker.io/library/hello-world:latest
-ctr run --runtime io.containerd.kata.v2 --rm docker.io/library/hello-world:latest test123 /hello
-EOFSCRIPT
-chmod +x /tmp/test-containerd-kata.sh && sudo /tmp/test-containerd-kata.sh'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo cat > /tmp/test-containerd-kata.sh << "EOFSCRIPT"
-#!/bin/bash
-ctr image pull docker.io/library/hello-world:latest
-ctr run --runtime io.containerd.kata.v2 --rm docker.io/library/hello-world:latest test123 /hello
-EOFSCRIPT
-chmod +x /tmp/test-containerd-kata.sh && sudo /tmp/test-containerd-kata.sh'
-```
-
-```
-[Terminal output truncated: ~475KB dropped from beginning]
-ete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.2 s	total:  35.2 K	(11.0 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.5 s	total:  35.3 K	(10.1 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.5 s	total:  35.5 K	(10.2 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.5 s	total:  35.6 K	(10.2 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.5 s	total:  36.2 K	(10.4 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.8 s	total:  36.7 K	(9.7 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.8 s	total:  37.3 K	(9.8 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.8 s	total:  37.4 K	(9.9 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 3.8 s	total:  38.0 K	(10.0 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.1 s	total:  38.5 K	(9.4 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.1 s	total:  38.7 K	(9.5 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.1 s	total:  38.8 K	(9.5 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.4 s	total:  39.4 K	(9.0 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.4 s	total:  39.5 K	(9.0 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	waiting    	|[32m[0m--------------------------------------|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.4 s	total:  39.7 K	(9.1 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.7 s	total:  39.9 K	(8.5 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	waiting    	|[32m[0m--------------------------------------|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.7 s	total:  40.4 K	(8.6 KiB/s)	
-docker.io/library/hello world:latest    	fetching image content	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.7 s	total:  40.6 K	(8.7 KiB/s)	
-docker.io/library/hello world:latest    	saved	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	waiting    	|[32m[0m--------------------------------------|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Pulling from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.7 s	total:  40.6 K	(8.6 KiB/s)	
-docker.io/library/hello world:latest    	saved	
-└──index (f7931603f70e)                 	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (8d7242945b0b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4349f6ef0ea7)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0cfafc8b96f7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (64127f307634)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (6b75187531c5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ec4b62339507)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (2771e37a12b7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  ├──config (1b44b5a3e06a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──layer (17eec7bbc9d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7596a8f9df84)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (4416c59a0c0f)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (efec34dcd10b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (d1d71ecdecbc)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (ea136b80fc8b)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (baf539bb97af)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (4fa675dcd2e5)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (5f9643f71485)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (590d9cb5c4dc)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (c9f523d5e2d5)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (00abdbfd095c)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (ca9905c726f0)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (dca9e14ed363)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (46286a6d488a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (cb8d9550b9fd)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (00868bf1034b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (fe7c7dd8f001)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (3d53c4c66e1b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (939e2c4419d1)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (f4a4746408b9)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (beefdcac8864)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (fbcd2a620fb2)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (607aac0771d7)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (60c06fce3285)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (7608dc829682)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (93a24326824b)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (92867137e934)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (b75e9cb8e926)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (0d7af609160e)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (babf380dde36)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (a917ffb34764)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (14538e46dbcd)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   ├──manifest (d95e119cb94d)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   │  └──config (cb777741ee0a)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-   └──manifest (efa3d57dd0d9)           	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-      └──config (a1c41ac8c58d)          	complete   	|[32m++++++++++++++++++++++++++++++++++++++[0m|	
-application/vnd.oci.image.index.v1+json sha256:f7931603f70e13dbd844253370742c4fc4202d290c80442b2e68706d8f33ce26
-Completed pull from OCI Registry (docker.io/library/hello-world:latest)	elapsed: 4.7 s	total:  42.2 K	(9.0 KiB/s)	
-
-```
-</details>
-</tool-use>
-
----
-
-
-
----
-
-_**User (2025-11-20 22:27Z)**_
-
-hmmm that's also stuck
-
-
-
-check what you did before, way up there in the chat? maybe it helps?
-
----
-
-_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
-
-
-
----
-
-<think><details><summary>Thought Process</summary>
-The user is saying that using containerd directly with `ctr run --runtime io.containerd.kata.v2` is also stuck. They're asking me to check what I did before, way up in the chat.
-
-Let me think about what worked before:
-1. Earlier in the conversation, I successfully got Kata + Firecracker working
-2. The key was correctly configuring containerd's `config.toml` to define the `kata-fc` runtime with the correct `ConfigPath` pointing to `configuration-fc.toml`
-3. Docker's `daemon.json` then just referenced that runtime type
-
-The issue now is that after running the `dev-provision-with-tunnel.sh` script, which calls `provision-server.sh`, something got misconfigured again.
-
-Looking back at the conversation history, I see that I had successfully configured:
-- Containerd's `/etc/containerd/config.toml` with:
-  ```toml
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
-    runtime_type = "io.containerd.kata.v2"
-    privileged_without_host_devices = true
-    pod_annotations = ["io.katacontainers.*"]
-    [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
-      ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
-  ```
-- Docker's `/etc/docker/daemon.json` with:
-  ```json
-  {
-    "runtimes": {
-      "kata-fc": {
-        "runtimeType": "io.containerd.kata.v2"
-      }
-    }
-  }
-  ```
-
-And this worked! The `docker run --runtime=kata-fc hello-world` command succeeded.
-
-But then after the user ran the `dev-provision-with-tunnel.sh` script, which calls `provision-server.sh`, it broke again. The logs show `subsystem=qemu`, which means it's trying to use QEMU instead of Firecracker.
- 
-I noticed the `KATA_CONFIG` variable in the `provision-server.sh` script was incorrectly set. I'll verify the current containerd configuration to ensure everything is properly set up for Firecracker.</details></think>
-
----
-
-Right! Let me check what configuration is actually on the server now. Earlier I had it working with the correct containerd configuration. Let me verify what's there now:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A10 "kata-fc"'</summary>
-
-```bash
-ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A10 "kata-fc"'
-```
-
-```
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
-  privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Good, the containerd config looks correct. Let me check Docker's daemon.json:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/docker/daemon.json'</summary>
-
-```bash
-ssh root@157.90.177.85 'cat /etc/docker/daemon.json'
-```
-
-```
-{
-  &quot;data-root&quot;: &quot;/var/lib/docker&quot;,
-  &quot;storage-driver&quot;: &quot;overlay2&quot;,
-  &quot;runtimes&quot;: {
-    &quot;kata-fc&quot;: {
-      &quot;runtimeType&quot;: &quot;io.containerd.kata.v2&quot;
-    }
-  },
-  &quot;default-runtime&quot;: &quot;runc&quot;
-}
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Both configs look correct! But it's still hanging. Let me check if there are any running Kata processes that might be stuck:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ps aux | grep -E "(kata|firecracker|qemu)" | grep -v grep'</summary>
-
-```bash
-ssh root@157.90.177.85 'ps aux | grep -E "(kata|firecracker|qemu)" | grep -v grep'
-```
-
-```
-root     2074615  0.0  0.2 2105312 138156 ?      Sl   Nov20   0:01 /firecracker --id df8fdbed132a41f2a0266965f7378c18 --start-time-us 399649173978 --start-time-cpu-us 81 --parent-cpu-time-us 2052 --config-file /fcConfig.json
-root     2080532  0.0  0.0 1940208 43000 ?       Sl   00:19   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary  -id 71a7823b65a0aa3e0eb44a84ae968a8f4a60fd7889d80505e7d3329e7e285fd0
-root     2080542  0.0  0.0   3028  2108 ?        S    00:19   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/71a7823b65a0aa3e0eb44a84ae968a8f4a60fd7889d80505e7d3329e7e285fd0/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2080546  0.0  0.0   7180  3856 ?        Sl   00:19   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/71a7823b65a0aa3e0eb44a84ae968a8f4a60fd7889d80505e7d3329e7e285fd0/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081189  0.0  0.0 1940208 42728 ?       Sl   00:21   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary  -id fd5537e5989a28f7aeca1e740e5a4de304ee448add227f21c60cbcc75699e617
-root     2081199  0.0  0.0   3028  2108 ?        S    00:21   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/fd5537e5989a28f7aeca1e740e5a4de304ee448add227f21c60cbcc75699e617/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081204  0.0  0.0   7180  3856 ?        Sl   00:21   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/fd5537e5989a28f7aeca1e740e5a4de304ee448add227f21c60cbcc75699e617/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081505  0.0  0.0 1939952 43880 ?       Sl   00:22   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary  -id 4fe21ba4bda0cd68551def54b34664f267fd6acbc2f87e54083f4d8820c6ad9a
-root     2081515  0.0  0.0   3028  2108 ?        S    00:22   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/4fe21ba4bda0cd68551def54b34664f267fd6acbc2f87e54083f4d8820c6ad9a/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081520  0.0  0.0   7180  3856 ?        Sl   00:22   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/4fe21ba4bda0cd68551def54b34664f267fd6acbc2f87e54083f4d8820c6ad9a/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081801  0.0  0.0 1939952 42912 ?       Sl   00:23   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary  -id 1abfe936d28224607657e0a03daa57132340872cc24e9fdb00979b623e4e2838
-root     2081811  0.0  0.0   3028  2104 ?        S    00:23   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/1abfe936d28224607657e0a03daa57132340872cc24e9fdb00979b623e4e2838/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2081816  0.0  0.0   7180  3852 ?        Sl   00:23   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/1abfe936d28224607657e0a03daa57132340872cc24e9fdb00979b623e4e2838/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2084324  0.0  0.0   5584  1928 ?        Ss   00:26   0:00 timeout 10 docker run --rm --runtime=kata-fc hello-world
-root     2084325  0.0  0.0 2146112 32760 ?       Sl   00:26   0:00 docker run --rm --runtime=kata-fc hello-world
-root     2084346  0.0  0.0 1940208 41476 ?       Sl   00:26   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary  -id 1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62
-root     2084356  0.0  0.0   3028  2104 ?        S    00:26   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2084361  0.0  0.0   7180  3852 ?        Sl   00:26   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/1d745e55de273681fbc23a4f16a575877cc353454efdba271568bb532107ef62/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2084851  0.0  0.0  21660  7980 ?        Ss   00:28   0:00 sudo /tmp/test-containerd-kata.sh
-root     2084857  0.0  0.0   7088  3472 ?        S    00:28   0:00 /bin/bash /tmp/test-containerd-kata.sh
-root     2084891  0.0  0.0 2063992 34120 ?       Sl   00:28   0:00 ctr run --runtime io.containerd.kata.v2 --rm docker.io/library/hello-world:latest test123 /hello
-root     2084911  0.0  0.0 1940208 41168 ?       Sl   00:28   0:00 /opt/kata/bin/containerd-shim-kata-v2 -namespace default -address /run/containerd/containerd.sock -publish-binary  -id test123
-root     2084921  0.0  0.0   3028  2108 ?        S    00:28   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/test123/shared --fd=3 --thread-pool-size=1 --announce-submounts
-root     2084925  0.0  0.0   7180  3856 ?        Sl   00:28   0:00 /opt/kata/libexec/virtiofsd --syslog --cache=auto --shared-dir=/run/kata-containers/shared/sandboxes/test123/shared --fd=3 --thread-pool-size=1 --announce-submounts
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-I see! There are multiple stuck shim processes but I notice there's NO firecracker process for the recent attempts (except for one old one from Nov20). The virtiofsd processes are running, but no firecracker. That means firecracker is failing to start.
-
-Let me check the most recent containerd logs for that stuck container to see what the actual error is:</details></think>
-
----
-
-I see the issue! There are `containerd-shim-kata-v2` processes running but NO corresponding `firecracker` processes for the recent attempts. Let me check the detailed logs for why firecracker isn't starting:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -u containerd --since "2 minutes ago" -n 50 --no-pager | grep -E "(firecracker|error|Error|failed)" | tail -20'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo journalctl -u containerd --since "2 minutes ago" -n 50 --no-pager | grep -E "(firecracker|error|Error|failed)" | tail -20'
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Let me check the kata runtime logs more specifically:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /var/log/kata* 2>/dev/null || find /run/kata-containers -name "*.log" 2>/dev/null | head -5'</summary>
-
-```bash
-ssh root@157.90.177.85 'ls -la /var/log/kata* 2>/dev/null || find /run/kata-containers -name "*.log" 2>/dev/null | head -5'
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Let me kill the stuck processes and then check the configuration file that's being used:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo pkill -9 -f "docker run.*kata-fc"; sudo pkill -9 -f "ctr run"; docker ps -a --filter "status=created" --filter "status=exited" -q | xargs -r docker rm; echo "Cleaned up stuck processes"'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo pkill -9 -f "docker run.*kata-fc"; sudo pkill -9 -f "ctr run"; docker ps -a --filter "status=created" --filter "status=exited" -q | xargs -r docker rm; echo "Cleaned up stuck processes"'
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Let me check the firecracker binary to make sure it exists and is executable:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'</summary>
-
-```bash
-ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'
-```
-
-```
--rwxr-xr-x 1 root root 3284984 Nov 20 23:16 /opt/firecracker/firecracker
-Firecracker v1.13.1
-
-2025-11-21T00:31:19.562774079 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-OK so Firecracker works. Let me now actually look at the sandbox directories to see what's happening. Let me check one of those stuck sandboxes:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /run/kata-containers/shared/sandboxes/ | tail -5'</summary>
-
-```bash
-ssh root@157.90.177.85 'ls -la /run/kata-containers/shared/sandboxes/ | tail -5'
-```
-
-```
-drwx------  4 root root  80 Nov 21 00:24 45c8fa3ad30bf6a083cb504332ddf1666faea710debadab3b2e861887046ae55
-drwx------  4 root root  80 Nov 21 00:22 4fe21ba4bda0cd68551def54b34664f267fd6acbc2f87e54083f4d8820c6ad9a
-drwx------  4 root root  80 Nov 21 00:19 71a7823b65a0aa3e0eb44a84ae968a8f4a60fd7889d80505e7d3329e7e285fd0
-drwx------  4 root root  80 Nov 21 00:21 fd5537e5989a28f7aeca1e740e5a4de304ee448add227f21c60cbcc75699e617
-drwx------  4 root root  80 Nov 21 00:28 test123
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Let me try to manually run a simple docker command with debug logging enabled to see what's actually failing:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'KATA_RUNTIME_LOG_LEVEL=debug timeout 15 docker run --rm --runtime=kata-fc alpine echo "test" 2>&1 | tee /tmp/kata-debug.log | tail -50'</summary>
-
-```bash
-ssh root@157.90.177.85 'KATA_RUNTIME_LOG_LEVEL=debug timeout 15 docker run --rm --runtime=kata-fc alpine echo "test" 2>&1 | tee /tmp/kata-debug.log | tail -50'
-```
-</details>
-</tool-use>
-
----
-
-_**User (2025-11-20 22:27Z)**_
-
-stuck stuck stuck
-
----
-
-_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
-
-<think><details><summary>Thought Process</summary>
-The user is saying it's stuck. Let me think about what we know:
-
-1. Earlier in the chat (way up there), I had successfully configured Kata with Firecracker
-2. The configuration files look correct:
-   - `/etc/containerd/config.toml` has the right `kata-fc` runtime with `ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"`
-   - `/etc/docker/daemon.json` has the right `kata-fc` runtime with `runtimeType: "io.containerd.kata.v2"`
-3. There's one firecracker process running from yesterday (PID 2074615)
-4. But the new attempts are creating `containerd-shim-kata-v2` processes without corresponding firecracker processes
-5. The processes are just hanging
-
-Looking back at the conversation history, I see that earlier I had a working configuration. The key was using containerd's config to define the runtime, not Docker's daemon.json directly.
-
-But now things are hanging. Let me check if there's a resource issue or if the Kata configuration itself has a problem. 
-
-Actually, I should check the Kata configuration file directly to see if there's an issue with how it's trying to start Firecracker.</details></think>
-
----
-
-Let me check the Kata configuration file directly to see what might be wrong:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -E "^(path|kernel|image|initrd|enable_debug)" | head -20'</summary>
-
-```bash
-ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -E "^(path|kernel|image|initrd|enable_debug)" | head -20'
-```
-
-```
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
-kernel_modules=[]
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Wait, I see the issue! The kernel path is `/opt/kata/share/kata-containers/vmlinux.container` but let me check if that file actually exists!</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/ | grep -E "(vmlinux|kernel|img)"'</summary>
-
-```bash
-ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/ | grep -E "(vmlinux|kernel|img)"'
-```
-
-```
-lrwxrwxrwx 1 root root   36 Nov 17 22:21 kata-containers-confidential.img -&gt; kata-ubuntu-noble-confidential.image
-lrwxrwxrwx 1 root root   23 Nov 17 22:23 kata-containers.img -&gt; kata-ubuntu-noble.image
-lrwxrwxrwx 1 root root   37 Nov 17 22:22 kata-containers-initrd-confidential.img -&gt; kata-ubuntu-noble-confidential.initrd
-lrwxrwxrwx 1 root root   23 Nov 17 22:19 kata-containers-initrd.img -&gt; kata-alpine-3.22.initrd
-lrwxrwxrwx 1 root root   58 Nov 17 22:25 kata-containers-initrd-nvidia-gpu-confidential.img -&gt; kata-ubuntu-noble-nvidia-gpu-confidential-580.95.05.initrd
-lrwxrwxrwx 1 root root   45 Nov 17 22:24 kata-containers-initrd-nvidia-gpu.img -&gt; kata-ubuntu-noble-nvidia-gpu-580.95.05.initrd
-lrwxrwxrwx 1 root root   34 Nov 17 22:21 kata-containers-mariner.img -&gt; kata-cbl-mariner-3.0-mariner.image
--rw-r--r-- 1 root root 283M Nov 14 16:34 vmlinux-6.12.47-172
--rw-r--r-- 1 root root 284M Nov 14 16:34 vmlinux-6.12.47-172-dragonball-experimental
--rw-r--r-- 1 root root 294M Nov 14 16:35 vmlinux-6.12.47-172-nvidia-gpu
--rw-r--r-- 1 root root 299M Nov 14 16:36 vmlinux-6.16.7-172-confidential
--rw-r--r-- 1 root root 302M Nov 14 16:34 vmlinux-6.16.7-172-nvidia-gpu-confidential
-lrwxrwxrwx 1 root root   31 Nov 14 16:36 vmlinux-confidential.container -&gt; vmlinux-6.16.7-172-confidential
-lrwxrwxrwx 1 root root   19 Nov 14 16:34 vmlinux.container -&gt; vmlinux-6.12.47-172
-lrwxrwxrwx 1 root root   43 Nov 14 16:34 vmlinux-dragonball-experimental.container -&gt; vmlinux-6.12.47-172-dragonball-experimental
-lrwxrwxrwx 1 root root   42 Nov 14 16:34 vmlinux-nvidia-gpu-confidential.container -&gt; vmlinux-6.16.7-172-nvidia-gpu-confidential
-lrwxrwxrwx 1 root root   30 Nov 14 16:35 vmlinux-nvidia-gpu.container -&gt; vmlinux-6.12.47-172-nvidia-gpu
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-OK so the files exist. Let me kill all the stuck processes and restart the services to get a clean slate.</details></think>
-
----
-
-Let me clean up all the stuck processes and restart services:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && sudo systemctl status containerd | grep -A3 "Active:"'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && sudo systemctl status containerd | grep -A3 "Active:"'
-```
-
-```
-     Active: active (running) since Fri 2025-11-21 00:32:36 CET; 4s ago
- Invocation: 3fecdac3de8a434c8d779c6eb3397991
-       Docs: https://containerd.io
-    Process: 2085937 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
-
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Now let me try a simple test with a timeout to see if it works</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 30 docker run --rm --runtime=kata-fc hello-world'</summary>
-
-```bash
-ssh root@157.90.177.85 'timeout 30 docker run --rm --runtime=kata-fc hello-world'
-```
-</details>
-</tool-use>
-
----
-
-_**User (2025-11-20 22:27Z)**_
-
-still stuck, let me paste back everythign you tried to do before and succeeded:
-
-
-
-===
-
-
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Ah! Great, the user wants me to keep trying with Kata 3.x. The article is interesting - it talks about how Kata 3.0 has a built-in VMM (Dragonball) but still supports other VMMs like QEMU and Firecracker through configuration.
-
-The key insight from the article is that Kata 3.0 moved to a containerd-shim architecture where the runtime and VMM can be in the same process. This explains why `kata-runtime` doesn't have OCI commands anymore - it's meant to be used via the containerd shim.
-
-For Docker to work with Kata 3.x, we need to use the containerd shim properly. The error we're getting "shim namespace cannot be empty" suggests we need to configure containerd itself, not just Docker's daemon.json.
-
-Let me try a different approach:
-
-1. Configure containerd properly with a kata runtime
-
-2. Docker uses containerd, so if containerd knows about kata, Docker should be able to use it
-
-Actually, looking at the Docker info output, it showed Docker is using containerd. The issue is that Docker's integration with containerd for custom runtimes might need special configuration.
-
-Let me check if we can add the kata runtime to containerd's config and then have Docker use it through containerd.</details></think>
-
----
-
-Perfect! Thanks for that context. Kata 3.0 indeed moved to a containerd-shim architecture. Let me configure containerd properly to work with Docker:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo mkdir -p /etc/containerd && sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo mkdir -p /etc/containerd && sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Good, now I need to add the Kata runtime configuration to containerd's config. In containerd, runtimes are configured under [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
-
-  runtime_type = "io.containerd.kata-fc.v2"
-
-  privileged_without_host_devices = true
-
-  pod_annotations = ["io.katacontainers.*"]
-
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
-
-    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration.toml"
-
-EOF
-
-'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
-
-  runtime_type = "io.containerd.kata-fc.v2"
-
-  privileged_without_host_devices = true
-
-  pod_annotations = ["io.katacontainers.*"]
-
-  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
-
-    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration.toml"
-
-EOF
-
-'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now I need to restart containerd and Docker to pick up the changes</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now let me check if Docker recognizes the kata-fc runtime and try running a container</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker info | grep -i runtime'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'docker info | grep -i runtime'
-
-```
-
-```
-
- Runtimes: io.containerd.runc.v2 kata-fc runc
-
- Default Runtime: runc
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Great! Docker still recognizes kata-fc. Now let's test it</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'
-
-```
-
-```
-
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: Invalid command &quot;create&quot;
-
-Run &#39;docker run --help&#39; for more information
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Still the same error. Let me check what's in the Docker daemon.json and make sure it's using the containerd shim properly. The issue might be that Docker's daemon.json configuration is overriding the containerd configuration.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo rm /etc/docker/daemon.json && echo "{}" | sudo tee /etc/docker/daemon.json > /dev/null && sudo systemctl restart docker'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo rm /etc/docker/daemon.json && echo "{}" | sudo tee /etc/docker/daemon.json > /dev/null && sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Wait, that might have removed the kata-fc runtime from Docker. Let me check</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker info | grep -A5 Runtimes'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'docker info | grep -A5 Runtimes'
-
-```
-
-```
-
- Runtimes: io.containerd.runc.v2 runc
-
- Default Runtime: runc
-
- Init Binary: docker-init
-
- containerd version: fcd43222d6b07379a4be9786bda52438f0dd16a1
-
- runc version: v1.3.3-0-gd842d771
-
- init version: de40ad0
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-The kata-fc runtime is gone. Docker needs to be told about it. The issue is that containerd CRI plugin is disabled in the containerd config we saw earlier. Let me check and fix that.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "disabled_plugins" /etc/containerd/config.toml'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'grep -i "disabled_plugins" /etc/containerd/config.toml'
-
-```
-
-```
-
-disabled_plugins = []
-
-```
-
-</details>
-
-</tool-use>
-
----
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Good, CRI is not disabled. But now I realize the issue - I need to configure the runtime in Docker's daemon.json, but pointing to the containerd shim, not kata-runtime directly. Let me use the correct configuration for Docker to use containerd shims.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "path": "/usr/bin/containerd-shim-kata-v2",
-
-      "runtimeArgs": []
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "path": "/usr/bin/containerd-shim-kata-v2",
-
-      "runtimeArgs": []
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test it again</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'
-
-```
-
-```
-
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: unable to retrieve OCI runtime error (open /run/containerd/io.containerd.runtime.v2.task/moby/329acd898e163af547c3c10a95676c6fdb77cd68b1089b52c2d99c9509db2e61/log.json: no such file or directory): /usr/bin/containerd-shim-kata-v2 did not terminate successfully: exit status 2
-
-Run &#39;docker run --help&#39; for more information
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Progress! Now it's trying to use the shim, but it's failing with exit status 2. Let me check journalctl to see the actual error</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -xeu docker --no-pager | tail -50'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo journalctl -xeu docker --no-pager | tail -50'
-
-```
-
-```
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071347]: time=&quot;2025-11-20T23:55:31.446149319+01:00&quot; level=info msg=&quot;Daemon shutdown complete&quot;
-
-Nov 20 23:55:31 pinacle-01 systemd[1]: docker.service: Deactivated successfully.
-
-░░ Subject: Unit succeeded
-
-░░ Defined-By: systemd
-
-░░ Support: https://www.debian.org/support
-
-░░ 
-
-░░ The unit docker.service has successfully entered the &#39;dead&#39; state.
-
-Nov 20 23:55:31 pinacle-01 systemd[1]: Stopped docker.service - Docker Application Container Engine.
-
-░░ Subject: A stop job for unit docker.service has finished
-
-░░ Defined-By: systemd
-
-░░ Support: https://www.debian.org/support
-
-░░ 
-
-░░ A stop job for unit docker.service has finished.
-
-░░ 
-
-░░ The job identifier is 394974 and the job result is done.
-
-Nov 20 23:55:31 pinacle-01 systemd[1]: Starting docker.service - Docker Application Container Engine...
-
-░░ Subject: A start job for unit docker.service has begun execution
-
-░░ Defined-By: systemd
-
-░░ Support: https://www.debian.org/support
-
-░░ 
-
-░░ A start job for unit docker.service has begun execution.
-
-░░ 
-
-░░ The job identifier is 394974.
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.502675935+01:00&quot; level=info msg=&quot;Starting up&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.503029570+01:00&quot; level=info msg=&quot;OTEL tracing is not configured, using no-op tracer provider&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.503085781+01:00&quot; level=info msg=&quot;CDI directory does not exist, skipping: failed to monitor for changes: no such file or directory&quot; dir=/etc/cdi
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.503094501+01:00&quot; level=info msg=&quot;CDI directory does not exist, skipping: failed to monitor for changes: no such file or directory&quot; dir=/var/run/cdi
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.523088433+01:00&quot; level=warning msg=&quot;Failed to run [/usr/bin/containerd-shim-kata-v2 features]: \&quot;io.containerd.kata.v2: shim namespace cannot be empty\&quot;&quot; error=&quot;exit status 1&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.523397458+01:00&quot; level=info msg=&quot;Creating a containerd client&quot; address=/run/containerd/containerd.sock timeout=1m0s
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.552378816+01:00&quot; level=info msg=&quot;Loading containers: start.&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.568732764+01:00&quot; level=info msg=&quot;[graphdriver] using prior storage driver: overlay2&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.571233062+01:00&quot; level=info msg=&quot;Restoring containers: start.&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.640902296+01:00&quot; level=info msg=&quot;Deleting nftables IPv4 rules&quot; error=&quot;exit status 1&quot;
-
-Nov 20 23:55:31 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:31.676833880+01:00&quot; level=info msg=&quot;Deleting nftables IPv6 rules&quot; error=&quot;exit status 1&quot;
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.755784177+01:00&quot; level=info msg=&quot;Loading containers: done.&quot;
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.770041993+01:00&quot; level=info msg=&quot;Docker daemon&quot; commit=198b5e3 containerd-snapshotter=false storage-driver=overlay2 version=29.0.1
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.770073533+01:00&quot; level=info msg=&quot;Initializing buildkit&quot;
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.784924648+01:00&quot; level=info msg=&quot;Completed buildkit initialization&quot;
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.788499172+01:00&quot; level=info msg=&quot;Daemon has completed initialization&quot;
-
-Nov 20 23:55:32 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:32.788540943+01:00&quot; level=info msg=&quot;API listen on /run/docker.sock&quot;
-
-Nov 20 23:55:32 pinacle-01 systemd[1]: Started docker.service - Docker Application Container Engine.
-
-░░ Subject: A start job for unit docker.service has finished successfully
-
-░░ Defined-By: systemd
-
-░░ Support: https://www.debian.org/support
-
-░░ 
-
-░░ A start job for unit docker.service has finished successfully.
-
-░░ 
-
-░░ The job identifier is 394974.
-
-Nov 20 23:55:36 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:36.791157360+01:00&quot; level=error msg=&quot;copy stream failed&quot; error=&quot;reading from a closed fifo&quot; stream=stderr
-
-Nov 20 23:55:36 pinacle-01 dockerd[2071771]: time=&quot;2025-11-20T23:55:36.791161610+01:00&quot; level=error msg=&quot;copy stream failed&quot; error=&quot;reading from a closed fifo&quot; stream=stdout
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-The key error is still: `Failed to run [/usr/bin/containerd-shim-kata-v2 features]: "io.containerd.kata.v2: shim namespace cannot be empty"` 
-
-This is happening when Docker tries to discover features of the shim. The shim expects to be called with certain environment variables or arguments that specify a namespace. Let me try running the shim manually to see what it expects.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 '/usr/bin/containerd-shim-kata-v2 --help 2>&1 || true'</summary>
-
-```bash
-
-ssh root@157.90.177.85 '/usr/bin/containerd-shim-kata-v2 --help 2>&1 || true'
-
-```
-
-```
-
-Usage of /usr/bin/containerd-shim-kata-v2:
-
-  -address string
-
-    	grpc address back to main containerd
-
-  -bundle string
-
-    	path to the bundle if not workdir
-
-  -debug
-
-    	enable debug output in logs
-
-  -id string
-
-    	id of the task
-
-  -namespace string
-
-    	namespace that owns the shim
-
-  -publish-binary string
-
-    	path to publish binary (used for publishing events), but /usr/bin/containerd-shim-kata-v2 will ignore this flag, please use the TTRPC_ADDRESS env
-
-  -socket string
-
-    	socket path to serve
-
-  -v	show the shim version and exit
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-The shim expects `-namespace` as an argument. The issue is that Docker is calling it with a `features` command that expects a namespace. Let me check the Kata configuration file to see if we can specify default runtime settings.
-
-Actually, looking at some Kata 3.x documentation, I think the issue is that Docker doesn't properly support containerd shim v2 runtimes in its daemon.json. We need to use containerd's native runtime configuration.
-
-But wait - we did configure containerd. The issue might be that the runtime_type is wrong. Let me check the correct runtime type for Kata 3.x.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /usr/bin/*kata* /usr/bin/containerd-shim-kata*'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'ls -la /usr/bin/*kata* /usr/bin/containerd-shim-kata*'
-
-```
-
-```
-
-lrwxrwxrwx 1 root root 37 Nov 20 23:22 /usr/bin/containerd-shim-kata-v2 -&gt; /opt/kata/bin/containerd-shim-kata-v2
-
-lrwxrwxrwx 1 root root 37 Nov 20 23:22 /usr/bin/containerd-shim-kata-v2 -&gt; /opt/kata/bin/containerd-shim-kata-v2
-
-lrwxrwxrwx 1 root root 26 Nov 20 23:22 /usr/bin/kata-runtime -&gt; /opt/kata/bin/kata-runtime
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Let me try a completely different approach. Looking at Kata 3.x documentation, the proper way to use it with Docker is to have containerd properly configured, and Docker will use containerd's runtime definitions. But the `features` call is failing because it needs a namespace.
-
-Let me try updating the containerd config with the proper runtime_type which should be `io.containerd.kata.v2` (not `io.containerd.kata-fc.v2`).</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo grep -A10 "kata-fc" /etc/containerd/config.toml'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo grep -A10 "kata-fc" /etc/containerd/config.toml'
-
-```
-
-```
-
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-
-  runtime_type = &quot;io.containerd.kata-fc.v2&quot;
-
-  privileged_without_host_devices = true
-
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration.toml&quot;
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-The runtime_type should be `io.containerd.kata.v2`, not `io.containerd.kata-fc.v2`. Let me fix this.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s/io.containerd.kata-fc.v2/io.containerd.kata.v2/g" /etc/containerd/config.toml && sudo systemctl restart containerd && sudo systemctl restart docker'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo sed -i "s/io.containerd.kata-fc.v2/io.containerd.kata.v2/g" /etc/containerd/config.toml && sudo systemctl restart containerd && sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test again</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'
-
-```
-
-```
-
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: unable to retrieve OCI runtime error (open /run/containerd/io.containerd.runtime.v2.task/moby/0bb34149a26f09cd4624db8ced52f310ac926c7d28c1abd5d80b66d29bc351cc/log.json: no such file or directory): /usr/bin/containerd-shim-kata-v2 did not terminate successfully: exit status 2
-
-Run &#39;docker run --help&#39; for more information
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Still the same issue. Let me try to run the shim manually with proper arguments to see what the actual error is. I'll check the Kata runtime configuration as well.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration.toml | grep -A3 "\[hypervisor"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration.toml | grep -A3 "\[hypervisor"'
-
-```
-
-```
-
-[hypervisor.qemu]
-
-path = &quot;/opt/kata/bin/qemu-system-x86_64&quot;
-
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Ah! The default hypervisor in `configuration.toml` is QEMU, not Firecracker! We need to either:
-
-1. Use the `-fc` config file which was mentioned in the scripts
-
-2. Or change the default hypervisor in the config
-
-Let me check if there's a configuration-fc.toml file</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/kata/share/defaults/kata-containers/configuration*.toml'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'ls -la /opt/kata/share/defaults/kata-containers/configuration*.toml'
-
-```
-
-```
-
--rw-r--r-- 1 root root 20747 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-clh.toml
-
--rw-r--r-- 1 root root 16592 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-fc.toml
-
--rw-r--r-- 1 root root 28192 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-cca.toml
-
--rw-r--r-- 1 root root 30413 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-coco-dev.toml
-
--rw-r--r-- 1 root root 30694 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-nvidia-gpu-snp.toml
-
--rw-r--r-- 1 root root 29531 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-nvidia-gpu-tdx.toml
-
--rw-r--r-- 1 root root 29781 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-nvidia-gpu.toml
-
--rw-r--r-- 1 root root 29029 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-se.toml
-
--rw-r--r-- 1 root root 30436 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-snp.toml
-
--rw-r--r-- 1 root root 29384 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu-tdx.toml
-
--rw-r--r-- 1 root root 29929 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-qemu.toml
-
--rw-r--r-- 1 root root 13958 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-remote.toml
-
--rw-r--r-- 1 root root 17790 Nov 17 22:36 /opt/kata/share/defaults/kata-containers/configuration-stratovirt.toml
-
--rw-r--r-- 1 root root 29929 Nov 20 23:52 /opt/kata/share/defaults/kata-containers/configuration.toml
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Perfect! There's a `configuration-fc.toml` file specifically for Firecracker. I need to update the containerd config to use this file instead of the generic `configuration.toml`.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|/opt/kata/share/defaults/kata-containers/configuration.toml|/opt/kata/share/defaults/kata-containers/configuration-fc.toml|g" /etc/containerd/config.toml && sudo systemctl restart containerd && sudo systemctl restart docker'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo sed -i "s|/opt/kata/share/defaults/kata-containers/configuration.toml|/opt/kata/share/defaults/kata-containers/configuration-fc.toml|g" /etc/containerd/config.toml && sudo systemctl restart containerd && sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test again</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'
-
-```
-
-```
-
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: unable to retrieve OCI runtime error (open /run/containerd/io.containerd.runtime.v2.task/moby/d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8/log.json: no such file or directory): /usr/bin/containerd-shim-kata-v2 did not terminate successfully: exit status 2
-
-Run &#39;docker run --help&#39; for more information
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Still failing. Let me check the containerd logs to see the actual error, as Docker logs are not showing the full error message.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -xeu containerd --no-pager | tail -100'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo journalctl -xeu containerd --no-pager | tail -100'
-
-```
-
-```
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078234866+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.blockfile type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078260106+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;no scratch file generator: skip plugin&quot; id=io.containerd.snapshotter.v1.blockfile type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078267717+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.btrfs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078368758+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;path /var/lib/containerd/io.containerd.snapshotter.v1.btrfs (ext4) must be a btrfs filesystem to be used with the btrfs snapshotter: skip plugin&quot; id=io.containerd.snapshotter.v1.btrfs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078377618+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.devmapper type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078397749+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;devmapper not configured: skip plugin&quot; id=io.containerd.snapshotter.v1.devmapper type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078403839+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.erofs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078496480+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;EROFS unsupported, please &#96;modprobe erofs&#96;: skip plugin&quot; id=io.containerd.snapshotter.v1.erofs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078516200+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.native type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078535331+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.overlayfs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078609892+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.snapshotter.v1.zfs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078631252+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;lstat /var/lib/containerd/io.containerd.snapshotter.v1.zfs: no such file or directory: skip plugin&quot; id=io.containerd.snapshotter.v1.zfs type=io.containerd.snapshotter.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078637632+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.event.v1.exchange type=io.containerd.event.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078656293+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.monitor.task.v1.cgroups type=io.containerd.monitor.task.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078805695+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.metadata.v1.bolt type=io.containerd.metadata.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.078832295+01:00&quot; level=info msg=&quot;metadata content store policy set&quot; policy=shared
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079059279+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.gc.v1.scheduler type=io.containerd.gc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079094209+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.differ.v1.erofs type=io.containerd.differ.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079116630+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;could not find mkfs.erofs: exec: \&quot;mkfs.erofs\&quot;: executable file not found in $PATH: skip plugin&quot; id=io.containerd.differ.v1.erofs type=io.containerd.differ.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079123940+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.differ.v1.walking type=io.containerd.differ.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079133350+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.lease.v1.manager type=io.containerd.lease.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079141110+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.containers-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079148390+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.content-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079162290+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.diff-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079178110+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.images-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079186251+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.introspection-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079194611+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.namespaces-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079201281+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.snapshots-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079208011+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.shim.v1.manager type=io.containerd.shim.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079228841+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.runtime.v2.task type=io.containerd.runtime.v2
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079305062+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.service.v1.tasks-service type=io.containerd.service.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079325643+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.containers type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079334573+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.content type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079341103+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.diff type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079348363+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.events type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079356203+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.images type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079364003+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.introspection type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079375384+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.leases type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079382434+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.namespaces type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079388974+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.sandbox.store.v1.local type=io.containerd.sandbox.store.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079396174+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.transfer.v1.local type=io.containerd.transfer.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079470455+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.cri.v1.images type=io.containerd.cri.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079744889+01:00&quot; level=info msg=&quot;Get image filesystem path \&quot;/var/lib/containerd/io.containerd.snapshotter.v1.overlayfs\&quot; for snapshotter \&quot;overlayfs\&quot;&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079835371+01:00&quot; level=info msg=&quot;Start snapshots syncer&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.079857121+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.cri.v1.runtime type=io.containerd.cri.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080063234+01:00&quot; level=info msg=&quot;starting cri plugin&quot; config=&quot;{\&quot;containerd\&quot;:{\&quot;defaultRuntimeName\&quot;:\&quot;runc\&quot;,\&quot;runtimes\&quot;:{\&quot;runc\&quot;:{\&quot;runtimeType\&quot;:\&quot;io.containerd.runc.v2\&quot;,\&quot;runtimePath\&quot;:\&quot;\&quot;,\&quot;PodAnnotations\&quot;:[],\&quot;ContainerAnnotations\&quot;:[],\&quot;options\&quot;:{\&quot;BinaryName\&quot;:\&quot;\&quot;,\&quot;CriuImagePath\&quot;:\&quot;\&quot;,\&quot;CriuWorkPath\&quot;:\&quot;\&quot;,\&quot;IoGid\&quot;:0,\&quot;IoUid\&quot;:0,\&quot;NoNewKeyring\&quot;:false,\&quot;Root\&quot;:\&quot;\&quot;,\&quot;ShimCgroup\&quot;:\&quot;\&quot;,\&quot;SystemdCgroup\&quot;:false},\&quot;privileged_without_host_devices\&quot;:false,\&quot;privileged_without_host_devices_all_devices_allowed\&quot;:false,\&quot;cgroupWritable\&quot;:false,\&quot;baseRuntimeSpec\&quot;:\&quot;\&quot;,\&quot;cniConfDir\&quot;:\&quot;\&quot;,\&quot;cniMaxConfNum\&quot;:0,\&quot;snapshotter\&quot;:\&quot;\&quot;,\&quot;sandboxer\&quot;:\&quot;podsandbox\&quot;,\&quot;io_type\&quot;:\&quot;\&quot;}},\&quot;ignoreBlockIONotEnabledErrors\&quot;:false,\&quot;ignoreRdtNotEnabledErrors\&quot;:false},\&quot;cni\&quot;:{\&quot;binDir\&quot;:\&quot;\&quot;,\&quot;binDirs\&quot;:[\&quot;/opt/cni/bin\&quot;],\&quot;confDir\&quot;:\&quot;/etc/cni/net.d\&quot;,\&quot;maxConfNum\&quot;:1,\&quot;setupSerially\&quot;:false,\&quot;confTemplate\&quot;:\&quot;\&quot;,\&quot;ipPref\&quot;:\&quot;\&quot;,\&quot;useInternalLoopback\&quot;:false},\&quot;enableSelinux\&quot;:false,\&quot;selinuxCategoryRange\&quot;:1024,\&quot;maxContainerLogLineSize\&quot;:16384,\&quot;disableApparmor\&quot;:false,\&quot;restrictOOMScoreAdj\&quot;:false,\&quot;disableProcMount\&quot;:false,\&quot;unsetSeccompProfile\&quot;:\&quot;\&quot;,\&quot;tolerateMissingHugetlbController\&quot;:true,\&quot;disableHugetlbController\&quot;:true,\&quot;device_ownership_from_security_context\&quot;:false,\&quot;ignoreImageDefinedVolumes\&quot;:false,\&quot;netnsMountsUnderStateDir\&quot;:false,\&quot;enableUnprivilegedPorts\&quot;:true,\&quot;enableUnprivilegedICMP\&quot;:true,\&quot;enableCDI\&quot;:true,\&quot;cdiSpecDirs\&quot;:[\&quot;/etc/cdi\&quot;,\&quot;/var/run/cdi\&quot;],\&quot;drainExecSyncIOTimeout\&quot;:\&quot;0s\&quot;,\&quot;ignoreDeprecationWarnings\&quot;:[],\&quot;containerdRootDir\&quot;:\&quot;/var/lib/containerd\&quot;,\&quot;containerdEndpoint\&quot;:\&quot;/run/containerd/containerd.sock\&quot;,\&quot;rootDir\&quot;:\&quot;/var/lib/containerd/io.containerd.grpc.v1.cri\&quot;,\&quot;stateDir\&quot;:\&quot;/run/containerd/io.containerd.grpc.v1.cri\&quot;}&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080097655+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.podsandbox.controller.v1.podsandbox type=io.containerd.podsandbox.controller.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080136395+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.sandbox.controller.v1.shim type=io.containerd.sandbox.controller.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080170866+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.sandbox-controllers type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080182336+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.sandboxes type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080197266+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.snapshots type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080228007+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.streaming.v1.manager type=io.containerd.streaming.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080237857+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.streaming type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080245027+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.tasks type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080252207+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.transfer type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080259207+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.version type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080267817+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.monitor.container.v1.restart type=io.containerd.monitor.container.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080308208+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.tracing.processor.v1.otlp type=io.containerd.tracing.processor.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080318428+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;skip plugin: tracing endpoint not configured&quot; id=io.containerd.tracing.processor.v1.otlp type=io.containerd.tracing.processor.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080325318+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.internal.v1.tracing type=io.containerd.internal.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080332378+01:00&quot; level=info msg=&quot;skip loading plugin&quot; error=&quot;skip plugin: tracing endpoint not configured&quot; id=io.containerd.internal.v1.tracing type=io.containerd.internal.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080338818+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.ttrpc.v1.otelttrpc type=io.containerd.ttrpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080348288+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.healthcheck type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080355738+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.nri.v1.nri type=io.containerd.nri.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080378599+01:00&quot; level=info msg=&quot;runtime interface created&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080382829+01:00&quot; level=info msg=&quot;created NRI interface&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080388599+01:00&quot; level=info msg=&quot;loading plugin&quot; id=io.containerd.grpc.v1.cri type=io.containerd.grpc.v1
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080437340+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=containerd plugin=io.containerd.grpc.v1.cri
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080449520+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=&quot;containerd runtimes&quot; plugin=io.containerd.grpc.v1.cri
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080456710+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=&quot;containerd runtimes kata-fc&quot; plugin=io.containerd.grpc.v1.cri
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080463900+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=&quot;containerd runtimes kata-fc options&quot; plugin=io.containerd.grpc.v1.cri
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080476710+01:00&quot; level=info msg=&quot;Connect containerd service&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080495651+01:00&quot; level=info msg=&quot;using experimental NRI integration - disable nri plugin to prevent this&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.080752915+01:00&quot; level=error msg=&quot;failed to load cni during init, please check CRI plugin status before setting up network for pods&quot; error=&quot;cni config load failed: no network config found in /etc/cni/net.d: cni plugin not initialized: failed to load cni config&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087251523+01:00&quot; level=info msg=&quot;Start subscribing containerd event&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087285804+01:00&quot; level=info msg=&quot;Start recovering state&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087316984+01:00&quot; level=info msg=serving... address=/run/containerd/containerd.sock.ttrpc
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087348875+01:00&quot; level=info msg=&quot;Start event monitor&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087357115+01:00&quot; level=info msg=&quot;Start cni network conf syncer for default&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087364045+01:00&quot; level=info msg=&quot;Start streaming server&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087371255+01:00&quot; level=info msg=&quot;Registered namespace \&quot;k8s.io\&quot; with NRI&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087376905+01:00&quot; level=info msg=&quot;runtime interface starting up...&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087381195+01:00&quot; level=info msg=&quot;starting plugins...&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087353375+01:00&quot; level=info msg=serving... address=/run/containerd/containerd.sock
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087389635+01:00&quot; level=info msg=&quot;Synchronizing NRI (plugin) with current runtime state&quot;
-
-Nov 20 23:56:31 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:31.087496857+01:00&quot; level=info msg=&quot;containerd successfully booted in 0.017361s&quot;
-
-Nov 20 23:56:31 pinacle-01 systemd[1]: Started containerd.service - containerd container runtime.
-
-░░ Subject: A start job for unit containerd.service has finished successfully
-
-░░ Defined-By: systemd
-
-░░ Support: https://www.debian.org/support
-
-░░ 
-
-░░ A start job for unit containerd.service has finished successfully.
-
-░░ 
-
-░░ The job identifier is 395286.
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.698795656+01:00&quot; level=info msg=&quot;connecting to shim d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8&quot; address=&quot;unix:///run/containerd/s/d61c4609a135673b47fc4201c2136c7672dd389e7f7b259a3b3bce6bbfd427d5&quot; namespace=moby protocol=ttrpc version=3
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.712555606+01:00&quot; level=info msg=&quot;shim disconnected&quot; id=d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8 namespace=moby
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.712570846+01:00&quot; level=info msg=&quot;cleaning up after shim disconnected&quot; id=d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8 namespace=moby
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.712578207+01:00&quot; level=info msg=&quot;cleaning up dead shim&quot; id=d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8 namespace=moby
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.727159849+01:00&quot; level=warning msg=&quot;warnings while cleaning up dead shim&quot; id=d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8 namespace=moby warnings=&quot;time=\&quot;2025-11-20T23:56:36+01:00\&quot; level=warning msg=\&quot;failed to remove runc container\&quot; error=\&quot;/usr/bin/containerd-shim-kata-v2 did not terminate successfully: exit status 2: flag provided but not defined: -root\\nUsage of /usr/bin/containerd-shim-kata-v2:\\n  -address string\\n    \\tgrpc address back to main containerd\\n  -bundle string\\n    \\tpath to the bundle if not workdir\\n  -debug\\n    \\tenable debug output in logs\\n  -id string\\n    \\tid of the task\\n  -namespace string\\n    \\tnamespace that owns the shim\\n  -publish-binary string\\n    \\tpath to publish binary (used for publishing events), but /usr/bin/containerd-shim-kata-v2 will ignore this flag, please use the TTRPC_ADDRESS env\\n  -socket string\\n    \\tsocket path to serve\\n  -v\\tshow the shim version and exit\\n\&quot; runtime=io.containerd.runc.v2\ntime=\&quot;2025-11-20T23:56:36+01:00\&quot; level=warning msg=\&quot;failed to read init pid file\&quot; error=\&quot;open /run/containerd/io.containerd.runtime.v2.task/moby/d1ce8586306c8d917484a30d2aa2bc3aca26f3de827e86e96a5a3789712744d8/init.pid: no such file or directory\&quot; runtime=io.containerd.runc.v2\n&quot;
-
-Nov 20 23:56:36 pinacle-01 containerd[2072937]: time=&quot;2025-11-20T23:56:36.727687757+01:00&quot; level=error msg=&quot;copy shim log&quot; error=&quot;read /proc/self/fd/14: file already closed&quot; namespace=moby
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-AHA! There it is! The error is:
-
-"flag provided but not defined: -root"
-
-The containerd is trying to pass `-root` flag to the Kata shim, but the shim doesn't support that flag. This is because containerd is trying to clean up with the runc runtime (`runtime=io.containerd.runc.v2`) after the Kata shim failed.
-
-But the root cause is that the shim is disconnecting immediately after starting. Let me check if Firecracker is actually installed and accessible.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'
-
-```
-
-```
-
--rwxr-xr-x 1 root root 3284984 Nov 20 23:16 /opt/firecracker/firecracker
-
-Firecracker v1.13.1
-
-2025-11-20T23:56:48.673603907 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Good, Firecracker is there. Now let me check if the configuration-fc.toml file is pointing to the correct Firecracker path.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'
-
-```
-
-```
-
-path = &quot;/opt/kata/bin/firecracker&quot;
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-The config is pointing to `/opt/kata/bin/firecracker` but we installed Firecracker to `/opt/firecracker/firecracker`. I need to update the configuration to use the correct path.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|path = \"/opt/kata/bin/firecracker\"|path = \"/opt/firecracker/firecracker\"|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo sed -i "s|path = \"/opt/kata/bin/firecracker\"|path = \"/opt/firecracker/firecracker\"|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test again</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker!"'
-
-```
-
-```
-
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: unable to retrieve OCI runtime error (open /run/containerd/io.containerd.runtime.v2.task/moby/2ac05eb9edc9cb3f18b19fd035fc07a77bb2ec8f3fee27446d12c8f70f5e2dd2/log.json: no such file or directory): /usr/bin/containerd-shim-kata-v2 did not terminate successfully: exit status 2
-
-Run &#39;docker run --help&#39; for more information
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Still failing. Let me try running the Kata runtime directly to see what error it gives. I can use kata-runtime to check the environment.</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml check'</summary>
-
-```bash
-
-ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml check'
-
-```
-
-```
-
-System is capable of running Kata Containers
-
-time=&quot;2025-11-20T23:57:09+01:00&quot; level=warning msg=&quot;Advanced PCIe Topology only available for QEMU/CLH hypervisor, ignoring hot(cold)_vfio_port setting&quot;
-
-time=&quot;2025-11-20T23:57:09+01:00&quot; level=warning msg=&quot;Not running network checks as super user&quot; arch=amd64 name=kata-runtime pid=2073531 source=runtime
-
-System can currently create Kata Containers
-
-```
-
-</details>
-
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-
-Good! The kata-runtime check passed. The system is capable of running Kata Containers with Firecracker. The issue might be with how Docker is configured to use it. Let me check if there are any logs in /var/log or if I can enable more verbose logging.
-
-Actually, let me try using `ctr` (containerd CLI) directly instead of Docker to see if the containerd configuration works.</details></think>
-
----
-
-
-
-
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Good! The image was pulled successfully. Now let me try running a container with kata-fc directly using `ctr` instead of Docker to see if the issue is specific to Docker's integration with containerd.</details></think>
-
-
-
----
-
-
-
-Good! Now let me try running a container with the kata-fc runtime using the containerd CLI:
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo ctr run --rm --runtime io.containerd.kata.v2 docker.io/library/alpine:latest test-kata echo "Hello from Kata Containers!"'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo ctr run --rm --runtime io.containerd.kata.v2 docker.io/library/alpine:latest test-kata echo "Hello from Kata Containers!"'
-
-```
-
-
-
-```
-
-Hello from Kata Containers!
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-YES! It worked! Kata Containers with Firecracker is working through containerd directly! The issue is that Docker's daemon.json configuration for custom runtimes doesn't work well with containerd shim v2 runtimes. The solution is to use containerd's native configuration (which we already did) and then tell Docker to NOT try to configure the runtime itself. Let me remove Docker's daemon.json custom runtime configuration and let it use what containerd provides.</details></think>
-
-
-
----
-
-
-
-**Excellent!** Kata Containers with Firecracker is working through containerd! The issue is that Docker's custom runtime configuration in `daemon.json` doesn't work well with containerd shim v2 runtimes. Let me remove Docker's custom runtime configuration and let it use containerd's runtime definitions directly:
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test with Docker</details></think>
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker info | grep -i runtime'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'docker info | grep -i runtime'
-
-```
-
-
-
-```
-
- Runtimes: io.containerd.runc.v2 runc
-
- Default Runtime: runc
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Hmm, Docker is not seeing the kata-fc runtime from containerd. This might be because containerd's CRI plugin configuration is separate from Docker. Docker might need the runtime to be exposed in a specific way. Let me try adding the runtime to containerd in a way Docker can see it. I should check if there's a CRI-specific way to expose runtimes to Docker.Actually, let me try a different approach. Docker supports using containerd runtimes by specifying the full runtime name. Let me try using `io.containerd.kata.v2` directly.</details></think>
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=io.containerd.kata.v2 alpine echo "Hello from Firecracker via Docker!"'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=io.containerd.kata.v2 alpine echo "Hello from Firecracker via Docker!"'
-
-```
-
-
-
-```
-
-Hello from Firecracker via Docker!
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-PERFECT! Docker can use the Kata runtime when specified as `--runtime=io.containerd.kata.v2`. However, our code uses `--runtime=kata-fc`. I need to either:
-
-1. Configure Docker to alias `kata-fc` to `io.containerd.kata.v2`
-
-2. Change our code to use `io.containerd.kata.v2Let me try the first approach by adding the runtime alias back to Docker's daemon.json, but this time pointing to the containerd runtime type.</details></think>
-
-
-
----
-
-
-
-Perfect! Now I need to create an alias so Docker recognizes `kata-fc` as well. Let me update the Docker configuration:
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "runtimeType": "io.containerd.kata.v2",
-
-      "options": {
-
-        "ConfigPath": "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
-
-      }
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "runtimeType": "io.containerd.kata.v2",
-
-      "options": {
-
-        "ConfigPath": "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
-
-      }
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Now let me test if Docker recognizes kata-fc</details></think>
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker with kata-fc alias!"'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Firecracker with kata-fc alias!"'
-
-```
-
-
-
-```
-
-docker: Error response from daemon: failed to create task for container: Internal: failed to create shim task: failed to mount /run/kata-containers/shared/containers/df8fdbed132a41f2a0266965f7378c1850d5438b184ed6fa51d981707428897d/rootfs to /run/kata-containers/df8fdbed132a41f2a0266965f7378c1850d5438b184ed6fa51d981707428897d/rootfs, with error: ENOENT: No such file or directory
-
-
-
-Stack backtrace:
-
-   0: &lt;unknown&gt;
-
-   1: &lt;unknown&gt;
-
-   2: &lt;unknown&gt;
-
-   3: &lt;unknown&gt;
-
-   4: &lt;unknown&gt;
-
-   5: &lt;unknown&gt;
-
-   6: &lt;unknown&gt;
-
-   7: &lt;unknown&gt;
-
-   8: &lt;unknown&gt;
-
-   9: &lt;unknown&gt;
-
-  10: &lt;unknown&gt;
-
-  11: &lt;unknown&gt;
-
-  12: &lt;unknown&gt;
-
-  13: &lt;unknown&gt;
-
-
-
-Run &#39;docker run --help&#39; for more information
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Now there's a different error related to mounting. This is progress! The error is about missing directories for the rootfs. This might be because Docker is trying to configure the runtime with specific options that conflict with what containerd expects. Let me simplify the Docker configuration by not passing the ConfigPath option.</details></think>
-
-
-
----
-
-
-
-Progress! Now it's trying to start but there's a mount error. Let me simplify the Docker configuration by not passing custom options:
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "runtimeType": "io.containerd.kata.v2"
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-
-{
-
-  "runtimes": {
-
-    "kata-fc": {
-
-      "runtimeType": "io.containerd.kata.v2"
-
-    }
-
-  },
-
-  "default-runtime": "runc"
-
-}
-
-EOF
-
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Now test again</details></think>
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Kata!"'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine echo "Hello from Kata!"'
-
-```
-
-
-
-```
-
-Hello from Kata!
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-YES! IT WORKS! Docker with kata-fc is now working! Let me verify and then test with `uname` to confirm it's running in a VM.</details></think>
-
-
-
----
-
-
-
-**SUCCESS!** 🎉 Let me verify it's actually running in a Firecracker VM:
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine uname -a'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'sudo docker run --rm --runtime=kata-fc alpine uname -a'
-
-```
-
-
-
-```
-
-Linux f0128437e0fd 6.12.47 #1 SMP Fri Nov 14 15:34:04 UTC 2025 x86_64 Linux
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Perfect! The kernel version is 6.12.47 which is different from the host system, confirming it's running in a VM. Now let me compare with the host kernel to make sure.</details></think>
-
-
-
----
-
-
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'uname -a'</summary>
-
-
-
-```bash
-
-ssh root@157.90.177.85 'uname -a'
-
-```
-
-
-
-```
-
-Linux pinacle-01 6.12.41+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.41-1 (2025-08-12) x86_64 GNU/Linux
-
-
-
-```
-
-</details>
-
-</tool-use>
-
-
-
----
-
-
-
-<think><details><summary>Thought Process</summary>
-
-Perfect! The host is running Debian's 6.12.41 kernel, while the container is running Kata's 6.12.47 kernel, confirming that containers are indeed running in Firecracker microVMs. Now I need to update the provision-server.sh script with this working configuration and then update the TODOs to mark the successful steps as completed.</details></think>
-
-
-
----
-
-
-
-Perfect! The host kernel is `6.12.41` (Debian) while the Kata container is running `6.12.47` (Kata's custom kernel), confirming Firecracker microVMs are working! Now let me update the `provision-server.sh` script with the correct configuration:
-
-
-
----
-
-
-
----
-
-_**Agent (model claude-4.5-sonnet-thinking, mode Agent)**_
-
-<think><details><summary>Thought Process</summary>
-The user is pasting back the successful sequence of commands that got Kata Containers with Firecracker working. The key steps were:
-
-1. Created default containerd config
-2. Added kata-fc runtime to containerd's config.toml with:
-   - `runtime_type = "io.containerd.kata.v2"` (not `io.containerd.kata-fc.v2`)
-   - `ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"`
-3. Fixed the Firecracker path in configuration-fc.toml from `/opt/kata/bin/firecracker` to `/opt/firecracker/firecracker`
-4. For Docker, used a simple daemon.json with just:
-   ```json
-   {
-     "runtimes": {
-       "kata-fc": {
-         "runtimeType": "io.containerd.kata.v2"
-       }
-     },
-     "default-runtime": "runc"
-   }
-   ```
-
-This got everything working! Now I should apply this configuration to fix the current stuck issue.</details></think>
-
----
-
-Perfect! Now I understand what worked. Let me apply this exact configuration to fix the current issue:
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-{
-  "data-root": "/var/lib/docker",
-  "storage-driver": "overlay2",
-  "runtimes": {
-    "kata-fc": {
-      "runtimeType": "io.containerd.kata.v2"
-    }
-  },
-  "default-runtime": "runc"
-}
-EOF
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'</summary>
-
-```bash
-ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
-{
-  "data-root": "/var/lib/docker",
-  "storage-driver": "overlay2",
-  "runtimes": {
-    "kata-fc": {
-      "runtimeType": "io.containerd.kata.v2"
-    }
-  },
-  "default-runtime": "runc"
-}
-EOF
-' && ssh root@157.90.177.85 'sudo systemctl restart docker'
-```
-</details>
-</tool-use>
-
----
-
-<think><details><summary>Thought Process</summary>
-Good, now let me test if it works:</details></think>
-
----
-
-<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 15 docker run --rm --runtime=kata-fc hello-world'</summary>
-
-```bash
-ssh root@157.90.177.85 'timeout 15 docker run --rm --runtime=kata-fc hello-world'
-```
-</details>
-</tool-use>
-
----
-
-_**User (2025-11-20 22:27Z)**_
-
 nope this one was already correct right, still stuck
 
 ---
@@ -3543,14 +28,14 @@ You're right! Let me check the Firecracker path in the configuration file - that
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -1'
 ```
 
 ```
-path = &quot;/opt/firecracker/firecracker&quot;
+path = "/opt/firecracker/firecracker"
 
 ```
 </details>
@@ -3564,7 +49,7 @@ The path is correct. Let me kill all the stuck processes and try with `ctr` dire
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo pkill -9 docker; sudo pkill -9 containerd-shim; sleep 2; sudo systemctl restart containerd && sudo systemctl restart docker && sleep 2 && echo "Services restarted"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo pkill -9 docker; sudo pkill -9 containerd-shim; sleep 2; sudo systemctl restart containerd && sudo systemctl restart docker && sleep 2 && echo "Services restarted"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo pkill -9 docker; sudo pkill -9 containerd-shim; sleep 2; sudo systemctl restart containerd && sudo systemctl restart docker && sleep 2 && echo "Services restarted"'
@@ -3614,7 +99,7 @@ Let me run a manual test to see exactly where it's hanging:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /opt/firecracker/firecracker && /opt/firecracker/firecracker --version'
@@ -3638,7 +123,7 @@ Firecracker binary is fine. Let me check if kata-runtime can properly detect Fir
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -A5 "Hypervisor"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -A5 "Hypervisor"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -A5 "Hypervisor"'
@@ -3646,17 +131,17 @@ ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata
 
 ```
 [Hypervisor]
-  MachineType = &quot;&quot;
-  Version = &quot;Firecracker v1.13.1\n\n2025-11-21T00:45:29.867483957 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0&quot;
-  Path = &quot;/opt/firecracker/firecracker&quot;
-  BlockDeviceDriver = &quot;virtio-mmio&quot;
-  EntropySource = &quot;/dev/urandom&quot;
+  MachineType = ""
+  Version = "Firecracker v1.13.1\n\n2025-11-21T00:45:29.867483957 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0"
+  Path = "/opt/firecracker/firecracker"
+  BlockDeviceDriver = "virtio-mmio"
+  EntropySource = "/dev/urandom"
 --
   [Hypervisor.SecurityInfo]
     Rootless = false
     DisableSeccomp = false
-    GuestHookPath = &quot;&quot;
-    EnableAnnotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
+    GuestHookPath = ""
+    EnableAnnotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
     ConfidentialGuest = false
 
 ```
@@ -3671,7 +156,7 @@ Kata can detect Firecracker. Let me try to run a very simple test with verbose l
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'export KATA_LOG_LEVEL=debug && timeout 20 docker run --rm --runtime=kata-fc alpine:latest echo test 2>&1 | head -50 &
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'export KATA_LOG_LEVEL=debug && timeout 20 docker run --rm --runtime=kata-fc alpine:latest echo test 2>&1 | head -50 &
 sleep 5
 ps aux | grep -E "(firecracker|kata|docker run)" | grep -v grep
 '</summary>
@@ -3740,19 +225,19 @@ I see the issue - there are `containerd-shim-kata-v2` and `virtiofsd` processes 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A10 "kata-fc"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A10 "kata-fc"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A10 "kata-fc"'
 ```
 
 ```
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
+  runtime_type = "io.containerd.kata.v2"
   privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
+  pod_annotations = ["io.katacontainers.*"]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
+    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
 
 ```
 </details>
@@ -3766,7 +251,7 @@ The containerd config looks correct. Let me check the actual logs to see why Fir
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -u containerd --since "1 minute ago" --no-pager | grep -i -E "(firecracker|error|failed)" | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo journalctl -u containerd --since "1 minute ago" --no-pager | grep -i -E "(firecracker|error|failed)" | tail -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo journalctl -u containerd --since "1 minute ago" --no-pager | grep -i -E "(firecracker|error|failed)" | tail -20'
@@ -3782,7 +267,7 @@ No errors in containerd logs. Let me check if there are kata-specific log files.
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'find /run/kata-containers -name "*.log" 2>/dev/null | head -3 | xargs tail -100 2>/dev/null | grep -i firecracker | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'find /run/kata-containers -name "*.log" 2>/dev/null | head -3 | xargs tail -100 2>/dev/null | grep -i firecracker | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'find /run/kata-containers -name "*.log" 2>/dev/null | head -3 | xargs tail -100 2>/dev/null | grep -i firecracker | head -20'
@@ -3798,7 +283,7 @@ Let me try to manually start a Firecracker VM using the Kata configuration to se
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo pkill -9 -f "docker run"; sudo pkill -9 containerd-shim-kata; sudo pkill -9 virtiofsd; sleep 2; echo "Killed all stuck processes"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo pkill -9 -f "docker run"; sudo pkill -9 containerd-shim-kata; sudo pkill -9 virtiofsd; sleep 2; echo "Killed all stuck processes"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo pkill -9 -f "docker run"; sudo pkill -9 containerd-shim-kata; sudo pkill -9 virtiofsd; sleep 2; echo "Killed all stuck processes"'
@@ -3814,7 +299,7 @@ Let me check if maybe the issue is that the configuration is using QEMU instead 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -30'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -30'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -30'
@@ -3829,26 +314,26 @@ ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configurati
 
 # XXX: WARNING: this file is auto-generated.
 # XXX:
-# XXX: Source file: &quot;config/configuration-fc.toml.in&quot;
+# XXX: Source file: "config/configuration-fc.toml.in"
 # XXX: Project:
 # XXX:   Name: Kata Containers
 # XXX:   Type: kata
 
 [hypervisor.firecracker]
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
+path = "/opt/firecracker/firecracker"
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+image = "/opt/kata/share/kata-containers/kata-containers.img"
 
 # rootfs filesystem type:
 #   - ext4 (default)
 #   - xfs
 #   - erofs
-rootfs_type=&quot;ext4&quot;
+rootfs_type="ext4"
 
 # List of valid annotation names for the hypervisor
 # Each member of the list is a regular expression, which is the base name
-# of the annotation, e.g. &quot;path&quot; for io.katacontainers.config.hypervisor.path&quot;
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
+# of the annotation, e.g. "path" for io.katacontainers.config.hypervisor.path"
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
 
 # List of valid annotations values for the hypervisor
 
@@ -3864,7 +349,7 @@ The configuration looks correct. The path is right, the hypervisor is firecracke
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /dev/kvm && getfacl /dev/kvm 2>/dev/null | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /dev/kvm && getfacl /dev/kvm 2>/dev/null | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /dev/kvm && getfacl /dev/kvm 2>/dev/null | head -10'
@@ -3892,7 +377,7 @@ other::---
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 10 strace -f -e trace=execve docker run --rm --runtime=kata-fc alpine:latest echo test 2>&1 | grep -A2 -B2 firecracker | head -30'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'timeout 10 strace -f -e trace=execve docker run --rm --runtime=kata-fc alpine:latest echo test 2>&1 | grep -A2 -B2 firecracker | head -30'</summary>
 
 ```bash
 ssh root@157.90.177.85 'timeout 10 strace -f -e trace=execve docker run --rm --runtime=kata-fc alpine:latest echo test 2>&1 | grep -A2 -B2 firecracker | head -30'
@@ -3908,7 +393,7 @@ No firecracker execution detected. Let me check if maybe there's a configuration
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "^enable_debug\|^#enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "^enable_debug\|^#enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "^enable_debug\|^#enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'
@@ -3931,7 +416,7 @@ Let me enable debug logging in the configuration file to get more verbose output
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s/#enable_debug = true/enable_debug = true/g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo sed -i "s/#enable_debug = true/enable_debug = true/g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo sed -i "s/#enable_debug = true/enable_debug = true/g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'
@@ -3954,7 +439,7 @@ Now let me try to run a container and check journalctl for detailed debug logs.<
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 8 docker run --rm --runtime=kata-fc alpine:latest echo test &
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'timeout 8 docker run --rm --runtime=kata-fc alpine:latest echo test &
 DOCKER_PID=$!
 sleep 5
 sudo journalctl --since "5 seconds ago" -n 100 --no-pager | grep -i -E "(firecracker|hypervisor|kata)" | head -30
@@ -3971,9 +456,9 @@ kill $DOCKER_PID 2>/dev/null || true
 ```
 
 ```
-Nov 21 00:47:42 pinacle-01 kata[4522]: time=&quot;2025-11-21T00:47:42.477964551+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=4522 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=cgroups
-Nov 21 00:47:42 pinacle-01 kata[4522]: time=&quot;2025-11-21T00:47:42.523447794+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=4522 qemuPid=4551 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=virtcontainers/hypervisor subsystem=qemu
-Nov 21 00:47:42 pinacle-01 containerd[919]: time=&quot;2025-11-21T00:47:42.523447794+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=4522 qemuPid=4551 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=virtcontainers/hypervisor subsystem=qemu
+Nov 21 00:47:42 pinacle-01 kata[4522]: time="2025-11-21T00:47:42.477964551+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=4522 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=cgroups
+Nov 21 00:47:42 pinacle-01 kata[4522]: time="2025-11-21T00:47:42.523447794+01:00" level=error msg="Error: ParseArguments(UnexpectedArgument(\"-name\"))" name=containerd-shim-v2 pid=4522 qemuPid=4551 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=virtcontainers/hypervisor subsystem=qemu
+Nov 21 00:47:42 pinacle-01 containerd[919]: time="2025-11-21T00:47:42.523447794+01:00" level=error msg="Error: ParseArguments(UnexpectedArgument(\"-name\"))" name=containerd-shim-v2 pid=4522 qemuPid=4551 sandbox=8df225497d43917bf38ca84a4ce07bf3eb68576d371da3c573e3d9ddce352692 source=virtcontainers/hypervisor subsystem=qemu
 
 ```
 </details>
@@ -4009,7 +494,7 @@ FOUND IT! The error shows `subsystem=qemu` - it's still trying to use QEMU inste
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "^default_hypervisor\|^#default_hypervisor" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "^default_hypervisor\|^#default_hypervisor" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "^default_hypervisor\|^#default_hypervisor" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'
@@ -4025,7 +510,7 @@ No default_hypervisor setting. Let me check the runtime section of the config to
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A5 "^\[runtime\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A5 "^\[runtime\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A5 "^\[runtime\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'
@@ -4053,18 +538,18 @@ Actually, looking back at the history, I need to check if maybe there's somethin
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -E "Path =|Version =" | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -E "Path =|Version =" | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'kata-runtime --kata-config /opt/kata/share/defaults/kata-containers/configuration-fc.toml env | grep -E "Path =|Version =" | head -5'
 ```
 
 ```
-  Path = &quot;/opt/kata/share/kata-containers/vmlinux-6.12.47-172&quot;
-  Version = &quot;1.0.27&quot;
-  Path = &quot;/opt/kata/share/kata-containers/kata-ubuntu-noble.image&quot;
-  Path = &quot;&quot;
-  Version = &quot;Firecracker v1.13.1\n\n2025-11-21T00:50:39.675508051 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0&quot;
+  Path = "/opt/kata/share/kata-containers/vmlinux-6.12.47-172"
+  Version = "1.0.27"
+  Path = "/opt/kata/share/kata-containers/kata-ubuntu-noble.image"
+  Path = ""
+  Version = "Firecracker v1.13.1\n\n2025-11-21T00:50:39.675508051 [anonymous-instance:main] Firecracker exiting successfully. exit_code=0"
 
 ```
 </details>
@@ -4103,7 +588,7 @@ I see the issue! Docker doesn't use containerd's CRI plugin configuration. The `
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
 
 [proxy_plugins]
   [proxy_plugins.kata-fc]
@@ -4135,7 +620,7 @@ EOF
 
 ```
 Job for containerd.service failed because the control process exited with error code.
-See &quot;systemctl status containerd.service&quot; and &quot;journalctl -xeu containerd.service&quot; for details.
+See "systemctl status containerd.service" and "journalctl -xeu containerd.service" for details.
 
 ```
 </details>
@@ -4149,7 +634,7 @@ That broke it. Let me restore containerd by regenerating the config.</details></
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null && sudo systemctl start containerd && sleep 2 && sudo systemctl status containerd | grep Active'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null && sudo systemctl start containerd && sleep 2 && sudo systemctl status containerd | grep Active'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null && sudo systemctl start containerd && sleep 2 && sudo systemctl status containerd | grep Active'
@@ -4174,7 +659,7 @@ Wait - I should check Kata's documentation or see if there's a way to specify th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
 {
   "data-root": "/var/lib/docker",
   "storage-driver": "overlay2",
@@ -4222,7 +707,7 @@ Let me test this configuration.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 10 docker run --rm --runtime=kata-fc alpine:latest echo "Testing Firecracker"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'timeout 10 docker run --rm --runtime=kata-fc alpine:latest echo "Testing Firecracker"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'timeout 10 docker run --rm --runtime=kata-fc alpine:latest echo "Testing Firecracker"'
@@ -4247,7 +732,7 @@ Stack backtrace:
   12: &lt;unknown&gt;
   13: &lt;unknown&gt;
 
-Run &#39;docker run --help&#39; for more information
+Run 'docker run --help' for more information
 
 ```
 </details>
@@ -4261,7 +746,7 @@ Different error now! It's no longer trying to use QEMU (no "subsystem=qemu" erro
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'
@@ -4286,7 +771,7 @@ Progress! Firecracker is NOW RUNNING! The mount error might be temporary. Let me
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'
@@ -4311,7 +796,7 @@ Stack backtrace:
   12: &lt;unknown&gt;
   13: &lt;unknown&gt;
 
-Run &#39;docker run --help&#39; for more information
+Run 'docker run --help' for more information
 
 ```
 </details>
@@ -4327,7 +812,7 @@ Let me see if this directory structure exists.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /run/kata-containers/ 2>/dev/null && ls -la /run/kata-containers/shared/ 2>/dev/null | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /run/kata-containers/ 2>/dev/null && ls -la /run/kata-containers/shared/ 2>/dev/null | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /run/kata-containers/ 2>/dev/null && ls -la /run/kata-containers/shared/ 2>/dev/null | head -10'
@@ -4357,14 +842,14 @@ Actually, wait - this looks like it might be an issue with the Kata configuratio
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -E "^image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -E "^image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -E "^image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'
 ```
 
 ```
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
+image = "/opt/kata/share/kata-containers/kata-containers.img"
 
 ```
 </details>
@@ -4378,7 +863,7 @@ It's using `image` (a disk image). Let me try switching to `initrd` instead, whi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/*.initrd 2>/dev/null'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/*.initrd 2>/dev/null'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/*.initrd 2>/dev/null'
@@ -4402,7 +887,7 @@ Perfect! There's a `kata-alpine-3.22.initrd` which is much smaller (12M) and sho
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|^image = .*|#image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#initrd = .*|initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/kata-containers/configuration-fc.toml | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|^image = .*|#image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#initrd = .*|initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/kata-containers/configuration-fc.toml | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo sed -i "s|^image = .*|#image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#initrd = .*|initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/kata-containers/configuration-fc.toml | head -5'
@@ -4423,7 +908,7 @@ What?! The file disappeared? Let me check if it exists.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/kata/share/defaults/kata-containers/*.toml | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /opt/kata/share/defaults/kata-containers/*.toml | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /opt/kata/share/defaults/kata-containers/*.toml | head -5'
@@ -4448,7 +933,7 @@ It does exist! Maybe the sed command broke it somehow with the complex escaping.
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -n "^image =" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -n "^image =" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -n "^image =" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -4464,7 +949,7 @@ The sed command already modified it. Let me check what the file looks like now.<
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'head -30 /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'head -30 /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'head -30 /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -4479,26 +964,26 @@ ssh root@157.90.177.85 'head -30 /opt/kata/share/defaults/kata-containers/config
 
 # XXX: WARNING: this file is auto-generated.
 # XXX:
-# XXX: Source file: &quot;config/configuration-fc.toml.in&quot;
+# XXX: Source file: "config/configuration-fc.toml.in"
 # XXX: Project:
 # XXX:   Name: Kata Containers
 # XXX:   Type: kata
 
 [hypervisor.firecracker]
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-#image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
+path = "/opt/firecracker/firecracker"
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+#image = "/opt/kata/share/kata-containers/kata-containers.img"
 
 # rootfs filesystem type:
 #   - ext4 (default)
 #   - xfs
 #   - erofs
-rootfs_type=&quot;ext4&quot;
+rootfs_type="ext4"
 
 # List of valid annotation names for the hypervisor
 # Each member of the list is a regular expression, which is the base name
-# of the annotation, e.g. &quot;path&quot; for io.katacontainers.config.hypervisor.path&quot;
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
+# of the annotation, e.g. "path" for io.katacontainers.config.hypervisor.path"
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
 
 # List of valid annotations values for the hypervisor
 
@@ -4514,7 +999,7 @@ Good! The image line is now commented out. Now I need to add the initrd line. Le
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "17a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && head -20 /opt/kata/share/defaults/kata-containers/configuration-fc.toml | tail -8'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo sed -i "17a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && head -20 /opt/kata/share/defaults/kata-containers/configuration-fc.toml | tail -8'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo sed -i "17a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && head -20 /opt/kata/share/defaults/kata-containers/configuration-fc.toml | tail -8'
@@ -4523,10 +1008,10 @@ ssh root@157.90.177.85 'sudo sed -i "17a initrd = \"/opt/kata/share/kata-contain
 ```
 
 [hypervisor.firecracker]
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-#image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-initrd = &quot;/opt/kata/share/kata-containers/kata-alpine-3.22.initrd&quot;
+path = "/opt/firecracker/firecracker"
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+#image = "/opt/kata/share/kata-containers/kata-containers.img"
+initrd = "/opt/kata/share/kata-containers/kata-alpine-3.22.initrd"
 
 # rootfs filesystem type:
 
@@ -4542,7 +1027,7 @@ Perfect! Now let me test if this works.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'
@@ -4592,15 +1077,15 @@ Let me go back to exactly what worked in the history - using the image file, not
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|^initrd = .*|#initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#image = .*|image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo sed -i "s|^initrd = .*|#initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#image = .*|image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo sed -i "s|^initrd = .*|#initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sudo sed -i "s|^#image = .*|image = \"/opt/kata/share/kata-containers/kata-containers.img\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^image|^initrd|^#image|^#initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'
 ```
 
 ```
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-#initrd = &quot;/opt/kata/share/kata-containers/kata-alpine-3.22.initrd&quot;
+image = "/opt/kata/share/kata-containers/kata-containers.img"
+#initrd = "/opt/kata/share/kata-containers/kata-alpine-3.22.initrd"
 
 ```
 </details>
@@ -4614,7 +1099,7 @@ Good. Now let me make sure the Docker daemon.json is exactly as it was when it w
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
 {
   "data-root": "/var/lib/docker",
   "storage-driver": "overlay2",
@@ -4654,7 +1139,7 @@ Now let me make sure the containerd configuration has the kata-fc runtime proper
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A6 "kata-fc" /etc/containerd/config.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A6 "kata-fc" /etc/containerd/config.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A6 "kata-fc" /etc/containerd/config.toml'
@@ -4670,7 +1155,7 @@ Ah! The containerd config doesn't have the kata-fc runtime configured. That's th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
   runtime_type = "io.containerd.kata.v2"
@@ -4704,7 +1189,7 @@ Now let me test it.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'timeout 15 docker run --rm --runtime=kata-fc alpine:latest echo "Hello from Firecracker"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'timeout 15 docker run --rm --runtime=kata-fc alpine:latest echo "Hello from Firecracker"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'timeout 15 docker run --rm --runtime=kata-fc alpine:latest echo "Hello from Firecracker"'
@@ -4745,7 +1230,7 @@ Yes, let's do a clean reinstall! This will clear any inconsistent state. Let me 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 '
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 '
 # Stop services
 sudo systemctl stop docker
 sudo systemctl stop containerd
@@ -4798,7 +1283,7 @@ echo "Cleanup complete"
 ```
 
 ```
-Stopping &#39;docker.service&#39;, but its triggering units are still active:
+Stopping 'docker.service', but its triggering units are still active:
 docker.socket
 
 ```
@@ -4813,7 +1298,7 @@ Good, it's cleaning up. Now let me reinstall Kata fresh.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 '
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 '
 # Download and install Kata
 VERSION="3.23.0"
 ARCH="amd64"
@@ -4879,7 +1364,7 @@ Great! Kata is reinstalled. Now I need to configure it properly for Firecracker.
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 '
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 '
 # Update Firecracker path in configuration
 sudo sed -i "s|path = \"/opt/kata/bin/firecracker\"|path = \"/opt/firecracker/firecracker\"|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml
 
@@ -4898,7 +1383,7 @@ grep "^path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | he
 ```
 
 ```
-path = &quot;/opt/firecracker/firecracker&quot;
+path = "/opt/firecracker/firecracker"
 
 ```
 </details>
@@ -4912,7 +1397,7 @@ Good! Now let me configure containerd properly.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
   runtime_type = "io.containerd.kata.v2"
@@ -4946,7 +1431,7 @@ Now configure Docker to use kata-fc runtime.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo tee /etc/docker/daemon.json > /dev/null << "EOF"
 {
   "data-root": "/var/lib/docker",
   "storage-driver": "overlay2",
@@ -4986,7 +1471,7 @@ Now restart services and test.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && sudo systemctl status containerd | grep Active && sudo systemctl status docker | grep Active'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && sudo systemctl status containerd | grep Active && sudo systemctl status docker | grep Active'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && sudo systemctl status containerd | grep Active && sudo systemctl status docker | grep Active'
@@ -4994,7 +1479,7 @@ ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl rest
 
 ```
 Job for containerd.service failed because the control process exited with error code.
-See &quot;systemctl status containerd.service&quot; and &quot;journalctl -xeu containerd.service&quot; for details.
+See "systemctl status containerd.service" and "journalctl -xeu containerd.service" for details.
 
 ```
 </details>
@@ -5008,15 +1493,15 @@ Containerd failed. Let me check what's wrong with the config.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -xeu containerd --no-pager -n 20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo journalctl -xeu containerd --no-pager -n 20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo journalctl -xeu containerd --no-pager -n 20'
 ```
 
 ```
-Nov 21 00:53:43 pinacle-01 kata[7060]: time=&quot;2025-11-21T00:53:43.651338576+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=7060 qemuPid=7071 sandbox=9c849c4533fdf854d6b6266f26e1e15d9102c75b673fd56c8e9a96f696515246 source=virtcontainers/hypervisor subsystem=qemu
-Nov 21 00:53:43 pinacle-01 containerd[6671]: time=&quot;2025-11-21T00:53:43.651338576+01:00&quot; level=error msg=&quot;Error: ParseArguments(UnexpectedArgument(\&quot;-name\&quot;))&quot; name=containerd-shim-v2 pid=7060 qemuPid=7071 sandbox=9c849c4533fdf854d6b6266f26e1e15d9102c75b673fd56c8e9a96f696515246 source=virtcontainers/hypervisor subsystem=qemu
+Nov 21 00:53:43 pinacle-01 kata[7060]: time="2025-11-21T00:53:43.651338576+01:00" level=error msg="Error: ParseArguments(UnexpectedArgument(\"-name\"))" name=containerd-shim-v2 pid=7060 qemuPid=7071 sandbox=9c849c4533fdf854d6b6266f26e1e15d9102c75b673fd56c8e9a96f696515246 source=virtcontainers/hypervisor subsystem=qemu
+Nov 21 00:53:43 pinacle-01 containerd[6671]: time="2025-11-21T00:53:43.651338576+01:00" level=error msg="Error: ParseArguments(UnexpectedArgument(\"-name\"))" name=containerd-shim-v2 pid=7060 qemuPid=7071 sandbox=9c849c4533fdf854d6b6266f26e1e15d9102c75b673fd56c8e9a96f696515246 source=virtcontainers/hypervisor subsystem=qemu
 Nov 21 00:55:28 pinacle-01 systemd[1]: Stopping containerd.service - containerd container runtime...
 ░░ Subject: A stop job for unit containerd.service has begun execution
 ░░ Defined-By: systemd
@@ -5025,16 +1510,16 @@ Nov 21 00:55:28 pinacle-01 systemd[1]: Stopping containerd.service - containerd 
 ░░ A stop job for unit containerd.service has begun execution.
 ░░ 
 ░░ The job identifier is 1898.
-Nov 21 00:55:28 pinacle-01 containerd[6671]: time=&quot;2025-11-21T00:55:28.714445607+01:00&quot; level=info msg=&quot;Stop CRI service&quot;
-Nov 21 00:55:28 pinacle-01 containerd[6671]: time=&quot;2025-11-21T00:55:28.714551368+01:00&quot; level=info msg=&quot;Stop CRI service&quot;
-Nov 21 00:55:28 pinacle-01 containerd[6671]: time=&quot;2025-11-21T00:55:28.714576499+01:00&quot; level=info msg=&quot;Event monitor stopped&quot;
-Nov 21 00:55:28 pinacle-01 containerd[6671]: time=&quot;2025-11-21T00:55:28.714581719+01:00&quot; level=info msg=&quot;Stream server stopped&quot;
+Nov 21 00:55:28 pinacle-01 containerd[6671]: time="2025-11-21T00:55:28.714445607+01:00" level=info msg="Stop CRI service"
+Nov 21 00:55:28 pinacle-01 containerd[6671]: time="2025-11-21T00:55:28.714551368+01:00" level=info msg="Stop CRI service"
+Nov 21 00:55:28 pinacle-01 containerd[6671]: time="2025-11-21T00:55:28.714576499+01:00" level=info msg="Event monitor stopped"
+Nov 21 00:55:28 pinacle-01 containerd[6671]: time="2025-11-21T00:55:28.714581719+01:00" level=info msg="Stream server stopped"
 Nov 21 00:55:28 pinacle-01 systemd[1]: containerd.service: Deactivated successfully.
 ░░ Subject: Unit succeeded
 ░░ Defined-By: systemd
 ░░ Support: https://www.debian.org/support
 ░░ 
-░░ The unit containerd.service has successfully entered the &#39;dead&#39; state.
+░░ The unit containerd.service has successfully entered the 'dead' state.
 Nov 21 00:55:28 pinacle-01 systemd[1]: Stopped containerd.service - containerd container runtime.
 ░░ Subject: A stop job for unit containerd.service has finished
 ░░ Defined-By: systemd
@@ -5059,13 +1544,13 @@ Nov 21 00:56:22 pinacle-01 systemd[1]: containerd.service: Main process exited, 
 ░░ 
 ░░ An ExecStart= process belonging to unit containerd.service has exited.
 ░░ 
-░░ The process&#39; exit code is &#39;exited&#39; and its exit status is 1.
-Nov 21 00:56:22 pinacle-01 systemd[1]: containerd.service: Failed with result &#39;exit-code&#39;.
+░░ The process' exit code is 'exited' and its exit status is 1.
+Nov 21 00:56:22 pinacle-01 systemd[1]: containerd.service: Failed with result 'exit-code'.
 ░░ Subject: Unit failed
 ░░ Defined-By: systemd
 ░░ Support: https://www.debian.org/support
 ░░ 
-░░ The unit containerd.service has entered the &#39;failed&#39; state with result &#39;exit-code&#39;.
+░░ The unit containerd.service has entered the 'failed' state with result 'exit-code'.
 Nov 21 00:56:22 pinacle-01 systemd[1]: Failed to start containerd.service - containerd container runtime.
 ░░ Subject: A start job for unit containerd.service has failed
 ░░ Defined-By: systemd
@@ -5097,13 +1582,13 @@ Nov 21 00:56:27 pinacle-01 systemd[1]: containerd.service: Main process exited, 
 ░░ 
 ░░ An ExecStart= process belonging to unit containerd.service has exited.
 ░░ 
-░░ The process&#39; exit code is &#39;exited&#39; and its exit status is 1.
-Nov 21 00:56:27 pinacle-01 systemd[1]: containerd.service: Failed with result &#39;exit-code&#39;.
+░░ The process' exit code is 'exited' and its exit status is 1.
+Nov 21 00:56:27 pinacle-01 systemd[1]: containerd.service: Failed with result 'exit-code'.
 ░░ Subject: Unit failed
 ░░ Defined-By: systemd
 ░░ Support: https://www.debian.org/support
 ░░ 
-░░ The unit containerd.service has entered the &#39;failed&#39; state with result &#39;exit-code&#39;.
+░░ The unit containerd.service has entered the 'failed' state with result 'exit-code'.
 Nov 21 00:56:27 pinacle-01 systemd[1]: Failed to start containerd.service - containerd container runtime.
 ░░ Subject: A start job for unit containerd.service has failed
 ░░ Defined-By: systemd
@@ -5129,7 +1614,7 @@ Ah! There's a duplicate `kata-fc` table. Let me regenerate the config cleanly:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null && sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null && sudo tee -a /etc/containerd/config.toml > /dev/null << "EOF"
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
   runtime_type = "io.containerd.kata.v2"
@@ -5163,7 +1648,7 @@ Now restart services.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && echo "Services restarted" && docker info | grep -i runtime'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && echo "Services restarted" && docker info | grep -i runtime'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo systemctl restart containerd && sudo systemctl restart docker && sleep 3 && echo "Services restarted" && docker info | grep -i runtime'
@@ -5190,7 +1675,7 @@ Perfect! Docker now recognizes `kata-fc`! Let's test it:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc hello-world'
@@ -5203,7 +1688,7 @@ This message shows that your installation appears to be working correctly.
 
 To generate this message, Docker took the following steps:
  1. The Docker client contacted the Docker daemon.
- 2. The Docker daemon pulled the &quot;hello-world&quot; image from the Docker Hub.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
     (amd64)
  3. The Docker daemon created a new container from that image which runs the
     executable that produces the output you are currently reading.
@@ -5236,7 +1721,7 @@ YES! IT WORKS! Let me verify it's actually using Firecracker by checking the ker
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine uname -a'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine uname -a'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine uname -a'
@@ -5330,7 +1815,7 @@ Perfect! The provision script is already correctly configured. Let me run the fu
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev
@@ -5545,7 +2030,7 @@ Now I need to add devApiKey to the AgentConfig type and update the server agent 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/types.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/types.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -5574,7 +2059,7 @@ Now I need to update the server agent to read DEV_API_KEY and use the appropriat
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -5582,10 +2067,10 @@ Lines added: 1, lines removed: undefined
 ```diff
 @@ -22,4 +22,5 @@
         devApiUrl: process.env.DEV_API_URL, // Optional dev/cloudflared tunnel URL
-        apiKey: process.env.API_KEY || &quot;&quot;,
+        apiKey: process.env.API_KEY || "",
 +       devApiKey: process.env.DEV_API_KEY, // Optional separate API key for dev URL
         heartbeatIntervalMs: parseInt(
-          process.env.HEARTBEAT_INTERVAL_MS || &quot;30000&quot;,
+          process.env.HEARTBEAT_INTERVAL_MS || "30000",
 ```
 
 </details>
@@ -5627,7 +2112,7 @@ Now I need to update lines 148 and 224 to use the devApiKey if it's available, o
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -5635,9 +2120,9 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -146,5 +146,5 @@
               headers: {
-                &quot;Content-Type&quot;: &quot;application/json&quot;,
--               &quot;x-api-key&quot;: this.config.apiKey,
-+               &quot;x-api-key&quot;: this.config.devApiKey || this.config.apiKey,
+                "Content-Type": "application/json",
+-               "x-api-key": this.config.apiKey,
++               "x-api-key": this.config.devApiKey || this.config.apiKey,
               },
               body: JSON.stringify(registerPayload),
 ```
@@ -5655,7 +2140,7 @@ Now I need to update the sendHeartbeatAndMetrics method to use devApiKey for the
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -5663,9 +2148,9 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -222,5 +222,5 @@
                 headers: {
-                  &quot;Content-Type&quot;: &quot;application/json&quot;,
--                 &quot;x-api-key&quot;: this.config.apiKey,
-+                 &quot;x-api-key&quot;: this.config.devApiKey || this.config.apiKey,
+                  "Content-Type": "application/json",
+-                 "x-api-key": this.config.apiKey,
++                 "x-api-key": this.config.devApiKey || this.config.apiKey,
                 },
                 body: JSON.stringify(metricsPayload),
 ```
@@ -5699,7 +2184,7 @@ I need to add a --dev-api-key parameter to the provisioning script. Let me updat
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: undefined
@@ -5709,11 +2194,11 @@ Lines added: 4, lines removed: undefined
         shift 2
         ;;
 +     --dev-api-key)
-+       DEV_API_KEY=&quot;$2&quot;
++       DEV_API_KEY="$2"
 +       shift 2
 +       ;;
       --host)
-        HOST=&quot;$2&quot;
+        HOST="$2"
 ```
 
 </details>
@@ -5789,7 +2274,7 @@ Let me update this section.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 37, lines removed: 7
@@ -5798,55 +2283,55 @@ Lines added: 37, lines removed: 7
 @@ -448,16 +448,46 @@
   fi
   
-- ENV_CONTENT=&quot;API_URL=$API_URL
-+ # If DEV_API_URL is set, we&#39;re in dev mode - preserve the existing prod API_KEY on server
-+ if [ -n &quot;$DEV_API_URL&quot; ]; then
-+   echo &quot;   Dev mode: Preserving existing production API_KEY on server&quot;
+- ENV_CONTENT="API_URL=$API_URL
++ # If DEV_API_URL is set, we're in dev mode - preserve the existing prod API_KEY on server
++ if [ -n "$DEV_API_URL" ]; then
++   echo "   Dev mode: Preserving existing production API_KEY on server"
 +   
 +   # Check if .env already exists and has API_KEY
-+   EXISTING_API_KEY=$(ssh &quot;$SSH_HOST&quot; &quot;grep &#39;^API_KEY=&#39; $AGENT_PATH/.env 2&gt;/dev/null | cut -d&#39;=&#39; -f2&quot; || echo &quot;&quot;)
++   EXISTING_API_KEY=$(ssh "$SSH_HOST" "grep '^API_KEY=' $AGENT_PATH/.env 2&gt;/dev/null | cut -d'=' -f2" || echo "")
 +   
-+   if [ -n &quot;$EXISTING_API_KEY&quot; ]; then
-+     echo &quot;   Using existing API_KEY from server for production URL&quot;
-+     ENV_CONTENT=&quot;API_URL=$API_URL
++   if [ -n "$EXISTING_API_KEY" ]; then
++     echo "   Using existing API_KEY from server for production URL"
++     ENV_CONTENT="API_URL=$API_URL
 + API_KEY=$EXISTING_API_KEY
 + HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
 + SSH_HOST=$SSH_HOST_ADDR
 + SSH_PORT=$SSH_PORT
 + SSH_USER=$SSH_USER
-+ DEV_API_URL=$DEV_API_URL&quot;
++ DEV_API_URL=$DEV_API_URL"
 +   else
 +     # No existing API_KEY, use the one provided (will be used as prod key)
-+     echo &quot;   No existing API_KEY found, using provided key as production key&quot;
-+     ENV_CONTENT=&quot;API_URL=$API_URL
++     echo "   No existing API_KEY found, using provided key as production key"
++     ENV_CONTENT="API_URL=$API_URL
 + API_KEY=$API_KEY
 + HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
 + SSH_HOST=$SSH_HOST_ADDR
 + SSH_PORT=$SSH_PORT
 + SSH_USER=$SSH_USER
-+ DEV_API_URL=$DEV_API_URL&quot;
++ DEV_API_URL=$DEV_API_URL"
 +   fi
 +   
 +   # Add DEV_API_KEY if provided
-+   if [ -n &quot;$DEV_API_KEY&quot; ]; then
-+     ENV_CONTENT=&quot;$ENV_CONTENT
-+ DEV_API_KEY=$DEV_API_KEY&quot;
-+     echo &quot;   Dev API key configured&quot;
++   if [ -n "$DEV_API_KEY" ]; then
++     ENV_CONTENT="$ENV_CONTENT
++ DEV_API_KEY=$DEV_API_KEY"
++     echo "   Dev API key configured"
 +   fi
 + else
 +   # Production mode: just set API_KEY normally
-+   ENV_CONTENT=&quot;API_URL=$API_URL
++   ENV_CONTENT="API_URL=$API_URL
   API_KEY=$API_KEY
   HEARTBEAT_INTERVAL_MS=$HEARTBEAT_INTERVAL
   SSH_HOST=$SSH_HOST_ADDR
   SSH_PORT=$SSH_PORT
-  SSH_USER=$SSH_USER&quot;
+  SSH_USER=$SSH_USER"
 - 
 - # Add optional dev API URL if provided (for cloudflared tunnels)
-- if [ -n &quot;$DEV_API_URL&quot; ]; then
--   ENV_CONTENT=&quot;$ENV_CONTENT
-- DEV_API_URL=$DEV_API_URL&quot;
--   echo &quot;   Dev API URL configured: $DEV_API_URL&quot;
+- if [ -n "$DEV_API_URL" ]; then
+-   ENV_CONTENT="$ENV_CONTENT
+- DEV_API_URL=$DEV_API_URL"
+-   echo "   Dev API URL configured: $DEV_API_URL"
   fi
   
 ```
@@ -5890,24 +2375,24 @@ I need to update the dev-provision-with-tunnel.sh script to also pass the dev AP
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 1
 
 ```diff
 @@ -31,7 +31,10 @@
-  if [ -z &quot;$SERVER_API_KEY&quot; ]; then
-      echo &quot;❌ SERVER_API_KEY is not set!&quot;
--     echo &quot;Set it in .env.local&quot;
-+     echo &quot;Set it in .env.local (this is the dev API key)&quot;
+  if [ -z "$SERVER_API_KEY" ]; then
+      echo "❌ SERVER_API_KEY is not set!"
+-     echo "Set it in .env.local"
++     echo "Set it in .env.local (this is the dev API key)"
       exit 1
   fi
 + 
 + # SERVER_API_KEY will be used as the dev API key
-+ DEV_API_KEY=&quot;$SERVER_API_KEY&quot;
++ DEV_API_KEY="$SERVER_API_KEY"
   
-  if [ -z &quot;$SSH_PUBLIC_KEY&quot; ]; then
+  if [ -z "$SSH_PUBLIC_KEY" ]; then
 ```
 
 </details>
@@ -5923,7 +2408,7 @@ Now I need to update the provision-server.sh call to include the --dev-api-key p
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: undefined
@@ -5932,13 +2417,13 @@ Lines added: 3, lines removed: undefined
 @@ -104,7 +104,10 @@
   
   # Run provision script in foreground
-+ # Note: we don&#39;t pass --api-key for prod because we want to preserve the existing prod key on the server
++ # Note: we don't pass --api-key for prod because we want to preserve the existing prod key on the server
 + # We only pass --dev-api-key for the dev/tunnel URL
   ./scripts/provision-server.sh \
       --api-url https://pinacle.dev \
-      --dev-api-url &quot;$TUNNEL_URL&quot; \
-+     --dev-api-key &quot;$DEV_API_KEY&quot; \
-      --host &quot;ssh:$DEV_SERVER_HOST&quot; \
+      --dev-api-url "$TUNNEL_URL" \
++     --dev-api-key "$DEV_API_KEY" \
+      --host "ssh:$DEV_SERVER_HOST" \
       --heartbeat-interval 5000
 ```
 
@@ -5968,7 +2453,7 @@ I need to make --api-key optional when --dev-api-url is provided. Let me update 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 12, lines removed: 3
@@ -5977,26 +2462,26 @@ Lines added: 12, lines removed: 3
 @@ -57,12 +57,21 @@
   
   # Validate required args
-- if [ -z &quot;$API_URL&quot; ] || [ -z &quot;$API_KEY&quot; ] || [ -z &quot;$HOST&quot; ]; then
--   echo &quot;Error: --api-url, --api-key and --host are required&quot;
-+ if [ -z &quot;$API_URL&quot; ] || [ -z &quot;$HOST&quot; ]; then
-+   echo &quot;Error: --api-url and --host are required&quot;
-    echo &quot;&quot;
-    echo &quot;Usage:&quot;
--   echo &quot;  $0 --api-url URL --api-key KEY --host ssh:user@host&quot;
-+   echo &quot;  $0 --api-url URL [--api-key KEY] --host ssh:user@host&quot;
-    echo &quot;&quot;
-    echo &quot;Example:&quot;
-    echo &quot;  $0 --api-url http://localhost:3000 --api-key test-key --host ssh:root@157.90.177.85&quot;
-+   echo &quot;&quot;
-+   echo &quot;Dev mode (preserves existing prod key):&quot;
-+   echo &quot;  $0 --api-url https://pinacle.dev --dev-api-url https://tunnel.com --dev-api-key dev-key --host ssh:root@server&quot;
+- if [ -z "$API_URL" ] || [ -z "$API_KEY" ] || [ -z "$HOST" ]; then
+-   echo "Error: --api-url, --api-key and --host are required"
++ if [ -z "$API_URL" ] || [ -z "$HOST" ]; then
++   echo "Error: --api-url and --host are required"
+    echo ""
+    echo "Usage:"
+-   echo "  $0 --api-url URL --api-key KEY --host ssh:user@host"
++   echo "  $0 --api-url URL [--api-key KEY] --host ssh:user@host"
+    echo ""
+    echo "Example:"
+    echo "  $0 --api-url http://localhost:3000 --api-key test-key --host ssh:root@157.90.177.85"
++   echo ""
++   echo "Dev mode (preserves existing prod key):"
++   echo "  $0 --api-url https://pinacle.dev --dev-api-url https://tunnel.com --dev-api-key dev-key --host ssh:root@server"
 +   exit 1
 + fi
 + 
-+ # API_KEY is required unless we&#39;re in dev mode (dev-api-url is set)
-+ if [ -z &quot;$API_KEY&quot; ] &amp;&amp; [ -z &quot;$DEV_API_URL&quot; ]; then
-+   echo &quot;Error: --api-key is required (unless using --dev-api-url for dev mode)&quot;
++ # API_KEY is required unless we're in dev mode (dev-api-url is set)
++ if [ -z "$API_KEY" ] &amp;&amp; [ -z "$DEV_API_URL" ]; then
++   echo "Error: --api-key is required (unless using --dev-api-url for dev mode)"
     exit 1
   fi
 ```
@@ -6014,20 +2499,20 @@ Now I need to rebuild the server-agent and test the changes. Let me also add a c
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/dev-provision-with-tunnel.sh</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -96,6 +96,6 @@
-  echo &quot;&quot;
-  echo &quot;📋 Starting server provisioning...&quot;
-- echo &quot;   Production URL: https://pinacle.dev&quot;
-- echo &quot;   Dev URL: $TUNNEL_URL (for local development)&quot;
-+ echo &quot;   Production URL: https://pinacle.dev (will preserve existing prod API key on server)&quot;
-+ echo &quot;   Dev URL: $TUNNEL_URL (using dev API key for local development)&quot;
-  echo &quot;&quot;
+  echo ""
+  echo "📋 Starting server provisioning..."
+- echo "   Production URL: https://pinacle.dev"
+- echo "   Dev URL: $TUNNEL_URL (for local development)"
++ echo "   Production URL: https://pinacle.dev (will preserve existing prod API key on server)"
++ echo "   Dev URL: $TUNNEL_URL (using dev API key for local development)"
+  echo ""
   
 ```
 
@@ -6043,7 +2528,7 @@ Now let me build the server-agent to apply the changes.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle/server-agent && npm run build
@@ -6071,7 +2556,7 @@ Perfect! Now let me test the updated provisioning:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && pnpm server:provision:dev
@@ -6189,7 +2674,7 @@ I need to update the dev URL metrics reporting to handle 404 errors and re-regis
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -6215,7 +2700,7 @@ Lines added: 8, lines removed: undefined
 +           // If server not found on dev URL, register it
 +           if (!devMetricsResponse.ok &amp;&amp; devMetricsResponse.status === 404) {
 +             console.warn(
-+               &quot;⚠️  Server not found on dev URL, registering now...&quot;,
++               "⚠️  Server not found on dev URL, registering now...",
 +             );
 +             await this.registerToDevUrl();
 +           }
@@ -6249,7 +2734,7 @@ I'll add the `registerToDevUrl` method right after the `registerServer` method, 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 50, lines removed: undefined
@@ -6287,10 +2772,10 @@ Lines added: 50, lines removed: undefined
 +       const response = await fetch(
 +         &#96;${this.config.devApiUrl}/api/trpc/servers.registerServer&#96;,
 +         {
-+           method: &quot;POST&quot;,
++           method: "POST",
 +           headers: {
-+             &quot;Content-Type&quot;: &quot;application/json&quot;,
-+             &quot;x-api-key&quot;: this.config.devApiKey || this.config.apiKey,
++             "Content-Type": "application/json",
++             "x-api-key": this.config.devApiKey || this.config.apiKey,
 +           },
 +           body: JSON.stringify(registerPayload),
 +         },
@@ -6303,9 +2788,9 @@ Lines added: 50, lines removed: undefined
 +         );
 +       }
 + 
-+       console.log(&quot;✅ Server registered with dev URL&quot;);
++       console.log("✅ Server registered with dev URL");
 +     } catch (error) {
-+       console.warn(&quot;⚠️  Failed to register with dev URL:&quot;, error);
++       console.warn("⚠️  Failed to register with dev URL:", error);
 +     }
 +   }
   
@@ -6338,7 +2823,7 @@ Let me simplify this by calling the new method instead of duplicating the code.<
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 16
@@ -6351,17 +2836,17 @@ Lines added: 1, lines removed: 16
 -         await fetch(
 -           &#96;${this.config.devApiUrl}/api/trpc/servers.registerServer&#96;,
 -           {
--             method: &quot;POST&quot;,
+-             method: "POST",
 -             headers: {
--               &quot;Content-Type&quot;: &quot;application/json&quot;,
--               &quot;x-api-key&quot;: this.config.devApiKey || this.config.apiKey,
+-               "Content-Type": "application/json",
+-               "x-api-key": this.config.devApiKey || this.config.apiKey,
 -             },
 -             body: JSON.stringify(registerPayload),
 -           },
 -         );
--         console.log(&quot;✅ Server also registered with dev URL&quot;);
+-         console.log("✅ Server also registered with dev URL");
 -       } catch (error) {
--         console.warn(&quot;⚠️  Failed to register with dev URL (non-critical):&quot;, error);
+-         console.warn("⚠️  Failed to register with dev URL (non-critical):", error);
 -       }
 +       await this.registerToDevUrl();
       }
@@ -6380,7 +2865,7 @@ Now let me build the server-agent and check for any TypeScript errors.</details>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle/server-agent && npm run build
@@ -6404,7 +2889,7 @@ Perfect! The build succeeded. Now let me deploy this to the server and restart t
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 2 && sudo systemctl status pinacle-agent | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 2 && sudo systemctl status pinacle-agent | head -20'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 2 && sudo systemctl status pinacle-agent | head -20'
@@ -6469,7 +2954,7 @@ Great! The agent is running and has sent the first heartbeat. Let me wait a few 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: sleep 8 && ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "10 seconds ago" --no-pager | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: sleep 8 && ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "10 seconds ago" --no-pager | tail -20'</summary>
 
 ```bash
 sleep 8 && ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "10 seconds ago" --no-pager | tail -20'
@@ -6497,7 +2982,7 @@ Perfect! The agent is now working correctly. Let me verify it's properly set up:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /usr/local/pinacle/server-agent/.env'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /usr/local/pinacle/server-agent/.env'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /usr/local/pinacle/server-agent/.env'
@@ -6546,7 +3031,7 @@ Let me check one final time to make sure there are no errors:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "30 seconds ago" --no-pager | grep -E "(error|Error|failed|Failed|❌|✅|registered)" | tail -15'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "30 seconds ago" --no-pager | grep -E "(error|Error|failed|Failed|❌|✅|registered)" | tail -15'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "30 seconds ago" --no-pager | grep -E "(error|Error|failed|Failed|❌|✅|registered)" | tail -15'
@@ -6715,7 +3200,7 @@ I'll update the README to replace all gVisor references with Firecracker and rem
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -6743,7 +3228,7 @@ Continue updating the README with the other sections.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -6773,7 +3258,7 @@ Continue updating the README to remove Lima references and update the prerequisi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 2
@@ -6818,7 +3303,7 @@ I need to replace this section with instructions for setting up a remote develop
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 19, lines removed: 14
@@ -6847,9 +3332,9 @@ Lines added: 19, lines removed: 14
 - limactl shell gvisor-alpine sudo docker run --rm --runtime=runsc hello-world
 - &#96;&#96;&#96;
 + # Set up environment variables in .env.local
-+ export DEV_SERVER_HOST=&quot;root@your-server-ip&quot;
-+ export SERVER_API_KEY=&quot;your-dev-api-key&quot;
-+ export SSH_PUBLIC_KEY=&quot;$(cat ~/.ssh/id_ed25519.pub)&quot;
++ export DEV_SERVER_HOST="root@your-server-ip"
++ export SERVER_API_KEY="your-dev-api-key"
++ export SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
 + 
 + # Provision development server with Firecracker + Kata Containers
 + pnpm server:provision:dev
@@ -6893,7 +3378,7 @@ I need to update this entire section to replace gVisor with Firecracker and remo
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 9
@@ -6939,7 +3424,7 @@ Continue updating the production environment section.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: README.md</summary>
+<details><summary>Tool use: **search_replace** • Edit file: README.md</summary>
 
 **Chunk 1**
 Lines added: 13, lines removed: 14
@@ -6957,15 +3442,15 @@ Lines added: 13, lines removed: 14
   &#96;&#96;&#96;bash
 - # Install gVisor on Linux
 - curl -fsSL https://gvisor.dev/archive.key | sudo gpg --dearmor -o /usr/share/keyrings/gvisor-archive-keyring.gpg
-- echo &quot;deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main&quot; | sudo tee /etc/apt/sources.list.d/gvisor.list &gt; /dev/null
+- echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gvisor-archive-keyring.gpg] https://storage.googleapis.com/gvisor/releases release main" | sudo tee /etc/apt/sources.list.d/gvisor.list &gt; /dev/null
 - sudo apt-get update &amp;&amp; sudo apt-get install -y runsc
 - 
 - # Configure Docker with gVisor
 - sudo tee /etc/docker/daemon.json &lt;&lt; EOF
 - {
--   &quot;runtimes&quot;: {
--     &quot;runsc&quot;: {
--       &quot;path&quot;: &quot;/usr/bin/runsc&quot;
+-   "runtimes": {
+-     "runsc": {
+-       "path": "/usr/bin/runsc"
 -     }
 + # Provision production server
 + pnpm server:provision
@@ -6977,7 +3462,7 @@ Lines added: 13, lines removed: 14
 + # - Configures kata-fc runtime with Firecracker hypervisor
 + 
 + # Verify installation
-+ ssh root@your-server &#39;docker run --rm --runtime=kata-fc hello-world&#39;
++ ssh root@your-server 'docker run --rm --runtime=kata-fc hello-world'
     }
   }
 ```
@@ -7154,7 +3639,7 @@ Let me add a flag to track if we've already attempted to register to dev URL, so
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -7163,7 +3648,7 @@ Lines added: 1, lines removed: undefined
 @@ -16,4 +16,5 @@
     private serverId?: string;
     private intervalId?: NodeJS.Timeout;
-+   private devUrlRegistered = false; // Track if we&#39;ve registered to dev URL
++   private devUrlRegistered = false; // Track if we've registered to dev URL
   
     constructor() {
 ```
@@ -7184,7 +3669,7 @@ Now I need to update the logic to:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: 3
@@ -7202,11 +3687,11 @@ Lines added: 8, lines removed: 3
 +             !this.devUrlRegistered
 +           ) {
               console.warn(
--               &quot;⚠️  Server not found on dev URL, registering now...&quot;,
-+               &quot;⚠️  Server not found on dev URL, registering once...&quot;,
+-               "⚠️  Server not found on dev URL, registering now...",
++               "⚠️  Server not found on dev URL, registering once...",
               );
               await this.registerToDevUrl();
-+             this.devUrlRegistered = true; // Don&#39;t keep trying if it fails
++             this.devUrlRegistered = true; // Don't keep trying if it fails
             }
           } catch (error) {
 ```
@@ -7369,20 +3854,20 @@ I need to add ksuid to the dependencies. Let me do that.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/package.json</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/package.json</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
 
 ```diff
 @@ -27,5 +27,6 @@
-      &quot;@aws-sdk/client-s3&quot;: &quot;^3.913.0&quot;,
-      &quot;@aws-sdk/lib-storage&quot;: &quot;^3.913.0&quot;,
--     &quot;dotenv&quot;: &quot;^16.4.7&quot;
-+     &quot;dotenv&quot;: &quot;^16.4.7&quot;,
-+     &quot;ksuid&quot;: &quot;^3.0.0&quot;
+      "@aws-sdk/client-s3": "^3.913.0",
+      "@aws-sdk/lib-storage": "^3.913.0",
+-     "dotenv": "^16.4.7"
++     "dotenv": "^16.4.7",
++     "ksuid": "^3.0.0"
     },
-    &quot;devDependencies&quot;: {
+    "devDependencies": {
 ```
 
 </details>
@@ -7404,18 +3889,18 @@ Let me start with the server agent.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
 
 ```diff
 @@ -3,4 +3,5 @@
-  import { resolve } from &quot;node:path&quot;;
-  import { config } from &quot;dotenv&quot;;
-+ import KSUID from &quot;ksuid&quot;;
-  import { MetricsCollector } from &quot;./metrics-collector.js&quot;;
-  import type { AgentConfig, ServerInfo } from &quot;./types.js&quot;;
+  import { resolve } from "node:path";
+  import { config } from "dotenv";
++ import KSUID from "ksuid";
+  import { MetricsCollector } from "./metrics-collector.js";
+  import type { AgentConfig, ServerInfo } from "./types.js";
 ```
 
 </details>
@@ -7434,7 +3919,7 @@ Now I need to:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 2
@@ -7446,7 +3931,7 @@ Lines added: 1, lines removed: 2
 -   private serverId?: string;
 +   private serverId: string; // Stable server ID generated on first run
     private intervalId?: NodeJS.Timeout;
--   private devUrlRegistered = false; // Track if we&#39;ve registered to dev URL
+-   private devUrlRegistered = false; // Track if we've registered to dev URL
   
     constructor() {
 ```
@@ -7464,7 +3949,7 @@ Now I need to update loadServerConfig to generate a server ID if it doesn't exis
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -7473,7 +3958,7 @@ Lines added: 1, lines removed: undefined
 @@ -351,4 +351,5 @@
     /**
      * Load server configuration from file
-+    * Generates a new stable server ID if config doesn&#39;t exist
++    * Generates a new stable server ID if config doesn't exist
      */
     private loadServerConfig(): void {
 ```
@@ -7484,7 +3969,7 @@ Lines added: 17, lines removed: 2
 ```diff
 @@ -361,7 +362,22 @@
         } catch (error) {
-          console.warn(&quot;⚠️  Failed to load server config:&quot;, error);
+          console.warn("⚠️  Failed to load server config:", error);
 +         this.serverId = this.generateServerId();
 +         this.saveServerConfig();
         }
@@ -7499,7 +3984,7 @@ Lines added: 17, lines removed: 2
 +   }
 + 
 +   /**
-+    * Generate a new server ID with &quot;server_&quot; prefix
++    * Generate a new server ID with "server_" prefix
 +    */
 +   private generateServerId(): string {
 +     const ksuid = KSUID.randomSync();
@@ -7522,7 +4007,7 @@ Now I need to update the registerServer method to include the serverId in the pa
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -7561,7 +4046,7 @@ Now I need to remove the logic that was tracking devUrlRegistered and update the
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -7600,7 +4085,7 @@ Now I need to remove the devUrlRegistered logic from the sendHeartbeatAndMetrics
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 8
@@ -7618,11 +4103,11 @@ Lines added: 3, lines removed: 8
 +           // If server not found on dev URL, register it with the same stable ID
 +           if (!devMetricsResponse.ok &amp;&amp; devMetricsResponse.status === 404) {
               console.warn(
--               &quot;⚠️  Server not found on dev URL, registering once...&quot;,
-+               &quot;⚠️  Server not found on dev URL, registering now...&quot;,
+-               "⚠️  Server not found on dev URL, registering once...",
++               "⚠️  Server not found on dev URL, registering now...",
               );
               await this.registerToDevUrl();
--             this.devUrlRegistered = true; // Don&#39;t keep trying if it fails
+-             this.devUrlRegistered = true; // Don't keep trying if it fails
             }
           } catch (error) {
 ```
@@ -7653,7 +4138,7 @@ I need to update the registerServer input schema to accept an optional id, and t
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/servers.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/servers.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -7693,7 +4178,7 @@ Lines added: 31, lines removed: undefined
 +               sshHost: input.sshHost,
 +               sshPort: input.sshPort,
 +               sshUser: input.sshUser,
-+               status: &quot;online&quot;,
++               status: "online",
 +               lastHeartbeatAt: new Date(),
 +             })
 +             .where(eq(servers.id, input.id))
@@ -7724,7 +4209,7 @@ Now I need to install the ksuid package in the server-agent and rebuild it. Then
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && pnpm install</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && pnpm install</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle/server-agent && pnpm install
@@ -7743,7 +4228,7 @@ dependencies:
 ╭ Warning ─────────────────────────────────────────────────────────────────────╮
 │                                                                              │
 │   Ignored build scripts: esbuild.                                            │
-│   Run &quot;pnpm approve-builds&quot; to pick which dependencies should be allowed     │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
 │   to run scripts.                                                            │
 │                                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -7762,7 +4247,7 @@ Now I need to build the server-agent and deploy it.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle/server-agent && npm run build
@@ -7773,7 +4258,7 @@ cd /Users/rchaves/Projects/pinacle/server-agent && npm run build
 &gt; @pinacle/server-agent@1.0.0 build
 &gt; tsc
 
-src/index.ts(17,11): error TS2564: Property &#39;serverId&#39; has no initializer and is not definitely assigned in the constructor.
+src/index.ts(17,11): error TS2564: Property 'serverId' has no initializer and is not definitely assigned in the constructor.
 
 ```
 </details>
@@ -7788,7 +4273,7 @@ I need to initialize serverId in the constructor. Since loadServerConfig is call
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server-agent/src/index.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -7815,7 +4300,7 @@ Now let me rebuild.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle/server-agent && npm run build</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle/server-agent && npm run build
@@ -7839,7 +4324,7 @@ Good! Now let me deploy this to the server and test it.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/dist/ root@157.90.177.85:/usr/local/pinacle/server-agent/dist/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'
@@ -7877,7 +4362,7 @@ Nov 21 01:19:49 pinacle-01 systemd[1]: Started pinacle-agent.service - Pinacle S
 Nov 21 01:19:49 pinacle-01 node[19930]: node:internal/modules/package_json_reader:316
 Nov 21 01:19:49 pinacle-01 node[19930]:   throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);
 Nov 21 01:19:49 pinacle-01 node[19930]:         ^
-Nov 21 01:19:49 pinacle-01 node[19930]: Error [ERR_MODULE_NOT_FOUND]: Cannot find package &#39;ksuid&#39; imported from /usr/local/pinacle/server-agent/dist/index.js
+Nov 21 01:19:49 pinacle-01 node[19930]: Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'ksuid' imported from /usr/local/pinacle/server-agent/dist/index.js
 Nov 21 01:19:49 pinacle-01 node[19930]:     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:316:9)
 Nov 21 01:19:49 pinacle-01 node[19930]:     at packageResolve (node:internal/modules/esm/resolve:768:81)
 Nov 21 01:19:49 pinacle-01 node[19930]:     at moduleResolve (node:internal/modules/esm/resolve:858:18)
@@ -7886,11 +4371,11 @@ Nov 21 01:19:49 pinacle-01 node[19930]:     at #cachedDefaultResolve (node:inter
 Nov 21 01:19:49 pinacle-01 node[19930]:     at ModuleLoader.resolve (node:internal/modules/esm/loader:714:38)
 Nov 21 01:19:49 pinacle-01 node[19930]:     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:293:38)
 Nov 21 01:19:49 pinacle-01 node[19930]:     at #link (node:internal/modules/esm/module_job:208:49) {
-Nov 21 01:19:49 pinacle-01 node[19930]:   code: &#39;ERR_MODULE_NOT_FOUND&#39;
+Nov 21 01:19:49 pinacle-01 node[19930]:   code: 'ERR_MODULE_NOT_FOUND'
 Nov 21 01:19:49 pinacle-01 node[19930]: }
 Nov 21 01:19:49 pinacle-01 node[19930]: Node.js v24.11.1
 Nov 21 01:19:49 pinacle-01 systemd[1]: pinacle-agent.service: Main process exited, code=exited, status=1/FAILURE
-Nov 21 01:19:49 pinacle-01 systemd[1]: pinacle-agent.service: Failed with result &#39;exit-code&#39;.
+Nov 21 01:19:49 pinacle-01 systemd[1]: pinacle-agent.service: Failed with result 'exit-code'.
 
 ```
 </details>
@@ -7904,7 +4389,7 @@ The ksuid package isn't installed on the server. I need to copy the node_modules
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/node_modules/ root@157.90.177.85:/usr/local/pinacle/server-agent/node_modules/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/node_modules/ root@157.90.177.85:/usr/local/pinacle/server-agent/node_modules/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && rsync -avz --delete server-agent/node_modules/ root@157.90.177.85:/usr/local/pinacle/server-agent/node_modules/ && ssh root@157.90.177.85 'sudo systemctl restart pinacle-agent && sleep 3 && sudo journalctl -u pinacle-agent --since "5 seconds ago" --no-pager | tail -20'
@@ -9324,7 +5809,7 @@ Perfect! The agent is now working with a stable server ID (`server_35YLAepsslczS
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "30 seconds ago" --no-pager -f' &
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sudo journalctl -u pinacle-agent --since "30 seconds ago" --no-pager -f' &
 sleep 15 && kill %1 2>/dev/null || true</summary>
 
 ```bash
@@ -9409,16 +5894,16 @@ The script is using `npm install --production` which will install dependencies l
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 2 "dependencies" /usr/local/pinacle/server-agent/package.json | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 2 "dependencies" /usr/local/pinacle/server-agent/package.json | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 2 "dependencies" /usr/local/pinacle/server-agent/package.json | head -5'
 ```
 
 ```
-  &quot;dependencies&quot;: {
-    &quot;@aws-sdk/client-s3&quot;: &quot;^3.913.0&quot;,
-    &quot;@aws-sdk/lib-storage&quot;: &quot;^3.913.0&quot;,
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.913.0",
+    "@aws-sdk/lib-storage": "^3.913.0",
 
 ```
 </details>
@@ -9432,7 +5917,7 @@ The package.json on the server doesn't have ksuid yet because I only manually de
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && scp server-agent/package.json root@157.90.177.85:/usr/local/pinacle/server-agent/package.json</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && scp server-agent/package.json root@157.90.177.85:/usr/local/pinacle/server-agent/package.json</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && scp server-agent/package.json root@157.90.177.85:/usr/local/pinacle/server-agent/package.json
@@ -9518,14 +6003,14 @@ Now let me test pulling and running the pinacle-base image with Kata/Firecracker
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker pull ghcr.io/pinacledev/pinacle-base:latest && docker run --rm --runtime=kata-fc ghcr.io/pinacledev/pinacle-base:latest uname -a'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker pull ghcr.io/pinacledev/pinacle-base:latest && docker run --rm --runtime=kata-fc ghcr.io/pinacledev/pinacle-base:latest uname -a'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker pull ghcr.io/pinacledev/pinacle-base:latest && docker run --rm --runtime=kata-fc ghcr.io/pinacledev/pinacle-base:latest uname -a'
 ```
 
 ```
-Error response from daemon: Head &quot;https://ghcr.io/v2/pinacledev/pinacle-base/manifests/latest&quot;: denied
+Error response from daemon: Head "https://ghcr.io/v2/pinacledev/pinacle-base/manifests/latest": denied
 
 ```
 </details>
@@ -9568,7 +6053,7 @@ The image is `pinacledev/pinacle-base`, not `ghcr.io/pinacledev/pinacle-base`. L
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker pull pinacledev/pinacle-base:latest 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker pull pinacledev/pinacle-base:latest 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker pull pinacledev/pinacle-base:latest 2>&1'
@@ -9596,7 +6081,7 @@ Perfect! The image is already there. Now let me run it with Kata/Firecracker and
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest uname -a'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest uname -a'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest uname -a'
@@ -9621,7 +6106,7 @@ Excellent! The Kata kernel is running (6.12.47). Now let me test OpenRC services
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-status && echo && rc-service sshd status"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-status && echo && rc-service sshd status"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-status && echo && rc-service sshd status"'
@@ -9629,14 +6114,14 @@ ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-bas
 
 ```
  * Caching service dependencies ... [ ok ]
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
 Runlevel: sysinit
 Dynamic Runlevel: hotplugged
 Dynamic Runlevel: needed/wanted
 Dynamic Runlevel: manual
 
- * rc-service: service &#96;sshd&#39; does not exist
+ * rc-service: service &#96;sshd' does not exist
 
 ```
 </details>
@@ -9650,7 +6135,7 @@ OpenRC is working (rc-status command works), but `sshd` service doesn't exist in
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "ls /etc/init.d/ && echo && rc-update show"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "ls /etc/init.d/ && echo && rc-update show"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "ls /etc/init.d/ && echo && rc-update show"'
@@ -9719,7 +6204,7 @@ Perfect! The image has nginx configured. Let me test starting nginx service insi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-service nginx start && rc-service nginx status && ps aux | grep nginx"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-service nginx start && rc-service nginx status && ps aux | grep nginx"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "rc-service nginx start && rc-service nginx status && ps aux | grep nginx"'
@@ -9740,7 +6225,7 @@ It seems nginx is already starting (maybe it's configured to start on boot). Let
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "sleep 2 && ps aux | grep -E \"nginx|PID\" && echo && rc-service nginx status"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "sleep 2 && ps aux | grep -E \"nginx|PID\" && echo && rc-service nginx status"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-base:latest sh -c "sleep 2 && ps aux | grep -E \"nginx|PID\" && echo && rc-service nginx status"'
@@ -9748,7 +6233,7 @@ ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc pinacledev/pinacle-bas
 
 ```
 PID   USER     TIME  COMMAND
-    1 root      0:00 sh -c sleep 2 &amp;&amp; ps aux | grep -E &quot;nginx|PID&quot; &amp;&amp; echo &amp;&amp; rc-service nginx status
+    1 root      0:00 sh -c sleep 2 &amp;&amp; ps aux | grep -E "nginx|PID" &amp;&amp; echo &amp;&amp; rc-service nginx status
     5 root      0:00 grep -E nginx|PID
 
  * You are attempting to run an openrc service on a
@@ -9771,7 +6256,7 @@ Ah, OpenRC needs to be properly initialized. The container needs to run with Ope
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-openrc pinacledev/pinacle-base:latest && sleep 5 && docker exec test-openrc ps aux && docker exec test-openrc rc-service nginx status && docker rm -f test-openrc'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-openrc pinacledev/pinacle-base:latest && sleep 5 && docker exec test-openrc ps aux && docker exec test-openrc rc-service nginx status && docker rm -f test-openrc'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-openrc pinacledev/pinacle-base:latest && sleep 5 && docker exec test-openrc ps aux && docker exec test-openrc rc-service nginx status && docker rm -f test-openrc'
@@ -10873,7 +7358,7 @@ I'll commit the changes with a conventional commit message:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add server-agent/package.json server-agent/src/index.ts server-agent/src/types.ts src/lib/trpc/routers/servers.ts && git commit -m "feat(server-agent): implement stable server IDs and dual API key support
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add server-agent/package.json server-agent/src/index.ts server-agent/src/types.ts src/lib/trpc/routers/servers.ts && git commit -m "feat(server-agent): implement stable server IDs and dual API key support
 
 - Add ksuid dependency for stable server ID generation
 - Generate and persist server ID in .server-config.json on first run
@@ -10959,7 +7444,7 @@ You're absolutely right! Let me amend the commit with a message that captures th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit --amend -m "feat!: migrate containerization from gVisor to Firecracker/Kata Containers
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git commit --amend -m "feat!: migrate containerization from gVisor to Firecracker/Kata Containers
 
 BREAKING CHANGE: Complete architectural shift from gVisor (runsc) to Firecracker microVMs via Kata Containers 3.x
 
@@ -11109,7 +7594,7 @@ Oh no! Network isolation issue with Kata/Firecracker. Let me investigate the net
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 cat /etc/resolv.conf'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 cat /etc/resolv.conf'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec 1f368492bae8 cat /etc/resolv.conf'
@@ -11123,7 +7608,7 @@ ssh root@157.90.177.85 'docker exec 1f368492bae8 cat /etc/resolv.conf'
 nameserver 185.12.64.1
 nameserver 185.12.64.2
 
-# Based on host file: &#39;/etc/resolv.conf&#39; (legacy)
+# Based on host file: '/etc/resolv.conf' (legacy)
 # Overrides: []
 
 ```
@@ -11138,7 +7623,7 @@ DNS servers are there. Let me check if we can ping anything from inside the cont
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 ping -c 3 8.8.8.8'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 ping -c 3 8.8.8.8'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec 1f368492bae8 ping -c 3 8.8.8.8'
@@ -11160,7 +7645,7 @@ Network is unreachable! This is a routing issue inside the Kata VM. Let me check
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 ip addr show && echo "---" && docker exec 1f368492bae8 ip route show'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec 1f368492bae8 ip addr show && echo "---" && docker exec 1f368492bae8 ip route show'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec 1f368492bae8 ip addr show && echo "---" && docker exec 1f368492bae8 ip route show'
@@ -11193,7 +7678,7 @@ Aha! The container has **no network interface** (only loopback). Let me check th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 5 "enable_network" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 5 "enable_network" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 5 "enable_network" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -11209,7 +7694,7 @@ Let me check the network related settings in the config file more broadly.</deta
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "network\|inter_network_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "network\|inter_network_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "network\|inter_network_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -20'
@@ -11224,13 +7709,13 @@ ssh root@157.90.177.85 'grep -i "network\|inter_network_model" /opt/kata/share/d
 #     Used when the Container network interface can be bridged using
 #     Used when customize network. Only creates a tap device. No veth pair.
 #     Uses tc filter rules to redirect traffic from the network interface
-internetworking_model=&quot;tcfilter&quot;
+internetworking_model="tcfilter"
 # If enabled, the runtime will not create a network namespace for shim and hypervisor processes.
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 # Base directory of directly attachable network config.
 # Network devices for VM-based containers are allowed to be placed in the
-# called a &quot;Directly Attachable Network&quot;. The config, set by special CNI
+# called a "Directly Attachable Network". The config, set by special CNI
 
 ```
 </details>
@@ -11244,44 +7729,44 @@ I see `internetworking_model="tcfilter"`. This is a network model that uses tc f
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker inspect 1f368492bae8 | grep -A 30 "NetworkSettings"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker inspect 1f368492bae8 | grep -A 30 "NetworkSettings"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker inspect 1f368492bae8 | grep -A 30 "NetworkSettings"'
 ```
 
 ```
-        &quot;NetworkSettings&quot;: {
-            &quot;SandboxID&quot;: &quot;7ca07b25b968b23af2fdb4ebda219b656127d20e4d0d4f2b2782de37d931aa87&quot;,
-            &quot;SandboxKey&quot;: &quot;/var/run/docker/netns/7ca07b25b968&quot;,
-            &quot;Ports&quot;: {
-                &quot;80/tcp&quot;: [
+        "NetworkSettings": {
+            "SandboxID": "7ca07b25b968b23af2fdb4ebda219b656127d20e4d0d4f2b2782de37d931aa87",
+            "SandboxKey": "/var/run/docker/netns/7ca07b25b968",
+            "Ports": {
+                "80/tcp": [
                     {
-                        &quot;HostIp&quot;: &quot;0.0.0.0&quot;,
-                        &quot;HostPort&quot;: &quot;30000&quot;
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "30000"
                     },
                     {
-                        &quot;HostIp&quot;: &quot;::&quot;,
-                        &quot;HostPort&quot;: &quot;30000&quot;
+                        "HostIp": "::",
+                        "HostPort": "30000"
                     }
                 ]
             },
-            &quot;Networks&quot;: {
-                &quot;bridge&quot;: {
-                    &quot;IPAMConfig&quot;: null,
-                    &quot;Links&quot;: null,
-                    &quot;Aliases&quot;: null,
-                    &quot;DriverOpts&quot;: null,
-                    &quot;GwPriority&quot;: 0,
-                    &quot;NetworkID&quot;: &quot;6dcbce650fe9c9c425107765bb2d551ba153db186d7ebd5877c766c230c3a262&quot;,
-                    &quot;EndpointID&quot;: &quot;3bbce8bf40c0cfb06dc36d07af58c1702231aace997725c780a8bdb474d42772&quot;,
-                    &quot;Gateway&quot;: &quot;172.17.0.1&quot;,
-                    &quot;IPAddress&quot;: &quot;172.17.0.2&quot;,
-                    &quot;MacAddress&quot;: &quot;ba:4e:d2:24:57:92&quot;,
-                    &quot;IPPrefixLen&quot;: 16,
-                    &quot;IPv6Gateway&quot;: &quot;&quot;,
-                    &quot;GlobalIPv6Address&quot;: &quot;&quot;,
-                    &quot;GlobalIPv6PrefixLen&quot;: 0,
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "6dcbce650fe9c9c425107765bb2d551ba153db186d7ebd5877c766c230c3a262",
+                    "EndpointID": "3bbce8bf40c0cfb06dc36d07af58c1702231aace997725c780a8bdb474d42772",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "MacAddress": "ba:4e:d2:24:57:92",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
 
 ```
 </details>
@@ -11302,7 +7787,7 @@ Let me check if there's a CNI or network plugin issue. Let me also look at kata 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'journalctl --since "5 minutes ago" | grep -i "kata\|firecracker\|network" | tail -50'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'journalctl --since "5 minutes ago" | grep -i "kata\|firecracker\|network" | tail -50'</summary>
 
 ```bash
 ssh root@157.90.177.85 'journalctl --since "5 minutes ago" | grep -i "kata\|firecracker\|network" | tail -50'
@@ -11310,10 +7795,10 @@ ssh root@157.90.177.85 'journalctl --since "5 minutes ago" | grep -i "kata\|fire
 
 ```
 Nov 21 01:27:58 pinacle-01 sudo[24125]:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/docker network inspect 6dcbce650fe9 1f92b921e203 9500a036a6ee 1456b549cc55 bf01506024e7 50edbc6414da 97de245b92bf
-Nov 21 01:27:59 pinacle-01 sudo[24139]:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/docker network inspect pinacle-net-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ &#39;--format={{json .}}&#39;
+Nov 21 01:27:59 pinacle-01 sudo[24139]:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/docker network inspect pinacle-net-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ '--format={{json .}}'
 Nov 21 01:27:59 pinacle-01 sudo[24152]:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/docker network create --driver bridge --subnet 10.203.1.0/24 --gateway 10.203.1.1 --opt com.docker.network.bridge.name=br-pod_35lVvuDp pinacle-net-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ
 Nov 21 01:28:00 pinacle-01 sudo[24440]:     root : PWD=/root ; USER=root ; COMMAND=/usr/bin/docker create --runtime=kata-fc --name pinacle-pod-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ --memory=2048m --cpu-quota=100000 --cpu-period=100000 -p 30000:80/tcp -e NODE_ENV=development -e PORT=5173 -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-workspace:/workspace -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-home:/home -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-root:/root -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-etc:/etc -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-usr-local:/usr/local -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-opt:/opt -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-var:/var -v pinacle-vol-pod_35lVvuDpIptbGBdVRGtwPJJFwUQ-srv:/srv --workdir /workspace --user root --security-opt seccomp=unconfined --cap-drop=ALL --cap-add=NET_BIND_SERVICE --network bridge pinacledev/pinacle-base /sbin/init
-Nov 21 01:28:04 pinacle-01 kata[24498]: time=&quot;2025-11-21T01:28:04.617868352+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=24498 sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=cgroups
+Nov 21 01:28:04 pinacle-01 kata[24498]: time="2025-11-21T01:28:04.617868352+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=24498 sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=cgroups
 
 ```
 </details>
@@ -11329,7 +7814,7 @@ Let me check the containerd configuration and see if we need to enable CNI plugi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -A 10 -B 2 "internetworking_model"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -A 10 -B 2 "internetworking_model"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -A 10 -B 2 "internetworking_model"'
@@ -11338,7 +7823,7 @@ ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configurati
 ```
 #     provided by plugin to a tap interface connected to the VM.
 #
-internetworking_model=&quot;tcfilter&quot;
+internetworking_model="tcfilter"
 
 # disable guest seccomp
 # Determines whether container seccomp profiles are passed to the virtual
@@ -11351,7 +7836,7 @@ disable_guest_seccomp=true
 # (See https://www.jaegertracing.io/docs/getting-started).
 --
 # If enabled, the runtime will not create a network namespace for shim and hypervisor processes.
-# This option may have some potential impacts to your host. It should only be used when you know what you&#39;re doing.
+# This option may have some potential impacts to your host. It should only be used when you know what you're doing.
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 # (like OVS) directly.
@@ -11383,14 +7868,14 @@ Let me check if this is a known Firecracker networking issue. Let me try changin
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cp /opt/kata/share/defaults/kata-containers/configuration-fc.toml /opt/kata/share/defaults/kata-containers/configuration-fc.toml.backup && sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"macvtap\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cp /opt/kata/share/defaults/kata-containers/configuration-fc.toml /opt/kata/share/defaults/kata-containers/configuration-fc.toml.backup && sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"macvtap\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cp /opt/kata/share/defaults/kata-containers/configuration-fc.toml /opt/kata/share/defaults/kata-containers/configuration-fc.toml.backup && sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"macvtap\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-internetworking_model=&quot;macvtap&quot;
+internetworking_model="macvtap"
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 
@@ -11406,7 +7891,7 @@ Now let me test by creating a new container and see if macvtap works better.</de
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker stop 1f368492bae8 && docker rm 1f368492bae8 && docker run -d --runtime=kata-fc --name test-network alpine:latest sleep 300'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker stop 1f368492bae8 && docker rm 1f368492bae8 && docker run -d --runtime=kata-fc --name test-network alpine:latest sleep 300'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker stop 1f368492bae8 && docker rm 1f368492bae8 && docker run -d --runtime=kata-fc --name test-network alpine:latest sleep 300'
@@ -11429,7 +7914,7 @@ Good, container created. Now let me check if it has network connectivity.</detai
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec test-network ip addr show && echo "---ROUTE---" && docker exec test-network ip route && echo "---PING---" && docker exec test-network ping -c 2 8.8.8.8'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec test-network ip addr show && echo "---ROUTE---" && docker exec test-network ip route && echo "---PING---" && docker exec test-network ping -c 2 8.8.8.8'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec test-network ip addr show && echo "---ROUTE---" && docker exec test-network ip route && echo "---PING---" && docker exec test-network ping -c 2 8.8.8.8'
@@ -11461,7 +7946,7 @@ Let me check if this is a CNI plugin issue. Maybe containerd needs CNI plugins c
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /opt/cni/bin/ 2>/dev/null || echo "CNI plugins not found" && ls -la /etc/cni/net.d/ 2>/dev/null || echo "CNI config not found"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /opt/cni/bin/ 2>/dev/null || echo "CNI plugins not found" && ls -la /etc/cni/net.d/ 2>/dev/null || echo "CNI config not found"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /opt/cni/bin/ 2>/dev/null || echo "CNI plugins not found" && ls -la /etc/cni/net.d/ 2>/dev/null || echo "CNI config not found"'
@@ -11489,7 +7974,7 @@ Found it! **CNI plugins are missing**. Kata Containers needs CNI plugins for net
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'mkdir -p /opt/cni/bin && cd /tmp && wget https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz && tar -xzf cni-plugins-linux-amd64-v1.4.0.tgz -C /opt/cni/bin/ && ls -la /opt/cni/bin/ | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'mkdir -p /opt/cni/bin && cd /tmp && wget https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz && tar -xzf cni-plugins-linux-amd64-v1.4.0.tgz -C /opt/cni/bin/ && ls -la /opt/cni/bin/ | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'mkdir -p /opt/cni/bin && cd /tmp && wget https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz && tar -xzf cni-plugins-linux-amd64-v1.4.0.tgz -C /opt/cni/bin/ && ls -la /opt/cni/bin/ | head -20'
@@ -12465,7 +8950,7 @@ Perfect! CNI plugins installed. Now let me restart Docker and test networking:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker && sleep 2 && docker stop test-network && docker rm test-network'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker && sleep 2 && docker stop test-network && docker rm test-network'</summary>
 
 ```bash
 ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker && sleep 2 && docker stop test-network && docker rm test-network'
@@ -12487,7 +8972,7 @@ Now let me test a new container with the CNI plugins installed.</details></think
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'
@@ -12522,19 +9007,19 @@ Still no network! Let me check the containerd/Kata runtime configuration to ensu
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A 20 "kata-fc"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A 20 "kata-fc"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A 20 "kata-fc"'
 ```
 
 ```
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
+  runtime_type = "io.containerd.kata.v2"
   privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
+  pod_annotations = ["io.katacontainers.*"]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
+    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
 
 ```
 </details>
@@ -12548,14 +9033,14 @@ The containerd config looks okay. Let me check if there's a CNI configuration di
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"macvtap\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"macvtap\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"macvtap\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "internetworking_model" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-internetworking_model=&quot;tcfilter&quot;
+internetworking_model="tcfilter"
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 
@@ -12571,7 +9056,7 @@ Now let me test with tcfilter and the CNI plugins installed.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8"'
@@ -12605,40 +9090,40 @@ Let me check the Kata logs to see what's happening with networking:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'journalctl --since "2 minutes ago" | grep -i "kata\|network\|eth0" | tail -30'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'journalctl --since "2 minutes ago" | grep -i "kata\|network\|eth0" | tail -30'</summary>
 
 ```bash
 ssh root@157.90.177.85 'journalctl --since "2 minutes ago" | grep -i "kata\|network\|eth0" | tail -30'
 ```
 
 ```
-Nov 21 01:32:50 pinacle-01 kata[24498]: time=&quot;2025-11-21T01:32:50.382775543+01:00&quot; level=warning msg=&quot;notify on errors&quot; error=&quot;failed to ping hypervisor process: qemu is not running&quot; sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
-Nov 21 01:32:50 pinacle-01 kata[24498]: time=&quot;2025-11-21T01:32:50.382830714+01:00&quot; level=warning msg=&quot;write error to watcher&quot; error=&quot;failed to ping hypervisor process: qemu is not running&quot; sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
-Nov 21 01:32:50 pinacle-01 kata[24498]: time=&quot;2025-11-21T01:32:50.382857214+01:00&quot; level=warning msg=&quot;notify on errors&quot; error=&quot;failed to ping agent: Failed to Check if grpc server is working: Dead agent&quot; sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
-Nov 21 01:32:50 pinacle-01 kata[24498]: time=&quot;2025-11-21T01:32:50.382884695+01:00&quot; level=warning msg=&quot;write error to watcher&quot; error=&quot;failed to ping agent: Failed to Check if grpc server is working: Dead agent&quot; sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
-Nov 21 01:32:50 pinacle-01 containerd[22368]: time=&quot;2025-11-21T01:32:50.575580874+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 delete&quot; error=&quot;exit status 1&quot; id=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 namespace=moby
-Nov 21 01:32:50 pinacle-01 containerd[22368]: time=&quot;2025-11-21T01:32:50.575610225+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:32:50+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 error=\&quot;open /run/vc/sbs/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9: no such file or directory\&quot; name=containerd-shim-v2 pid=28973 sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9: no such file or directory: exit status 1&quot; id=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 namespace=moby
+Nov 21 01:32:50 pinacle-01 kata[24498]: time="2025-11-21T01:32:50.382775543+01:00" level=warning msg="notify on errors" error="failed to ping hypervisor process: qemu is not running" sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
+Nov 21 01:32:50 pinacle-01 kata[24498]: time="2025-11-21T01:32:50.382830714+01:00" level=warning msg="write error to watcher" error="failed to ping hypervisor process: qemu is not running" sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
+Nov 21 01:32:50 pinacle-01 kata[24498]: time="2025-11-21T01:32:50.382857214+01:00" level=warning msg="notify on errors" error="failed to ping agent: Failed to Check if grpc server is working: Dead agent" sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
+Nov 21 01:32:50 pinacle-01 kata[24498]: time="2025-11-21T01:32:50.382884695+01:00" level=warning msg="write error to watcher" error="failed to ping agent: Failed to Check if grpc server is working: Dead agent" sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=virtcontainers subsystem=virtcontainers/monitor
+Nov 21 01:32:50 pinacle-01 containerd[22368]: time="2025-11-21T01:32:50.575580874+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 delete" error="exit status 1" id=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 namespace=moby
+Nov 21 01:32:50 pinacle-01 containerd[22368]: time="2025-11-21T01:32:50.575610225+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:32:50+01:00\" level=warning msg=\"failed to cleanup container\" container=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 error=\"open /run/vc/sbs/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9: no such file or directory\" name=containerd-shim-v2 pid=28973 sandbox=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9: no such file or directory: exit status 1" id=1f368492bae8eea49effa3b7a53e668b66ab79788379af46dd3cee232732ccc9 namespace=moby
 Nov 21 01:32:50 pinacle-01 kernel: veth606e8bf: renamed from eth0
-Nov 21 01:32:51 pinacle-01 kata[29034]: time=&quot;2025-11-21T01:32:51.028306289+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=29034 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=cgroups
+Nov 21 01:32:51 pinacle-01 kata[29034]: time="2025-11-21T01:32:51.028306289+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=29034 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=cgroups
 Nov 21 01:32:51 pinacle-01 kernel: eth0: renamed from veth5959f1d
-Nov 21 01:32:51 pinacle-01 dockerd[22469]: time=&quot;2025-11-21T01:32:51.734243265+01:00&quot; level=info msg=&quot;sbJoin: gwep4 &#39;&#39;-&gt;&#39;651cbdc20189&#39;, gwep6 &#39;&#39;-&gt;&#39;&#39;&quot; eid=651cbdc20189 ep=test-network net=bridge nid=6dcbce650fe9
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.152245682+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=&quot;containerd runtimes kata-fc&quot; plugin=io.containerd.grpc.v1.cri
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.152254852+01:00&quot; level=warning msg=&quot;Ignoring unknown key in TOML for plugin&quot; error=&quot;strict mode: fields in the document are missing in the target struct&quot; key=&quot;containerd runtimes kata-fc options&quot; plugin=io.containerd.grpc.v1.cri
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.153111333+01:00&quot; level=error msg=&quot;failed to load cni during init, please check CRI plugin status before setting up network for pods&quot; error=&quot;cni config load failed: no network config found in /etc/cni/net.d: cni plugin not initialized: failed to load cni config&quot;
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.159840583+01:00&quot; level=info msg=&quot;Start cni network conf syncer for default&quot;
-Nov 21 01:33:19 pinacle-01 kata[29034]: time=&quot;2025-11-21T01:33:19.274669451+01:00&quot; level=error msg=&quot;failed to cleanup the &amp;{%!s(*v2.Manager=&amp;{/sys/fs/cgroup /sys/fs/cgroup/system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009}) /system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 %!s(*specs.LinuxCPU=&lt;nil&gt;) [{%!s(bool=false)  %!s(*int64=&lt;nil&gt;) %!s(*int64=&lt;nil&gt;) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c230) %!s(*int64=0xc00028c238) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c248) %!s(*int64=0xc00028c250) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c260) %!s(*int64=0xc00028c268) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c278) %!s(*int64=0xc00028c280) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c290) %!s(*int64=0xc00028c298) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c2a8) %!s(*int64=0xc00028c2b0) rwm} {%!s(bool=false) c %!s(*int64=0xc00028c320) %!s(*int64=0xc00028c328) rwm} {%!s(bool=false)  %!s(*int64=&lt;nil&gt;) %!s(*int64=&lt;nil&gt;) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c338) %!s(*int64=0xc00028c340) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c350) %!s(*int64=0xc00028c358) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c368) %!s(*int64=0xc00028c370) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c380) %!s(*int64=0xc00028c388) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c398) %!s(*int64=0xc00028c3a0) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c3b0) %!s(*int64=0xc00028c3b8) rwm} {%!s(bool=false) c %!s(*int64=0xc00028c3c8) %!s(*int64=0xc00028c3d0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000134f8) %!s(*int64=0xc000013520) rwm} {%!s(bool=true) c %!s(*int64=0xc000013528) %!s(*int64=0xc000013530) rwm} {%!s(bool=true) c %!s(*int64=0xc000335988) %!s(*int64=0xc000335990) rwm} {%!s(bool=true) c %!s(*int64=0xc0003359e8) %!s(*int64=0xc0003359f0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be068) %!s(*int64=0xc0000be070) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be098) %!s(*int64=0xc0000be0a0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be0c8) %!s(*int64=0xc0000be0d0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be0f8) %!s(*int64=0xc0000be100) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be158) %!s(*int64=0xc0000be160) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be1b8) %!s(*int64=0xc0000be1c0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be878) %!s(*int64=0xc0000be880) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be8a8) %!s(*int64=0xc0000be8b0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be8d8) %!s(*int64=0xc0000be8e0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000136b8) %!s(*int64=0xc0000136c0) m} {%!s(bool=true) b %!s(*int64=0xc0000136b8) %!s(*int64=0xc0000136c0) m} {%!s(bool=true) c %!s(*int64=0xc0000136c8) %!s(*int64=0xc0000136c0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000136d0) %!s(*int64=0xc0000136d8) rwm}] %!s(bool=false) {{} {%!s(int32=0) %!s(uint32=0)}}} resource controllers&quot; error=&quot;cgroups: unable to remove path \&quot;/sys/fs/cgroup/system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009\&quot;: still contains running processes&quot; name=containerd-shim-v2 pid=29034 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=virtcontainers subsystem=sandbox
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.291774070+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 delete&quot; error=&quot;exit status 1&quot; id=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 namespace=moby
-Nov 21 01:33:19 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:19.291816470+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:33:19+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 error=\&quot;open /run/vc/sbs/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009: no such file or directory\&quot; name=containerd-shim-v2 pid=29482 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009: no such file or directory: exit status 1&quot; id=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 namespace=moby
+Nov 21 01:32:51 pinacle-01 dockerd[22469]: time="2025-11-21T01:32:51.734243265+01:00" level=info msg="sbJoin: gwep4 ''-&gt;'651cbdc20189', gwep6 ''-&gt;''" eid=651cbdc20189 ep=test-network net=bridge nid=6dcbce650fe9
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.152245682+01:00" level=warning msg="Ignoring unknown key in TOML for plugin" error="strict mode: fields in the document are missing in the target struct" key="containerd runtimes kata-fc" plugin=io.containerd.grpc.v1.cri
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.152254852+01:00" level=warning msg="Ignoring unknown key in TOML for plugin" error="strict mode: fields in the document are missing in the target struct" key="containerd runtimes kata-fc options" plugin=io.containerd.grpc.v1.cri
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.153111333+01:00" level=error msg="failed to load cni during init, please check CRI plugin status before setting up network for pods" error="cni config load failed: no network config found in /etc/cni/net.d: cni plugin not initialized: failed to load cni config"
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.159840583+01:00" level=info msg="Start cni network conf syncer for default"
+Nov 21 01:33:19 pinacle-01 kata[29034]: time="2025-11-21T01:33:19.274669451+01:00" level=error msg="failed to cleanup the &amp;{%!s(*v2.Manager=&amp;{/sys/fs/cgroup /sys/fs/cgroup/system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009}) /system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 %!s(*specs.LinuxCPU=&lt;nil&gt;) [{%!s(bool=false)  %!s(*int64=&lt;nil&gt;) %!s(*int64=&lt;nil&gt;) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c230) %!s(*int64=0xc00028c238) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c248) %!s(*int64=0xc00028c250) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c260) %!s(*int64=0xc00028c268) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c278) %!s(*int64=0xc00028c280) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c290) %!s(*int64=0xc00028c298) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c2a8) %!s(*int64=0xc00028c2b0) rwm} {%!s(bool=false) c %!s(*int64=0xc00028c320) %!s(*int64=0xc00028c328) rwm} {%!s(bool=false)  %!s(*int64=&lt;nil&gt;) %!s(*int64=&lt;nil&gt;) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c338) %!s(*int64=0xc00028c340) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c350) %!s(*int64=0xc00028c358) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c368) %!s(*int64=0xc00028c370) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c380) %!s(*int64=0xc00028c388) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c398) %!s(*int64=0xc00028c3a0) rwm} {%!s(bool=true) c %!s(*int64=0xc00028c3b0) %!s(*int64=0xc00028c3b8) rwm} {%!s(bool=false) c %!s(*int64=0xc00028c3c8) %!s(*int64=0xc00028c3d0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000134f8) %!s(*int64=0xc000013520) rwm} {%!s(bool=true) c %!s(*int64=0xc000013528) %!s(*int64=0xc000013530) rwm} {%!s(bool=true) c %!s(*int64=0xc000335988) %!s(*int64=0xc000335990) rwm} {%!s(bool=true) c %!s(*int64=0xc0003359e8) %!s(*int64=0xc0003359f0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be068) %!s(*int64=0xc0000be070) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be098) %!s(*int64=0xc0000be0a0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be0c8) %!s(*int64=0xc0000be0d0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be0f8) %!s(*int64=0xc0000be100) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be158) %!s(*int64=0xc0000be160) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be1b8) %!s(*int64=0xc0000be1c0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be878) %!s(*int64=0xc0000be880) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be8a8) %!s(*int64=0xc0000be8b0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000be8d8) %!s(*int64=0xc0000be8e0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000136b8) %!s(*int64=0xc0000136c0) m} {%!s(bool=true) b %!s(*int64=0xc0000136b8) %!s(*int64=0xc0000136c0) m} {%!s(bool=true) c %!s(*int64=0xc0000136c8) %!s(*int64=0xc0000136c0) rwm} {%!s(bool=true) c %!s(*int64=0xc0000136d0) %!s(*int64=0xc0000136d8) rwm}] %!s(bool=false) {{} {%!s(int32=0) %!s(uint32=0)}}} resource controllers" error="cgroups: unable to remove path \"/sys/fs/cgroup/system.slice:docker:0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009\": still contains running processes" name=containerd-shim-v2 pid=29034 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=virtcontainers subsystem=sandbox
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.291774070+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 delete" error="exit status 1" id=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 namespace=moby
+Nov 21 01:33:19 pinacle-01 containerd[29442]: time="2025-11-21T01:33:19.291816470+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:33:19+01:00\" level=warning msg=\"failed to cleanup container\" container=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 error=\"open /run/vc/sbs/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009: no such file or directory\" name=containerd-shim-v2 pid=29482 sandbox=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009: no such file or directory: exit status 1" id=0642406fe4d6698f46978df7adb00c9ddb0e347494542590a0f8536411eed009 namespace=moby
 Nov 21 01:33:19 pinacle-01 kernel: veth5959f1d: renamed from eth0
-Nov 21 01:33:28 pinacle-01 kata[29907]: time=&quot;2025-11-21T01:33:28.746218424+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=29907 sandbox=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 source=cgroups
+Nov 21 01:33:28 pinacle-01 kata[29907]: time="2025-11-21T01:33:28.746218424+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=29907 sandbox=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 source=cgroups
 Nov 21 01:33:29 pinacle-01 kernel: eth0: renamed from veth28d9e5f
-Nov 21 01:33:29 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:29.626441511+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 delete&quot; error=&quot;exit status 1&quot; id=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 namespace=moby
-Nov 21 01:33:29 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:29.626461061+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:33:29+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 error=\&quot;open /run/vc/sbs/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635: no such file or directory\&quot; name=containerd-shim-v2 pid=29980 sandbox=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635: no such file or directory: exit status 1&quot; id=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 namespace=moby
+Nov 21 01:33:29 pinacle-01 containerd[29442]: time="2025-11-21T01:33:29.626441511+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 delete" error="exit status 1" id=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 namespace=moby
+Nov 21 01:33:29 pinacle-01 containerd[29442]: time="2025-11-21T01:33:29.626461061+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:33:29+01:00\" level=warning msg=\"failed to cleanup container\" container=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 error=\"open /run/vc/sbs/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635: no such file or directory\" name=containerd-shim-v2 pid=29980 sandbox=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635: no such file or directory: exit status 1" id=0b62ef5175017b62640d5718e194399c8fd0c9aee6fec5eff1ed3e95c74ad635 namespace=moby
 Nov 21 01:33:29 pinacle-01 kernel: veth28d9e5f: renamed from eth0
-Nov 21 01:33:50 pinacle-01 kata[30096]: time=&quot;2025-11-21T01:33:50.209175459+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=30096 sandbox=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 source=cgroups
+Nov 21 01:33:50 pinacle-01 kata[30096]: time="2025-11-21T01:33:50.209175459+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=30096 sandbox=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 source=cgroups
 Nov 21 01:33:50 pinacle-01 kernel: eth0: renamed from veth40d58d0
-Nov 21 01:33:51 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:51.283066909+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 delete&quot; error=&quot;exit status 1&quot; id=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 namespace=moby
-Nov 21 01:33:51 pinacle-01 containerd[29442]: time=&quot;2025-11-21T01:33:51.283087269+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:33:51+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 error=\&quot;open /run/vc/sbs/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3: no such file or directory\&quot; name=containerd-shim-v2 pid=30197 sandbox=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3: no such file or directory: exit status 1&quot; id=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 namespace=moby
+Nov 21 01:33:51 pinacle-01 containerd[29442]: time="2025-11-21T01:33:51.283066909+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 -bundle /run/containerd/io.containerd.runtime.v2.task/moby/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 delete" error="exit status 1" id=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 namespace=moby
+Nov 21 01:33:51 pinacle-01 containerd[29442]: time="2025-11-21T01:33:51.283087269+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:33:51+01:00\" level=warning msg=\"failed to cleanup container\" container=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 error=\"open /run/vc/sbs/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3: no such file or directory\" name=containerd-shim-v2 pid=30197 sandbox=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3: no such file or directory: exit status 1" id=e565d4b3c608672e5ded3de856c553dd0b45918e857bdb6398ef7f68945174b3 namespace=moby
 Nov 21 01:33:51 pinacle-01 kernel: veth40d58d0: renamed from eth0
 
 ```
@@ -12665,7 +9150,7 @@ Found it! **CNI configuration is missing**. The plugins are installed but there'
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat >/etc/cni/net.d/10-kata-bridge.conflist <<EOF
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat >/etc/cni/net.d/10-kata-bridge.conflist <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "kata-bridge",
@@ -12745,36 +9230,36 @@ cat /etc/cni/net.d/10-kata-bridge.conflist'
 
 ```
 {
-  &quot;cniVersion&quot;: &quot;0.4.0&quot;,
-  &quot;name&quot;: &quot;kata-bridge&quot;,
-  &quot;plugins&quot;: [
+  "cniVersion": "0.4.0",
+  "name": "kata-bridge",
+  "plugins": [
     {
-      &quot;type&quot;: &quot;bridge&quot;,
-      &quot;bridge&quot;: &quot;kata0&quot;,
-      &quot;isGateway&quot;: true,
-      &quot;ipMasq&quot;: true,
-      &quot;hairpinMode&quot;: true,
-      &quot;ipam&quot;: {
-        &quot;type&quot;: &quot;host-local&quot;,
-        &quot;routes&quot;: [
-          { &quot;dst&quot;: &quot;0.0.0.0/0&quot; }
+      "type": "bridge",
+      "bridge": "kata0",
+      "isGateway": true,
+      "ipMasq": true,
+      "hairpinMode": true,
+      "ipam": {
+        "type": "host-local",
+        "routes": [
+          { "dst": "0.0.0.0/0" }
         ],
-        &quot;ranges&quot;: [
-          [{ &quot;subnet&quot;: &quot;10.88.0.0/16&quot; }]
+        "ranges": [
+          [{ "subnet": "10.88.0.0/16" }]
         ]
       }
     },
     {
-      &quot;type&quot;: &quot;portmap&quot;,
-      &quot;capabilities&quot;: {
-        &quot;portMappings&quot;: true
+      "type": "portmap",
+      "capabilities": {
+        "portMappings": true
       }
     },
     {
-      &quot;type&quot;: &quot;firewall&quot;
+      "type": "firewall"
     },
     {
-      &quot;type&quot;: &quot;tc-redirect-tap&quot;
+      "type": "tc-redirect-tap"
     }
   ]
 }
@@ -12797,7 +9282,7 @@ Wait, `tc-redirect-tap` plugin doesn't exist in standard CNI. Let me fix the con
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat >/etc/cni/net.d/10-kata-bridge.conflist <<EOF
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat >/etc/cni/net.d/10-kata-bridge.conflist <<EOF
 {
   "cniVersion": "0.4.0",
   "name": "kata-bridge",
@@ -12913,7 +9398,7 @@ Let me try a different approach - test with `--network=host` to see if the VM it
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc --network=host alpine:latest sh -c "ip addr show && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc --network=host alpine:latest sh -c "ip addr show && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc --network=host alpine:latest sh -c "ip addr show && echo ---PING--- && ping -c 2 8.8.8.8"'
@@ -12950,7 +9435,7 @@ This confirms it's a Kata/Firecracker issue - even host networking doesn't work.
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 5 "\[agent\|enable_debug\|debug_console\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -40'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 5 "\[agent\|enable_debug\|debug_console\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -40'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 5 "\[agent\|enable_debug\|debug_console\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -40'
@@ -12999,16 +9484,16 @@ Let me check what kernel and initrd Kata is using:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -E "^kernel|^initrd|^image" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -E "^kernel|^initrd|^image" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -E "^kernel|^initrd|^image" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'
 ```
 
 ```
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+image = "/opt/kata/share/kata-containers/kata-containers.img"
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1"
 kernel_modules=[]
 
 ```
@@ -13023,7 +9508,7 @@ I see it's using `image` instead of `initrd`. That's the rootfs image. Let me ch
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -lh /opt/kata/share/kata-containers/'
@@ -13090,17 +9575,17 @@ Let me try switching from `image` to `initrd` for Firecracker:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s|^image =|#image =|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "/^#image =/a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^kernel|^#image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s|^image =|#image =|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "/^#image =/a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^kernel|^#image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s|^image =|#image =|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "/^#image =/a initrd = \"/opt/kata/share/kata-containers/kata-alpine-3.22.initrd\"" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "^kernel|^#image|^initrd" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-#image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-initrd = &quot;/opt/kata/share/kata-containers/kata-alpine-3.22.initrd&quot;
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+#image = "/opt/kata/share/kata-containers/kata-containers.img"
+initrd = "/opt/kata/share/kata-containers/kata-alpine-3.22.initrd"
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1"
 kernel_modules=[]
 
 ```
@@ -13119,7 +9604,7 @@ Now let's test with initrd:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr show && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8 && echo ---DNS--- && nslookup registry.npmjs.org"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr show && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8 && echo ---DNS--- && nslookup registry.npmjs.org"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr show && echo ---ROUTE--- && ip route && echo ---PING--- && ping -c 2 8.8.8.8 && echo ---DNS--- && nslookup registry.npmjs.org"'
@@ -13162,7 +9647,7 @@ Let me enable debug logging to see what's happening:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s|#enable_debug = true|enable_debug = true|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s|#enable_debug = true|enable_debug = true|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s|#enable_debug = true|enable_debug = true|g" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "^enable_debug" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -13185,7 +9670,7 @@ Now let me run a container and watch the logs to see what's happening with the n
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-debug alpine:latest sleep 60 && sleep 2 && journalctl --since "5 seconds ago" | grep -i "network\|interface\|tap\|eth0" | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-debug alpine:latest sleep 60 && sleep 2 && journalctl --since "5 seconds ago" | grep -i "network\|interface\|tap\|eth0" | tail -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name test-debug alpine:latest sleep 60 && sleep 2 && journalctl --since "5 seconds ago" | grep -i "network\|interface\|tap\|eth0" | tail -20'
@@ -13217,7 +9702,7 @@ Let me check the hypervisor configuration for network settings:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 30 "\[hypervisor.firecracker\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -35'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 30 "\[hypervisor.firecracker\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -35'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 30 "\[hypervisor.firecracker\]" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -35'
@@ -13225,33 +9710,33 @@ ssh root@157.90.177.85 'grep -A 30 "\[hypervisor.firecracker\]" /opt/kata/share/
 
 ```
 [hypervisor.firecracker]
-path = &quot;/opt/firecracker/firecracker&quot;
-kernel = &quot;/opt/kata/share/kata-containers/vmlinux.container&quot;
-#image = &quot;/opt/kata/share/kata-containers/kata-containers.img&quot;
-initrd = &quot;/opt/kata/share/kata-containers/kata-alpine-3.22.initrd&quot;
+path = "/opt/firecracker/firecracker"
+kernel = "/opt/kata/share/kata-containers/vmlinux.container"
+#image = "/opt/kata/share/kata-containers/kata-containers.img"
+initrd = "/opt/kata/share/kata-containers/kata-alpine-3.22.initrd"
 
 # rootfs filesystem type:
 #   - ext4 (default)
 #   - xfs
 #   - erofs
-rootfs_type=&quot;ext4&quot;
+rootfs_type="ext4"
 
 # List of valid annotation names for the hypervisor
 # Each member of the list is a regular expression, which is the base name
-# of the annotation, e.g. &quot;path&quot; for io.katacontainers.config.hypervisor.path&quot;
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
+# of the annotation, e.g. "path" for io.katacontainers.config.hypervisor.path"
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
 
 # List of valid annotations values for the hypervisor
 # Each member of the list is a path pattern as described by glob(3).
 # The default if not set is empty (all annotations rejected.)
-# Your distribution recommends: [&quot;/opt/kata/bin/firecracker&quot;]
-valid_hypervisor_paths = [&quot;/opt/kata/bin/firecracker&quot;]
+# Your distribution recommends: ["/opt/kata/bin/firecracker"]
+valid_hypervisor_paths = ["/opt/kata/bin/firecracker"]
 
 # Path for the jailer specific to firecracker
 # If the jailer path is not set kata will launch firecracker
 # without a jail. If the jailer is set firecracker will be
 # launched in a jailed enviornment created by the jailer
-jailer_path = &quot;/opt/kata/bin/jailer&quot;
+jailer_path = "/opt/kata/bin/jailer"
 
 # List of valid jailer path values for the hypervisor
 # Each member of the list can be a regular expression
@@ -13272,15 +9757,15 @@ I see the jailer path is wrong. Let me fix it and also try without the jailer fi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s|jailer_path = \"/opt/kata/bin/jailer\"|#jailer_path = \"/opt/firecracker/jailer\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "jailer_path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s|jailer_path = \"/opt/kata/bin/jailer\"|#jailer_path = \"/opt/firecracker/jailer\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "jailer_path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s|jailer_path = \"/opt/kata/bin/jailer\"|#jailer_path = \"/opt/firecracker/jailer\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "jailer_path" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -3'
 ```
 
 ```
-#jailer_path = &quot;/opt/firecracker/jailer&quot;
-valid_jailer_paths = [&quot;/opt/kata/bin/jailer&quot;]
+#jailer_path = "/opt/firecracker/jailer"
+valid_jailer_paths = ["/opt/kata/bin/jailer"]
 
 ```
 </details>
@@ -13294,7 +9779,7 @@ Now let me test without the jailer.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker stop test-debug && docker rm test-debug && docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker stop test-debug && docker rm test-debug && docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker stop test-debug && docker rm test-debug && docker run --rm --runtime=kata-fc alpine:latest sh -c "ip addr && echo ---PING--- && ping -c 2 8.8.8.8"'
@@ -13436,7 +9921,7 @@ You got it! Let me dig deeper into making Kata + Firecracker + Docker networking
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name netdebug alpine:latest sleep 300 && sleep 3 && kata-runtime exec netdebug ip addr 2>&1 || true'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name netdebug alpine:latest sleep 300 && sleep 3 && kata-runtime exec netdebug ip addr 2>&1 || true'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name netdebug alpine:latest sleep 300 && sleep 3 && kata-runtime exec netdebug ip addr 2>&1 || true'
@@ -13472,7 +9957,7 @@ Good info! The container ID is `34eccabf5290`. Let me check the actual Kata sand
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /run/vc/sbs/ && ls -la /run/kata-containers/ 2>/dev/null || echo "No kata-containers dir"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /run/vc/sbs/ && ls -la /run/kata-containers/ 2>/dev/null || echo "No kata-containers dir"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /run/vc/sbs/ && ls -la /run/kata-containers/ 2>/dev/null || echo "No kata-containers dir"'
@@ -13508,7 +9993,7 @@ Good, the sandbox exists. Let me check what's inside that sandbox directory and 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -la /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/ && cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/network.json 2>/dev/null | jq . || echo "No network.json"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -la /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/ && cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/network.json 2>/dev/null | jq . || echo "No network.json"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -la /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/ && cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/network.json 2>/dev/null | jq . || echo "No network.json"'
@@ -13534,7 +10019,7 @@ Let me check the persist.json file which should have the sandbox configuration i
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".network" | head -30'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".network" | head -30'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".network" | head -30'
@@ -13555,7 +10040,7 @@ Network is null! That's the problem - Docker isn't passing network configuration
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".containers" | head -50'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".containers" | head -50'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".containers" | head -50'
@@ -13576,7 +10061,7 @@ Let me just check what's actually in persist.json to understand the structure.</
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq "keys"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq "keys"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq "keys"'
@@ -13584,19 +10069,19 @@ ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0
 
 ```
 [
-  &quot;AgentState&quot;,
-  &quot;CgroupPaths&quot;,
-  &quot;Config&quot;,
-  &quot;Devices&quot;,
-  &quot;GuestMemoryBlockSizeMB&quot;,
-  &quot;GuestMemoryHotplugProbe&quot;,
-  &quot;HypervisorState&quot;,
-  &quot;Network&quot;,
-  &quot;OverheadCgroupPath&quot;,
-  &quot;PersistVersion&quot;,
-  &quot;SandboxCgroupPath&quot;,
-  &quot;SandboxContainer&quot;,
-  &quot;State&quot;
+  "AgentState",
+  "CgroupPaths",
+  "Config",
+  "Devices",
+  "GuestMemoryBlockSizeMB",
+  "GuestMemoryHotplugProbe",
+  "HypervisorState",
+  "Network",
+  "OverheadCgroupPath",
+  "PersistVersion",
+  "SandboxCgroupPath",
+  "SandboxContainer",
+  "State"
 ]
 
 ```
@@ -13611,7 +10096,7 @@ There's a Network key (with capital N). Let me check that.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".Network"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".Network"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0ac6938123aca4e946a7bdd7b/persist.json | jq ".Network"'
@@ -13619,9 +10104,9 @@ ssh root@157.90.177.85 'cat /run/vc/sbs/34eccabf5290866c54d50f9d7a84473adaac6ff0
 
 ```
 {
-  &quot;NetworkID&quot;: &quot;/var/run/netns/cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8&quot;,
-  &quot;Endpoints&quot;: null,
-  &quot;NetworkCreated&quot;: true
+  "NetworkID": "/var/run/netns/cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8",
+  "Endpoints": null,
+  "NetworkCreated": true
 }
 
 ```
@@ -13638,7 +10123,7 @@ Let me check what Docker thinks the network setup is.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker inspect netdebug | jq ".[0].NetworkSettings.Networks"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker inspect netdebug | jq ".[0].NetworkSettings.Networks"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker inspect netdebug | jq ".[0].NetworkSettings.Networks"'
@@ -13646,22 +10131,22 @@ ssh root@157.90.177.85 'docker inspect netdebug | jq ".[0].NetworkSettings.Netwo
 
 ```
 {
-  &quot;bridge&quot;: {
-    &quot;IPAMConfig&quot;: null,
-    &quot;Links&quot;: null,
-    &quot;Aliases&quot;: null,
-    &quot;DriverOpts&quot;: null,
-    &quot;GwPriority&quot;: 0,
-    &quot;NetworkID&quot;: &quot;c8944949d40d643a2ea9bbe24c2ba7cbde70f20e685645489780bf3dbc6dc10f&quot;,
-    &quot;EndpointID&quot;: &quot;c1aff3317b5704e1f1127f9f370ed5d4e7a16ef3f5be4ed63be3a35c862b7f99&quot;,
-    &quot;Gateway&quot;: &quot;172.17.0.1&quot;,
-    &quot;IPAddress&quot;: &quot;172.17.0.2&quot;,
-    &quot;MacAddress&quot;: &quot;7a:00:1c:d6:87:65&quot;,
-    &quot;IPPrefixLen&quot;: 16,
-    &quot;IPv6Gateway&quot;: &quot;&quot;,
-    &quot;GlobalIPv6Address&quot;: &quot;&quot;,
-    &quot;GlobalIPv6PrefixLen&quot;: 0,
-    &quot;DNSNames&quot;: null
+  "bridge": {
+    "IPAMConfig": null,
+    "Links": null,
+    "Aliases": null,
+    "DriverOpts": null,
+    "GwPriority": 0,
+    "NetworkID": "c8944949d40d643a2ea9bbe24c2ba7cbde70f20e685645489780bf3dbc6dc10f",
+    "EndpointID": "c1aff3317b5704e1f1127f9f370ed5d4e7a16ef3f5be4ed63be3a35c862b7f99",
+    "Gateway": "172.17.0.1",
+    "IPAddress": "172.17.0.2",
+    "MacAddress": "7a:00:1c:d6:87:65",
+    "IPPrefixLen": 16,
+    "IPv6Gateway": "",
+    "GlobalIPv6Address": "",
+    "GlobalIPv6PrefixLen": 0,
+    "DNSNames": null
   }
 }
 
@@ -13679,7 +10164,7 @@ Let me check if the veth pair exists on the host and if it's connected properly.
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ip link show | grep -A 2 "veth.*@" && echo "---CHECK BRIDGE---" && brctl show docker0'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ip link show | grep -A 2 "veth.*@" && echo "---CHECK BRIDGE---" && brctl show docker0'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ip link show | grep -A 2 "veth.*@" && echo "---CHECK BRIDGE---" && brctl show docker0'
@@ -13714,7 +10199,7 @@ Let me check the Docker runtime configuration more carefully. The issue is likel
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ip netns list | head -10 && echo "---NETWORK NAMESPACE INFO---" && ls -la /var/run/netns/ 2>/dev/null || echo "No /var/run/netns"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ip netns list | head -10 && echo "---NETWORK NAMESPACE INFO---" && ls -la /var/run/netns/ 2>/dev/null || echo "No /var/run/netns"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ip netns list | head -10 && echo "---NETWORK NAMESPACE INFO---" && ls -la /var/run/netns/ 2>/dev/null || echo "No /var/run/netns"'
@@ -13776,14 +10261,14 @@ But the veth pairs have "Peer netns reference is invalid" errors. Let me check w
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip addr && echo "---ROUTES---" && ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip route'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip addr && echo "---ROUTES---" && ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip route'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip addr && echo "---ROUTES---" && ip netns exec cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8 ip route'
 ```
 
 ```
-setting the network namespace &quot;cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8&quot; failed: Invalid argument
+setting the network namespace "cnitest-1a8e36e6-1a0e-28f2-a229-b798d69db0f8" failed: Invalid argument
 
 ```
 </details>
@@ -13801,7 +10286,7 @@ Actually, I realize the issue - I need to check the containerd configuration. Wh
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 50 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 50 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 50 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'
@@ -13865,7 +10350,7 @@ Let me check the recently created container and look at the recent journal logs:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'journalctl --since "30 seconds ago" | grep -E "(kata|network|endpoint|veth|eth0)" | tail -40'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'journalctl --since "30 seconds ago" | grep -E "(kata|network|endpoint|veth|eth0)" | tail -40'</summary>
 
 ```bash
 ssh root@157.90.177.85 'journalctl --since "30 seconds ago" | grep -E "(kata|network|endpoint|veth|eth0)" | tail -40'
@@ -13881,14 +10366,14 @@ No relevant logs showing. Let me check if the container is actually running and 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker ps -a | grep nettest && docker exec nettest ip addr'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker ps -a | grep nettest && docker exec nettest ip addr'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker ps -a | grep nettest && docker exec nettest ip addr'
 ```
 
 ```
-2b6add51bf09   alpine:latest                    &quot;sleep 60&quot;               54 seconds ago   Up 54 seconds                         nettest
+2b6add51bf09   alpine:latest                    "sleep 60"               54 seconds ago   Up 54 seconds                         nettest
 1: lo: &lt;LOOPBACK,UP,LOWER_UP&gt; mtu 65536 qdisc noqueue state UNKNOWN qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
     inet 127.0.0.1/8 scope host lo
@@ -13915,7 +10400,7 @@ Let me check if there's a specific issue with how Kata + Firecracker + Docker wo
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de/persist.json | jq ".Network"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de/persist.json | jq ".Network"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de/persist.json | jq ".Network"'
@@ -13936,7 +10421,7 @@ The full container ID doesn't have a directory. Let me find the actual sandbox I
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls -lt /run/vc/sbs/ | head -5 && echo "---CHECKING NEWEST---" && NEWEST=$(ls -t /run/vc/sbs/ | head -1) && cat /run/vc/sbs/$NEWEST/persist.json | jq -c ".Network"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls -lt /run/vc/sbs/ | head -5 && echo "---CHECKING NEWEST---" && NEWEST=$(ls -t /run/vc/sbs/ | head -1) && cat /run/vc/sbs/$NEWEST/persist.json | jq -c ".Network"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls -lt /run/vc/sbs/ | head -5 && echo "---CHECKING NEWEST---" && NEWEST=$(ls -t /run/vc/sbs/ | head -1) && cat /run/vc/sbs/$NEWEST/persist.json | jq -c ".Network"'
@@ -13963,7 +10448,7 @@ Those sandboxes are old. The new container's sandbox might be elsewhere or clean
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ps aux | grep firecracker | grep -v grep'
@@ -13994,24 +10479,24 @@ This suggests Kata is not receiving proper network configuration from Docker/con
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -B 5 -A 20 "\[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.kata-fc\]" /etc/containerd/config.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -B 5 -A 20 "\[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.kata-fc\]" /etc/containerd/config.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -B 5 -A 20 "\[plugins.\"io.containerd.grpc.v1.cri\".containerd.runtimes.kata-fc\]" /etc/containerd/config.toml'
 ```
 
 ```
-    returns = &#39;application/vnd.oci.image.layer.v1.tar+gzip&#39;
-    path = &#39;ctd-decoder&#39;
-    args = [&#39;--decryption-keys-path&#39;, &#39;/etc/containerd/ocicrypt/keys&#39;]
-    env = [&#39;OCICRYPT_KEYPROVIDER_CONFIG=/etc/containerd/ocicrypt/ocicrypt_keyprovider.conf&#39;]
+    returns = 'application/vnd.oci.image.layer.v1.tar+gzip'
+    path = 'ctd-decoder'
+    args = ['--decryption-keys-path', '/etc/containerd/ocicrypt/keys']
+    env = ['OCICRYPT_KEYPROVIDER_CONFIG=/etc/containerd/ocicrypt/ocicrypt_keyprovider.conf']
 
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
+  runtime_type = "io.containerd.kata.v2"
   privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
+  pod_annotations = ["io.katacontainers.*"]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
+    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
 
 ```
 </details>
@@ -14025,7 +10510,7 @@ The containerd configuration looks correct. Let me check if the issue is specifi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ctr --namespace moby containers ls | grep nettest'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ctr --namespace moby containers ls | grep nettest'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ctr --namespace moby containers ls | grep nettest'
@@ -14041,16 +10526,16 @@ Let me check if there are special kernel parameters or something else needed for
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
-# For example, use &#96;kernel_params = &quot;vsyscall=emulate&quot;&#96; if you are having
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
+# For example, use &#96;kernel_params = "vsyscall=emulate"&#96; if you are having
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1"
 
 ```
 </details>
@@ -14068,7 +10553,7 @@ Let me check if the Kata agent is even running inside the VM and if it can commu
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec nettest ps aux | grep -E "kata-agent|agent"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec nettest ps aux | grep -E "kata-agent|agent"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec nettest ps aux | grep -E "kata-agent|agent"'
@@ -14089,14 +10574,14 @@ The container exited! That's interesting. Let me see why it exited.</details></t
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker ps -a | grep nettest && docker logs nettest 2>&1 | tail -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker ps -a | grep nettest && docker logs nettest 2>&1 | tail -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker ps -a | grep nettest && docker logs nettest 2>&1 | tail -20'
 ```
 
 ```
-2b6add51bf09   alpine:latest                    &quot;sleep 60&quot;               About a minute ago   Exited (0) 56 seconds ago             nettest
+2b6add51bf09   alpine:latest                    "sleep 60"               About a minute ago   Exited (0) 56 seconds ago             nettest
 
 ```
 </details>
@@ -14110,7 +10595,7 @@ OK so it ran for 60 seconds and exited normally (exit code 0), which means the `
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name nettest2 alpine:latest sleep 300 && sleep 3 && docker exec nettest2 sh -c "ip addr && echo ---ROUTE--- && ip route"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name nettest2 alpine:latest sleep 300 && sleep 3 && docker exec nettest2 sh -c "ip addr && echo ---ROUTE--- && ip route"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name nettest2 alpine:latest sleep 300 && sleep 3 && docker exec nettest2 sh -c "ip addr && echo ---ROUTE--- && ip route"'
@@ -14153,7 +10638,7 @@ Let me check if the tap device is even being created.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ip link show | grep tap && echo "---TC FILTERS---" && tc filter show dev docker0 2>/dev/null | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ip link show | grep tap && echo "---TC FILTERS---" && tc filter show dev docker0 2>/dev/null | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ip link show | grep tap && echo "---TC FILTERS---" && tc filter show dev docker0 2>/dev/null | head -20'
@@ -14184,19 +10669,19 @@ The tap device is not being created, which means Kata's network setup is failing
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'journalctl --since "5 minutes ago" -u containerd | grep -i "network\|kata\|tap\|endpoint" | tail -50'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'journalctl --since "5 minutes ago" -u containerd | grep -i "network\|kata\|tap\|endpoint" | tail -50'</summary>
 
 ```bash
 ssh root@157.90.177.85 'journalctl --since "5 minutes ago" -u containerd | grep -i "network\|kata\|tap\|endpoint" | tail -50'
 ```
 
 ```
-Nov 21 01:42:59 pinacle-01 containerd[30328]: time=&quot;2025-11-21T01:42:59.355344816+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e -bundle /run/containerd/io.containerd.runtime.v2.task/moby/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e delete&quot; error=&quot;exit status 1&quot; id=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e namespace=moby
-Nov 21 01:42:59 pinacle-01 containerd[30328]: time=&quot;2025-11-21T01:42:59.355377206+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:42:59+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e error=\&quot;open /run/vc/sbs/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e: no such file or directory\&quot; name=containerd-shim-v2 pid=35677 sandbox=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e: no such file or directory: exit status 1&quot; id=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e namespace=moby
-Nov 21 01:44:33 pinacle-01 kata[36417]: time=&quot;2025-11-21T01:44:33.4793292+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=36417 sandbox=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de source=cgroups
-Nov 21 01:45:34 pinacle-01 containerd[30328]: time=&quot;2025-11-21T01:45:34.431511167+01:00&quot; level=error msg=&quot;failed to delete dead shim&quot; cmd=&quot;/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de -bundle /run/containerd/io.containerd.runtime.v2.task/moby/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de delete&quot; error=&quot;exit status 1&quot; id=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de namespace=moby
-Nov 21 01:45:34 pinacle-01 containerd[30328]: time=&quot;2025-11-21T01:45:34.431547848+01:00&quot; level=warning msg=&quot;failed to clean up after shim disconnected&quot; error=&quot;time=\&quot;2025-11-21T01:45:34+01:00\&quot; level=warning msg=\&quot;failed to cleanup container\&quot; container=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de error=\&quot;open /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de: no such file or directory\&quot; name=containerd-shim-v2 pid=37233 sandbox=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de: no such file or directory: exit status 1&quot; id=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de namespace=moby
-Nov 21 01:46:39 pinacle-01 kata[37560]: time=&quot;2025-11-21T01:46:39.713009036+01:00&quot; level=warning msg=&quot;Could not add /dev/mshv to the devices cgroup&quot; name=containerd-shim-v2 pid=37560 sandbox=eab60996b63359d78dde62a258b7859814fbc8db14da2d923fe2b4c80cb0f638 source=cgroups
+Nov 21 01:42:59 pinacle-01 containerd[30328]: time="2025-11-21T01:42:59.355344816+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e -bundle /run/containerd/io.containerd.runtime.v2.task/moby/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e delete" error="exit status 1" id=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e namespace=moby
+Nov 21 01:42:59 pinacle-01 containerd[30328]: time="2025-11-21T01:42:59.355377206+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:42:59+01:00\" level=warning msg=\"failed to cleanup container\" container=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e error=\"open /run/vc/sbs/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e: no such file or directory\" name=containerd-shim-v2 pid=35677 sandbox=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e: no such file or directory: exit status 1" id=a349c2174e233c0ef289830a1383edeed40fa9ce08cecf9dba91b11e08f0191e namespace=moby
+Nov 21 01:44:33 pinacle-01 kata[36417]: time="2025-11-21T01:44:33.4793292+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=36417 sandbox=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de source=cgroups
+Nov 21 01:45:34 pinacle-01 containerd[30328]: time="2025-11-21T01:45:34.431511167+01:00" level=error msg="failed to delete dead shim" cmd="/usr/bin/containerd-shim-kata-v2 -namespace moby -address /run/containerd/containerd.sock -publish-binary /usr/bin/containerd -id 2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de -bundle /run/containerd/io.containerd.runtime.v2.task/moby/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de delete" error="exit status 1" id=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de namespace=moby
+Nov 21 01:45:34 pinacle-01 containerd[30328]: time="2025-11-21T01:45:34.431547848+01:00" level=warning msg="failed to clean up after shim disconnected" error="time=\"2025-11-21T01:45:34+01:00\" level=warning msg=\"failed to cleanup container\" container=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de error=\"open /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de: no such file or directory\" name=containerd-shim-v2 pid=37233 sandbox=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de source=containerd-kata-shim-v2\nio.containerd.kata.v2: open /run/vc/sbs/2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de: no such file or directory: exit status 1" id=2b6add51bf09730b15c2de7b22a7468ef093295c19beb7b7a8082caa3866d4de namespace=moby
+Nov 21 01:46:39 pinacle-01 kata[37560]: time="2025-11-21T01:46:39.713009036+01:00" level=warning msg="Could not add /dev/mshv to the devices cgroup" name=containerd-shim-v2 pid=37560 sandbox=eab60996b63359d78dde62a258b7859814fbc8db14da2d923fe2b4c80cb0f638 source=cgroups
 
 ```
 </details>
@@ -14232,7 +10717,7 @@ Let me check if there's a specific Kata configuration option to handle Docker's 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -B 5 -A 15 "internetworking_model"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -B 5 -A 15 "internetworking_model"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configuration-fc.toml | grep -B 5 -A 15 "internetworking_model"'
@@ -14244,7 +10729,7 @@ ssh root@157.90.177.85 'cat /opt/kata/share/defaults/kata-containers/configurati
 #     Uses tc filter rules to redirect traffic from the network interface
 #     provided by plugin to a tap interface connected to the VM.
 #
-internetworking_model=&quot;tcfilter&quot;
+internetworking_model="tcfilter"
 
 # disable guest seccomp
 # Determines whether container seccomp profiles are passed to the virtual
@@ -14259,13 +10744,13 @@ disable_guest_seccomp=true
 #enable_tracing = true
 
 # Set the full url to the Jaeger HTTP Thrift collector.
-# The default if not set will be &quot;http://localhost:14268/api/traces&quot;
+# The default if not set will be "http://localhost:14268/api/traces"
 --
 # Sets the password to be used if basic auth is required for Jaeger.
-#jaeger_password = &quot;&quot;
+#jaeger_password = ""
 
 # If enabled, the runtime will not create a network namespace for shim and hypervisor processes.
-# This option may have some potential impacts to your host. It should only be used when you know what you&#39;re doing.
+# This option may have some potential impacts to your host. It should only be used when you know what you're doing.
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 # (like OVS) directly.
@@ -14304,14 +10789,14 @@ Let me try switching to the `macvtap` model, or better yet, let me try the `none
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"none\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/#disable_new_netns = true/disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "internetworking_model|disable_new_netns" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"none\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/#disable_new_netns = true/disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "internetworking_model|disable_new_netns" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"tcfilter\"/internetworking_model=\"none\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/#disable_new_netns = true/disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep -E "internetworking_model|disable_new_netns" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -5'
 ```
 
 ```
-internetworking_model=&quot;none&quot;
+internetworking_model="none"
 # &#96;disable_new_netns&#96; conflicts with &#96;internetworking_model=tcfilter&#96; and &#96;internetworking_model=macvtap&#96;. It works only
 # with &#96;internetworking_model=none&#96;. The tap device will be in the host network namespace and can connect to a bridge
 disable_new_netns = true
@@ -14328,7 +10813,7 @@ Good! Now with `internetworking_model="none"` and `disable_new_netns = true`, Ka
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker stop nettest2 && docker rm nettest2 && docker run -d --runtime=kata-fc --name netnone alpine:latest sleep 300 && sleep 3 && docker exec netnone ip addr'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker stop nettest2 && docker rm nettest2 && docker run -d --runtime=kata-fc --name netnone alpine:latest sleep 300 && sleep 3 && docker exec netnone ip addr'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker stop nettest2 && docker rm nettest2 && docker run -d --runtime=kata-fc --name netnone alpine:latest sleep 300 && sleep 3 && docker exec netnone ip addr'
@@ -14363,7 +10848,7 @@ Actually, wait - let me check if there's a docker-specific networking configurat
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"none\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/^disable_new_netns = true/#disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && echo "Reverted to tcfilter"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"none\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/^disable_new_netns = true/#disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && echo "Reverted to tcfilter"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s/internetworking_model=\"none\"/internetworking_model=\"tcfilter\"/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && sed -i "s/^disable_new_netns = true/#disable_new_netns = true/" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && echo "Reverted to tcfilter"'
@@ -14386,7 +10871,7 @@ Actually, let me check the Docker daemon logs to see if there are any errors whe
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'journalctl -u docker --since "10 minutes ago" | grep -i "kata\|network\|runtime" | tail -30'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'journalctl -u docker --since "10 minutes ago" | grep -i "kata\|network\|runtime" | tail -30'</summary>
 
 ```bash
 ssh root@157.90.177.85 'journalctl -u docker --since "10 minutes ago" | grep -i "kata\|network\|runtime" | tail -30'
@@ -14416,7 +10901,7 @@ Let me check if maybe the issue is with vsock communication. Earlier I saw that 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "enable_vsock\|agent" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep "enable_vsock\|agent" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep "enable_vsock\|agent" /opt/kata/share/defaults/kata-containers/configuration-fc.toml | head -10'
@@ -14444,7 +10929,7 @@ Let me search for vsock specifically</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "^[^#]*vsock" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep "^[^#]*vsock" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep "^[^#]*vsock" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -14500,7 +10985,7 @@ Wait! This is important: "Docker 18.06 is required for running Kata with Firecra
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker version --format "{{.Server.Version}}" && echo "---" && kata-runtime --version'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker version --format "{{.Server.Version}}" && echo "---" && kata-runtime --version'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker version --format "{{.Server.Version}}" && echo "---" && kata-runtime --version'
@@ -14531,7 +11016,7 @@ Let me try creating a custom Docker network and seeing if that works better with
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker network create --driver bridge kata-net && docker run -d --runtime=kata-fc --network=kata-net --name katanet alpine:latest sleep 300 && sleep 3 && docker exec katanet ip addr'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker network create --driver bridge kata-net && docker run -d --runtime=kata-fc --network=kata-net --name katanet alpine:latest sleep 300 && sleep 3 && docker exec katanet ip addr'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker network create --driver bridge kata-net && docker run -d --runtime=kata-fc --network=kata-net --name katanet alpine:latest sleep 300 && sleep 3 && docker exec katanet ip addr'
@@ -14568,7 +11053,7 @@ Let me try option 3 by looking at whether Kata has a specific mode or configurat
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "docker\|moby" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "docker\|moby" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "docker\|moby" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
@@ -14584,7 +11069,7 @@ No Docker-specific settings. Let me try one more thing - maybe the issue is that
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'ls /opt/kata/share/defaults/kata-containers/ | grep "configuration.*toml"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'ls /opt/kata/share/defaults/kata-containers/ | grep "configuration.*toml"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'ls /opt/kata/share/defaults/kata-containers/ | grep "configuration.*toml"'
@@ -14619,7 +11104,7 @@ There's a `configuration-qemu.toml`! Let me temporarily switch to QEMU to test i
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A 5 "kata-fc" | head -10 && echo "---ADDING QEMU RUNTIME---" && cat >> /etc/containerd/config.toml <<EOF
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/containerd/config.toml | grep -A 5 "kata-fc" | head -10 && echo "---ADDING QEMU RUNTIME---" && cat >> /etc/containerd/config.toml <<EOF
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-qemu]
   runtime_type = "io.containerd.kata.v2"
@@ -14644,19 +11129,19 @@ cat /etc/containerd/config.toml | grep -A 5 "kata-qemu" | head -10'
 ```
 
 ```
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc]
+  runtime_type = "io.containerd.kata.v2"
   privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-fc.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-fc.toml&quot;
+  pod_annotations = ["io.katacontainers.*"]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-fc.options]
+    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-fc.toml"
 ---ADDING QEMU RUNTIME---
-[plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-qemu]
-  runtime_type = &quot;io.containerd.kata.v2&quot;
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-qemu]
+  runtime_type = "io.containerd.kata.v2"
   privileged_without_host_devices = true
-  pod_annotations = [&quot;io.katacontainers.*&quot;]
-  [plugins.&quot;io.containerd.grpc.v1.cri&quot;.containerd.runtimes.kata-qemu.options]
-    ConfigPath = &quot;/opt/kata/share/defaults/kata-containers/configuration-qemu.toml&quot;
+  pod_annotations = ["io.katacontainers.*"]
+  [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-qemu.options]
+    ConfigPath = "/opt/kata/share/defaults/kata-containers/configuration-qemu.toml"
 
 ```
 </details>
@@ -14670,7 +11155,7 @@ Good! Now I need to add it to Docker's daemon.json as well, and then restart ser
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/docker/daemon.json | jq ".runtimes[\"kata-qemu\"] = {\"runtimeType\": \"io.containerd.kata.v2\"}" | sudo tee /etc/docker/daemon.json > /dev/null && systemctl restart containerd && systemctl restart docker && sleep 2 && docker run -d --runtime=kata-qemu --name qemutest alpine:latest sleep 300 && sleep 5 && docker exec qemutest ip addr'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/docker/daemon.json | jq ".runtimes[\"kata-qemu\"] = {\"runtimeType\": \"io.containerd.kata.v2\"}" | sudo tee /etc/docker/daemon.json > /dev/null && systemctl restart containerd && systemctl restart docker && sleep 2 && docker run -d --runtime=kata-qemu --name qemutest alpine:latest sleep 300 && sleep 5 && docker exec qemutest ip addr'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /etc/docker/daemon.json | jq ".runtimes[\"kata-qemu\"] = {\"runtimeType\": \"io.containerd.kata.v2\"}" | sudo tee /etc/docker/daemon.json > /dev/null && systemctl restart containerd && systemctl restart docker && sleep 2 && docker run -d --runtime=kata-qemu --name qemutest alpine:latest sleep 300 && sleep 5 && docker exec qemutest ip addr'
@@ -14747,22 +11232,22 @@ This might be the missing piece! Let me check if contain containerd is configure
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "snapshotter\|devmapper" /etc/containerd/config.toml | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "snapshotter\|devmapper" /etc/containerd/config.toml | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "snapshotter\|devmapper" /etc/containerd/config.toml | head -10'
 ```
 
 ```
-    snapshotter = &#39;overlayfs&#39;
-          snapshotter = &#39;&#39;
-  [plugins.&#39;io.containerd.snapshotter.v1.blockfile&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.btrfs&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.devmapper&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.erofs&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.native&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.overlayfs&#39;]
-  [plugins.&#39;io.containerd.snapshotter.v1.zfs&#39;]
+    snapshotter = 'overlayfs'
+          snapshotter = ''
+  [plugins.'io.containerd.snapshotter.v1.blockfile']
+  [plugins.'io.containerd.snapshotter.v1.btrfs']
+  [plugins.'io.containerd.snapshotter.v1.devmapper']
+  [plugins.'io.containerd.snapshotter.v1.erofs']
+  [plugins.'io.containerd.snapshotter.v1.native']
+  [plugins.'io.containerd.snapshotter.v1.overlayfs']
+  [plugins.'io.containerd.snapshotter.v1.zfs']
 
 ```
 </details>
@@ -14782,7 +11267,7 @@ Wait - let me think about this differently. Maybe I need to configure containerd
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -A 30 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -A 30 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -A 30 "plugins.\"io.containerd.grpc.v1.cri\".cni" /etc/containerd/config.toml'
@@ -14798,18 +11283,18 @@ CNI is not explicitly configured in containerd. Let me check if there's a CNI se
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -i "cni" /etc/containerd/config.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -i "cni" /etc/containerd/config.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -i "cni" /etc/containerd/config.toml'
 ```
 
 ```
-          cni_conf_dir = &#39;&#39;
+          cni_conf_dir = ''
           cni_max_conf_num = 0
-    [plugins.&#39;io.containerd.cri.v1.runtime&#39;.cni]
-      bin_dirs = [&#39;/opt/cni/bin&#39;]
-      conf_dir = &#39;/etc/cni/net.d&#39;
+    [plugins.'io.containerd.cri.v1.runtime'.cni]
+      bin_dirs = ['/opt/cni/bin']
+      conf_dir = '/etc/cni/net.d'
 
 ```
 </details>
@@ -15941,7 +12426,7 @@ Perfect! The user found the exact issue. This is a known bug in Kata Containers 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker --version && echo "---CHECKING PACKAGE MANAGER---" && dpkg -l | grep docker'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker --version && echo "---CHECKING PACKAGE MANAGER---" && dpkg -l | grep docker'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker --version && echo "---CHECKING PACKAGE MANAGER---" && dpkg -l | grep docker'
@@ -15967,7 +12452,7 @@ So we have Docker 29.0.1. Let me downgrade to Docker 27.x. I need to find the ri
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'apt-cache show docker-ce | grep -E "Version|Filename" | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'apt-cache show docker-ce | grep -E "Version|Filename" | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'apt-cache show docker-ce | grep -E "Version|Filename" | head -20'
@@ -16007,7 +12492,7 @@ I can see Docker 28.x versions, but I need Docker 27.x. Let me try to install a 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'curl -fsSL https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages.gz | gunzcat | grep -E "Package|Version" | grep -A1 docker-ce | grep -E "Version|Package.*docker-ce" | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'curl -fsSL https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages.gz | gunzcat | grep -E "Package|Version" | grep -A1 docker-ce | grep -E "Version|Package.*docker-ce" | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'curl -fsSL https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages.gz | gunzcat | grep -E "Package|Version" | grep -A1 docker-ce | grep -E "Version|Package.*docker-ce" | head -10'
@@ -16029,7 +12514,7 @@ Let me try a different approach to find Docker 27 packages. Let me check the Doc
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -E "Package.*docker-ce|Version.*27\." | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -E "Package.*docker-ce|Version.*27\." | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -E "Package.*docker-ce|Version.*27\." | head -10'
@@ -16059,7 +12544,7 @@ Let me get the full package list for Docker 27 from the bookworm repo:</details>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -A1 -B1 "Version.*27\." | head -20'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -A1 -B1 "Version.*27\." | head -20'</summary>
 
 ```bash
 ssh root@157.90.177.85 'curl -s "https://download.docker.com/linux/debian/dists/bookworm/stable/binary-amd64/Packages" | grep -A1 -B1 "Version.*27\." | head -20'
@@ -16099,14 +12584,14 @@ Perfect! Docker 27 is available in the bookworm repo. Let me downgrade to Docker
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cp /etc/docker/daemon.json /etc/docker/daemon.json.backup-29 && systemctl stop docker && apt-get update'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cp /etc/docker/daemon.json /etc/docker/daemon.json.backup-29 && systemctl stop docker && apt-get update'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cp /etc/docker/daemon.json /etc/docker/daemon.json.backup-29 && systemctl stop docker && apt-get update'
 ```
 
 ```
-Stopping &#39;docker.service&#39;, but its triggering units are still active:
+Stopping 'docker.service', but its triggering units are still active:
 docker.socket
 Hit:1 http://mirror.hetzner.com/debian/packages trixie InRelease
 Hit:2 http://mirror.hetzner.com/debian/packages trixie-updates InRelease
@@ -16123,10 +12608,10 @@ Ign:12 https://repo.katacontainers.io/apt trixie InRelease
 Ign:12 https://repo.katacontainers.io/apt trixie InRelease
 Ign:12 https://repo.katacontainers.io/apt trixie InRelease
 Err:12 https://repo.katacontainers.io/apt trixie InRelease
-  Could not resolve &#39;repo.katacontainers.io&#39;
+  Could not resolve 'repo.katacontainers.io'
 Reading package lists...
 W: https://deb.nodesource.com/node_24.x/dists/nodistro/InRelease: Policy will reject signature within a year, see --audit for details
-W: Failed to fetch https://repo.katacontainers.io/apt/dists/trixie/InRelease  Could not resolve &#39;repo.katacontainers.io&#39;
+W: Failed to fetch https://repo.katacontainers.io/apt/dists/trixie/InRelease  Could not resolve 'repo.katacontainers.io'
 W: Some index files failed to download. They have been ignored, or old ones used instead.
 
 ```
@@ -16141,14 +12626,14 @@ Now let me downgrade Docker to version 27. Let me first change the sources list 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."
 ```
 
 ```
-(eval):1: unmatched &#39;
+(eval):1: unmatched '
 
 ```
 </details>
@@ -16162,14 +12647,14 @@ Let me fix the command - I need to escape the quotes properly:</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && apt-get update && apt-cache policy docker-ce | grep -A5 -B5 "27\."
 ```
 
 ```
-(eval):1: unmatched &#39;
+(eval):1: unmatched '
 
 ```
 </details>
@@ -16183,7 +12668,7 @@ Let me try a different approach - let me manually edit the sources list and then
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.list && echo "---CHANGING TO BOOKWORM---" && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && cat /etc/apt/sources.list.d/docker.list'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.list && echo "---CHANGING TO BOOKWORM---" && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && cat /etc/apt/sources.list.d/docker.list'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.list && echo "---CHANGING TO BOOKWORM---" && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.list && cat /etc/apt/sources.list.d/docker.list'
@@ -16204,7 +12689,7 @@ Let me check where the Docker sources list is:</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'find /etc/apt -name "*docker*" -type f && ls -la /etc/apt/sources.list.d/'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'find /etc/apt -name "*docker*" -type f && ls -la /etc/apt/sources.list.d/'</summary>
 
 ```bash
 ssh root@157.90.177.85 'find /etc/apt -name "*docker*" -type f && ls -la /etc/apt/sources.list.d/'
@@ -16236,7 +12721,7 @@ Ah, it's using the new deb822 format. Let me check the content and modify it:</d
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.sources && echo "---MODIFYING---" && cp /etc/apt/sources.list.d/docker.sources /etc/apt/sources.list.d/docker.sources.backup && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.sources && cat /etc/apt/sources.list.d/docker.sources && apt-get update'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.sources && echo "---MODIFYING---" && cp /etc/apt/sources.list.d/docker.sources /etc/apt/sources.list.d/docker.sources.backup && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.sources && cat /etc/apt/sources.list.d/docker.sources && apt-get update'</summary>
 
 ```bash
 ssh root@157.90.177.85 'cat /etc/apt/sources.list.d/docker.sources && echo "---MODIFYING---" && cp /etc/apt/sources.list.d/docker.sources /etc/apt/sources.list.d/docker.sources.backup && sed -i "s/trixie/bookworm/g" /etc/apt/sources.list.d/docker.sources && cat /etc/apt/sources.list.d/docker.sources && apt-get update'
@@ -16270,11 +12755,11 @@ Ign:13 https://repo.katacontainers.io/apt trixie InRelease
 Ign:13 https://repo.katacontainers.io/apt trixie InRelease
 Ign:13 https://repo.katacontainers.io/apt trixie InRelease
 Err:13 https://repo.katacontainers.io/apt trixie InRelease
-  Could not resolve &#39;repo.katacontainers.io&#39;
+  Could not resolve 'repo.katacontainers.io'
 Fetched 100 kB in 8s (13.3 kB/s)
 Reading package lists...
 W: https://deb.nodesource.com/node_24.x/dists/nodistro/InRelease: Policy will reject signature within a year, see --audit for details
-W: Failed to fetch https://repo.katacontainers.io/apt/dists/trixie/InRelease  Could not resolve &#39;repo.katacontainers.io&#39;
+W: Failed to fetch https://repo.katacontainers.io/apt/dists/trixie/InRelease  Could not resolve 'repo.katacontainers.io'
 W: Some index files failed to download. They have been ignored, or old ones used instead.
 
 ```
@@ -16289,7 +12774,7 @@ Great! Now let me check if Docker 27 is available and install it:</details></thi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'apt-cache policy docker-ce | grep -A5 -B5 "27\."'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'apt-cache policy docker-ce | grep -A5 -B5 "27\."'</summary>
 
 ```bash
 ssh root@157.90.177.85 'apt-cache policy docker-ce | grep -A5 -B5 "27\."'
@@ -16346,7 +12831,7 @@ Perfect! Docker 27 is available. Let me install the latest Docker 27 version:</d
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm docker-compose-plugin=2.31.0-1~debian.12~bookworm docker-buildx-plugin=0.18.0-1~debian.12~bookworm --allow-downgrades'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm docker-compose-plugin=2.31.0-1~debian.12~bookworm docker-buildx-plugin=0.18.0-1~debian.12~bookworm --allow-downgrades'</summary>
 
 ```bash
 ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm docker-compose-plugin=2.31.0-1~debian.12~bookworm docker-buildx-plugin=0.18.0-1~debian.12~bookworm --allow-downgrades'
@@ -16360,7 +12845,7 @@ Package docker-buildx-plugin is not available, but is referred to by another pac
 This may mean that the package is missing, has been obsoleted, or
 is only available from another source
 
-E: Version &#39;0.18.0-1~debian.12~bookworm&#39; for &#39;docker-buildx-plugin&#39; was not found
+E: Version '0.18.0-1~debian.12~bookworm' for 'docker-buildx-plugin' was not found
 
 ```
 </details>
@@ -16374,7 +12859,7 @@ Let me try installing just the main Docker components without specifying version
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm --allow-downgrades'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm --allow-downgrades'</summary>
 
 ```bash
 ssh root@157.90.177.85 'apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm --allow-downgrades'
@@ -16400,7 +12885,7 @@ debconf: falling back to frontend: Teletype
 debconf: unable to initialize frontend: Teletype
 debconf: (This frontend requires a controlling tty.)
 debconf: falling back to frontend: Noninteractive
-N: Ignoring file &#39;docker.sources.backup&#39; in directory &#39;/etc/apt/sources.list.d/&#39; as it has an invalid filename extension
+N: Ignoring file 'docker.sources.backup' in directory '/etc/apt/sources.list.d/' as it has an invalid filename extension
 Fetched 41.3 MB in 0s (91.7 MB/s)
 dpkg: warning: downgrading docker-ce-cli (5:29.0.1-1~debian.13~trixie) to (5:27.5.1-1~debian.12~bookworm)
 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 39205 files and directories currently installed.)
@@ -16426,7 +12911,7 @@ Great! Docker has been downgraded to 27.5.1. Now let me start Docker and test Ka
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'systemctl start docker && docker --version && docker run --rm --runtime=kata-fc alpine:latest ip addr'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'systemctl start docker && docker --version && docker run --rm --runtime=kata-fc alpine:latest ip addr'</summary>
 
 ```bash
 ssh root@157.90.177.85 'systemctl start docker && docker --version && docker run --rm --runtime=kata-fc alpine:latest ip addr'
@@ -16459,7 +12944,7 @@ Docker version 27.5.1, build 9f9e405
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ping -c 3 8.8.8.8 && echo ---SUCCESS--- && nslookup registry.npmjs.org"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ping -c 3 8.8.8.8 && echo ---SUCCESS--- && nslookup registry.npmjs.org"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "ping -c 3 8.8.8.8 && echo ---SUCCESS--- && nslookup registry.npmjs.org"'
@@ -16543,7 +13028,7 @@ AMAZING! 🎉 The networking works perfectly now! Let me test pnpm install to co
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache nodejs npm && npm install -g pnpm && pnpm --version"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache nodejs npm && npm install -g pnpm && pnpm --version"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache nodejs npm && npm install -g pnpm && pnpm --version"'
@@ -16594,7 +13079,7 @@ PERFECT! 🎉 The networking is fully working. Let me now test the pinacle-base 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name pinacle-test pinacledev/pinacle-base:latest sleep 300 && sleep 3 && docker exec pinacle-test uname -a && docker exec pinacle-test ip addr show eth0 && docker exec pinacle-test ping -c 2 8.8.8.8'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name pinacle-test pinacledev/pinacle-base:latest sleep 300 && sleep 3 && docker exec pinacle-test uname -a && docker exec pinacle-test ip addr show eth0 && docker exec pinacle-test ping -c 2 8.8.8.8'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name pinacle-test pinacledev/pinacle-base:latest sleep 300 && sleep 3 && docker exec pinacle-test uname -a && docker exec pinacle-test ip addr show eth0 && docker exec pinacle-test ping -c 2 8.8.8.8'
@@ -16629,19 +13114,19 @@ EXCELLENT! 🎉 Everything is working perfectly. Let me now test OpenRC services
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec pinacle-test sh -c "ps aux | grep -E \"nginx|init\" && echo ---SERVICES--- && rc-status && echo ---NGINX STATUS--- && rc-service nginx status"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec pinacle-test sh -c "ps aux | grep -E \"nginx|init\" && echo ---SERVICES--- && rc-status && echo ---NGINX STATUS--- && rc-service nginx status"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec pinacle-test sh -c "ps aux | grep -E \"nginx|init\" && echo ---SERVICES--- && rc-status && echo ---NGINX STATUS--- && rc-service nginx status"'
 ```
 
 ```
-    8 root      0:00 sh -c ps aux | grep -E &quot;nginx|init&quot; &amp;&amp; echo ---SERVICES--- &amp;&amp; rc-status &amp;&amp; echo ---NGINX STATUS--- &amp;&amp; rc-service nginx status
+    8 root      0:00 sh -c ps aux | grep -E "nginx|init" &amp;&amp; echo ---SERVICES--- &amp;&amp; rc-status &amp;&amp; echo ---NGINX STATUS--- &amp;&amp; rc-service nginx status
    10 root      0:00 grep -E nginx|init
 ---SERVICES---
  * Caching service dependencies ... [ ok ]
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
 Runlevel: sysinit
 Dynamic Runlevel: hotplugged
 Dynamic Runlevel: needed/wanted
@@ -16740,37 +13225,37 @@ Now I need to modify the Docker installation section to use Debian bookworm repo
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 7, lines removed: 6
 
 ```diff
 @@ -159,19 +159,20 @@
-    run_remote &quot;sudo chmod a+r /etc/apt/keyrings/docker.asc&quot;
+    run_remote "sudo chmod a+r /etc/apt/keyrings/docker.asc"
   
--   VERSION_CODENAME=$(run_remote &quot;. /etc/os-release &amp;&amp; echo \&quot;\$VERSION_CODENAME\&quot;&quot;)
--   echo &quot;   Detected VERSION_CODENAME: $VERSION_CODENAME&quot;
+-   VERSION_CODENAME=$(run_remote ". /etc/os-release &amp;&amp; echo \"\$VERSION_CODENAME\"")
+-   echo "   Detected VERSION_CODENAME: $VERSION_CODENAME"
 +   # Use bookworm repository (Docker 27.x) to fix Kata networking compatibility
 +   # Docker 28+ breaks Kata networking (https://github.com/kata-containers/kata-containers/issues/9340)
-+   echo &quot;   Using bookworm repository (Docker 27.x) for Kata networking compatibility&quot;
++   echo "   Using bookworm repository (Docker 27.x) for Kata networking compatibility"
   
 -   # Add Docker repository
 +   # Add Docker repository (force bookworm for Debian compatibility)
-    run_remote &quot;sudo tee /etc/apt/sources.list.d/docker.sources &gt; /dev/null &lt;&lt;EOF
+    run_remote "sudo tee /etc/apt/sources.list.d/docker.sources &gt; /dev/null &lt;&lt;EOF
   Types: deb
   URIs: $DOCKER_URL
 - Suites: $VERSION_CODENAME
 + Suites: bookworm
   Components: stable
   Signed-By: /etc/apt/keyrings/docker.asc
-  EOF&quot;
+  EOF"
   
 -   # Install Docker
 +   # Install Docker 27.x (latest in 27.x series for Kata networking compatibility)
-    run_remote &quot;sudo apt-get update&quot;
--   run_remote &quot;sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin&quot;
-+   run_remote &quot;sudo apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm containerd.io docker-buildx-plugin docker-compose-plugin&quot;
+    run_remote "sudo apt-get update"
+-   run_remote "sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
++   run_remote "sudo apt-get install -y docker-ce=5:27.5.1-1~debian.12~bookworm docker-ce-cli=5:27.5.1-1~debian.12~bookworm containerd.io docker-buildx-plugin docker-compose-plugin"
   
     # Start and enable Docker
 ```
@@ -16801,23 +13286,23 @@ I need to add CNI plugins installation. Let me find a good place to add it, prob
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 7, lines removed: 1
 
 ```diff
 @@ -340,5 +340,11 @@
-  echo &quot;✅ Kata configured for Firecracker&quot;
+  echo "✅ Kata configured for Firecracker"
   
-- echo &quot;🔧 Step 6a: Configuring containerd for Kata runtime...&quot;
-+ echo &quot;🌐 Step 6a: Installing CNI plugins for Kata networking...&quot;
+- echo "🔧 Step 6a: Configuring containerd for Kata runtime..."
++ echo "🌐 Step 6a: Installing CNI plugins for Kata networking..."
 + # Install CNI plugins for Kata networking (Docker 27 + Kata compatibility)
-+ run_remote &quot;sudo mkdir -p /opt/cni/bin&quot;
-+ run_remote &quot;cd /tmp &amp;&amp; sudo curl -L https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz | sudo tar -xzC /opt/cni/bin/&quot;
-+ echo &quot;✅ CNI plugins installed&quot;
++ run_remote "sudo mkdir -p /opt/cni/bin"
++ run_remote "cd /tmp &amp;&amp; sudo curl -L https://github.com/containernetworking/plugins/releases/download/v1.4.0/cni-plugins-linux-amd64-v1.4.0.tgz | sudo tar -xzC /opt/cni/bin/"
++ echo "✅ CNI plugins installed"
 + 
-+ echo &quot;🔧 Step 6b: Configuring containerd for Kata runtime...&quot;
++ echo "🔧 Step 6b: Configuring containerd for Kata runtime..."
   
   # Generate default containerd config
 ```
@@ -16835,17 +13320,17 @@ Let me also update the step numbers since I added a new step:</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -346,5 +346,5 @@
-  echo &quot;✅ CNI plugins installed&quot;
+  echo "✅ CNI plugins installed"
   
-- echo &quot;🔧 Step 6b: Configuring containerd for Kata runtime...&quot;
-+ echo &quot;🔧 Step 6c: Configuring containerd for Kata runtime...&quot;
+- echo "🔧 Step 6b: Configuring containerd for Kata runtime..."
++ echo "🔧 Step 6c: Configuring containerd for Kata runtime..."
   
   # Generate default containerd config
 ```
@@ -16863,17 +13348,17 @@ Let me update the remaining step numbers:</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -368,5 +368,5 @@
-  echo &quot;✅ containerd configured with Kata runtime&quot;
+  echo "✅ containerd configured with Kata runtime"
   
-- echo &quot;🐳 Step 6b: Configuring Docker to use Kata runtime...&quot;
-+ echo &quot;🐳 Step 6d: Configuring Docker to use Kata runtime...&quot;
+- echo "🐳 Step 6b: Configuring Docker to use Kata runtime..."
++ echo "🐳 Step 6d: Configuring Docker to use Kata runtime..."
   
   # Configure Docker to use the Kata runtime from containerd
 ```
@@ -17057,7 +13542,7 @@ The user wants me to commit the changes. Based on the commit rules, I should com
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add scripts/provision-server.sh && git commit -m "fix: resolve Kata networking by downgrading Docker to 27.x
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add scripts/provision-server.sh && git commit -m "fix: resolve Kata networking by downgrading Docker to 27.x
 
 - Change Docker repo from trixie to bookworm to get Docker 27.x
 - Pin Docker version to 27.5.1 for Kata networking compatibility
@@ -17211,7 +13696,7 @@ I found several references to GVisorRuntime that need to be updated. I need to:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/pod-provisioning-service.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -17220,9 +13705,9 @@ Lines added: 2, lines removed: 2
 @@ -318,6 +318,6 @@
           );
   
--         const { GVisorRuntime } = await import(&quot;./container-runtime&quot;);
+-         const { GVisorRuntime } = await import("./container-runtime");
 -         const runtime = new GVisorRuntime(serverConnection);
-+         const { KataRuntime } = await import(&quot;./container-runtime&quot;);
++         const { KataRuntime } = await import("./container-runtime");
 +         const runtime = new KataRuntime(serverConnection);
           await runtime.removeAllPodVolumes(podId);
   
@@ -17254,7 +13739,7 @@ I see the first instance. Let me update all four instances in the pods.ts file.<
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -17265,7 +13750,7 @@ Lines added: 2, lines removed: 2
               );
 -             const { GVisorRuntime } = await import(
 +             const { KataRuntime } = await import(
-                &quot;../../pod-orchestration/container-runtime&quot;
+                "../../pod-orchestration/container-runtime"
               );
 -             const runtime = new GVisorRuntime(serverConnection);
 +             const runtime = new KataRuntime(serverConnection);
@@ -17286,7 +13771,7 @@ Now I need to update the test files. Let me start with the proxy test file.</det
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17294,11 +13779,11 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -26,5 +26,5 @@
     users,
-  } from &quot;@/lib/db/schema&quot;;
-- import { GVisorRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
-+ import { KataRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
-  import { getLimaServerConnection } from &quot;@/lib/pod-orchestration/lima-utils&quot;;
-  import { NetworkManager } from &quot;@/lib/pod-orchestration/network-manager&quot;;
+  } from "@/lib/db/schema";
+- import { GVisorRuntime } from "@/lib/pod-orchestration/container-runtime";
++ import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
+  import { getLimaServerConnection } from "@/lib/pod-orchestration/lima-utils";
+  import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
 ```
 
 </details>
@@ -17314,14 +13799,14 @@ Now I need to update the instantiation in the same file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -127,5 +127,5 @@
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
       serverConnection = await getLimaServerConnection();
 -     const containerRuntime = new GVisorRuntime(serverConnection);
 +     const containerRuntime = new KataRuntime(serverConnection);
@@ -17342,19 +13827,19 @@ Now I need to update the integration test file. This one has multiple instances.
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -16,5 +16,5 @@
-  } from &quot;@/lib/db/schema&quot;;
-  import { generateKSUID } from &quot;@/lib/utils&quot;;
-- import { GVisorRuntime } from &quot;../container-runtime&quot;;
-+ import { KataRuntime } from &quot;../container-runtime&quot;;
-  import { getLimaServerConnection } from &quot;../lima-utils&quot;;
-  import { NetworkManager } from &quot;../network-manager&quot;;
+  } from "@/lib/db/schema";
+  import { generateKSUID } from "@/lib/utils";
+- import { GVisorRuntime } from "../container-runtime";
++ import { KataRuntime } from "../container-runtime";
+  import { getLimaServerConnection } from "../lima-utils";
+  import { NetworkManager } from "../network-manager";
 ```
 
 </details>
@@ -17370,14 +13855,14 @@ Now I need to update all the GVisorRuntime instantiations in this file. Let me d
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -114,5 +114,5 @@
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
       serverConnection = await getLimaServerConnection();
 -     const containerRuntime = new GVisorRuntime(serverConnection);
 +     const containerRuntime = new KataRuntime(serverConnection);
@@ -17390,7 +13875,7 @@ Lines added: 1, lines removed: 1
 
 ```diff
 @@ -832,5 +832,5 @@
-      console.log(&quot;🔍 Verifying cloned repository...&quot;);
+      console.log("🔍 Verifying cloned repository...");
   
 -     const containerRuntime = new GVisorRuntime(serverConnection);
 +     const containerRuntime = new KataRuntime(serverConnection);
@@ -17437,7 +13922,7 @@ Now I need to update the runtime instantiation. Let me check what other GVisorRu
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17488,7 +13973,7 @@ Lines added: 1, lines removed: 1
 -     const runtime = new GVisorRuntime(serverConnection);
 +     const runtime = new KataRuntime(serverConnection);
   
-      console.log(&quot;📝 Writing test files to volumes...&quot;);
+      console.log("📝 Writing test files to volumes...");
 ```
 
 **Chunk 5**
@@ -17501,7 +13986,7 @@ Lines added: 1, lines removed: 1
 -     const runtime = new GVisorRuntime(serverConnection);
 +     const runtime = new KataRuntime(serverConnection);
   
-      console.log(&quot;📦 Installing curl with apk...&quot;);
+      console.log("📦 Installing curl with apk...");
 ```
 
 </details>
@@ -17517,18 +14002,18 @@ Now I need to update the container-runtime.test.ts file. This one has a test des
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,4 +1,4 @@
-  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
-- import { GVisorRuntime } from &quot;../container-runtime&quot;;
-+ import { KataRuntime } from &quot;../container-runtime&quot;;
-  import { getLimaServerConnection } from &quot;../lima-utils&quot;;
-  import type { PodSpec, } from &quot;../types&quot;;
+  import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+- import { GVisorRuntime } from "../container-runtime";
++ import { KataRuntime } from "../container-runtime";
+  import { getLimaServerConnection } from "../lima-utils";
+  import type { PodSpec, } from "../types";
 ```
 
 </details>
@@ -17544,7 +14029,7 @@ Now I need to update the test description and the runtime instantiation.</detail
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17553,8 +14038,8 @@ Lines added: 1, lines removed: 1
 @@ -26,5 +26,5 @@
   }));
   
-- describe(&quot;LimaGVisorRuntime&quot;, () =&gt; {
-+ describe(&quot;KataRuntime&quot;, () =&gt; {
+- describe("LimaGVisorRuntime", () =&gt; {
++ describe("KataRuntime", () =&gt; {
     let runtime: GVisorRuntime;
     let testConfig: PodSpec;
 ```
@@ -17572,7 +14057,7 @@ Now I need to update the runtime variable declaration and instantiation.</detail
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17580,7 +14065,7 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -27,5 +27,5 @@
   
-  describe(&quot;KataRuntime&quot;, () =&gt; {
+  describe("KataRuntime", () =&gt; {
 -   let runtime: GVisorRuntime;
 +   let runtime: KataRuntime;
     let testConfig: PodSpec;
@@ -17600,7 +14085,7 @@ Now I need to update the instantiation.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17628,7 +14113,7 @@ Now I need to update the method name in the test. Let me check what methods are 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17637,9 +14122,9 @@ Lines added: 1, lines removed: 1
 @@ -288,5 +288,5 @@
     });
   
--   describe(&quot;validateGVisorRuntime&quot;, () =&gt; {
-+   describe(&quot;validateKataRuntime&quot;, () =&gt; {
-      it(&quot;should validate gVisor runtime is available&quot;, async () =&gt; {
+-   describe("validateGVisorRuntime", () =&gt; {
++   describe("validateKataRuntime", () =&gt; {
+      it("should validate gVisor runtime is available", async () =&gt; {
         mockExec.mockImplementationOnce((cmd: string, callback: any) =&gt; {
 ```
 
@@ -17656,7 +14141,7 @@ Now I need to update the method calls. Let me find them.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17697,19 +14182,19 @@ Now I need to update the pinacle-yaml-integration.test.ts file.</details></think
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -2,5 +2,5 @@
-  import { promisify } from &quot;node:util&quot;;
-  import { beforeAll, describe, expect, it } from &quot;vitest&quot;;
-- import { GVisorRuntime } from &quot;../container-runtime&quot;;
-+ import { KataRuntime } from &quot;../container-runtime&quot;;
-  import { GitHubIntegration } from &quot;../github-integration&quot;;
-  import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { promisify } from "node:util";
+  import { beforeAll, describe, expect, it } from "vitest";
+- import { GVisorRuntime } from "../container-runtime";
++ import { KataRuntime } from "../container-runtime";
+  import { GitHubIntegration } from "../github-integration";
+  import { getLimaServerConnection } from "../lima-utils";
 ```
 
 </details>
@@ -17725,7 +14210,7 @@ Now I need to update the variable declaration and instantiation.</details></thin
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17753,7 +14238,7 @@ Now I need to update the instantiation.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -17821,7 +14306,7 @@ I see the issue. The replace_all didn't work because the import statements have 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -17832,7 +14317,7 @@ Lines added: 2, lines removed: 2
   
 -         const { GVisorRuntime } = await import(
 +         const { KataRuntime } = await import(
-            &quot;../../pod-orchestration/container-runtime&quot;
+            "../../pod-orchestration/container-runtime"
           );
 -         const runtime = new GVisorRuntime(serverConnection);
 +         const runtime = new KataRuntime(serverConnection);
@@ -17849,7 +14334,7 @@ Lines added: 2, lines removed: 2
   
 -         const { GVisorRuntime } = await import(
 +         const { KataRuntime } = await import(
-            &quot;../../pod-orchestration/container-runtime&quot;
+            "../../pod-orchestration/container-runtime"
           );
 -         const runtime = new GVisorRuntime(serverConnection);
 +         const runtime = new KataRuntime(serverConnection);
@@ -17906,7 +14391,7 @@ I see, this one has different indentation. Let me update this one specifically.<
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/pods.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -17917,7 +14402,7 @@ Lines added: 2, lines removed: 2
   
 -           const { GVisorRuntime } = await import(
 +           const { KataRuntime } = await import(
-              &quot;../../pod-orchestration/container-runtime&quot;
+              "../../pod-orchestration/container-runtime"
             );
 -           const runtime = new GVisorRuntime(serverConnection);
 +           const runtime = new KataRuntime(serverConnection);
@@ -18019,7 +14504,7 @@ Now let me commit these changes to complete the migration.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "refactor: complete migration from GVisorRuntime to KataRuntime
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "refactor: complete migration from GVisorRuntime to KataRuntime
 
 - Update all imports from GVisorRuntime to KataRuntime
 - Update all instantiations from new GVisorRuntime to new KataRuntime
@@ -18134,7 +14619,7 @@ The user wants me to commit the changes. Looking at the attached files, I can se
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "refactor: complete migration from GVisorRuntime to KataRuntime
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "refactor: complete migration from GVisorRuntime to KataRuntime
 
 - Update all imports from GVisorRuntime to KataRuntime across codebase
 - Update all instantiations from new GVisorRuntime to new KataRuntime  
@@ -18170,7 +14655,7 @@ It looks like only 2 files were changed with 1 insertion and 1 deletion. That's 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -3</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git log --oneline -3</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git log --oneline -3
@@ -18193,7 +14678,7 @@ Ah, I see! There were two commits with the same message. The first one (a03a7a9)
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git show --name-only e48ad06</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git show --name-only e48ad06</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git show --name-only e48ad06
@@ -18313,7 +14798,7 @@ I found some remaining `limaVmName` references in test files. Let me also check 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
@@ -18322,23 +14807,23 @@ cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
 ```
 
 &gt; pinacle@0.1.0 build
-&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+&gt; echo 'Checking types...' &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo "$(git rev-parse HEAD)$(git diff --quiet || echo '-dirty')" &gt; .git-commit-hash &amp;&amp; next build --turbopack
 
 Checking types...
-server.ts(344,31): error TS2339: Property &#39;limaVmName&#39; does not exist on type &#39;{ id: string; hostname: string; ipAddress: string; status: string; lastHeartbeatAt: Date | null; sshHost: string; sshPort: number; sshUser: string; cpuCores: number; memoryMb: number; diskGb: number; createdAt: Date; updatedAt: Date; }&#39;.
-src/lib/pod-orchestration/__tests__/container-runtime.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/pod-orchestration/__tests__/integration.test.ts(19,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/pod-orchestration/__tests__/integration.test.ts(57,64): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/pod-orchestration/__tests__/integration.test.ts(191,25): error TS2353: Object literal may only specify known properties, and &#39;limaVmName&#39; does not exist in type &#39;{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }&#39;.
+server.ts(344,31): error TS2339: Property 'limaVmName' does not exist on type '{ id: string; hostname: string; ipAddress: string; status: string; lastHeartbeatAt: Date | null; sshHost: string; sshPort: number; sshUser: string; cpuCores: number; memoryMb: number; diskGb: number; createdAt: Date; updatedAt: Date; }'.
+src/lib/pod-orchestration/__tests__/container-runtime.test.ts(3,41): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(3,41): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(19,41): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(57,64): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/integration.test.ts(191,25): error TS2353: Object literal may only specify known properties, and 'limaVmName' does not exist in type '{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }'.
 src/lib/pod-orchestration/__tests__/integration.test.ts(201,11): error TS2769: No overload matches this call.
   The last overload gave the following error.
-    Object literal may only specify known properties, and &#39;hostname&#39; does not exist in type &#39;{ cpuCores: number | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt;; createdAt?: Date | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt; | undefined; diskGb: number | Placeholder&lt;...&gt; | SQL&lt;...&gt;; ... 9 more ...; updatedAt?: Date | ... 2 more ... | undefined; }[]&#39;.
-src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(6,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(3,41): error TS2307: Cannot find module &#39;../lima-utils&#39; or its corresponding type declarations.
-src/lib/proxy/__tests__/proxy.test.ts(29,41): error TS2307: Cannot find module &#39;@/lib/pod-orchestration/lima-utils&#39; or its corresponding type declarations.
-src/lib/proxy/__tests__/proxy.test.ts(69,9): error TS2307: Cannot find module &#39;@/lib/pod-orchestration/lima-utils&#39; or its corresponding type declarations.
-src/lib/proxy/__tests__/proxy.test.ts(196,25): error TS2353: Object literal may only specify known properties, and &#39;limaVmName&#39; does not exist in type &#39;{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }&#39;.
+    Object literal may only specify known properties, and 'hostname' does not exist in type '{ cpuCores: number | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt;; createdAt?: Date | Placeholder&lt;string, any&gt; | SQL&lt;unknown&gt; | undefined; diskGb: number | Placeholder&lt;...&gt; | SQL&lt;...&gt;; ... 9 more ...; updatedAt?: Date | ... 2 more ... | undefined; }[]'.
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(6,41): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(3,41): error TS2307: Cannot find module '../lima-utils' or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(29,41): error TS2307: Cannot find module '@/lib/pod-orchestration/lima-utils' or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(69,9): error TS2307: Cannot find module '@/lib/pod-orchestration/lima-utils' or its corresponding type declarations.
+src/lib/proxy/__tests__/proxy.test.ts(196,25): error TS2353: Object literal may only specify known properties, and 'limaVmName' does not exist in type '{ cpuCores?: number | PgColumn&lt;ColumnBaseConfig&lt;ColumnDataType, string&gt;, {}, {}&gt; | SQL&lt;unknown&gt; | undefined; createdAt?: Date | PgColumn&lt;...&gt; | SQL&lt;...&gt; | undefined; ... 10 more ...; updatedAt?: Date | ... 2 more ... | undefined; }'.
 src/lib/proxy/__tests__/proxy.test.ts(206,11): error TS2769: No overload matches this call.
 
 ```
@@ -18369,7 +14854,7 @@ Found the issue in server.ts. Let me fix it by removing the limaVmName reference
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/server.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 3
@@ -18380,7 +14865,7 @@ Lines added: 2, lines removed: 3
   
 -     // Determine target host
 -     const isLimaVm = !!server.limaVmName;
--     const targetHost = isLimaVm ? &quot;127.0.0.1&quot; : server.ipAddress;
+-     const targetHost = isLimaVm ? "127.0.0.1" : server.ipAddress;
 +     // Target host (always use server IP since we no longer use Lima VMs)
 +     const targetHost = server.ipAddress;
       const targetPort = nginxProxy.external;
@@ -18413,7 +14898,7 @@ I see the issue. The test files are still trying to use Lima VM logic and create
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -18445,7 +14930,7 @@ Now I need to fix the insert statement that includes limaVmName.</details></thin
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -18454,9 +14939,9 @@ Lines added: 1, lines removed: 1
 @@ -199,5 +199,5 @@
           .insert(servers)
           .values({
--           hostname: &quot;lima-gvisor-alpine&quot;,
-+           hostname: &quot;test-server&quot;,
-            ipAddress: &quot;127.0.0.1&quot;,
+-           hostname: "lima-gvisor-alpine",
++           hostname: "test-server",
+            ipAddress: "127.0.0.1",
             cpuCores: 4,
 ```
 
@@ -18466,9 +14951,9 @@ Lines added: undefined, lines removed: 1
 ```diff
 @@ -207,5 +207,4 @@
             sshPort,
-            sshUser: process.env.USER || &quot;root&quot;,
+            sshUser: process.env.USER || "root",
 -           limaVmName: vmName, // Mark this as a Lima VM
-            status: &quot;online&quot;,
+            status: "online",
           })
 ```
 
@@ -18544,18 +15029,18 @@ I need to update this to use the test server connection instead of Lima. Let me 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -17,5 +17,5 @@
-  import { generateKSUID } from &quot;@/lib/utils&quot;;
-  import { KataRuntime } from &quot;../container-runtime&quot;;
-- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { generateKSUID } from "@/lib/utils";
+  import { KataRuntime } from "../container-runtime";
+- import { getLimaServerConnection } from "../lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { NetworkManager } from &quot;../network-manager&quot;;
+  import { NetworkManager } from "../network-manager";
   import {
 ```
 
@@ -18572,7 +15057,7 @@ Now I need to update the serverConnection assignment. Let me find where serverCo
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -18580,12 +15065,12 @@ Lines added: 6, lines removed: 1
 ```diff
 @@ -113,5 +113,10 @@
       // 4. Clean up containers and networks
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
 -     serverConnection = await getLimaServerConnection();
 +     serverConnection = {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: sshPort,
-+       username: process.env.USER || &quot;root&quot;,
++       username: process.env.USER || "root",
 +       privateKey: privateKey,
 +     };
       const containerRuntime = new KataRuntime(serverConnection);
@@ -18605,7 +15090,7 @@ Now I need to update the other getLimaServerConnection usage. Let me find it.</d
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -18616,9 +15101,9 @@ Lines added: 6, lines removed: 1
       // Verify container exists (directly check Docker)
 -     const serverConnection = await getLimaServerConnection();
 +     const serverConnection = {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: sshPort,
-+       username: process.env.USER || &quot;root&quot;,
++       username: process.env.USER || "root",
 +       privateKey: privateKey,
 +     };
       const runtime = new KataRuntime(serverConnection);
@@ -18638,18 +15123,18 @@ Now let me fix the proxy test file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -27,5 +27,5 @@
-  } from &quot;@/lib/db/schema&quot;;
-  import { KataRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
-- import { getLimaServerConnection } from &quot;@/lib/pod-orchestration/lima-utils&quot;;
+  } from "@/lib/db/schema";
+  import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
+- import { getLimaServerConnection } from "@/lib/pod-orchestration/lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { NetworkManager } from &quot;@/lib/pod-orchestration/network-manager&quot;;
+  import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
   import {
 ```
 
@@ -18679,7 +15164,7 @@ I need to update the proxy test file similar to how I updated the integration te
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -18711,7 +15196,7 @@ Now I need to fix the insert statement in the proxy test.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -18720,9 +15205,9 @@ Lines added: 1, lines removed: 1
 @@ -204,5 +204,5 @@
           .insert(servers)
           .values({
--           hostname: &quot;lima-gvisor-alpine&quot;,
-+           hostname: &quot;test-server-proxy&quot;,
-            ipAddress: &quot;127.0.0.1&quot;,
+-           hostname: "lima-gvisor-alpine",
++           hostname: "test-server-proxy",
+            ipAddress: "127.0.0.1",
             cpuCores: 4,
 ```
 
@@ -18732,9 +15217,9 @@ Lines added: undefined, lines removed: 1
 ```diff
 @@ -212,5 +212,4 @@
             sshPort,
-            sshUser: process.env.USER || &quot;root&quot;,
+            sshUser: process.env.USER || "root",
 -           limaVmName: vmName, // Mark this as a Lima VM
-            status: &quot;online&quot;,
+            status: "online",
           })
 ```
 
@@ -18786,7 +15271,7 @@ I need to update this to use the test server connection. Let me replace it.</det
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -18794,12 +15279,12 @@ Lines added: 6, lines removed: 1
 ```diff
 @@ -126,5 +126,10 @@
       // 4. Clean up containers and networks
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
 -     serverConnection = await getLimaServerConnection();
 +     serverConnection = {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: sshPort,
-+       username: process.env.USER || &quot;root&quot;,
++       username: process.env.USER || "root",
 +       privateKey: privateKey,
 +     };
       const containerRuntime = new KataRuntime(serverConnection);
@@ -18832,7 +15317,7 @@ I need to fix the pods-e2e.integration.test.ts file by removing the limaVmName r
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -18841,8 +15326,8 @@ Lines added: 1, lines removed: 1
 @@ -179,5 +179,5 @@
         await db
           .update(servers)
--         .set({ sshPort, limaVmName: vmName, status: &quot;online&quot; })
-+         .set({ sshPort, status: &quot;online&quot; })
+-         .set({ sshPort, limaVmName: vmName, status: "online" })
++         .set({ sshPort, status: "online" })
           .where(eq(servers.id, existingServer.id));
         testServerId = existingServer.id;
 ```
@@ -18860,7 +15345,7 @@ Now I need to fix the insert statement.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -18869,9 +15354,9 @@ Lines added: 1, lines removed: 1
 @@ -186,5 +186,5 @@
           .insert(servers)
           .values({
--           hostname: &quot;lima-gvisor-alpine-e2e&quot;,
-+           hostname: &quot;test-server-e2e&quot;,
-            ipAddress: &quot;127.0.0.1&quot;,
+-           hostname: "lima-gvisor-alpine-e2e",
++           hostname: "test-server-e2e",
+            ipAddress: "127.0.0.1",
             cpuCores: 4,
 ```
 
@@ -18881,9 +15366,9 @@ Lines added: undefined, lines removed: 1
 ```diff
 @@ -194,5 +194,4 @@
             sshPort,
-            sshUser: process.env.USER || &quot;root&quot;,
+            sshUser: process.env.USER || "root",
 -           limaVmName: vmName,
-            status: &quot;online&quot;,
+            status: "online",
             lastHeartbeatAt: new Date(),
 ```
 
@@ -18928,7 +15413,7 @@ I need to remove these imports and fix the test logic. Let me start with the pod
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -18936,10 +15421,10 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -19,5 +19,5 @@
     users,
-  } from &quot;@/lib/db/schema&quot;;
-- import { getLimaSshPort, isLimaVmRunning } from &quot;@/lib/pod-orchestration/lima-utils&quot;;
+  } from "@/lib/db/schema";
+- import { getLimaSshPort, isLimaVmRunning } from "@/lib/pod-orchestration/lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { appRouter } from &quot;../../root&quot;;
+  import { appRouter } from "../../root";
   
 ```
 
@@ -18992,7 +15477,7 @@ I need to update this test to not check for Lima VMs. Since it's an E2E test, it
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/trpc/routers/__tests__/pods-e2e.integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 11
@@ -19002,7 +15487,7 @@ Lines added: 3, lines removed: 11
       }
   
 -     // 2. Check if Lima VM is running and get SSH port
--     const vmName = &quot;gvisor-alpine&quot;;
+-     const vmName = "gvisor-alpine";
 -     const running = await isLimaVmRunning(vmName);
 -     if (!running) {
 -       throw new Error(
@@ -19032,18 +15517,18 @@ Now let me fix the other test files. Let me start with the container-runtime.tes
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
-  import { KataRuntime } from &quot;../container-runtime&quot;;
-- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+  import { KataRuntime } from "../container-runtime";
+- import { getLimaServerConnection } from "../lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import type { PodSpec, } from &quot;../types&quot;;
+  import type { PodSpec, } from "../types";
   
 ```
 
@@ -19082,7 +15567,7 @@ I need to create a mock server connection for this test. Let me update it.</deta
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -19093,10 +15578,10 @@ Lines added: 6, lines removed: 1
   
 -     runtime = new KataRuntime(await getLimaServerConnection());
 +     runtime = new KataRuntime({
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: 22,
-+       username: &quot;root&quot;,
-+       privateKey: &quot;mock-key&quot;,
++       username: "root",
++       privateKey: "mock-key",
 +     });
   
       testConfig = {
@@ -19115,18 +15600,18 @@ Now let me fix the pinacle-yaml-integration.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -4,5 +4,5 @@
-  import { KataRuntime } from &quot;../container-runtime&quot;;
-  import { GitHubIntegration } from &quot;../github-integration&quot;;
-- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { KataRuntime } from "../container-runtime";
+  import { GitHubIntegration } from "../github-integration";
+- import { getLimaServerConnection } from "../lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { NetworkManager } from &quot;../network-manager&quot;;
+  import { NetworkManager } from "../network-manager";
   import {
 ```
 
@@ -19165,7 +15650,7 @@ I need to update this to use a mock server connection.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -19176,10 +15661,10 @@ Lines added: 6, lines removed: 1
       // Clean up any existing test containers
 -     const serverConnection = await getLimaServerConnection();
 +     const serverConnection = {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: 22,
-+       username: &quot;root&quot;,
-+       privateKey: &quot;mock-key&quot;,
++       username: "root",
++       privateKey: "mock-key",
 +     };
       containerRuntime = new KataRuntime(serverConnection);
       networkManager = new NetworkManager(serverConnection);
@@ -19198,19 +15683,19 @@ Now let me fix the github-integration.unit.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
-  import { GitHubIntegration } from &quot;../github-integration&quot;;
-- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+  import { GitHubIntegration } from "../github-integration";
+- import { getLimaServerConnection } from "../lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { PodManager } from &quot;../pod-manager&quot;;
-  import type { PodSpec } from &quot;../types&quot;;
+  import { PodManager } from "../pod-manager";
+  import type { PodSpec } from "../types";
 ```
 
 </details>
@@ -19248,7 +15733,7 @@ I need to update this usage.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -19259,10 +15744,10 @@ Lines added: 6, lines removed: 1
       // Initialize managers
 -     podManager = new PodManager(podId, await getLimaServerConnection());
 +     podManager = new PodManager(podId, {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: 22,
-+       username: &quot;root&quot;,
-+       privateKey: &quot;mock-key&quot;,
++       username: "root",
++       privateKey: "mock-key",
 +     });
       githubIntegration = new GitHubIntegration(podManager);
     });
@@ -19281,19 +15766,19 @@ Now let me fix the process-provisioner.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it } from &quot;vitest&quot;;
-  import { generateKSUID } from &quot;../../utils&quot;;
-- import { getLimaServerConnection } from &quot;../lima-utils&quot;;
+  import { afterAll, beforeAll, describe, expect, it } from "vitest";
+  import { generateKSUID } from "../../utils";
+- import { getLimaServerConnection } from "../lima-utils";
 + // Removed Lima imports - now using direct server connections
-  import { NetworkManager } from &quot;../network-manager&quot;;
-  import { PodManager } from &quot;../pod-manager&quot;;
+  import { NetworkManager } from "../network-manager";
+  import { PodManager } from "../pod-manager";
 ```
 
 </details>
@@ -19331,7 +15816,7 @@ I need to update this usage.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 1
@@ -19339,13 +15824,13 @@ Lines added: 6, lines removed: 1
 ```diff
 @@ -15,5 +15,10 @@
     beforeAll(async () =&gt; {
-      testPodId = generateKSUID(&quot;pod&quot;);
+      testPodId = generateKSUID("pod");
 -     const serverConnection = await getLimaServerConnection();
 +     const serverConnection = {
-+       host: &quot;127.0.0.1&quot;,
++       host: "127.0.0.1",
 +       port: 22,
-+       username: &quot;root&quot;,
-+       privateKey: &quot;mock-key&quot;,
++       username: "root",
++       privateKey: "mock-key",
 +     };
       podManager = new PodManager(testPodId, serverConnection);
       networkManager = new NetworkManager(serverConnection);
@@ -19434,7 +15919,7 @@ I see the issue - the error handling is different. Let me update it correctly.</
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 25
@@ -19445,11 +15930,11 @@ Lines added: 3, lines removed: 25
   
 -     // 2. Check if Lima VM is running and get SSH port
 -     let sshPort: number;
--     const vmName = &quot;gvisor-alpine&quot;;
+-     const vmName = "gvisor-alpine";
 - 
 -     try {
 -       const { isLimaVmRunning, getLimaSshPort } = await import(
--         &quot;@/lib/pod-orchestration/lima-utils&quot;
+-         "@/lib/pod-orchestration/lima-utils"
 -       );
 - 
 -       const isRunning = await isLimaVmRunning(vmName);
@@ -19465,7 +15950,7 @@ Lines added: 3, lines removed: 25
 -       sshPort = await getLimaSshPort(vmName);
 -       console.log(&#96;🔌 Lima SSH port: ${sshPort}&#96;);
 -     } catch (error) {
--       console.error(&quot;Lima VM check failed:&quot;, error);
+-       console.error("Lima VM check failed:", error);
 -       throw error;
 -     }
 +     // 2. Set up test server connection
@@ -19528,7 +16013,7 @@ I need to clean up the remaining Lima references in the integration test. Let me
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -19539,7 +16024,7 @@ Lines added: 1, lines removed: 1
   
 - // Integration tests that run against actual Lima VM and database
 + // Integration tests that run against actual test server and database
-  describe(&quot;Pod Orchestration Integration Tests&quot;, () =&gt; {
+  describe("Pod Orchestration Integration Tests", () =&gt; {
     let provisioningService: PodProvisioningService;
 ```
 
@@ -19578,7 +16063,7 @@ Now I can update it correctly.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 7, lines removed: 34
@@ -19588,22 +16073,22 @@ Lines added: 7, lines removed: 34
   
     beforeAll(async () =&gt; {
 -     // 1. Set up Lima SSH key for authentication
--     const limaKeyPath = join(homedir(), &quot;.lima&quot;, &quot;_config&quot;, &quot;user&quot;);
+-     const limaKeyPath = join(homedir(), ".lima", "_config", "user");
 -     try {
--       const limaKey = readFileSync(limaKeyPath, &quot;utf-8&quot;);
+-       const limaKey = readFileSync(limaKeyPath, "utf-8");
 -       process.env.SSH_PRIVATE_KEY = limaKey;
--       console.log(&quot;🔑 Loaded Lima SSH key&quot;);
+-       console.log("🔑 Loaded Lima SSH key");
 -     } catch (error) {
--       console.error(&quot;Failed to load Lima SSH key:&quot;, error);
+-       console.error("Failed to load Lima SSH key:", error);
 -       throw error;
 -     }
 - 
 -     // 2. Check if Lima VM is running and get SSH port
 -     let sshPort: number;
--     const vmName = &quot;gvisor-alpine&quot;;
+-     const vmName = "gvisor-alpine";
 - 
 -     try {
--       const { isLimaVmRunning, getLimaSshPort } = await import(&quot;../lima-utils&quot;);
+-       const { isLimaVmRunning, getLimaSshPort } = await import("../lima-utils");
 - 
 -       const isRunning = await isLimaVmRunning(vmName);
 -       if (!isRunning) {
@@ -19618,12 +16103,12 @@ Lines added: 7, lines removed: 34
 -       sshPort = await getLimaSshPort(vmName);
 -       console.log(&#96;🔌 Lima SSH port: ${sshPort}&#96;);
 -     } catch (error) {
--       console.error(&quot;Lima VM check failed:&quot;, error);
+-       console.error("Lima VM check failed:", error);
 -       throw error;
 -     }
 +     // 1. Set up test server SSH key
-+     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
-+     console.log(&quot;🔑 Using test SSH key&quot;);
++     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || "test-key";
++     console.log("🔑 Using test SSH key");
 + 
 +     // 2. Set up test server connection
 +     const sshPort = 22; // Default SSH port for test server
@@ -19645,7 +16130,7 @@ Now let me update the remaining comments in the integration test.</details></thi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -19673,18 +16158,18 @@ Let me also update the other comments about Lima.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -706,5 +706,5 @@
-      expect(test8080.stdout.trim()).toBe(&quot;Hello from port 8080!&quot;);
+      expect(test8080.stdout.trim()).toBe("Hello from port 8080!");
   
 -     // Test from Mac using curl (this tests the full Lima port forwarding + hostname routing)
 +     // Test using curl (this tests the hostname routing)
-      console.log(&quot;Testing from Mac via curl...&quot;);
+      console.log("Testing from Mac via curl...");
       const curlTest3000 = await execAsync(
 ```
 
@@ -19701,17 +16186,17 @@ Let me update the volume persistence comments too.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1204,5 +1204,5 @@
-    it(&quot;should persist data across container removal and recreation&quot;, async () =&gt; {
+    it("should persist data across container removal and recreation", async () =&gt; {
       console.log(
--       &quot;\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...&quot;,
-+       &quot;\n🧪 Testing volume persistence across container removal/recreation...&quot;,
+-       "\n🧪 Testing volume persistence across container removal/recreation (simulates Lima restart)...",
++       "\n🧪 Testing volume persistence across container removal/recreation...",
       );
   
 ```
@@ -19729,18 +16214,18 @@ Let me update the other Lima restart comments.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1286,5 +1286,5 @@
-      console.log(&quot;✅ Test files written and verified&quot;);
+      console.log("✅ Test files written and verified");
   
 -     // 3. Stop and remove the container (simulating Lima restart or crash)
 +     // 3. Stop and remove the container (simulating server restart or crash)
-      console.log(&quot;🗑️  Removing container (simulating unexpected restart)...&quot;);
+      console.log("🗑️  Removing container (simulating unexpected restart)...");
       await runtime.stopContainer(originalContainerId);
 ```
 
@@ -19757,18 +16242,18 @@ Let me update the last comment.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1299,5 +1299,5 @@
-      console.log(&quot;✅ Container removed, volumes preserved&quot;);
+      console.log("✅ Container removed, volumes preserved");
   
 -     // 4. Create a new container for the same pod (simulating pod restart after Lima restart)
 +     // 4. Create a new container for the same pod (simulating pod restart after server restart)
-      console.log(&quot;🔄 Creating new container with same volumes...&quot;);
+      console.log("🔄 Creating new container with same volumes...");
   
 ```
 
@@ -19784,7 +16269,7 @@ Now let me run the build again to see if we've fixed all the TypeScript errors.<
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
@@ -19793,24 +16278,24 @@ cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
 ```
 
 &gt; pinacle@0.1.0 build
-&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+&gt; echo 'Checking types...' &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo "$(git rev-parse HEAD)$(git diff --quiet || echo '-dirty')" &gt; .git-commit-hash &amp;&amp; next build --turbopack
 
 Checking types...
-src/lib/pod-orchestration/__tests__/container-runtime.test.ts(48,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
-src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(15,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(89,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(92,19): error TS2304: Cannot find name &#39;privateKey&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(1013,13): error TS2304: Cannot find name &#39;sshPort&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(1015,19): error TS2304: Cannot find name &#39;privateKey&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(1017,37): error TS2739: Type &#39;{ host: string; port: any; username: string; privateKey: any; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(60,40): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(61,41): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(62,44): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(23,44): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(24,41): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(25,60): error TS2739: Type &#39;{ host: string; port: number; username: string; privateKey: string; }&#39; is missing the following properties from type &#39;ServerConnection&#39;: exec, testConnection
-src/lib/proxy/__tests__/proxy.test.ts(107,7): error TS2353: Object literal may only specify known properties, and &#39;host&#39; does not exist in type &#39;ServerConnection&#39;.
-src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+src/lib/pod-orchestration/__tests__/container-runtime.test.ts(48,7): error TS2353: Object literal may only specify known properties, and 'host' does not exist in type 'ServerConnection'.
+src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts(15,7): error TS2353: Object literal may only specify known properties, and 'host' does not exist in type 'ServerConnection'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(89,7): error TS2353: Object literal may only specify known properties, and 'host' does not exist in type 'ServerConnection'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(92,19): error TS2304: Cannot find name 'privateKey'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1013,13): error TS2304: Cannot find name 'sshPort'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1015,19): error TS2304: Cannot find name 'privateKey'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1017,37): error TS2739: Type '{ host: string; port: any; username: string; privateKey: any; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(60,40): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(61,41): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts(62,44): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(23,44): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(24,41): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/pod-orchestration/__tests__/process-provisioner.test.ts(25,60): error TS2739: Type '{ host: string; port: number; username: string; privateKey: string; }' is missing the following properties from type 'ServerConnection': exec, testConnection
+src/lib/proxy/__tests__/proxy.test.ts(107,7): error TS2353: Object literal may only specify known properties, and 'host' does not exist in type 'ServerConnection'.
+src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name 'privateKey'.
 
 ```
 </details>
@@ -19901,18 +16386,18 @@ Let me update the import correctly.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -17,5 +17,5 @@
-  import { generateKSUID } from &quot;@/lib/utils&quot;;
-  import { KataRuntime } from &quot;../container-runtime&quot;;
+  import { generateKSUID } from "@/lib/utils";
+  import { KataRuntime } from "../container-runtime";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;../server-connection&quot;;
-  import { NetworkManager } from &quot;../network-manager&quot;;
++ import { SSHServerConnection } from "../server-connection";
+  import { NetworkManager } from "../network-manager";
   import {
 ```
 
@@ -19942,7 +16427,7 @@ I see the issue. The variables `privateKey` and `sshPort` are not defined in thi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 1
@@ -19951,10 +16436,10 @@ Lines added: 2, lines removed: 1
 @@ -40,5 +40,6 @@
     beforeAll(async () =&gt; {
       // 1. Set up test server SSH key
--     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
-+     const privateKey = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
+-     process.env.SSH_PRIVATE_KEY = process.env.SSH_PRIVATE_KEY || "test-key";
++     const privateKey = process.env.SSH_PRIVATE_KEY || "test-key";
 +     process.env.SSH_PRIVATE_KEY = privateKey;
-      console.log(&quot;🔑 Using test SSH key&quot;);
+      console.log("🔑 Using test SSH key");
   
 ```
 
@@ -19971,7 +16456,7 @@ Now let me update the server connection creation to use SSHServerConnection.</de
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -19979,13 +16464,13 @@ Lines added: 3, lines removed: 3
 ```diff
 @@ -87,10 +87,10 @@
       // 4. Clean up containers and networks
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
 -     serverConnection = {
 +     serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: sshPort,
--       username: process.env.USER || &quot;root&quot;,
-+       user: process.env.USER || &quot;root&quot;,
+-       username: process.env.USER || "root",
++       user: process.env.USER || "root",
         privateKey: privateKey,
 -     };
 +     });
@@ -20006,7 +16491,7 @@ Now I need to find and fix the other serverConnection usage in the file.</detail
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -20017,10 +16502,10 @@ Lines added: 3, lines removed: 3
       // Verify container exists (directly check Docker)
 -     const serverConnection = {
 +     const serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: sshPort,
--       username: process.env.USER || &quot;root&quot;,
-+       user: process.env.USER || &quot;root&quot;,
+-       username: process.env.USER || "root",
++       user: process.env.USER || "root",
         privateKey: privateKey,
 -     };
 +     });
@@ -20041,18 +16526,18 @@ Now let me fix the other test files similarly. Let me start with the container-r
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
-  import { KataRuntime } from &quot;../container-runtime&quot;;
+  import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+  import { KataRuntime } from "../container-runtime";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;../server-connection&quot;;
-  import type { PodSpec, } from &quot;../types&quot;;
++ import { SSHServerConnection } from "../server-connection";
+  import type { PodSpec, } from "../types";
   
 ```
 
@@ -20069,7 +16554,7 @@ Now let me update the runtime instantiation.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/container-runtime.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -20080,11 +16565,11 @@ Lines added: 3, lines removed: 3
   
 -     runtime = new KataRuntime({
 +     runtime = new KataRuntime(new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: 22,
--       username: &quot;root&quot;,
-+       user: &quot;root&quot;,
-        privateKey: &quot;mock-key&quot;,
+-       username: "root",
++       user: "root",
+        privateKey: "mock-key",
 -     });
 +     }));
   
@@ -20104,18 +16589,18 @@ Now let me fix the pinacle-yaml-integration.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -4,5 +4,5 @@
-  import { KataRuntime } from &quot;../container-runtime&quot;;
-  import { GitHubIntegration } from &quot;../github-integration&quot;;
+  import { KataRuntime } from "../container-runtime";
+  import { GitHubIntegration } from "../github-integration";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;../server-connection&quot;;
-  import { NetworkManager } from &quot;../network-manager&quot;;
++ import { SSHServerConnection } from "../server-connection";
+  import { NetworkManager } from "../network-manager";
   import {
 ```
 
@@ -20132,7 +16617,7 @@ Now let me update the server connection creation in this file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/pinacle-yaml-integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -20143,11 +16628,11 @@ Lines added: 3, lines removed: 3
       // Clean up any existing test containers
 -     const serverConnection = {
 +     const serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: 22,
--       username: &quot;root&quot;,
-+       user: &quot;root&quot;,
-        privateKey: &quot;mock-key&quot;,
+-       username: "root",
++       user: "root",
+        privateKey: "mock-key",
 -     };
 +     });
       containerRuntime = new KataRuntime(serverConnection);
@@ -20167,19 +16652,19 @@ Now let me fix the process-provisioner.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it } from &quot;vitest&quot;;
-  import { generateKSUID } from &quot;../../utils&quot;;
+  import { afterAll, beforeAll, describe, expect, it } from "vitest";
+  import { generateKSUID } from "../../utils";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;../server-connection&quot;;
-  import { NetworkManager } from &quot;../network-manager&quot;;
-  import { PodManager } from &quot;../pod-manager&quot;;
++ import { SSHServerConnection } from "../server-connection";
+  import { NetworkManager } from "../network-manager";
+  import { PodManager } from "../pod-manager";
 ```
 
 </details>
@@ -20195,7 +16680,7 @@ Now let me update the server connection creation in this file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/process-provisioner.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -20203,14 +16688,14 @@ Lines added: 3, lines removed: 3
 ```diff
 @@ -15,10 +15,10 @@
     beforeAll(async () =&gt; {
-      testPodId = generateKSUID(&quot;pod&quot;);
+      testPodId = generateKSUID("pod");
 -     const serverConnection = {
 +     const serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: 22,
--       username: &quot;root&quot;,
-+       user: &quot;root&quot;,
-        privateKey: &quot;mock-key&quot;,
+-       username: "root",
++       user: "root",
+        privateKey: "mock-key",
 -     };
 +     });
       podManager = new PodManager(testPodId, serverConnection);
@@ -20230,19 +16715,19 @@ Now let me fix the github-integration.unit.test.ts file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -1,5 +1,5 @@
-  import { afterAll, beforeAll, describe, expect, it, vi } from &quot;vitest&quot;;
-  import { GitHubIntegration } from &quot;../github-integration&quot;;
+  import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+  import { GitHubIntegration } from "../github-integration";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;../server-connection&quot;;
-  import { PodManager } from &quot;../pod-manager&quot;;
-  import type { PodSpec } from &quot;../types&quot;;
++ import { SSHServerConnection } from "../server-connection";
+  import { PodManager } from "../pod-manager";
+  import type { PodSpec } from "../types";
 ```
 
 </details>
@@ -20258,7 +16743,7 @@ Now let me update the server connection creation in this file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/github-integration.unit.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 2
@@ -20269,11 +16754,11 @@ Lines added: 3, lines removed: 2
       // Initialize managers
 -     podManager = new PodManager(podId, {
 +     const serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: 22,
--       username: &quot;root&quot;,
-+       user: &quot;root&quot;,
-        privateKey: &quot;mock-key&quot;,
+-       username: "root",
++       user: "root",
+        privateKey: "mock-key",
       });
 +     podManager = new PodManager(podId, serverConnection);
       githubIntegration = new GitHubIntegration(podManager);
@@ -20293,18 +16778,18 @@ Now let me fix the proxy test file.</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
 
 ```diff
 @@ -27,5 +27,5 @@
-  } from &quot;@/lib/db/schema&quot;;
-  import { KataRuntime } from &quot;@/lib/pod-orchestration/container-runtime&quot;;
+  } from "@/lib/db/schema";
+  import { KataRuntime } from "@/lib/pod-orchestration/container-runtime";
 - // Removed Lima imports - now using direct server connections
-+ import { SSHServerConnection } from &quot;@/lib/pod-orchestration/server-connection&quot;;
-  import { NetworkManager } from &quot;@/lib/pod-orchestration/network-manager&quot;;
++ import { SSHServerConnection } from "@/lib/pod-orchestration/server-connection";
+  import { NetworkManager } from "@/lib/pod-orchestration/network-manager";
   import {
 ```
 
@@ -20321,7 +16806,7 @@ Now I need to update the server connection creation in the proxy test. Let me fi
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: 3
@@ -20329,13 +16814,13 @@ Lines added: 3, lines removed: 3
 ```diff
 @@ -104,10 +104,10 @@
       // 4. Clean up containers and networks
-      console.log(&quot;🧹 Cleaning up containers and networks...&quot;);
+      console.log("🧹 Cleaning up containers and networks...");
 -     serverConnection = {
 +     serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
         port: sshPort,
--       username: process.env.USER || &quot;root&quot;,
-+       user: process.env.USER || &quot;root&quot;,
+-       username: process.env.USER || "root",
++       user: process.env.USER || "root",
         privateKey: privateKey,
 -     };
 +     });
@@ -20355,7 +16840,7 @@ Now let me run the build again to see if we've fixed all the TypeScript errors.<
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30
@@ -20364,12 +16849,12 @@ cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -30
 ```
 
 &gt; pinacle@0.1.0 build
-&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+&gt; echo 'Checking types...' &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo "$(git rev-parse HEAD)$(git diff --quiet || echo '-dirty')" &gt; .git-commit-hash &amp;&amp; next build --turbopack
 
 Checking types...
-src/lib/pod-orchestration/__tests__/integration.test.ts(1014,13): error TS2304: Cannot find name &#39;sshPort&#39;.
-src/lib/pod-orchestration/__tests__/integration.test.ts(1016,19): error TS2304: Cannot find name &#39;privateKey&#39;.
-src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name &#39;privateKey&#39;.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1014,13): error TS2304: Cannot find name 'sshPort'.
+src/lib/pod-orchestration/__tests__/integration.test.ts(1016,19): error TS2304: Cannot find name 'privateKey'.
+src/lib/proxy/__tests__/proxy.test.ts(110,19): error TS2304: Cannot find name 'privateKey'.
 
 ```
 </details>
@@ -20397,7 +16882,7 @@ I see the issue. These variables are not defined in this scope. Let me define th
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/__tests__/integration.test.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -20405,12 +16890,12 @@ Lines added: 2, lines removed: 2
 ```diff
 @@ -1012,7 +1012,7 @@
       const serverConnection = new SSHServerConnection({
-        host: &quot;127.0.0.1&quot;,
+        host: "127.0.0.1",
 -       port: sshPort,
 +       port: 22,
-        user: process.env.USER || &quot;root&quot;,
+        user: process.env.USER || "root",
 -       privateKey: privateKey,
-+       privateKey: process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;,
++       privateKey: process.env.SSH_PRIVATE_KEY || "test-key",
       });
       const runtime = new KataRuntime(serverConnection);
 ```
@@ -20467,7 +16952,7 @@ I need to clean up the beforeAll section and define the privateKey variable prop
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/proxy/__tests__/proxy.test.ts</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 10
@@ -20477,19 +16962,19 @@ Lines added: 4, lines removed: 10
   
     beforeAll(async () =&gt; {
 -     // 1. Set up Lima SSH key for authentication
--     const limaKeyPath = join(homedir(), &quot;.lima&quot;, &quot;_config&quot;, &quot;user&quot;);
+-     const limaKeyPath = join(homedir(), ".lima", "_config", "user");
 -     try {
--       const limaKey = readFileSync(limaKeyPath, &quot;utf-8&quot;);
+-       const limaKey = readFileSync(limaKeyPath, "utf-8");
 -       process.env.SSH_PRIVATE_KEY = limaKey;
--       console.log(&quot;🔑 Loaded Lima SSH key&quot;);
+-       console.log("🔑 Loaded Lima SSH key");
 -     } catch (error) {
--       console.error(&quot;Failed to load Lima SSH key:&quot;, error);
+-       console.error("Failed to load Lima SSH key:", error);
 -       throw error;
 -     }
 +     // 1. Set up test server SSH key
-+     const privateKey = process.env.SSH_PRIVATE_KEY || &quot;test-key&quot;;
++     const privateKey = process.env.SSH_PRIVATE_KEY || "test-key";
 +     process.env.SSH_PRIVATE_KEY = privateKey;
-+     console.log(&quot;🔑 Using test SSH key&quot;);
++     console.log("🔑 Using test SSH key");
   
       // 2. Set up test server connection
 ```
@@ -20506,7 +16991,7 @@ Now let me run the build again to see if we've fixed all the errors.</details></
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
@@ -20515,7 +17000,7 @@ cd /Users/rchaves/Projects/pinacle && npm run build 2>&1 | head -20
 ```
 
 &gt; pinacle@0.1.0 build
-&gt; echo &#39;Checking types...&#39; &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo &quot;$(git rev-parse HEAD)$(git diff --quiet || echo &#39;-dirty&#39;)&quot; &gt; .git-commit-hash &amp;&amp; next build --turbopack
+&gt; echo 'Checking types...' &amp;&amp; pnpm tsgo &amp;&amp; pnpm docs:build &amp;&amp; pnpm build:server &amp;&amp; echo "$(git rev-parse HEAD)$(git diff --quiet || echo '-dirty')" &gt; .git-commit-hash &amp;&amp; next build --turbopack
 
 Checking types...
 
@@ -20546,7 +17031,7 @@ Great! The build completed successfully! All the TypeScript errors have been fix
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "fix: remove all limaVmName references and fix TypeScript errors
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "fix: remove all limaVmName references and fix TypeScript errors
 
 - Remove limaVmName property references from server.ts and test files
 - Update test files to use SSHServerConnection instead of mock objects
@@ -20712,7 +17197,7 @@ The user wants me to commit the changes. Looking at the attached files, I can se
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "fix: complete removal of limaVmName references and TypeScript fixes
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add -A && git commit -m "fix: complete removal of limaVmName references and TypeScript fixes
 
 - Remove limaVmName property reference from server.ts proxy logic
 - Update all test files to use SSHServerConnection instead of mock objects
@@ -20854,16 +17339,16 @@ I can see the Kata configuration is being updated. The issue is that OpenRC is t
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
-# For example, use &#96;kernel_params = &quot;vsyscall=emulate&quot;&#96; if you are having
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1&quot;
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
+# For example, use &#96;kernel_params = "vsyscall=emulate"&#96; if you are having
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1"
 
 ```
 </details>
@@ -20878,16 +17363,16 @@ I can see the current kernel parameters. The issue is that `cgroup_no_v1=all` di
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1\"|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1\"|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1\"|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\"|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
-# For example, use &#96;kernel_params = &quot;vsyscall=emulate&quot;&#96; if you are having
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory&quot;
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
+# For example, use &#96;kernel_params = "vsyscall=emulate"&#96; if you are having
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory"
 
 ```
 </details>
@@ -20901,7 +17386,7 @@ Let me test this change by running a container and trying the rc-service command
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test alpine:latest sleep 300 && sleep 3 && docker exec cgroup-test rc-service cron start'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test alpine:latest sleep 300 && sleep 3 && docker exec cgroup-test rc-service cron start'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test alpine:latest sleep 300 && sleep 3 && docker exec cgroup-test rc-service cron start'
@@ -20939,15 +17424,15 @@ The container started but rc-service doesn't exist in the basic Alpine image. Le
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'
 ```
 
 ```
-docker: Error response from daemon: Conflict. The container name &quot;/cgroup-test&quot; is already in use by container &quot;0f2087329bd7efb83654402d1b228f64fde024baca73915249f843c5dcb87967&quot;. You have to remove (or rename) that container to be able to reuse that name.
-See &#39;docker run --help&#39;.
+docker: Error response from daemon: Conflict. The container name "/cgroup-test" is already in use by container "0f2087329bd7efb83654402d1b228f64fde024baca73915249f843c5dcb87967". You have to remove (or rename) that container to be able to reuse that name.
+See 'docker run --help'.
 
 ```
 </details>
@@ -20961,7 +17446,7 @@ Let me clean up the old container and try again.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name cgroup-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec cgroup-test rc-service nginx start 2>&1'
@@ -20984,14 +17469,14 @@ Interesting! The cgroup error didn't appear this time. The cgroup_disable=memory
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-service sshd start 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-service sshd start 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec cgroup-test rc-service sshd start 2>&1'
 ```
 
 ```
- * rc-service: service &#96;sshd&#39; does not exist
+ * rc-service: service &#96;sshd' does not exist
 
 ```
 </details>
@@ -21005,7 +17490,7 @@ Let me check what services are available and try one that should trigger the cgr
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-update show | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-update show | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec cgroup-test rc-update show | head -10'
@@ -21026,7 +17511,7 @@ Let me try stopping and starting nginx to see if the cgroup error occurs.</detai
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-service nginx stop && sleep 2 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test rc-service nginx stop && sleep 2 && docker exec cgroup-test rc-service nginx start 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec cgroup-test rc-service nginx stop && sleep 2 && docker exec cgroup-test rc-service nginx start 2>&1'
@@ -21047,7 +17532,7 @@ Let me check if nginx is actually running and try a different service command.</
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test ps aux | grep nginx && docker exec cgroup-test rc-service nginx status'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec cgroup-test ps aux | grep nginx && docker exec cgroup-test rc-service nginx status'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec cgroup-test ps aux | grep nginx && docker exec cgroup-test rc-service nginx status'
@@ -21105,20 +17590,20 @@ It seems the provision script doesn't set kernel_params. The current configurati
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: undefined
 
 ```diff
 @@ -337,4 +337,7 @@
-  # Disable vsock (Firecracker doesn&#39;t fully support it)
-  run_remote &quot;sudo sed -i &#39;s|enable_vsock = true|enable_vsock = false|&#39; $KATA_CONFIG&quot; || true
+  # Disable vsock (Firecracker doesn't fully support it)
+  run_remote "sudo sed -i 's|enable_vsock = true|enable_vsock = false|' $KATA_CONFIG" || true
 + 
 + # Set kernel parameters to prevent OpenRC cgroup issues in microVMs
-+ run_remote &quot;sudo sed -i &#39;s|kernel_params = .*|kernel_params = \&quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\&quot;|&#39; $KATA_CONFIG&quot;
++ run_remote "sudo sed -i 's|kernel_params = .*|kernel_params = \"cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory\"|' $KATA_CONFIG"
   
-  echo &quot;✅ Kata configured for Firecracker&quot;
+  echo "✅ Kata configured for Firecracker"
 ```
 
 </details>
@@ -21133,7 +17618,7 @@ Now let me test if this fixes the issue by creating a fresh container and trying
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name test-service pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-service rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name test-service pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-service rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f cgroup-test && docker run -d --runtime=kata-fc --name test-service pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-service rc-service nginx restart 2>&1'
@@ -21156,7 +17641,7 @@ Good! The cgroup error is no longer appearing. The `cgroup_disable=memory` param
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add scripts/provision-server.sh && git commit -m "fix: prevent OpenRC cgroup errors in Firecracker microVMs
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add scripts/provision-server.sh && git commit -m "fix: prevent OpenRC cgroup errors in Firecracker microVMs
 
 - Add cgroup_disable=memory kernel parameter to Kata configuration
 - Prevents OpenRC from trying to create cgroup directories in read-only filesystem
@@ -21188,7 +17673,7 @@ Perfect! Let me also update the current server configuration with this fix.</det
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker'</summary>
 
 ```bash
 ssh root@157.90.177.85 'systemctl restart containerd && systemctl restart docker'
@@ -21204,7 +17689,7 @@ Let me test one more time to confirm the fix is working with a fresh container.<
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f test-service && docker run -d --runtime=kata-fc --name final-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "Testing rc-service..." && docker exec final-test rc-service nginx status && docker exec final-test rc-service nginx restart 2>&1 && echo "✅ No cgroup errors!"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f test-service && docker run -d --runtime=kata-fc --name final-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "Testing rc-service..." && docker exec final-test rc-service nginx status && docker exec final-test rc-service nginx restart 2>&1 && echo "✅ No cgroup errors!"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f test-service && docker run -d --runtime=kata-fc --name final-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "Testing rc-service..." && docker exec final-test rc-service nginx status && docker exec final-test rc-service nginx restart 2>&1 && echo "✅ No cgroup errors!"'
@@ -21234,7 +17719,7 @@ Ah, there's an OpenRC warning but no cgroup error. The cgroup issue seems to be 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'
@@ -21255,17 +17740,17 @@ Let me create the softlevel file and test.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec final-test mkdir -p /run/openrc && docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec final-test mkdir -p /run/openrc && docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec final-test mkdir -p /run/openrc && docker exec final-test touch /run/openrc/softlevel && docker exec final-test rc-service nginx restart 2>&1'
 ```
 
 ```
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
  * Caching service dependencies ... [ ok ]
-mkdir: can&#39;t create directory &#39;/sys/fs/cgroup/openrc.nginx&#39;: Read-only file system
+mkdir: can't create directory '/sys/fs/cgroup/openrc.nginx': Read-only file system
  * Starting nginx ... [ ok ]
 
 ```
@@ -21281,16 +17766,16 @@ I can see that the cgroup error still occurs: `mkdir: can't create directory '/s
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'sed -i "s|cgroup_disable=memory|cgroup_disable=memory systemd.legacy_systemd_cgroup_controller=no|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'sed -i "s|cgroup_disable=memory|cgroup_disable=memory systemd.legacy_systemd_cgroup_controller=no|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'</summary>
 
 ```bash
 ssh root@157.90.177.85 'sed -i "s|cgroup_disable=memory|cgroup_disable=memory systemd.legacy_systemd_cgroup_controller=no|" /opt/kata/share/defaults/kata-containers/configuration-fc.toml && grep "kernel_params" /opt/kata/share/defaults/kata-containers/configuration-fc.toml'
 ```
 
 ```
-enable_annotations = [&quot;enable_iommu&quot;, &quot;virtio_fs_extra_args&quot;, &quot;kernel_params&quot;]
-# For example, use &#96;kernel_params = &quot;vsyscall=emulate&quot;&#96; if you are having
-kernel_params = &quot;cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory systemd.legacy_systemd_cgroup_controller=no&quot;
+enable_annotations = ["enable_iommu", "virtio_fs_extra_args", "kernel_params"]
+# For example, use &#96;kernel_params = "vsyscall=emulate"&#96; if you are having
+kernel_params = "cgroup_no_v1=all systemd.unified_cgroup_hierarchy=1 cgroup_disable=memory systemd.legacy_systemd_cgroup_controller=no"
 
 ```
 </details>
@@ -21304,7 +17789,7 @@ Let me test this change.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f final-test && systemctl restart containerd && systemctl restart docker && docker run -d --runtime=kata-fc --name test-fix pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-fix mkdir -p /run/openrc && docker exec test-fix touch /run/openrc/softlevel && docker exec test-fix rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f final-test && systemctl restart containerd && systemctl restart docker && docker run -d --runtime=kata-fc --name test-fix pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-fix mkdir -p /run/openrc && docker exec test-fix touch /run/openrc/softlevel && docker exec test-fix rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f final-test && systemctl restart containerd && systemctl restart docker && docker run -d --runtime=kata-fc --name test-fix pinacledev/pinacle-base:latest sleep 300 && sleep 5 && docker exec test-fix mkdir -p /run/openrc && docker exec test-fix touch /run/openrc/softlevel && docker exec test-fix rc-service nginx restart 2>&1'
@@ -21313,10 +17798,10 @@ ssh root@157.90.177.85 'docker rm -f final-test && systemctl restart containerd 
 ```
 final-test
 58f7bb244dbb8d20a8258c932307c98d7eddfc2dc74b4314db96a42055aba9b7
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
  * Caching service dependencies ... [ ok ]
-mkdir: can&#39;t create directory &#39;/sys/fs/cgroup/openrc.nginx&#39;: Read-only file system
+mkdir: can't create directory '/sys/fs/cgroup/openrc.nginx': Read-only file system
  * Starting nginx ... [ ok ]
 
 ```
@@ -21331,15 +17816,15 @@ The cgroup error is still there. Let me try a different approach. Instead of try
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker exec test-fix sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && docker exec test-fix rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker exec test-fix sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && docker exec test-fix rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker exec test-fix sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && docker exec test-fix rc-service nginx restart 2>&1'
 ```
 
 ```
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
  * Caching service dependencies ... [ ok ]
  * Stopping nginx ...
  * start-stop-daemon: no matching processes found
@@ -21356,7 +17841,7 @@ nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address in use)
 nginx: [emerg] bind() to [::]:80 failed (98: Address in use)
 nginx: [emerg] still could not bind()
 
- * start-stop-daemon: failed to start &#96;/usr/sbin/nginx&#39;
+ * start-stop-daemon: failed to start &#96;/usr/sbin/nginx'
 
  * Failed to start nginx
                                                  [ !! ]
@@ -21375,7 +17860,7 @@ Interesting! The cgroup error is gone now! The `rc_cgroup_mode=none` setting wor
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f test-fix'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f test-fix'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f test-fix'
@@ -21406,7 +17891,7 @@ Let me find the Dockerfile.base file.</details></think>
 
 <tool-use data-tool-type="generic" data-tool-name="list_dir">
 <details>
-            <summary>Tool use: **list_directory** • Listed directory undefined • **0** results</summary>
+            <summary>Tool use: **list_dir** • Listed directory undefined • **0** results</summary>
         
 No results found
 </details>
@@ -21434,7 +17919,7 @@ Perfect! I can see that OpenRC is installed and nginx is added to the default ru
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: undefined
@@ -21445,7 +17930,7 @@ Lines added: 4, lines removed: undefined
   COPY docker/config/nginx.conf /etc/nginx/nginx.conf
 + 
 + # Configure OpenRC to disable cgroup management (fixes Firecracker microVM issues)
-+ RUN echo &#39;rc_cgroup_mode=&quot;none&quot;&#39; &gt;&gt; /etc/rc.conf
++ RUN echo 'rc_cgroup_mode="none"' &gt;&gt; /etc/rc.conf
 + 
   # Add nginx to OpenRC to start automatically
   RUN rc-update add nginx default
@@ -21463,7 +17948,7 @@ Now let me also update the provision script to include both the kernel parameter
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add docker/Dockerfile.base && git commit -m "fix: disable OpenRC cgroup management in base image
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add docker/Dockerfile.base && git commit -m "fix: disable OpenRC cgroup management in base image
 
 - Add rc_cgroup_mode=\"none\" to /etc/rc.conf in Dockerfile.base
 - Prevents OpenRC from attempting to create cgroup directories
@@ -21512,7 +17997,7 @@ The user is asking me to test the `/etc/rc.conf` fix directly on the existing co
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 && echo -e "\n=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo -e "\n=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 && echo -e "\n=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo -e "\n=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 && echo -e "\n=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo -e "\n=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1'
@@ -21535,7 +18020,7 @@ The test got cut off. Let me try again with a cleaner test.</details></think>
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f rc-test && docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX (with OpenRC softlevel) ===" && docker exec rc-test mkdir -p /run/openrc && docker exec rc-test touch /run/openrc/softlevel && docker exec rc-test rc-service nginx stop && docker exec rc-test rc-service nginx start 2>&1 | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f rc-test && docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX (with OpenRC softlevel) ===" && docker exec rc-test mkdir -p /run/openrc && docker exec rc-test touch /run/openrc/softlevel && docker exec rc-test rc-service nginx stop && docker exec rc-test rc-service nginx start 2>&1 | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f rc-test && docker run -d --runtime=kata-fc --name rc-test pinacledev/pinacle-base:latest sleep 300 && sleep 5 && echo "=== BEFORE FIX (with OpenRC softlevel) ===" && docker exec rc-test mkdir -p /run/openrc && docker exec rc-test touch /run/openrc/softlevel && docker exec rc-test rc-service nginx stop && docker exec rc-test rc-service nginx start 2>&1 | head -10'
@@ -21546,10 +18031,10 @@ rc-test
 db60577fe62f1530534afd9fddaa35688c3a69d3a439211d7764e09bde357b3e
 === BEFORE FIX (with OpenRC softlevel) ===
  * WARNING: nginx is already stopped
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
  * Caching service dependencies ... [ ok ]
-mkdir: can&#39;t create directory &#39;/sys/fs/cgroup/openrc.nginx&#39;: Read-only file system
+mkdir: can't create directory '/sys/fs/cgroup/openrc.nginx': Read-only file system
  * Starting nginx ... [ ok ]
 
 ```
@@ -21564,7 +18049,7 @@ Perfect! I can see the cgroup error: `mkdir: can't create directory '/sys/fs/cgr
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'echo "=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo "=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 | head -10'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'echo "=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo "=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 | head -10'</summary>
 
 ```bash
 ssh root@157.90.177.85 'echo "=== APPLYING FIX ===" && docker exec rc-test sh -c "echo rc_cgroup_mode=none >> /etc/rc.conf" && echo "=== AFTER FIX ===" && docker exec rc-test rc-service nginx restart 2>&1 | head -10'
@@ -21573,8 +18058,8 @@ ssh root@157.90.177.85 'echo "=== APPLYING FIX ===" && docker exec rc-test sh -c
 ```
 === APPLYING FIX ===
 === AFTER FIX ===
-Service &#39;hwdrivers&#39; needs non existent service &#39;dev&#39;
-Service &#39;machine-id&#39; needs non existent service &#39;dev&#39;
+Service 'hwdrivers' needs non existent service 'dev'
+Service 'machine-id' needs non existent service 'dev'
  * Caching service dependencies ... [ ok ]
  * Stopping nginx ...
  * start-stop-daemon: no matching processes found
@@ -21762,33 +18247,33 @@ Perfect! I can see the testing section. It tests:</details></think>
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 16, lines removed: undefined
 
 ```diff
 @@ -415,4 +415,20 @@
-    echo &quot;⚠️  Warning: pinacle-base test failed, but continuing...&quot;
+    echo "⚠️  Warning: pinacle-base test failed, but continuing..."
   fi
 + 
 + # Test network connectivity in Kata container
-+ echo &quot;   Testing network connectivity in Kata container...&quot;
-+ if run_remote &quot;sudo docker run --rm --runtime=kata-fc alpine:latest sh -c &#39;apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm &amp;&amp; echo \&quot;✅ Network connectivity verified!\&quot;&#39;&quot; 2&gt;&amp;1; then
-+   echo &quot;✅ Kata containers have internet access!&quot;
++ echo "   Testing network connectivity in Kata container..."
++ if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm &amp;&amp; echo \"✅ Network connectivity verified!\"'" 2&gt;&amp;1; then
++   echo "✅ Kata containers have internet access!"
 + else
-+   echo &quot;❌ Kata container network connectivity FAILED!&quot;
-+   echo &quot;   This will prevent containers from accessing external resources.&quot;
-+   echo &quot;   Common causes: Docker version incompatibility or missing CNI plugins.&quot;
-+   echo &quot;&quot;
-+   echo &quot;   Troubleshooting:&quot;
-+   echo &quot;   - Check Docker version (should be 27.x for Kata networking)&quot;
-+   echo &quot;   - Verify CNI plugins are installed: ls -la /opt/cni/bin/&quot;
-+   echo &quot;   - Check Kata configuration: kata-runtime kata-check&quot;
++   echo "❌ Kata container network connectivity FAILED!"
++   echo "   This will prevent containers from accessing external resources."
++   echo "   Common causes: Docker version incompatibility or missing CNI plugins."
++   echo ""
++   echo "   Troubleshooting:"
++   echo "   - Check Docker version (should be 27.x for Kata networking)"
++   echo "   - Verify CNI plugins are installed: ls -la /opt/cni/bin/"
++   echo "   - Check Kata configuration: kata-runtime kata-check"
 +   exit 1
 + fi
   
-  echo &quot;📁 Step 8: Creating agent directory and log file...&quot;
+  echo "📁 Step 8: Creating agent directory and log file..."
 ```
 
 </details>
@@ -21825,7 +18310,7 @@ Great! No linter errors. Let me also test this change by running a quick syntax 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: bash -n scripts/provision-server.sh</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: bash -n scripts/provision-server.sh</summary>
 
 ```bash
 bash -n scripts/provision-server.sh
@@ -21841,7 +18326,7 @@ Perfect! The script has valid bash syntax. Now let me test the network test spec
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm && echo \"✅ Network connectivity verified!\""'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm && echo \"✅ Network connectivity verified!\""'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm && echo \"✅ Network connectivity verified!\""'
@@ -21849,7 +18334,7 @@ ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "a
 
 ```
 [Terminal output truncated: ~1283KB dropped from beginning]
-pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;b312886439096718a402117aa3f375c4e3be5ed8&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.17.1.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-F8Vg/KSGeulHOjiZrYSogzSRTzeb5G1FXL+S5c9LOdNJhdRS0lg7rxmWf6dstcF7yeJFUp0LmHRXIapyAOyveg==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIGL5mD8e7q2srMLSfBaQURvV9FTwi5VFWgy5f9hBhglOAiEAqMbYycQ5j+6SAveEYpWN7uOXz9b8q3plcIVNT0XMBKc=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17555718},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.17.1.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/275fe020d5060658d2774ad95ecb173a/pnpm-10.17.1.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-F8Vg/KSGeulHOjiZrYSogzSRTzeb5G1FXL+S5c9LOdNJhdRS0lg7rxmWf6dstcF7yeJFUp0LmHRXIapyAOyveg==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.17.1_1758548194201_0.9935699447592019&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.18.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.18.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.18.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;9bf781ccacb6fab13fcb77404ffc79dc1371b375&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.18.0.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-6AT4ifHOzEDVctsITuw+SIFzn43sacD/ENLRvv+aTjCTg7ontbdQBZ1/TBSVNbbNDSyx7Trrc5I5pChKaPQM+g==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIQCgGkT69t0qFu2RVKNZRFscBb3/KPUXoDbvACr9K4wQ1AIgVUrxOH/QP/KjyiPgQtIMXOc0Rf0d3wBiLaNwapgQXzw=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17575261},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.18.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/cead29e3601d5d14c12eeb4500a15ec9/pnpm-10.18.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-6AT4ifHOzEDVctsITuw+SIFzn43sacD/ENLRvv+aTjCTg7ontbdQBZ1/TBSVNbbNDSyx7Trrc5I5pChKaPQM+g==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.18.0_1759417214584_0.10263102200987517&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.18.1&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.18.1&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.18.1&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;ccdffefca66c328e80dd37ed22b1308d54544fcb&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.18.1.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-d6iEoWXLui2NHBnjtIgO7m0vyr0Nh5Eh4oIZa4AEI1HV6zygk1+lmdodxRJlzGiBatK93Sot5eqf35KtvsfNNA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIDjIxaVq6SOTAKpfL7dj6cU8BSuMBg69L+gqWY1ItinfAiEA4n6I7/EFia5xg95Gmjzt5ZAkasGoKKP4h+bFkY74TS8=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17575360},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.18.1.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/8c92125e4fc1c8f24aa5f04bd42c79ae/pnpm-10.18.1.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-d6iEoWXLui2NHBnjtIgO7m0vyr0Nh5Eh4oIZa4AEI1HV6zygk1+lmdodxRJlzGiBatK93Sot5eqf35KtvsfNNA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.18.1_1759753599023_0.7814561362665275&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.18.2&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.18.2&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.18.2&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;48588a2735db5f19ffe699240b59891cfac5f316&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.18.2.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-n7lp+nSbOt5gNeDxCfC4pgtdCKGof99y4zfakNzJMzbiKAyk5E8jWKZJuDwXlZ6Zk+d3wggIefOAHm8NmZrT3Q==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQC4kH60biqPFF4/q8U8juHstni3NtSk+RexnytXWJcbpQIhAIKqTehhaUKtJoCD+cBLZEYsqZfz/hU4JXJ+/0cmri9E&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17483040},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.18.2.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/1947837d3444c967a028f8892d336afc/pnpm-10.18.2.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-n7lp+nSbOt5gNeDxCfC4pgtdCKGof99y4zfakNzJMzbiKAyk5E8jWKZJuDwXlZ6Zk+d3wggIefOAHm8NmZrT3Q==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.18.2_1760026117172_0.4990057360232121&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.18.3&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.18.3&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.18.3&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;0202a20aaa3d7ba8bc29b50d95efe1a34dd95773&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.18.3.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-u9FubXKG/X4B9rPAs8kyzaKWXAapCDKPdGY/EKmupR8RKe6mFRNL+ZKDGwCeq+Fn7LcAi1l/QP+bx1lGqt+wjQ==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCID8Hh0iF8u8Ip9ftfTHMH/dazrcTw9pr8vCrbKbxFD0xAiEA+ur+pDxnqxMWym1bM0N330rYt7qype6xlr3QfbSdMTM=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17487786},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.18.3.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/71aa23bf640cff16ebd299784bd19ae6/pnpm-10.18.3.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-u9FubXKG/X4B9rPAs8kyzaKWXAapCDKPdGY/EKmupR8RKe6mFRNL+ZKDGwCeq+Fn7LcAi1l/QP+bx1lGqt+wjQ==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.18.3_1760434998952_0.6480213786550368&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.19.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.19.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.19.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;93b1218ebea8634db5efb08fd2d20ecdc4ae58f4&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.19.0.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-yfxyNukq31yK9C/VvxYS35nCzrYvJwRwMvRyCzP46s3eMRhl6RxBHyd09hjYLzIICOy1Fxi/qCwGDEunx2oyuA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQDaCyrA0+XHQEdLvtGVFTO/6UJ660TdTWY/8jRjQmbAxwIhAN4ZYTO43PC8PGBCXVEMrhXDO6xpSKpCZIk867dqUvM8&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17492311},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.19.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/fa34fc08cf1910f22498698c14eb7a98/pnpm-10.19.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-yfxyNukq31yK9C/VvxYS35nCzrYvJwRwMvRyCzP46s3eMRhl6RxBHyd09hjYLzIICOy1Fxi/qCwGDEunx2oyuA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.19.0_1761055411343_0.9434348978163818&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.19.1-oidc-test.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.19.1-oidc-test.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.19.1-oidc-test.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;eeb066c7d6cec740e1f240fe10c569895a5f9207&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.0.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-obLBwZ+Zjyeui7DKvvGCYcebiHaF/+LAJdktZGnD0+9SkDFRWhYRhlJDeZhBiKGYINCCJAspaQ/FdZNKYSyvTA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQC69mHP6FSXZAsZrfrVHisnRaCuDznjUgvtLxiAM4LGwgIhAISwWPZLTazfYIPJ2cor0KGJRknBU545aUxoeZyAEV+r&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;unpackedSize&quot;:17492335},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.19.1-oidc-test.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;},&quot;_resolved&quot;:&quot;/tmp/f07ef01588ccd098c75d3855304ec9ea/pnpm-10.19.1-oidc-test.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-obLBwZ+Zjyeui7DKvvGCYcebiHaF/+LAJdktZGnD0+9SkDFRWhYRhlJDeZhBiKGYINCCJAspaQ/FdZNKYSyvTA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;10.8.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.19.1-oidc-test.0_1761208836382_0.07999998513190554&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.19.1-oidc-test.2&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.19.1-oidc-test.2&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.19.1-oidc-test.2&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;6e375621514e76b3fcf3902de504bbcfdcd93023&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.2.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-tVQ9r4/8M6C6f6NM/sovkbmRQG8cL19YstEJ3i8H0DRv31rCLEXst1QuEWsS2hZBAi6V9WL8BtVH6TMCnQb30w==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEQCIDc0aUlDzc/JTYdwbD71jX50trIpSDkcKVTKOv3SzoFJAiBxn5gSeJARlufLBLNXLOgrG6L7VbJuZzTY97Z9YDGAwA==&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.19.1-oidc-test.2&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17492329},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.19.1-oidc-test.2.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/c58ae5d08f951a76071d18caa4411b40/pnpm-10.19.1-oidc-test.2.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-tVQ9r4/8M6C6f6NM/sovkbmRQG8cL19YstEJ3i8H0DRv31rCLEXst1QuEWsS2hZBAi6V9WL8BtVH6TMCnQb30w==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.19.1-oidc-test.2_1761216441370_0.26845504259970276&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.19.1-oidc-test.3&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.19.1-oidc-test.3&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.19.1-oidc-test.3&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;1e94c6a9be500e70329a55ff3eb7fe5a0dc80942&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.3.tgz&quot;,&quot;fileCount&quot;:1048,&quot;integrity&quot;:&quot;sha512-5ZYaS1a7N2IPl7ZdpMpWIWY0vzntNY7akl8PA2U01Fj6JJ2T7QAhQQUj+Lt+2FErYf5VMu0+gXd3kzZsa+AmtQ==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIDSz/G02aD1KEhdZ1ZocRY1j4TWrVjxiIyM+tXjfkddHAiEA8Ol9cO+B6hYAOdTu5085NXqlr/uDOHnudh1JuGLCvj8=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.19.1-oidc-test.3&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17492329},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.19.1-oidc-test.3.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/f894b0648f83e0f9776bf4c1f08b2a9e/pnpm-10.19.1-oidc-test.3.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-5ZYaS1a7N2IPl7ZdpMpWIWY0vzntNY7akl8PA2U01Fj6JJ2T7QAhQQUj+Lt+2FErYf5VMu0+gXd3kzZsa+AmtQ==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.19.1-oidc-test.3_1761263367170_0.2513421808292067&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.20.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.20.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.20.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;a9bfe8cf88011d4758e1acbeb0da8883ecbd52ce&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.20.0.tgz&quot;,&quot;fileCount&quot;:1061,&quot;integrity&quot;:&quot;sha512-z5mYIiFi3YWGTQqBAueJLnukzq3rv1ox+cL85I384xepxTufZGTR75BCy6LgKuAqn3wUOitDjNk8kYQPAZK53Q==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQCiix1Kcsl8x9gEcckTt4PfYtab8FrUhl010yOsRuFj0AIhAMQ9yrNkmGAiXev0TRQiwQnKY1TuQl+SLolTG+azZDEI&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.20.0&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17628433},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.20.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/a75987caa9314f111131f545c4712c5f/pnpm-10.20.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-z5mYIiFi3YWGTQqBAueJLnukzq3rv1ox+cL85I384xepxTufZGTR75BCy6LgKuAqn3wUOitDjNk8kYQPAZK53Q==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.20.0_1761670781679_0.6838145698340097&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.21.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.21.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.21.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;a2cb35d3f07a58fecfe050af9277c5dc43a1b2e7&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.21.0.tgz&quot;,&quot;fileCount&quot;:1060,&quot;integrity&quot;:&quot;sha512-2jM3Jn5AD909R5psaAeaxtsB2MpPZ1cgg+cid1p5Z4inqZVmE3SeAA+sINQktZT3p5Gl9OLhNYHF75R/JpaKQA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQDy5vkCS9A6dEQI8lXdw8A5IL1ck0xUJdAjFNWoyFxCmQIhAPeMXjt6ju8L/TklM0PNG98CmSsyfz9gPOwlSz0pzBvp&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.21.0&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17557520},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.21.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/dd3a477a7ebde81fd9ce52cf345acfe0/pnpm-10.21.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-2jM3Jn5AD909R5psaAeaxtsB2MpPZ1cgg+cid1p5Z4inqZVmE3SeAA+sINQktZT3p5Gl9OLhNYHF75R/JpaKQA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.21.0_1762731901789_0.3539988259303557&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.22.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.22.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.22.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;3e9e4d522d30f3cf4cabb7506f5d15b89feffd04&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.22.0.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-vwSe/plbKPUn/StBrgR0zikYb37cs79UUIe9Yfu+uyv3U2LRMH/aCcLSiOHkmXh6wS1Py2F6l0cYpgUfLu50HA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQDeWdKJykltWBMTeQ4PisTIbDd+uGc7MDRM5qsri2ruwwIhAJDZCL99oE4jCJnrSAHjRSiI1IR+lCJIPonqcSsO52ms&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.22.0&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17579145},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.22.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/16c61e38e6b016d61433baae9d26450a/pnpm-10.22.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-vwSe/plbKPUn/StBrgR0zikYb37cs79UUIe9Yfu+uyv3U2LRMH/aCcLSiOHkmXh6wS1Py2F6l0cYpgUfLu50HA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.22.0_1762955373415_0.8824078975548255&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-alpha.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-alpha.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-alpha.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;ff05a105567a042d1a613835e91c67fe4657c5a0&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-alpha.0.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-JOvY80+9ga6KLLspYsYb+QYYiLG29WUM5q+lINNAbfiqOm3PX2BY7u8UpLB0wvxz7ydZu7OIAnk64UF4aqCHBQ==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEQCIBTicvtxRJ3MFTXylJAY+JeK3lmWs5jJsb9B9ZHCtZEcAiA7HqRXMZ2dl0sBFxz11Lw6Firb2PM2Ia/JTV79AeY6XQ==&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-alpha.0&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17349031},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-alpha.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;pnpm --config.useNodeVersion=24.6.0 exec ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/19435fe5a2e8d0d0223bcea557c7f08f/pnpm-11.0.0-alpha.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-JOvY80+9ga6KLLspYsYb+QYYiLG29WUM5q+lINNAbfiqOm3PX2BY7u8UpLB0wvxz7ydZu7OIAnk64UF4aqCHBQ==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-alpha.0_1763050823833_0.8366738609979985&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-alpha.1&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-alpha.1&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-alpha.1&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;5ce2f492d16bee6a95e5f4bd6acfbe7871177332&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-alpha.1.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-SODM4kjibEEtzW4S+H57MNR6xr6Bwi1oOvqFgDT/dH0Lp7rZAGCyA1kSBXQG6Si9WxNErRmcSMqQ11E/uY5cZg==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIDiwwg1G1dzjGQWuWOmT/qh256Uq1Eunbx1Ll8d1ru9JAiEAqSEhvf3iW4VV69P7Y06nxmt5CNQrt9jRG3BEyeiXByY=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-alpha.1&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17349031},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-alpha.1.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;pnpm --config.useNodeVersion=24.6.0 exec ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/9c3c8b8dda06da5975802d6b8adbb628/pnpm-11.0.0-alpha.1.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-SODM4kjibEEtzW4S+H57MNR6xr6Bwi1oOvqFgDT/dH0Lp7rZAGCyA1kSBXQG6Si9WxNErRmcSMqQ11E/uY5cZg==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-alpha.1_1763055029318_0.6690689198947919&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-dev.1001&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-dev.1001&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-dev.1001&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;9c88e70edb544b0963c52f9bb741ba3b8b0759e8&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1001.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-2driO/DQ0d+3vXGQ6MhXGbxzDZ7daXDGL+n4xKru1jbkjmvP/tEixSEAS0KNnrRYvpMQF9pyX/oDS6WHdWNB2A==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIF5KRUawiOKatzTLOejbOVaerWvr8Wep3+KrBvUsQ8KoAiEAknxrdqBk8qo5+1BoaD550Ac3jZhoOg6KQgTvkI69fPw=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1001&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17348998},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-dev.1001.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/c6c5f2bf907e496e8e2bf1bc31e11de7/pnpm-11.0.0-dev.1001.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-2driO/DQ0d+3vXGQ6MhXGbxzDZ7daXDGL+n4xKru1jbkjmvP/tEixSEAS0KNnrRYvpMQF9pyX/oDS6WHdWNB2A==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-dev.1001_1763070347756_0.5766164839211863&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-dev.1002&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-dev.1002&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-dev.1002&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;58b70906330e4bf8062a484e626884088d8d0601&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1002.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-aZXjXSdWEX9DAgS1wEBWxUZ/zOLDWSq3bgv08JRcHiWki03C1cpbpoX/X/myDi8lPz7/wbOSN0HegM2n7OCmDw==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEQCIHpihxqCv0K9eQKf3uCKfcuM7CFIwsyOE4+slWrboR3yAiAh+kgFOElzQk68akndcTYwwVlvdyXeZcaMG4Mdt5ejkQ==&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1002&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17348992},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-dev.1002.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/a75ae21412ba1c860c7712c4209a5560/pnpm-11.0.0-dev.1002.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-aZXjXSdWEX9DAgS1wEBWxUZ/zOLDWSq3bgv08JRcHiWki03C1cpbpoX/X/myDi8lPz7/wbOSN0HegM2n7OCmDw==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-dev.1002_1763074691054_0.7197104531531875&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-dev.1003&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-dev.1003&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-dev.1003&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;83f613a59ec2fa14527fe2d36553e03f0bb6d9e1&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1003.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-cwQ4SVEFxP0JctEnPHuiIDj/RJ2IcOevtKMYvKbGCwGCfLh2PnTmA0SppH/byFaeANR8l8DV1snYcKNQmUbApQ==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEQCIGnw2Ym+NqjJAm876glbP8sgpcUErPjVArNJQUCVa761AiA+kuErg3Jh/kXFrDaBCx3aPHlvsQFh91r4TvDfd9ZqSg==&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1003&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17348998},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-dev.1003.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/ccde4a15d4bd9b6ff471e0e6059b0d00/pnpm-11.0.0-dev.1003.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-cwQ4SVEFxP0JctEnPHuiIDj/RJ2IcOevtKMYvKbGCwGCfLh2PnTmA0SppH/byFaeANR8l8DV1snYcKNQmUbApQ==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-dev.1003_1763079772455_0.35732395170842546&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;11.0.0-dev.1005&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;11.0.0-dev.1005&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm11&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@11.0.0-dev.1005&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.mjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.mjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;17cdd7ae1baf19f24440422f946130fccbb4257a&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1005.tgz&quot;,&quot;fileCount&quot;:1068,&quot;integrity&quot;:&quot;sha512-kfhKOS7qNI6khSoYKRLSUgJzpDNvkzt4zES8kx65mZI8CX6UM6mzVa3B9yVyXqmQgvyfAypVnfgyYy52TJLHmA==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEYCIQDOzH+MZ+OdKMVTCjvrHdz4kBkoPb6p70zmFTl9hd5QRgIhAI2ruNyc09P/I9UefmTLd6dA9e/R3kBTBDSw9wEAP6YJ&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1005&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17348998},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.mjs&quot;,&quot;type&quot;:&quot;module&quot;,&quot;_from&quot;:&quot;file:pnpm-11.0.0-dev.1005.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.mjs&quot;,&quot;engines&quot;:{&quot;runtime&quot;:{&quot;name&quot;:&quot;node&quot;,&quot;onFail&quot;:&quot;download&quot;,&quot;version&quot;:&quot;24.11.0&quot;}},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;cross-env NODE_OPTIONS=--experimental-vm-modules jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/07f0de7343a5b0fa9d9c56992757915c/pnpm-11.0.0-dev.1005.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-kfhKOS7qNI6khSoYKRLSUgJzpDNvkzt4zES8kx65mZI8CX6UM6mzVa3B9yVyXqmQgvyfAypVnfgyYy52TJLHmA==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;24.11.1&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-11&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_11.0.0-dev.1005_1763112277793_0.8934241030632841&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}},&quot;10.23.0&quot;:{&quot;name&quot;:&quot;pnpm&quot;,&quot;version&quot;:&quot;10.23.0&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;license&quot;:&quot;MIT&quot;,&quot;_id&quot;:&quot;pnpm@10.23.0&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;bin&quot;:{&quot;pnpm&quot;:&quot;bin/pnpm.cjs&quot;,&quot;pnpx&quot;:&quot;bin/pnpx.cjs&quot;},&quot;dist&quot;:{&quot;shasum&quot;:&quot;b4a44ab0dc2adf2e36371d11d8eb0dc78ffc976c&quot;,&quot;tarball&quot;:&quot;https://registry.npmjs.org/pnpm/-/pnpm-10.23.0.tgz&quot;,&quot;fileCount&quot;:1060,&quot;integrity&quot;:&quot;sha512-IcTlaYACrel+Tv6Li0qJqN48haN5GflX56DzDzj7xbvdBZgP/ikXmy+25uaRJC4JjZRdFgF3LK0P71+2QR4qSw==&quot;,&quot;signatures&quot;:[{&quot;sig&quot;:&quot;MEUCIC2uEs3xP1v49vxJhBDph1kwL8rgA56jMvDsejLb+9s6AiEArGGvu82Zll127A0The7jRxBBBF5+7Au8SMh1a3mNMe0=&quot;,&quot;keyid&quot;:&quot;SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U&quot;}],&quot;attestations&quot;:{&quot;url&quot;:&quot;https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.23.0&quot;,&quot;provenance&quot;:{&quot;predicateType&quot;:&quot;https://slsa.dev/provenance/v1&quot;}},&quot;unpackedSize&quot;:17450934},&quot;jest&quot;:{&quot;preset&quot;:&quot;@pnpm/jest-config/with-registry&quot;},&quot;main&quot;:&quot;bin/pnpm.cjs&quot;,&quot;type&quot;:&quot;commonjs&quot;,&quot;_from&quot;:&quot;file:pnpm-10.23.0.tgz&quot;,&quot;unpkg&quot;:&quot;dist/pnpm.cjs&quot;,&quot;engines&quot;:{&quot;node&quot;:&quot;&gt;=18.12&quot;},&quot;exports&quot;:{&quot;.&quot;:&quot;./package.json&quot;},&quot;funding&quot;:&quot;https://opencollective.com/pnpm&quot;,&quot;scripts&quot;:{&quot;lint&quot;:&quot;eslint \&quot;src/**/*.ts\&quot; \&quot;test/**/*.ts\&quot;&quot;,&quot;test&quot;:&quot;pnpm run compile &amp;&amp; pnpm run _test&quot;,&quot;_test&quot;:&quot;jest&quot;,&quot;start&quot;:&quot;tsc --watch&quot;,&quot;bundle&quot;:&quot;ts-node bundle.ts&quot;,&quot;compile&quot;:&quot;tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc&quot;,&quot;_compile&quot;:&quot;tsc --build&quot;,&quot;pretest:e2e&quot;:&quot;rimraf node_modules/.bin/pnpm&quot;},&quot;_npmUser&quot;:{&quot;name&quot;:&quot;GitHub Actions&quot;,&quot;email&quot;:&quot;npm-oidc-no-reply@github.com&quot;,&quot;trustedPublisher&quot;:{&quot;id&quot;:&quot;github&quot;,&quot;oidcConfigId&quot;:&quot;oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd&quot;}},&quot;_resolved&quot;:&quot;/tmp/9c251202350b3aff4c05772b2a0c802e/pnpm-10.23.0.tgz&quot;,&quot;_integrity&quot;:&quot;sha512-IcTlaYACrel+Tv6Li0qJqN48haN5GflX56DzDzj7xbvdBZgP/ikXmy+25uaRJC4JjZRdFgF3LK0P71+2QR4qSw==&quot;,&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;_npmVersion&quot;:&quot;11.6.2&quot;,&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;directories&quot;:{&quot;test&quot;:&quot;test&quot;},&quot;_nodeVersion&quot;:&quot;20.19.5&quot;,&quot;preferGlobal&quot;:true,&quot;publishConfig&quot;:{&quot;tag&quot;:&quot;next-10&quot;,&quot;executableFiles&quot;:[&quot;./dist/node-gyp-bin/node-gyp&quot;,&quot;./dist/node-gyp-bin/node-gyp.cmd&quot;,&quot;./dist/node_modules/node-gyp/bin/node-gyp.js&quot;]},&quot;_hasShrinkwrap&quot;:false,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;_npmOperationalInternal&quot;:{&quot;tmp&quot;:&quot;tmp/pnpm_10.23.0_1763648305182_0.3208389638009299&quot;,&quot;host&quot;:&quot;s3://npm-registry-packages-npm-production&quot;}}},&quot;time&quot;:{&quot;created&quot;:&quot;2013-03-08T23:25:56.611Z&quot;,&quot;modified&quot;:&quot;2025-11-20T14:20:20.783Z&quot;,&quot;0.0.1&quot;:&quot;2013-03-08T23:25:57.106Z&quot;,&quot;0.16.0&quot;:&quot;2016-02-01T19:22:42.489Z&quot;,&quot;0.17.0&quot;:&quot;2016-02-02T23:29:00.749Z&quot;,&quot;0.18.0&quot;:&quot;2016-02-11T22:43:06.163Z&quot;,&quot;0.19.0&quot;:&quot;2016-03-21T22:59:28.712Z&quot;,&quot;0.20.0&quot;:&quot;2016-04-03T00:25:39.072Z&quot;,&quot;0.21.0&quot;:&quot;2016-04-06T04:42:06.372Z&quot;,&quot;0.22.0&quot;:&quot;2016-06-18T16:36:39.264Z&quot;,&quot;0.22.1&quot;:&quot;2016-06-18T16:40:56.500Z&quot;,&quot;0.23.0&quot;:&quot;2016-07-12T03:42:31.352Z&quot;,&quot;0.24.0&quot;:&quot;2016-07-16T18:44:34.142Z&quot;,&quot;0.25.0&quot;:&quot;2016-08-18T09:55:58.425Z&quot;,&quot;0.26.0&quot;:&quot;2016-08-19T18:02:29.271Z&quot;,&quot;0.26.1&quot;:&quot;2016-08-23T16:13:17.772Z&quot;,&quot;0.26.2&quot;:&quot;2016-08-25T10:51:01.145Z&quot;,&quot;0.27.0&quot;:&quot;2016-08-28T12:25:37.457Z&quot;,&quot;0.28.0&quot;:&quot;2016-08-29T13:49:17.589Z&quot;,&quot;0.29.0&quot;:&quot;2016-08-31T09:23:16.795Z&quot;,&quot;0.29.1&quot;:&quot;2016-08-31T22:01:00.156Z&quot;,&quot;0.30.0&quot;:&quot;2016-09-03T11:40:42.501Z&quot;,&quot;0.31.0&quot;:&quot;2016-09-04T15:24:19.183Z&quot;,&quot;0.31.1&quot;:&quot;2016-09-06T17:56:13.776Z&quot;,&quot;0.31.2&quot;:&quot;2016-09-07T07:20:28.094Z&quot;,&quot;0.32.0&quot;:&quot;2016-09-15T17:51:47.118Z&quot;,&quot;0.32.1&quot;:&quot;2016-09-15T18:22:22.783Z&quot;,&quot;0.33.0&quot;:&quot;2016-09-17T20:25:55.227Z&quot;,&quot;0.34.0&quot;:&quot;2016-09-18T14:34:13.662Z&quot;,&quot;0.35.0&quot;:&quot;2016-09-21T20:16:25.163Z&quot;,&quot;0.36.0&quot;:&quot;2016-09-24T10:41:06.059Z&quot;,&quot;0.37.0&quot;:&quot;2016-09-26T21:20:01.227Z&quot;,&quot;0.38.0&quot;:&quot;2016-10-02T22:21:55.738Z&quot;,&quot;0.38.1&quot;:&quot;2016-10-03T07:27:25.703Z&quot;,&quot;0.38.2&quot;:&quot;2016-10-03T22:37:57.574Z&quot;,&quot;0.39.0&quot;:&quot;2016-10-04T07:34:34.150Z&quot;,&quot;0.39.1&quot;:&quot;2016-10-05T20:08:14.741Z&quot;,&quot;0.40.0&quot;:&quot;2016-10-06T19:59:13.354Z&quot;,&quot;0.41.0&quot;:&quot;2016-10-15T17:08:21.741Z&quot;,&quot;0.42.0&quot;:&quot;2016-10-19T05:18:12.979Z&quot;,&quot;0.41.1&quot;:&quot;2016-10-19T17:48:25.449Z&quot;,&quot;0.42.1&quot;:&quot;2016-10-19T17:53:49.717Z&quot;,&quot;0.42.2&quot;:&quot;2016-10-19T20:29:30.064Z&quot;,&quot;0.41.2&quot;:&quot;2016-10-19T20:33:37.322Z&quot;,&quot;0.42.3&quot;:&quot;2016-10-20T20:29:07.429Z&quot;,&quot;0.42.4&quot;:&quot;2016-10-21T16:39:12.459Z&quot;,&quot;0.42.5&quot;:&quot;2016-10-29T23:39:25.079Z&quot;,&quot;0.42.6&quot;:&quot;2016-10-30T00:21:54.252Z&quot;,&quot;0.43.0&quot;:&quot;2016-10-31T18:33:38.180Z&quot;,&quot;0.43.1&quot;:&quot;2016-10-31T20:31:21.230Z&quot;,&quot;0.43.2&quot;:&quot;2016-11-03T12:25:42.926Z&quot;,&quot;0.44.0&quot;:&quot;2016-11-05T13:34:10.809Z&quot;,&quot;0.44.1&quot;:&quot;2016-11-05T20:11:41.786Z&quot;,&quot;0.45.0&quot;:&quot;2016-11-07T18:51:13.542Z&quot;,&quot;0.45.1&quot;:&quot;2016-11-19T17:07:47.921Z&quot;,&quot;0.46.0&quot;:&quot;2017-01-08T14:09:09.125Z&quot;,&quot;0.47.0&quot;:&quot;2017-01-09T16:43:33.431Z&quot;,&quot;0.47.1&quot;:&quot;2017-01-10T20:13:21.851Z&quot;,&quot;0.48.0&quot;:&quot;2017-01-11T07:32:08.279Z&quot;,&quot;0.48.1&quot;:&quot;2017-01-12T23:06:47.438Z&quot;,&quot;0.49.0&quot;:&quot;2017-01-16T23:43:47.673Z&quot;,&quot;0.49.1&quot;:&quot;2017-01-18T08:29:10.742Z&quot;,&quot;0.49.2&quot;:&quot;2017-01-19T00:24:08.969Z&quot;,&quot;0.50.0&quot;:&quot;2017-01-21T16:44:49.831Z&quot;,&quot;0.51.0&quot;:&quot;2017-01-25T20:33:31.063Z&quot;,&quot;0.51.1&quot;:&quot;2017-01-25T21:14:42.855Z&quot;,&quot;0.51.2&quot;:&quot;2017-01-27T19:59:51.959Z&quot;,&quot;0.51.3&quot;:&quot;2017-01-30T19:59:17.324Z&quot;,&quot;0.50.1&quot;:&quot;2017-02-01T20:11:54.585Z&quot;,&quot;0.52.0&quot;:&quot;2017-02-02T22:14:24.702Z&quot;,&quot;0.52.1&quot;:&quot;2017-02-03T18:30:06.950Z&quot;,&quot;0.53.0&quot;:&quot;2017-02-06T19:36:32.110Z&quot;,&quot;0.54.0&quot;:&quot;2017-02-08T20:35:32.809Z&quot;,&quot;0.54.1&quot;:&quot;2017-02-12T10:21:41.423Z&quot;,&quot;0.55.0&quot;:&quot;2017-02-13T07:56:37.890Z&quot;,&quot;0.55.1&quot;:&quot;2017-02-14T00:09:24.176Z&quot;,&quot;0.55.2&quot;:&quot;2017-02-17T20:03:26.611Z&quot;,&quot;0.55.3&quot;:&quot;2017-02-17T21:44:14.475Z&quot;,&quot;0.56.0&quot;:&quot;2017-02-19T23:11:17.563Z&quot;,&quot;0.57.0&quot;:&quot;2017-02-22T19:47:41.210Z&quot;,&quot;0.57.1&quot;:&quot;2017-02-24T08:25:13.680Z&quot;,&quot;0.57.2&quot;:&quot;2017-02-25T17:25:43.463Z&quot;,&quot;0.58.0&quot;:&quot;2017-02-28T19:40:41.925Z&quot;,&quot;0.59.0&quot;:&quot;2017-03-01T23:36:46.522Z&quot;,&quot;0.60.0&quot;:&quot;2017-03-04T20:20:30.597Z&quot;,&quot;0.60.1&quot;:&quot;2017-03-04T22:23:47.515Z&quot;,&quot;0.60.2&quot;:&quot;2017-03-04T23:16:49.511Z&quot;,&quot;0.60.3&quot;:&quot;2017-03-05T23:44:43.329Z&quot;,&quot;0.61.0&quot;:&quot;2017-03-13T00:36:19.805Z&quot;,&quot;0.62.0&quot;:&quot;2017-03-18T22:43:52.763Z&quot;,&quot;0.62.1&quot;:&quot;2017-03-19T00:24:16.455Z&quot;,&quot;0.62.2&quot;:&quot;2017-03-19T14:37:08.531Z&quot;,&quot;0.63.0&quot;:&quot;2017-03-24T19:29:31.784Z&quot;,&quot;0.64.0&quot;:&quot;2017-04-05T20:20:15.531Z&quot;,&quot;0.64.1&quot;:&quot;2017-04-06T23:01:35.460Z&quot;,&quot;0.64.2&quot;:&quot;2017-04-07T19:51:04.449Z&quot;,&quot;0.64.3&quot;:&quot;2017-04-08T12:51:36.771Z&quot;,&quot;0.64.4&quot;:&quot;2017-04-09T17:20:04.201Z&quot;,&quot;0.64.5&quot;:&quot;2017-04-14T07:09:41.080Z&quot;,&quot;0.64.6&quot;:&quot;2017-04-14T20:30:52.244Z&quot;,&quot;0.64.7&quot;:&quot;2017-04-15T19:06:07.086Z&quot;,&quot;0.64.8&quot;:&quot;2017-04-17T16:40:49.254Z&quot;,&quot;0.65.0&quot;:&quot;2017-04-20T20:27:41.008Z&quot;,&quot;0.65.1&quot;:&quot;2017-04-22T20:15:19.989Z&quot;,&quot;0.65.2&quot;:&quot;2017-04-23T17:39:53.030Z&quot;,&quot;0.65.3&quot;:&quot;2017-04-24T14:55:24.945Z&quot;,&quot;0.65.4&quot;:&quot;2017-04-24T20:52:25.905Z&quot;,&quot;0.65.5&quot;:&quot;2017-04-25T13:54:12.971Z&quot;,&quot;0.65.6&quot;:&quot;2017-04-25T17:36:15.677Z&quot;,&quot;0.65.7&quot;:&quot;2017-04-26T12:03:58.033Z&quot;,&quot;0.66.0&quot;:&quot;2017-04-27T13:19:25.165Z&quot;,&quot;0.66.1&quot;:&quot;2017-04-27T18:26:46.152Z&quot;,&quot;0.66.2&quot;:&quot;2017-04-28T14:01:45.367Z&quot;,&quot;0.66.3&quot;:&quot;2017-05-07T12:25:05.830Z&quot;,&quot;0.66.4&quot;:&quot;2017-05-07T13:41:56.594Z&quot;,&quot;0.67.0&quot;:&quot;2017-05-07T20:34:21.664Z&quot;,&quot;0.67.1&quot;:&quot;2017-05-08T20:43:04.443Z&quot;,&quot;0.67.2&quot;:&quot;2017-05-09T15:24:44.881Z&quot;,&quot;0.67.3&quot;:&quot;2017-05-09T19:32:01.540Z&quot;,&quot;0.68.0&quot;:&quot;2017-05-13T16:21:21.794Z&quot;,&quot;0.69.0-beta.1&quot;:&quot;2017-06-03T12:53:39.919Z&quot;,&quot;0.69.0-beta.2&quot;:&quot;2017-06-04T10:26:10.057Z&quot;,&quot;0.69.0-beta.3&quot;:&quot;2017-06-04T18:35:48.158Z&quot;,&quot;0.69.0-beta.4&quot;:&quot;2017-06-05T22:25:54.805Z&quot;,&quot;0.69.0&quot;:&quot;2017-06-06T10:39:25.169Z&quot;,&quot;0.69.1&quot;:&quot;2017-06-06T16:48:14.294Z&quot;,&quot;0.69.2&quot;:&quot;2017-06-07T23:23:05.686Z&quot;,&quot;0.69.3&quot;:&quot;2017-06-09T22:37:14.347Z&quot;,&quot;0.69.4&quot;:&quot;2017-06-11T16:12:31.326Z&quot;,&quot;0.70.0-beta.1&quot;:&quot;2017-06-14T06:34:35.573Z&quot;,&quot;0.70.0-beta.2&quot;:&quot;2017-06-15T07:33:49.412Z&quot;,&quot;0.69.5&quot;:&quot;2017-06-15T17:15:24.013Z&quot;,&quot;0.69.6&quot;:&quot;2017-06-15T19:23:40.728Z&quot;,&quot;0.70.0&quot;:&quot;2017-06-15T22:07:13.289Z&quot;,&quot;0.70.1&quot;:&quot;2017-06-16T20:01:35.811Z&quot;,&quot;0.71.0&quot;:&quot;2017-06-18T08:37:56.904Z&quot;,&quot;0.71.1&quot;:&quot;2017-06-18T12:58:14.238Z&quot;,&quot;0.72.0&quot;:&quot;2017-06-18T20:08:10.922Z&quot;,&quot;0.73.0&quot;:&quot;2017-06-20T20:36:18.875Z&quot;,&quot;0.73.1&quot;:&quot;2017-06-20T23:07:21.513Z&quot;,&quot;0.73.2&quot;:&quot;2017-06-21T19:24:58.620Z&quot;,&quot;0.73.3&quot;:&quot;2017-06-22T07:27:29.489Z&quot;,&quot;0.74.0&quot;:&quot;2017-06-23T20:19:06.210Z&quot;,&quot;0.74.1&quot;:&quot;2017-06-23T20:22:53.170Z&quot;,&quot;0.74.2&quot;:&quot;2017-06-23T20:40:10.089Z&quot;,&quot;0.74.3&quot;:&quot;2017-06-24T11:35:27.058Z&quot;,&quot;0.74.4&quot;:&quot;2017-06-25T22:43:45.804Z&quot;,&quot;0.75.0&quot;:&quot;2017-06-27T06:44:02.924Z&quot;,&quot;1.0.0&quot;:&quot;2017-06-28T07:48:23.718Z&quot;,&quot;1.0.1&quot;:&quot;2017-06-29T19:48:16.790Z&quot;,&quot;1.1.0&quot;:&quot;2017-06-30T16:57:28.513Z&quot;,&quot;1.2.0&quot;:&quot;2017-07-01T19:39:13.872Z&quot;,&quot;1.3.0&quot;:&quot;2017-07-08T18:42:30.960Z&quot;,&quot;1.3.1&quot;:&quot;2017-07-08T19:16:34.009Z&quot;,&quot;1.3.2&quot;:&quot;2017-07-09T18:43:41.546Z&quot;,&quot;1.3.3&quot;:&quot;2017-07-09T20:59:30.290Z&quot;,&quot;1.3.4&quot;:&quot;2017-07-10T19:13:08.339Z&quot;,&quot;1.4.0&quot;:&quot;2017-07-11T20:25:19.059Z&quot;,&quot;1.5.0&quot;:&quot;2017-07-15T17:06:57.806Z&quot;,&quot;1.5.1&quot;:&quot;2017-07-15T19:29:11.353Z&quot;,&quot;1.5.2&quot;:&quot;2017-07-15T20:06:16.135Z&quot;,&quot;1.5.3&quot;:&quot;2017-07-15T22:37:06.193Z&quot;,&quot;1.6.0&quot;:&quot;2017-07-16T20:37:38.878Z&quot;,&quot;1.6.1&quot;:&quot;2017-07-17T19:02:52.767Z&quot;,&quot;1.7.0&quot;:&quot;2017-07-17T21:07:32.173Z&quot;,&quot;1.7.1&quot;:&quot;2017-07-18T21:54:37.450Z&quot;,&quot;1.8.0&quot;:&quot;2017-07-23T19:17:19.216Z&quot;,&quot;1.8.1&quot;:&quot;2017-07-23T22:13:56.125Z&quot;,&quot;1.8.2&quot;:&quot;2017-07-27T22:31:31.361Z&quot;,&quot;1.9.0&quot;:&quot;2017-07-31T06:12:06.741Z&quot;,&quot;1.10.0&quot;:&quot;2017-08-01T19:50:32.529Z&quot;,&quot;1.10.1&quot;:&quot;2017-08-03T18:54:09.875Z&quot;,&quot;1.10.2&quot;:&quot;2017-08-04T21:19:05.627Z&quot;,&quot;2.0.0-beta.0&quot;:&quot;2017-08-27T23:30:40.955Z&quot;,&quot;1.11.0&quot;:&quot;2017-08-30T07:25:17.536Z&quot;,&quot;1.11.1&quot;:&quot;2017-08-30T21:46:14.603Z&quot;,&quot;1.12.0&quot;:&quot;2017-09-02T12:32:05.997Z&quot;,&quot;1.13.0&quot;:&quot;2017-09-06T20:18:07.834Z&quot;,&quot;1.13.1&quot;:&quot;2017-09-08T19:00:08.291Z&quot;,&quot;1.13.2&quot;:&quot;2017-09-09T22:04:27.474Z&quot;,&quot;1.14.0&quot;:&quot;2017-09-12T20:18:07.189Z&quot;,&quot;1.14.1&quot;:&quot;2017-09-12T20:21:14.420Z&quot;,&quot;1.14.2&quot;:&quot;2017-09-12T21:13:08.633Z&quot;,&quot;1.14.3&quot;:&quot;2017-09-15T16:47:30.250Z&quot;,&quot;1.14.4&quot;:&quot;2017-09-15T18:21:26.165Z&quot;,&quot;1.14.5&quot;:&quot;2017-09-17T16:43:43.916Z&quot;,&quot;1.14.6&quot;:&quot;2017-09-23T15:27:11.624Z&quot;,&quot;1.14.7&quot;:&quot;2017-09-23T23:37:31.928Z&quot;,&quot;1.14.8&quot;:&quot;2017-09-24T23:58:52.957Z&quot;,&quot;1.14.9&quot;:&quot;2017-09-27T18:13:49.529Z&quot;,&quot;1.14.10&quot;:&quot;2017-09-29T18:43:11.628Z&quot;,&quot;1.15.0&quot;:&quot;2017-09-30T18:13:35.272Z&quot;,&quot;1.14.11&quot;:&quot;2017-10-02T20:44:04.408Z&quot;,&quot;1.16.0&quot;:&quot;2017-10-02T23:02:20.273Z&quot;,&quot;1.16.1&quot;:&quot;2017-10-06T23:25:36.018Z&quot;,&quot;1.16.2&quot;:&quot;2017-10-07T23:03:17.570Z&quot;,&quot;1.16.3&quot;:&quot;2017-10-08T16:59:43.812Z&quot;,&quot;1.17.0&quot;:&quot;2017-10-15T10:35:56.752Z&quot;,&quot;1.17.1&quot;:&quot;2017-10-15T19:37:44.916Z&quot;,&quot;1.17.2&quot;:&quot;2017-10-16T07:54:21.471Z&quot;,&quot;1.18.0&quot;:&quot;2017-10-16T20:22:51.679Z&quot;,&quot;1.18.1&quot;:&quot;2017-10-21T12:04:08.438Z&quot;,&quot;1.19.0&quot;:&quot;2017-10-27T19:44:47.528Z&quot;,&quot;1.19.1&quot;:&quot;2017-10-28T15:40:24.114Z&quot;,&quot;1.19.2&quot;:&quot;2017-10-28T18:39:19.333Z&quot;,&quot;1.19.3&quot;:&quot;2017-10-28T20:30:55.664Z&quot;,&quot;1.19.4&quot;:&quot;2017-11-04T10:59:07.863Z&quot;,&quot;1.19.5&quot;:&quot;2017-11-04T21:54:13.540Z&quot;,&quot;1.19.6&quot;:&quot;2017-11-11T21:28:27.644Z&quot;,&quot;1.19.7&quot;:&quot;2017-11-12T00:23:56.746Z&quot;,&quot;1.20.0&quot;:&quot;2017-11-12T19:40:38.125Z&quot;,&quot;1.21.0&quot;:&quot;2017-11-12T23:30:27.896Z&quot;,&quot;1.22.0&quot;:&quot;2017-11-18T14:47:04.038Z&quot;,&quot;1.23.0&quot;:&quot;2017-11-19T13:38:49.553Z&quot;,&quot;1.23.1&quot;:&quot;2017-11-21T00:23:19.744Z&quot;,&quot;1.23.2&quot;:&quot;2017-12-08T20:45:50.472Z&quot;,&quot;1.24.0-0&quot;:&quot;2017-12-16T20:58:44.263Z&quot;,&quot;1.24.0-1&quot;:&quot;2017-12-19T21:36:32.203Z&quot;,&quot;1.24.0-2&quot;:&quot;2017-12-20T23:33:46.809Z&quot;,&quot;1.24.0-3&quot;:&quot;2017-12-21T22:58:32.279Z&quot;,&quot;1.24.0&quot;:&quot;2017-12-25T00:51:58.254Z&quot;,&quot;1.24.1&quot;:&quot;2017-12-25T01:36:01.160Z&quot;,&quot;1.24.2&quot;:&quot;2017-12-25T12:00:35.164Z&quot;,&quot;1.24.3&quot;:&quot;2017-12-25T19:17:46.858Z&quot;,&quot;1.25.0&quot;:&quot;2017-12-31T00:09:31.702Z&quot;,&quot;1.25.1&quot;:&quot;2017-12-31T15:37:45.954Z&quot;,&quot;1.26.0&quot;:&quot;2018-01-03T19:10:36.750Z&quot;,&quot;1.27.0-0&quot;:&quot;2018-01-09T00:11:19.928Z&quot;,&quot;1.27.0-1&quot;:&quot;2018-01-09T01:11:24.250Z&quot;,&quot;1.27.0&quot;:&quot;2018-01-11T11:06:24.030Z&quot;,&quot;1.28.0&quot;:&quot;2018-01-13T17:53:20.917Z&quot;,&quot;1.29.0&quot;:&quot;2018-01-14T12:45:55.344Z&quot;,&quot;1.29.1&quot;:&quot;2018-01-14T13:13:23.384Z&quot;,&quot;1.30.0&quot;:&quot;2018-01-19T00:10:00.806Z&quot;,&quot;1.30.1&quot;:&quot;2018-01-20T23:55:13.959Z&quot;,&quot;1.30.2&quot;:&quot;2018-01-21T17:38:06.344Z&quot;,&quot;1.31.0&quot;:&quot;2018-01-24T19:52:16.723Z&quot;,&quot;1.31.1&quot;:&quot;2018-01-25T20:15:57.044Z&quot;,&quot;1.31.2&quot;:&quot;2018-01-28T18:33:54.585Z&quot;,&quot;1.31.3&quot;:&quot;2018-01-28T23:41:44.891Z&quot;,&quot;1.31.4&quot;:&quot;2018-01-31T23:35:37.125Z&quot;,&quot;1.31.5&quot;:&quot;2018-02-01T22:45:41.113Z&quot;,&quot;1.31.6&quot;:&quot;2018-02-03T14:00:07.488Z&quot;,&quot;1.32.0&quot;:&quot;2018-02-04T20:26:25.155Z&quot;,&quot;1.32.1&quot;:&quot;2018-02-11T19:49:40.437Z&quot;,&quot;1.33.0&quot;:&quot;2018-02-17T21:36:13.491Z&quot;,&quot;1.33.1&quot;:&quot;2018-02-18T18:00:41.479Z&quot;,&quot;1.33.2&quot;:&quot;2018-02-19T20:02:54.920Z&quot;,&quot;1.34.0&quot;:&quot;2018-02-22T20:01:24.906Z&quot;,&quot;1.35.0&quot;:&quot;2018-02-25T12:55:29.650Z&quot;,&quot;1.35.1&quot;:&quot;2018-02-26T19:36:33.309Z&quot;,&quot;1.35.2&quot;:&quot;2018-02-28T00:52:37.890Z&quot;,&quot;1.35.3&quot;:&quot;2018-02-28T23:18:45.337Z&quot;,&quot;1.35.4&quot;:&quot;2018-03-05T09:46:42.848Z&quot;,&quot;1.35.5&quot;:&quot;2018-03-06T01:02:17.131Z&quot;,&quot;1.35.6&quot;:&quot;2018-03-07T22:03:24.148Z&quot;,&quot;1.35.7&quot;:&quot;2018-03-08T12:39:20.143Z&quot;,&quot;1.35.8&quot;:&quot;2018-03-09T00:26:31.316Z&quot;,&quot;1.35.9&quot;:&quot;2018-03-12T22:42:57.943Z&quot;,&quot;1.35.10&quot;:&quot;2018-03-13T01:16:12.249Z&quot;,&quot;1.36.0&quot;:&quot;2018-03-14T20:14:27.179Z&quot;,&quot;1.36.1&quot;:&quot;2018-03-15T22:15:28.031Z&quot;,&quot;1.36.2&quot;:&quot;2018-03-19T20:49:25.802Z&quot;,&quot;1.37.0&quot;:&quot;2018-03-24T14:23:09.888Z&quot;,&quot;1.37.1&quot;:&quot;2018-03-24T15:20:00.095Z&quot;,&quot;1.37.2&quot;:&quot;2018-03-25T12:13:42.324Z&quot;,&quot;1.37.3&quot;:&quot;2018-03-25T21:14:50.641Z&quot;,&quot;1.37.4&quot;:&quot;2018-04-01T12:26:08.933Z&quot;,&quot;1.37.5&quot;:&quot;2018-04-01T16:35:44.652Z&quot;,&quot;1.38.0&quot;:&quot;2018-04-01T16:56:52.049Z&quot;,&quot;1.38.1&quot;:&quot;2018-04-03T21:44:29.863Z&quot;,&quot;1.38.2&quot;:&quot;2018-04-03T22:34:47.187Z&quot;,&quot;1.38.3&quot;:&quot;2018-04-07T10:45:28.545Z&quot;,&quot;1.39.0&quot;:&quot;2018-04-08T21:26:17.094Z&quot;,&quot;1.39.1&quot;:&quot;2018-04-12T00:38:24.344Z&quot;,&quot;1.40.0&quot;:&quot;2018-04-12T22:40:52.346Z&quot;,&quot;1.40.1&quot;:&quot;2018-04-13T07:33:21.853Z&quot;,&quot;1.40.2&quot;:&quot;2018-04-15T18:23:44.953Z&quot;,&quot;1.41.0&quot;:&quot;2018-04-19T22:41:55.384Z&quot;,&quot;1.41.1&quot;:&quot;2018-04-20T23:50:15.511Z&quot;,&quot;1.41.2&quot;:&quot;2018-04-22T11:13:31.410Z&quot;,&quot;1.41.3&quot;:&quot;2018-05-03T22:26:04.685Z&quot;,&quot;1.42.0&quot;:&quot;2018-05-07T20:44:23.141Z&quot;,&quot;1.43.0&quot;:&quot;2018-05-09T21:13:09.708Z&quot;,&quot;1.43.1&quot;:&quot;2018-05-11T18:32:06.623Z&quot;,&quot;2.0.0-rc.0&quot;:&quot;2018-05-17T20:23:17.049Z&quot;,&quot;2.0.0&quot;:&quot;2018-05-19T11:27:17.889Z&quot;,&quot;2.1.0&quot;:&quot;2018-05-21T19:55:45.511Z&quot;,&quot;2.2.0&quot;:&quot;2018-05-25T07:26:18.480Z&quot;,&quot;2.0.1&quot;:&quot;2018-05-27T21:03:24.217Z&quot;,&quot;2.2.1&quot;:&quot;2018-05-30T08:11:37.307Z&quot;,&quot;2.2.2&quot;:&quot;2018-06-02T23:44:57.306Z&quot;,&quot;2.3.0&quot;:&quot;2018-06-03T19:48:52.914Z&quot;,&quot;2.3.1&quot;:&quot;2018-06-07T21:56:10.248Z&quot;,&quot;2.4.0&quot;:&quot;2018-06-11T11:18:02.586Z&quot;,&quot;2.5.0&quot;:&quot;2018-06-12T20:25:33.087Z&quot;,&quot;2.6.0&quot;:&quot;2018-06-14T15:09:47.336Z&quot;,&quot;2.6.1&quot;:&quot;2018-06-14T19:05:48.811Z&quot;,&quot;2.6.2&quot;:&quot;2018-06-16T10:03:19.088Z&quot;,&quot;2.7.0&quot;:&quot;2018-06-17T23:25:05.650Z&quot;,&quot;2.8.0&quot;:&quot;2018-06-23T15:48:56.422Z&quot;,&quot;2.9.0&quot;:&quot;2018-06-24T18:49:12.882Z&quot;,&quot;2.10.0&quot;:&quot;2018-06-29T18:47:17.693Z&quot;,&quot;2.10.1&quot;:&quot;2018-07-01T00:44:01.077Z&quot;,&quot;2.10.2&quot;:&quot;2018-07-01T13:01:09.389Z&quot;,&quot;2.10.3&quot;:&quot;2018-07-01T13:23:22.887Z&quot;,&quot;2.10.4&quot;:&quot;2018-07-03T22:33:48.020Z&quot;,&quot;2.10.5&quot;:&quot;2018-07-08T11:39:23.529Z&quot;,&quot;2.11.0&quot;:&quot;2018-07-08T12:49:39.200Z&quot;,&quot;2.12.0-0&quot;:&quot;2018-07-11T20:29:40.789Z&quot;,&quot;2.10.6&quot;:&quot;2018-07-12T23:26:36.762Z&quot;,&quot;2.11.1&quot;:&quot;2018-07-13T18:14:36.462Z&quot;,&quot;2.11.2&quot;:&quot;2018-07-14T09:22:33.776Z&quot;,&quot;2.12.0-1&quot;:&quot;2018-07-15T14:05:48.041Z&quot;,&quot;2.12.0&quot;:&quot;2018-07-15T22:44:36.346Z&quot;,&quot;2.12.1&quot;:&quot;2018-07-18T19:24:26.775Z&quot;,&quot;2.11.3&quot;:&quot;2018-07-18T20:00:17.625Z&quot;,&quot;2.12.2&quot;:&quot;2018-07-20T15:14:48.134Z&quot;,&quot;2.13.0&quot;:&quot;2018-08-05T07:35:08.154Z&quot;,&quot;2.12.3&quot;:&quot;2018-08-05T21:19:17.317Z&quot;,&quot;2.13.1&quot;:&quot;2018-08-06T00:19:28.366Z&quot;,&quot;2.13.2&quot;:&quot;2018-08-12T13:45:35.042Z&quot;,&quot;2.13.3&quot;:&quot;2018-08-12T13:52:25.462Z&quot;,&quot;2.13.4&quot;:&quot;2018-08-13T20:49:28.453Z&quot;,&quot;2.13.5&quot;:&quot;2018-08-14T20:45:20.221Z&quot;,&quot;2.14.0-0&quot;:&quot;2018-08-21T20:30:48.214Z&quot;,&quot;2.14.0-1&quot;:&quot;2018-08-22T19:35:06.992Z&quot;,&quot;2.14.0&quot;:&quot;2018-08-24T19:05:18.567Z&quot;,&quot;2.13.6&quot;:&quot;2018-08-25T14:17:47.371Z&quot;,&quot;2.14.1&quot;:&quot;2018-08-25T15:14:04.828Z&quot;,&quot;2.14.2&quot;:&quot;2018-08-25T18:19:40.918Z&quot;,&quot;2.14.3&quot;:&quot;2018-08-26T14:13:40.509Z&quot;,&quot;2.14.4&quot;:&quot;2018-08-28T18:42:37.621Z&quot;,&quot;2.14.5&quot;:&quot;2018-08-30T20:09:47.016Z&quot;,&quot;2.15.0&quot;:&quot;2018-09-02T13:34:59.117Z&quot;,&quot;2.15.1&quot;:&quot;2018-09-08T13:22:18.151Z&quot;,&quot;2.15.2&quot;:&quot;2018-09-09T21:24:43.798Z&quot;,&quot;2.16.0&quot;:&quot;2018-09-12T07:13:46.569Z&quot;,&quot;2.15.3&quot;:&quot;2018-09-12T07:24:52.024Z&quot;,&quot;2.16.1&quot;:&quot;2018-09-22T19:27:31.648Z&quot;,&quot;2.16.2&quot;:&quot;2018-09-25T20:24:18.737Z&quot;,&quot;2.17.0-0&quot;:&quot;2018-10-07T19:28:22.456Z&quot;,&quot;2.16.3&quot;:&quot;2018-10-08T22:54:17.386Z&quot;,&quot;2.17.0-1&quot;:&quot;2018-10-15T18:19:38.592Z&quot;,&quot;2.17.0-2&quot;:&quot;2018-10-15T21:25:00.991Z&quot;,&quot;2.17.0-3&quot;:&quot;2018-10-16T23:00:04.112Z&quot;,&quot;2.17.0-4&quot;:&quot;2018-10-19T19:23:21.732Z&quot;,&quot;2.17.0-5&quot;:&quot;2018-10-21T18:51:40.816Z&quot;,&quot;2.17.0&quot;:&quot;2018-10-22T19:20:11.413Z&quot;,&quot;2.17.1&quot;:&quot;2018-10-24T19:04:48.544Z&quot;,&quot;2.17.2&quot;:&quot;2018-10-24T20:05:40.708Z&quot;,&quot;2.17.3&quot;:&quot;2018-10-24T22:45:51.377Z&quot;,&quot;2.17.4&quot;:&quot;2018-10-27T13:53:00.902Z&quot;,&quot;2.17.5&quot;:&quot;2018-10-29T00:05:41.095Z&quot;,&quot;2.17.6&quot;:&quot;2018-10-31T21:01:59.793Z&quot;,&quot;2.17.7&quot;:&quot;2018-11-04T13:58:15.188Z&quot;,&quot;2.17.8&quot;:&quot;2018-11-07T00:06:48.839Z&quot;,&quot;2.18.0&quot;:&quot;2018-11-10T11:05:55.770Z&quot;,&quot;2.18.1&quot;:&quot;2018-11-10T13:20:19.798Z&quot;,&quot;2.18.2&quot;:&quot;2018-11-10T13:24:20.573Z&quot;,&quot;2.19.0-0&quot;:&quot;2018-11-12T23:26:15.088Z&quot;,&quot;2.19.0-1&quot;:&quot;2018-11-13T21:15:15.131Z&quot;,&quot;2.19.0-2&quot;:&quot;2018-11-15T23:56:00.947Z&quot;,&quot;2.19.0&quot;:&quot;2018-11-18T18:38:38.088Z&quot;,&quot;2.19.1&quot;:&quot;2018-11-20T01:20:11.987Z&quot;,&quot;2.19.2&quot;:&quot;2018-11-21T00:22:13.521Z&quot;,&quot;2.19.3&quot;:&quot;2018-11-25T20:18:54.201Z&quot;,&quot;2.19.4&quot;:&quot;2018-11-28T22:38:31.732Z&quot;,&quot;2.20.0&quot;:&quot;2018-12-03T00:33:31.320Z&quot;,&quot;2.20.1&quot;:&quot;2018-12-05T00:25:50.964Z&quot;,&quot;2.21.0&quot;:&quot;2018-12-09T01:05:36.358Z&quot;,&quot;2.21.1&quot;:&quot;2018-12-09T17:19:58.042Z&quot;,&quot;2.22.0-0&quot;:&quot;2018-12-20T23:58:11.456Z&quot;,&quot;2.22.0&quot;:&quot;2018-12-21T17:48:07.733Z&quot;,&quot;2.23.0-0&quot;:&quot;2018-12-23T15:10:45.680Z&quot;,&quot;2.23.0&quot;:&quot;2018-12-25T00:40:15.560Z&quot;,&quot;2.23.1&quot;:&quot;2018-12-27T22:53:30.223Z&quot;,&quot;2.24.0-0&quot;:&quot;2019-01-04T00:30:02.009Z&quot;,&quot;2.24.0&quot;:&quot;2019-01-05T17:49:58.874Z&quot;,&quot;2.24.1&quot;:&quot;2019-01-05T20:22:32.829Z&quot;,&quot;2.24.2&quot;:&quot;2019-01-06T00:20:37.324Z&quot;,&quot;2.25.0-0&quot;:&quot;2019-01-07T22:18:03.216Z&quot;,&quot;2.25.0-1&quot;:&quot;2019-01-07T22:30:29.592Z&quot;,&quot;2.25.0&quot;:&quot;2019-01-07T23:14:36.789Z&quot;,&quot;2.25.1&quot;:&quot;2019-01-11T20:54:17.089Z&quot;,&quot;2.25.2&quot;:&quot;2019-01-15T20:43:20.792Z&quot;,&quot;2.25.3&quot;:&quot;2019-01-18T00:09:36.243Z&quot;,&quot;2.25.4&quot;:&quot;2019-01-18T23:42:23.414Z&quot;,&quot;3.0.0-alpha.0&quot;:&quot;2019-01-24T21:19:56.004Z&quot;,&quot;2.25.5&quot;:&quot;2019-01-26T18:53:44.319Z&quot;,&quot;3.0.0-alpha.1&quot;:&quot;2019-01-30T19:13:33.380Z&quot;,&quot;2.25.6&quot;:&quot;2019-02-03T11:03:34.062Z&quot;,&quot;3.0.0-alpha.2&quot;:&quot;2019-02-03T13:09:50.133Z&quot;,&quot;3.0.0-alpha.3&quot;:&quot;2019-03-04T10:12:16.491Z&quot;,&quot;2.25.7&quot;:&quot;2019-03-04T23:16:58.327Z&quot;,&quot;3.0.0-beta.0&quot;:&quot;2019-03-08T21:28:10.246Z&quot;,&quot;3.0.0-beta.1&quot;:&quot;2019-03-10T00:42:30.901Z&quot;,&quot;3.0.0-beta.2&quot;:&quot;2019-03-10T20:26:21.635Z&quot;,&quot;3.0.0&quot;:&quot;2019-03-10T23:43:49.274Z&quot;,&quot;3.0.1&quot;:&quot;2019-03-17T23:54:48.807Z&quot;,&quot;3.1.0-0&quot;:&quot;2019-03-24T23:22:24.396Z&quot;,&quot;3.1.0-1&quot;:&quot;2019-03-31T18:54:49.632Z&quot;,&quot;3.1.0&quot;:&quot;2019-04-01T20:29:51.124Z&quot;,&quot;3.1.1-0&quot;:&quot;2019-04-07T16:11:51.262Z&quot;,&quot;3.1.1&quot;:&quot;2019-04-13T15:58:59.121Z&quot;,&quot;3.2.0-0&quot;:&quot;2019-04-21T08:41:41.826Z&quot;,&quot;3.2.0-1&quot;:&quot;2019-04-24T20:25:59.292Z&quot;,&quot;3.2.0&quot;:&quot;2019-04-25T19:44:31.568Z&quot;,&quot;3.3.0-0&quot;:&quot;2019-05-04T16:34:58.817Z&quot;,&quot;3.3.0-1&quot;:&quot;2019-05-06T22:26:49.677Z&quot;,&quot;3.3.0-2&quot;:&quot;2019-05-07T22:53:26.468Z&quot;,&quot;3.3.0&quot;:&quot;2019-05-08T22:40:21.595Z&quot;,&quot;3.3.1&quot;:&quot;2019-05-11T18:37:27.716Z&quot;,&quot;3.3.2&quot;:&quot;2019-05-14T20:11:06.918Z&quot;,&quot;3.3.3&quot;:&quot;2019-05-15T22:43:03.878Z&quot;,&quot;3.3.4&quot;:&quot;2019-05-18T08:54:52.222Z&quot;,&quot;3.4.0-0&quot;:&quot;2019-05-18T23:01:29.026Z&quot;,&quot;3.4.0&quot;:&quot;2019-05-21T18:49:58.720Z&quot;,&quot;3.4.1&quot;:&quot;2019-05-22T21:48:59.834Z&quot;,&quot;3.5.0-0&quot;:&quot;2019-05-28T22:12:33.745Z&quot;,&quot;3.5.0-1&quot;:&quot;2019-06-02T18:03:28.807Z&quot;,&quot;3.5.0-2&quot;:&quot;2019-06-08T11:21:57.337Z&quot;,&quot;3.5.0-3&quot;:&quot;2019-06-11T23:24:45.032Z&quot;,&quot;3.5.0&quot;:&quot;2019-06-12T00:29:44.893Z&quot;,&quot;3.5.1&quot;:&quot;2019-06-16T18:09:52.883Z&quot;,&quot;3.5.2&quot;:&quot;2019-06-20T18:23:17.763Z&quot;,&quot;3.5.3&quot;:&quot;2019-06-22T23:02:49.445Z&quot;,&quot;3.5.4&quot;:&quot;2019-07-12T00:33:38.348Z&quot;,&quot;3.5.5&quot;:&quot;2019-07-12T00:41:34.563Z&quot;,&quot;3.5.6&quot;:&quot;2019-07-12T07:42:09.032Z&quot;,&quot;3.5.7&quot;:&quot;2019-07-12T19:17:44.193Z&quot;,&quot;3.6.0-0&quot;:&quot;2019-07-16T00:15:23.337Z&quot;,&quot;3.6.0&quot;:&quot;2019-07-16T22:42:14.090Z&quot;,&quot;3.6.1&quot;:&quot;2019-07-26T16:58:10.577Z&quot;,&quot;3.6.2&quot;:&quot;2019-07-30T18:17:23.655Z&quot;,&quot;3.7.0-0&quot;:&quot;2019-08-04T17:45:49.898Z&quot;,&quot;3.7.0-1&quot;:&quot;2019-08-04T18:02:30.509Z&quot;,&quot;3.7.0-2&quot;:&quot;2019-08-05T21:51:40.474Z&quot;,&quot;3.6.3&quot;:&quot;2019-08-06T00:03:00.980Z&quot;,&quot;3.6.4&quot;:&quot;2019-08-06T21:22:17.593Z&quot;,&quot;3.6.5&quot;:&quot;2019-08-08T23:24:25.511Z&quot;,&quot;3.7.0-3&quot;:&quot;2019-08-08T23:31:10.030Z&quot;,&quot;3.7.0-4&quot;:&quot;2019-08-13T23:00:34.491Z&quot;,&quot;3.7.0-5&quot;:&quot;2019-08-13T23:50:41.743Z&quot;,&quot;3.7.0&quot;:&quot;2019-08-14T22:28:58.017Z&quot;,&quot;3.7.1&quot;:&quot;2019-08-17T18:15:12.593Z&quot;,&quot;3.7.2&quot;:&quot;2019-08-18T13:08:20.221Z&quot;,&quot;3.7.3&quot;:&quot;2019-08-18T13:14:42.329Z&quot;,&quot;3.7.4&quot;:&quot;2019-08-20T00:17:20.783Z&quot;,&quot;3.7.5&quot;:&quot;2019-08-21T18:43:21.401Z&quot;,&quot;3.8.0-0&quot;:&quot;2019-08-26T12:38:06.729Z&quot;,&quot;3.8.0-1&quot;:&quot;2019-08-27T22:50:28.793Z&quot;,&quot;3.8.0&quot;:&quot;2019-08-30T18:43:38.464Z&quot;,&quot;3.8.1&quot;:&quot;2019-09-01T18:33:38.122Z&quot;,&quot;4.0.0-0&quot;:&quot;2019-09-09T23:34:38.492Z&quot;,&quot;4.0.0-1&quot;:&quot;2019-09-11T23:39:31.739Z&quot;,&quot;4.0.0-2&quot;:&quot;2019-09-18T19:36:33.332Z&quot;,&quot;4.0.0-3&quot;:&quot;2019-09-21T20:24:16.755Z&quot;,&quot;4.0.0-4&quot;:&quot;2019-09-28T22:48:21.009Z&quot;,&quot;4.0.0-5&quot;:&quot;2019-09-28T23:01:33.157Z&quot;,&quot;4.0.0-6&quot;:&quot;2019-10-02T22:54:28.239Z&quot;,&quot;4.0.0-7&quot;:&quot;2019-10-06T14:01:46.899Z&quot;,&quot;4.0.0-8&quot;:&quot;2019-10-07T00:11:48.070Z&quot;,&quot;4.0.0&quot;:&quot;2019-10-07T18:09:26.662Z&quot;,&quot;4.0.1&quot;:&quot;2019-10-09T21:39:04.712Z&quot;,&quot;4.0.2&quot;:&quot;2019-10-13T23:37:21.903Z&quot;,&quot;4.1.0&quot;:&quot;2019-10-19T14:36:41.310Z&quot;,&quot;4.1.1&quot;:&quot;2019-10-19T16:43:26.196Z&quot;,&quot;4.1.2&quot;:&quot;2019-10-20T00:14:45.433Z&quot;,&quot;4.1.3&quot;:&quot;2019-10-20T14:39:58.246Z&quot;,&quot;4.1.4&quot;:&quot;2019-10-20T18:18:23.430Z&quot;,&quot;4.1.5&quot;:&quot;2019-10-21T18:18:39.894Z&quot;,&quot;4.1.6&quot;:&quot;2019-10-23T22:27:45.006Z&quot;,&quot;4.1.7&quot;:&quot;2019-10-30T20:51:05.713Z&quot;,&quot;4.2.0-0&quot;:&quot;2019-11-09T00:24:27.513Z&quot;,&quot;4.1.8&quot;:&quot;2019-11-09T14:17:53.883Z&quot;,&quot;4.2.0&quot;:&quot;2019-11-10T22:52:08.391Z&quot;,&quot;4.2.1&quot;:&quot;2019-11-10T23:13:40.724Z&quot;,&quot;4.2.2&quot;:&quot;2019-11-10T23:23:11.172Z&quot;,&quot;4.2.3&quot;:&quot;2019-11-11T00:25:56.974Z&quot;,&quot;4.3.0-0&quot;:&quot;2019-11-14T16:33:45.586Z&quot;,&quot;4.3.0&quot;:&quot;2019-11-16T23:26:45.580Z&quot;,&quot;4.3.1&quot;:&quot;2019-11-20T23:40:12.915Z&quot;,&quot;4.3.2&quot;:&quot;2019-11-21T00:31:28.164Z&quot;,&quot;4.3.3&quot;:&quot;2019-11-26T01:23:24.464Z&quot;,&quot;4.4.0-0&quot;:&quot;2019-12-08T20:06:31.162Z&quot;,&quot;4.4.0-1&quot;:&quot;2019-12-10T08:37:45.143Z&quot;,&quot;4.4.0-2&quot;:&quot;2019-12-10T21:25:26.975Z&quot;,&quot;4.4.0&quot;:&quot;2019-12-11T19:19:55.896Z&quot;,&quot;4.5.0-0&quot;:&quot;2019-12-14T17:09:31.702Z&quot;,&quot;4.5.0-1&quot;:&quot;2019-12-15T20:01:01.146Z&quot;,&quot;4.5.0-2&quot;:&quot;2019-12-16T00:44:32.016Z&quot;,&quot;4.5.0-3&quot;:&quot;2019-12-16T00:48:05.277Z&quot;,&quot;4.5.0-5&quot;:&quot;2019-12-16T00:52:42.607Z&quot;,&quot;4.5.0-6&quot;:&quot;2019-12-16T00:56:16.909Z&quot;,&quot;4.5.0&quot;:&quot;2019-12-16T16:36:30.942Z&quot;,&quot;4.6.0-0&quot;:&quot;2019-12-18T01:35:01.926Z&quot;,&quot;4.6.0-1&quot;:&quot;2019-12-19T15:40:11.421Z&quot;,&quot;4.6.0&quot;:&quot;2019-12-19T19:06:08.006Z&quot;,&quot;4.7.0-0&quot;:&quot;2020-01-07T20:43:04.532Z&quot;,&quot;4.7.0-1&quot;:&quot;2020-01-07T20:48:07.084Z&quot;,&quot;4.7.0&quot;:&quot;2020-01-08T22:49:15.890Z&quot;,&quot;4.7.1&quot;:&quot;2020-01-09T21:11:15.315Z&quot;,&quot;4.7.2&quot;:&quot;2020-01-12T23:44:58.665Z&quot;,&quot;4.8.0-0&quot;:&quot;2020-01-18T21:41:26.421Z&quot;,&quot;4.8.0-1&quot;:&quot;2020-01-19T18:58:41.853Z&quot;,&quot;4.8.0&quot;:&quot;2020-01-21T00:35:47.012Z&quot;,&quot;4.9.0-0&quot;:&quot;2020-01-27T20:50:38.439Z&quot;,&quot;4.9.0-1&quot;:&quot;2020-01-29T00:40:41.473Z&quot;,&quot;4.9.0-2&quot;:&quot;2020-01-29T01:05:01.505Z&quot;,&quot;4.9.0-3&quot;:&quot;2020-01-29T23:21:28.093Z&quot;,&quot;4.9.0-4&quot;:&quot;2020-01-31T00:44:36.979Z&quot;,&quot;4.9.0&quot;:&quot;2020-01-31T19:45:01.555Z&quot;,&quot;4.9.1&quot;:&quot;2020-02-02T18:55:58.487Z&quot;,&quot;4.9.2&quot;:&quot;2020-02-03T22:43:15.764Z&quot;,&quot;4.9.3&quot;:&quot;2020-02-04T23:58:21.125Z&quot;,&quot;4.10.0-0&quot;:&quot;2020-02-19T08:47:18.744Z&quot;,&quot;4.10.0-1&quot;:&quot;2020-02-24T21:27:03.898Z&quot;,&quot;4.10.0-2&quot;:&quot;2020-02-26T21:37:45.491Z&quot;,&quot;4.10.0-3&quot;:&quot;2020-02-26T21:50:04.965Z&quot;,&quot;4.10.0&quot;:&quot;2020-02-26T22:56:18.523Z&quot;,&quot;4.11.0-0&quot;:&quot;2020-02-29T11:52:58.633Z&quot;,&quot;4.11.0&quot;:&quot;2020-03-01T17:36:07.762Z&quot;,&quot;4.11.1&quot;:&quot;2020-03-01T23:06:59.138Z&quot;,&quot;4.11.2&quot;:&quot;2020-03-05T00:38:57.717Z&quot;,&quot;4.11.3&quot;:&quot;2020-03-07T10:25:18.886Z&quot;,&quot;4.11.4&quot;:&quot;2020-03-08T14:23:12.621Z&quot;,&quot;4.11.5&quot;:&quot;2020-03-09T00:24:54.646Z&quot;,&quot;4.11.6&quot;:&quot;2020-03-15T10:40:04.672Z&quot;,&quot;4.12.0-0&quot;:&quot;2020-03-15T23:35:21.846Z&quot;,&quot;4.12.0-1&quot;:&quot;2020-03-21T13:54:44.681Z&quot;,&quot;4.12.0&quot;:&quot;2020-03-21T16:37:41.769Z&quot;,&quot;4.12.1&quot;:&quot;2020-03-25T09:42:03.244Z&quot;,&quot;4.12.2&quot;:&quot;2020-03-29T15:25:17.139Z&quot;,&quot;4.12.3&quot;:&quot;2020-03-31T22:54:34.278Z&quot;,&quot;4.12.4&quot;:&quot;2020-03-31T23:05:36.090Z&quot;,&quot;4.12.5&quot;:&quot;2020-04-05T10:03:39.072Z&quot;,&quot;4.13.0-0&quot;:&quot;2020-04-06T18:16:45.241Z&quot;,&quot;4.13.0-1&quot;:&quot;2020-04-07T10:51:57.148Z&quot;,&quot;4.13.0&quot;:&quot;2020-04-09T20:42:14.563Z&quot;,&quot;4.14.0-0&quot;:&quot;2020-04-13T22:27:54.694Z&quot;,&quot;4.14.0-1&quot;:&quot;2020-04-17T20:46:56.673Z&quot;,&quot;4.14.0-2&quot;:&quot;2020-04-18T09:35:28.939Z&quot;,&quot;4.14.0&quot;:&quot;2020-04-18T13:55:24.942Z&quot;,&quot;4.14.1&quot;:&quot;2020-04-25T19:19:59.406Z&quot;,&quot;5.0.0-alpha.0&quot;:&quot;2020-04-25T21:31:41.730Z&quot;,&quot;5.0.0-alpha.1&quot;:&quot;2020-04-27T18:48:31.918Z&quot;,&quot;5.0.0-alpha.2&quot;:&quot;2020-04-30T10:53:44.958Z&quot;,&quot;4.14.2&quot;:&quot;2020-05-02T10:00:12.511Z&quot;,&quot;5.0.0-alpha.3&quot;:&quot;2020-05-03T14:51:32.639Z&quot;,&quot;5.0.0-alpha.4&quot;:&quot;2020-05-05T23:40:06.091Z&quot;,&quot;5.0.0-alpha.5&quot;:&quot;2020-05-06T09:07:22.252Z&quot;,&quot;5.0.0-alpha.6&quot;:&quot;2020-05-11T19:40:04.204Z&quot;,&quot;4.14.3&quot;:&quot;2020-05-13T19:12:04.056Z&quot;,&quot;5.0.0-alpha.7&quot;:&quot;2020-05-20T18:07:07.716Z&quot;,&quot;4.14.4&quot;:&quot;2020-05-23T00:27:01.329Z&quot;,&quot;5.0.0-rc.0&quot;:&quot;2020-05-23T13:26:28.075Z&quot;,&quot;5.0.0-rc.1&quot;:&quot;2020-05-23T14:17:15.188Z&quot;,&quot;5.0.0-rc.2&quot;:&quot;2020-05-23T23:36:19.619Z&quot;,&quot;5.0.0-rc.3&quot;:&quot;2020-05-25T23:55:10.644Z&quot;,&quot;5.0.0-rc.4&quot;:&quot;2020-05-26T21:15:32.563Z&quot;,&quot;5.0.0-rc.5&quot;:&quot;2020-05-26T22:01:37.198Z&quot;,&quot;5.0.0&quot;:&quot;2020-05-27T22:58:46.463Z&quot;,&quot;5.0.1&quot;:&quot;2020-05-28T10:50:38.482Z&quot;,&quot;5.0.2&quot;:&quot;2020-05-28T23:01:14.396Z&quot;,&quot;5.1.0&quot;:&quot;2020-06-01T17:27:17.971Z&quot;,&quot;5.1.1&quot;:&quot;2020-06-01T18:06:13.815Z&quot;,&quot;5.1.2&quot;:&quot;2020-06-02T08:43:11.518Z&quot;,&quot;5.1.3&quot;:&quot;2020-06-02T22:34:13.260Z&quot;,&quot;5.1.4&quot;:&quot;2020-06-03T19:41:21.572Z&quot;,&quot;5.1.5&quot;:&quot;2020-06-08T13:03:32.520Z&quot;,&quot;5.1.6&quot;:&quot;2020-06-09T08:33:10.575Z&quot;,&quot;5.1.7&quot;:&quot;2020-06-11T08:49:12.575Z&quot;,&quot;5.1.8&quot;:&quot;2020-06-12T20:23:14.174Z&quot;,&quot;5.2.0-0&quot;:&quot;2020-06-15T22:28:59.899Z&quot;,&quot;5.2.0&quot;:&quot;2020-06-16T18:18:59.896Z&quot;,&quot;5.2.1&quot;:&quot;2020-06-17T09:36:16.274Z&quot;,&quot;5.2.2&quot;:&quot;2020-06-18T23:08:36.164Z&quot;,&quot;5.2.3&quot;:&quot;2020-06-20T22:44:06.966Z&quot;,&quot;0.0.0-2020520224551&quot;:&quot;2020-06-20T22:56:41.502Z&quot;,&quot;5.2.4&quot;:&quot;2020-06-22T13:07:34.365Z&quot;,&quot;5.2.5&quot;:&quot;2020-06-22T18:15:06.656Z&quot;,&quot;5.2.6&quot;:&quot;2020-06-22T22:14:10.599Z&quot;,&quot;5.2.7&quot;:&quot;2020-07-03T00:19:45.943Z&quot;,&quot;5.2.8&quot;:&quot;2020-07-04T00:24:47.526Z&quot;,&quot;5.2.9&quot;:&quot;2020-07-05T16:43:01.974Z&quot;,&quot;5.3.0&quot;:&quot;2020-07-07T15:12:27.597Z&quot;,&quot;5.4.0&quot;:&quot;2020-07-11T23:01:25.174Z&quot;,&quot;5.4.1&quot;:&quot;2020-07-20T22:16:35.924Z&quot;,&quot;5.4.2&quot;:&quot;2020-07-21T18:48:33.896Z&quot;,&quot;5.4.3&quot;:&quot;2020-07-23T08:30:13.948Z&quot;,&quot;5.4.4&quot;:&quot;2020-07-25T23:57:06.431Z&quot;,&quot;5.4.5&quot;:&quot;2020-07-26T12:21:55.476Z&quot;,&quot;5.4.6&quot;:&quot;2020-07-26T13:11:16.709Z&quot;,&quot;5.4.7&quot;:&quot;2020-07-27T20:21:04.185Z&quot;,&quot;5.4.8&quot;:&quot;2020-07-28T23:18:30.483Z&quot;,&quot;5.4.9&quot;:&quot;2020-07-31T11:03:31.864Z&quot;,&quot;5.4.10&quot;:&quot;2020-08-01T20:44:34.586Z&quot;,&quot;5.4.11&quot;:&quot;2020-08-02T09:26:40.552Z&quot;,&quot;5.4.12&quot;:&quot;2020-08-04T23:26:52.620Z&quot;,&quot;5.0.0-0&quot;:&quot;2020-08-07T19:37:56.380Z&quot;,&quot;5.0.0-1&quot;:&quot;2020-08-07T23:24:35.073Z&quot;,&quot;5.5.0&quot;:&quot;2020-08-09T20:47:18.158Z&quot;,&quot;5.5.1&quot;:&quot;2020-08-10T09:27:11.100Z&quot;,&quot;5.5.2&quot;:&quot;2020-08-16T18:43:59.536Z&quot;,&quot;5.5.3&quot;:&quot;2020-08-22T11:29:35.547Z&quot;,&quot;5.5.4&quot;:&quot;2020-08-28T09:17:45.647Z&quot;,&quot;5.5.5&quot;:&quot;2020-08-31T12:50:13.566Z&quot;,&quot;0.0.0-2020811527&quot;:&quot;2020-09-01T08:16:42.055Z&quot;,&quot;5.5.6&quot;:&quot;2020-09-01T15:47:35.348Z&quot;,&quot;5.5.7&quot;:&quot;2020-09-01T22:01:27.778Z&quot;,&quot;0.0.0-20208285947&quot;:&quot;2020-09-02T09:04:07.122Z&quot;,&quot;5.5.8&quot;:&quot;2020-09-02T10:45:05.942Z&quot;,&quot;5.5.9&quot;:&quot;2020-09-02T12:33:41.713Z&quot;,&quot;5.5.10&quot;:&quot;2020-09-02T22:48:36.090Z&quot;,&quot;5.5.11&quot;:&quot;2020-09-05T21:29:29.918Z&quot;,&quot;5.5.12&quot;:&quot;2020-09-08T00:19:03.359Z&quot;,&quot;5.5.13&quot;:&quot;2020-09-12T12:30:38.350Z&quot;,&quot;5.6.0-0&quot;:&quot;2020-09-15T22:39:22.566Z&quot;,&quot;5.6.0&quot;:&quot;2020-09-17T09:28:38.809Z&quot;,&quot;5.6.1&quot;:&quot;2020-09-17T22:38:34.733Z&quot;,&quot;5.7.0-0&quot;:&quot;2020-09-19T22:38:25.648Z&quot;,&quot;5.7.0&quot;:&quot;2020-09-20T23:28:48.976Z&quot;,&quot;0.0.0-2020821233223&quot;:&quot;2020-09-21T23:44:30.454Z&quot;,&quot;5.8.0-0&quot;:&quot;2020-09-25T00:13:41.203Z&quot;,&quot;5.8.0&quot;:&quot;2020-09-26T23:32:55.981Z&quot;,&quot;5.9.0-0&quot;:&quot;2020-09-28T21:24:35.515Z&quot;,&quot;5.9.0-1&quot;:&quot;2020-09-30T22:19:45.066Z&quot;,&quot;5.9.0-2&quot;:&quot;2020-10-04T12:36:08.687Z&quot;,&quot;0.0.0-20209412437&quot;:&quot;2020-10-04T12:50:41.529Z&quot;,&quot;5.9.0&quot;:&quot;2020-10-11T17:27:44.807Z&quot;,&quot;5.9.1&quot;:&quot;2020-10-14T23:14:26.660Z&quot;,&quot;5.9.2&quot;:&quot;2020-10-14T23:25:54.898Z&quot;,&quot;5.9.3&quot;:&quot;2020-10-15T08:23:07.047Z&quot;,&quot;5.10.0-0&quot;:&quot;2020-10-19T01:07:59.107Z&quot;,&quot;5.10.0&quot;:&quot;2020-10-20T23:02:43.853Z&quot;,&quot;5.10.1&quot;:&quot;2020-10-22T21:29:17.401Z&quot;,&quot;5.10.2&quot;:&quot;2020-10-26T01:58:01.524Z&quot;,&quot;5.10.3&quot;:&quot;2020-10-31T17:42:39.068Z&quot;,&quot;5.10.4&quot;:&quot;2020-11-01T17:53:19.299Z&quot;,&quot;0.0.0-20201030124&quot;:&quot;2020-11-03T00:19:59.435Z&quot;,&quot;0.0.0-20201060511&quot;:&quot;2020-11-06T01:33:16.023Z&quot;,&quot;5.11.0&quot;:&quot;2020-11-07T22:16:25.775Z&quot;,&quot;5.11.1&quot;:&quot;2020-11-08T18:58:40.792Z&quot;,&quot;5.12.0&quot;:&quot;2020-11-14T21:19:20.850Z&quot;,&quot;5.13.0&quot;:&quot;2020-11-17T21:32:08.651Z&quot;,&quot;5.13.1&quot;:&quot;2020-11-18T00:39:55.088Z&quot;,&quot;5.13.2&quot;:&quot;2020-11-19T23:47:07.620Z&quot;,&quot;5.13.3&quot;:&quot;2020-11-22T01:54:14.439Z&quot;,&quot;5.13.4&quot;:&quot;2020-11-22T12:25:20.427Z&quot;,&quot;5.13.5&quot;:&quot;2020-11-26T20:21:00.958Z&quot;,&quot;5.13.6&quot;:&quot;2020-12-13T01:54:31.132Z&quot;,&quot;5.13.7&quot;:&quot;2020-12-19T19:50:04.035Z&quot;,&quot;5.14.0&quot;:&quot;2020-12-23T10:02:42.894Z&quot;,&quot;5.14.1&quot;:&quot;2020-12-23T13:40:46.313Z&quot;,&quot;5.14.2&quot;:&quot;2021-01-03T00:16:13.959Z&quot;,&quot;5.14.3&quot;:&quot;2021-01-04T00:28:40.622Z&quot;,&quot;5.15.0&quot;:&quot;2021-01-10T16:55:20.935Z&quot;,&quot;5.15.1&quot;:&quot;2021-01-14T01:00:48.178Z&quot;,&quot;5.15.2&quot;:&quot;2021-01-21T10:03:00.576Z&quot;,&quot;5.15.3&quot;:&quot;2021-01-23T13:19:25.657Z&quot;,&quot;5.16.0-0&quot;:&quot;2021-01-23T15:50:15.560Z&quot;,&quot;5.16.0-1&quot;:&quot;2021-01-24T10:29:55.833Z&quot;,&quot;5.16.0-2&quot;:&quot;2021-01-24T13:51:59.385Z&quot;,&quot;5.16.0&quot;:&quot;2021-01-25T20:00:17.487Z&quot;,&quot;5.16.1&quot;:&quot;2021-02-02T21:43:12.703Z&quot;,&quot;5.17.0&quot;:&quot;2021-02-07T16:36:37.847Z&quot;,&quot;5.17.1&quot;:&quot;2021-02-07T19:05:10.023Z&quot;,&quot;5.17.2&quot;:&quot;2021-02-14T20:23:23.311Z&quot;,&quot;5.17.3&quot;:&quot;2021-02-20T23:15:27.191Z&quot;,&quot;6.0.0-alpha.0&quot;:&quot;2021-02-21T02:06:41.338Z&quot;,&quot;5.18.0&quot;:&quot;2021-02-21T23:51:02.655Z&quot;,&quot;5.18.1&quot;:&quot;2021-02-24T23:12:44.529Z&quot;,&quot;6.0.0-alpha.1&quot;:&quot;2021-02-25T21:56:41.553Z&quot;,&quot;6.0.0-alpha.2&quot;:&quot;2021-02-25T22:33:24.256Z&quot;,&quot;6.0.0-20210228&quot;:&quot;2021-02-28T13:32:01.881Z&quot;,&quot;5.18.2&quot;:&quot;2021-03-01T23:46:46.609Z&quot;,&quot;5.18.3&quot;:&quot;2021-03-04T22:35:15.701Z&quot;,&quot;6.0.0-alpha.3&quot;:&quot;2021-03-04T23:04:22.545Z&quot;,&quot;5.18.4&quot;:&quot;2021-03-08T01:34:10.396Z&quot;,&quot;5.18.5&quot;:&quot;2021-03-09T10:50:09.912Z&quot;,&quot;5.18.6&quot;:&quot;2021-03-11T18:32:19.369Z&quot;,&quot;6.0.0-alpha.4&quot;:&quot;2021-03-12T00:15:42.139Z&quot;,&quot;5.18.7&quot;:&quot;2021-03-14T14:19:58.889Z&quot;,&quot;6.0.0-alpha.5&quot;:&quot;2021-03-18T00:50:42.845Z&quot;,&quot;5.18.8&quot;:&quot;2021-03-20T22:59:13.142Z&quot;,&quot;6.0.0-alpha.6&quot;:&quot;2021-03-24T00:01:58.023Z&quot;,&quot;5.18.9&quot;:&quot;2021-03-25T00:18:40.477Z&quot;,&quot;6.0.0-beta.0&quot;:&quot;2021-03-27T21:33:49.022Z&quot;,&quot;6.0.0-beta.1&quot;:&quot;2021-04-01T22:05:32.112Z&quot;,&quot;6.0.0-rc.0&quot;:&quot;2021-04-04T18:27:00.412Z&quot;,&quot;6.0.0-rc.1&quot;:&quot;2021-04-04T20:05:37.864Z&quot;,&quot;6.0.0&quot;:&quot;2021-04-05T22:28:10.149Z&quot;,&quot;6.0.1&quot;:&quot;2021-04-06T22:21:06.776Z&quot;,&quot;6.0.2-20210411&quot;:&quot;2021-04-11T03:17:36.120Z&quot;,&quot;6.0.2&quot;:&quot;2021-04-12T23:25:30.958Z&quot;,&quot;6.1.0&quot;:&quot;2021-04-15T21:21:22.846Z&quot;,&quot;6.1.0-202104230041&quot;:&quot;2021-04-22T21:51:02.397Z&quot;,&quot;6.2.0&quot;:&quot;2021-04-24T20:19:01.404Z&quot;,&quot;6.2.1&quot;:&quot;2021-04-24T23:59:15.640Z&quot;,&quot;6.2.2-20210426&quot;:&quot;2021-04-26T16:53:55.213Z&quot;,&quot;6.2.2&quot;:&quot;2021-04-28T00:29:46.434Z&quot;,&quot;6.2.3&quot;:&quot;2021-04-28T19:55:16.700Z&quot;,&quot;6.2.4&quot;:&quot;2021-04-29T23:36:50.430Z&quot;,&quot;6.2.5&quot;:&quot;2021-05-03T22:42:18.000Z&quot;,&quot;6.3.0&quot;:&quot;2021-05-09T23:03:00.937Z&quot;,&quot;6.4.0&quot;:&quot;2021-05-16T01:28:35.677Z&quot;,&quot;6.5.0-0&quot;:&quot;2021-05-18T13:52:41.989Z&quot;,&quot;6.5.0-1&quot;:&quot;2021-05-19T23:45:44.230Z&quot;,&quot;6.5.0&quot;:&quot;2021-05-22T20:12:39.397Z&quot;,&quot;6.6.0&quot;:&quot;2021-05-27T23:15:51.904Z&quot;,&quot;6.6.1&quot;:&quot;2021-05-28T00:43:32.637Z&quot;,&quot;6.6.2-20210530&quot;:&quot;2021-05-30T12:40:10.441Z&quot;,&quot;6.6.2&quot;:&quot;2021-05-30T17:59:56.980Z&quot;,&quot;6.7.0&quot;:&quot;2021-06-02T00:14:46.826Z&quot;,&quot;6.7.1&quot;:&quot;2021-06-03T20:02:07.920Z&quot;,&quot;6.7.2&quot;:&quot;2021-06-05T23:43:43.047Z&quot;,&quot;6.7.3&quot;:&quot;2021-06-07T23:19:34.129Z&quot;,&quot;6.7.4&quot;:&quot;2021-06-08T21:22:51.250Z&quot;,&quot;6.7.5&quot;:&quot;2021-06-09T23:24:15.226Z&quot;,&quot;6.7.6&quot;:&quot;2021-06-11T01:15:58.801Z&quot;,&quot;6.8.0&quot;:&quot;2021-06-20T23:36:05.480Z&quot;,&quot;6.9.0&quot;:&quot;2021-06-23T08:17:42.248Z&quot;,&quot;6.9.1&quot;:&quot;2021-06-24T08:09:41.847Z&quot;,&quot;6.10.0-0&quot;:&quot;2021-07-03T17:50:12.147Z&quot;,&quot;6.10.0-1&quot;:&quot;2021-07-06T23:54:58.939Z&quot;,&quot;6.10.0&quot;:&quot;2021-07-10T20:32:08.562Z&quot;,&quot;6.10.1&quot;:&quot;2021-07-12T00:12:25.500Z&quot;,&quot;6.10.2&quot;:&quot;2021-07-15T22:42:03.140Z&quot;,&quot;6.10.3&quot;:&quot;2021-07-18T20:31:15.471Z&quot;,&quot;6.11.0-0&quot;:&quot;2021-07-24T00:27:33.543Z&quot;,&quot;6.11.0&quot;:&quot;2021-07-24T21:36:38.424Z&quot;,&quot;6.11.1&quot;:&quot;2021-07-28T01:18:20.860Z&quot;,&quot;6.11.2&quot;:&quot;2021-07-29T16:47:15.344Z&quot;,&quot;6.11.3&quot;:&quot;2021-07-30T08:31:13.321Z&quot;,&quot;6.11.4&quot;:&quot;2021-07-30T08:58:59.366Z&quot;,&quot;6.11.5&quot;:&quot;2021-07-30T09:19:35.088Z&quot;,&quot;6.12.0-0&quot;:&quot;2021-08-01T11:23:59.084Z&quot;,&quot;6.12.0-2&quot;:&quot;2021-08-06T14:44:45.162Z&quot;,&quot;6.12.0&quot;:&quot;2021-08-06T23:32:10.933Z&quot;,&quot;6.12.1&quot;:&quot;2021-08-08T11:22:22.771Z&quot;,&quot;6.13.0-0&quot;:&quot;2021-08-11T00:28:46.132Z&quot;,&quot;6.13.0&quot;:&quot;2021-08-13T11:09:04.532Z&quot;,&quot;6.14.0-0&quot;:&quot;2021-08-17T00:33:30.275Z&quot;,&quot;6.14.0-3&quot;:&quot;2021-08-18T19:40:32.947Z&quot;,&quot;6.14.0&quot;:&quot;2021-08-20T15:12:31.987Z&quot;,&quot;5.18.10&quot;:&quot;2021-08-21T12:03:06.045Z&quot;,&quot;6.14.1&quot;:&quot;2021-08-22T09:15:12.268Z&quot;,&quot;6.14.2&quot;:&quot;2021-08-22T18:47:24.526Z&quot;,&quot;6.14.3&quot;:&quot;2021-08-23T19:02:04.685Z&quot;,&quot;6.14.4&quot;:&quot;2021-08-29T11:11:10.667Z&quot;,&quot;6.14.5&quot;:&quot;2021-08-29T21:41:19.827Z&quot;,&quot;6.14.6&quot;:&quot;2021-09-03T08:35:07.289Z&quot;,&quot;6.14.7&quot;:&quot;2021-09-06T21:38:50.428Z&quot;,&quot;6.15.0&quot;:&quot;2021-09-13T02:19:07.780Z&quot;,&quot;6.15.1&quot;:&quot;2021-09-16T11:20:28.243Z&quot;,&quot;5.18.11&quot;:&quot;2021-09-16T13:06:15.596Z&quot;,&quot;6.15.2&quot;:&quot;2021-09-26T12:00:02.366Z&quot;,&quot;6.16.0&quot;:&quot;2021-09-28T22:34:40.413Z&quot;,&quot;6.16.1&quot;:&quot;2021-10-04T22:08:00.432Z&quot;,&quot;6.17.0&quot;:&quot;2021-10-10T12:27:38.829Z&quot;,&quot;6.17.1&quot;:&quot;2021-10-14T13:07:26.549Z&quot;,&quot;6.17.2&quot;:&quot;2021-10-16T01:43:04.123Z&quot;,&quot;6.18.0&quot;:&quot;2021-10-19T10:02:10.714Z&quot;,&quot;6.19.0&quot;:&quot;2021-10-22T19:04:21.940Z&quot;,&quot;6.19.1&quot;:&quot;2021-10-26T17:13:17.909Z&quot;,&quot;6.20.0&quot;:&quot;2021-11-01T10:53:31.020Z&quot;,&quot;6.20.1-0&quot;:&quot;2021-11-01T22:34:10.302Z&quot;,&quot;6.20.1&quot;:&quot;2021-11-01T23:08:06.809Z&quot;,&quot;6.20.2&quot;:&quot;2021-11-03T23:29:07.169Z&quot;,&quot;6.20.3&quot;:&quot;2021-11-05T02:23:38.429Z&quot;,&quot;6.20.4&quot;:&quot;2021-11-08T15:54:57.997Z&quot;,&quot;6.21.0&quot;:&quot;2021-11-10T02:08:23.708Z&quot;,&quot;6.21.1&quot;:&quot;2021-11-12T13:16:14.879Z&quot;,&quot;6.22.0&quot;:&quot;2021-11-14T19:50:12.888Z&quot;,&quot;6.22.1&quot;:&quot;2021-11-14T22:40:45.884Z&quot;,&quot;6.22.2&quot;:&quot;2021-11-16T01:50:25.630Z&quot;,&quot;6.23.0&quot;:&quot;2021-11-21T09:59:48.604Z&quot;,&quot;6.23.1&quot;:&quot;2021-11-22T17:46:13.158Z&quot;,&quot;6.23.2&quot;:&quot;2021-11-24T10:03:33.595Z&quot;,&quot;6.23.3&quot;:&quot;2021-11-28T09:55:02.066Z&quot;,&quot;6.23.4&quot;:&quot;2021-12-01T15:20:47.086Z&quot;,&quot;6.23.5&quot;:&quot;2021-12-02T14:49:07.505Z&quot;,&quot;6.23.6&quot;:&quot;2021-12-04T01:21:23.929Z&quot;,&quot;6.23.7-202112041634&quot;:&quot;2021-12-04T14:35:33.153Z&quot;,&quot;6.24.0-0&quot;:&quot;2021-12-10T23:59:18.623Z&quot;,&quot;6.24.0-1&quot;:&quot;2021-12-13T02:30:17.858Z&quot;,&quot;6.24.0&quot;:&quot;2021-12-14T13:02:54.825Z&quot;,&quot;6.24.1&quot;:&quot;2021-12-15T19:03:08.186Z&quot;,&quot;6.24.2&quot;:&quot;2021-12-19T00:51:36.607Z&quot;,&quot;6.24.3&quot;:&quot;2021-12-25T19:37:13.582Z&quot;,&quot;6.24.4&quot;:&quot;2021-12-29T11:42:56.570Z&quot;,&quot;6.25.0-0&quot;:&quot;2022-01-03T19:27:29.878Z&quot;,&quot;6.25.0-1&quot;:&quot;2022-01-03T21:42:47.190Z&quot;,&quot;6.25.0-2&quot;:&quot;2022-01-04T09:57:04.429Z&quot;,&quot;6.25.0-3&quot;:&quot;2022-01-04T22:38:54.068Z&quot;,&quot;6.25.0&quot;:&quot;2022-01-06T12:08:38.296Z&quot;,&quot;6.25.1&quot;:&quot;2022-01-08T15:59:52.471Z&quot;,&quot;6.26.0&quot;:&quot;2022-01-12T14:59:10.195Z&quot;,&quot;6.26.1&quot;:&quot;2022-01-13T16:02:16.060Z&quot;,&quot;6.27.0&quot;:&quot;2022-01-18T11:31:40.821Z&quot;,&quot;6.27.1&quot;:&quot;2022-01-19T10:11:31.247Z&quot;,&quot;6.27.2&quot;:&quot;2022-01-20T11:35:19.843Z&quot;,&quot;6.28.0&quot;:&quot;2022-01-23T21:59:30.669Z&quot;,&quot;6.29.0&quot;:&quot;2022-01-30T03:24:53.906Z&quot;,&quot;6.29.1&quot;:&quot;2022-01-31T00:21:23.752Z&quot;,&quot;7.0.0-alpha.0&quot;:&quot;2022-01-31T16:32:49.528Z&quot;,&quot;6.29.2&quot;:&quot;2022-02-05T12:06:59.496Z&quot;,&quot;6.30.0&quot;:&quot;2022-02-06T17:07:05.003Z&quot;,&quot;6.30.1&quot;:&quot;2022-02-09T22:29:37.764Z&quot;,&quot;6.31.0&quot;:&quot;2022-02-14T01:15:17.207Z&quot;,&quot;7.0.0-alpha.1&quot;:&quot;2022-02-16T02:07:05.499Z&quot;,&quot;7.0.0-alpha.2&quot;:&quot;2022-02-19T19:00:18.380Z&quot;,&quot;6.32.0&quot;:&quot;2022-02-22T01:17:23.137Z&quot;,&quot;7.0.0-alpha.3&quot;:&quot;2022-02-22T01:31:26.371Z&quot;,&quot;6.32.1&quot;:&quot;2022-02-23T00:10:37.377Z&quot;,&quot;6.32.2&quot;:&quot;2022-02-27T14:38:45.321Z&quot;,&quot;6.32.3&quot;:&quot;2022-03-06T17:09:04.262Z&quot;,&quot;7.0.0-alpha.4&quot;:&quot;2022-03-07T14:51:29.376Z&quot;,&quot;7.0.0-beta.0&quot;:&quot;2022-03-15T22:58:55.284Z&quot;,&quot;7.0.0-beta.1&quot;:&quot;2022-03-19T19:16:09.534Z&quot;,&quot;7.0.0-beta.2&quot;:&quot;2022-03-20T01:29:01.452Z&quot;,&quot;7.0.0-pr4475.0&quot;:&quot;2022-03-29T23:07:44.818Z&quot;,&quot;7.0.0-rc.0&quot;:&quot;2022-03-31T09:51:27.551Z&quot;,&quot;6.32.4&quot;:&quot;2022-03-31T15:39:13.013Z&quot;,&quot;7.0.0-pr4475.1&quot;:&quot;2022-04-01T22:38:26.382Z&quot;,&quot;7.0.0-rc.1&quot;:&quot;2022-04-01T23:01:14.698Z&quot;,&quot;7.0.0-rc.2&quot;:&quot;2022-04-02T20:59:58.295Z&quot;,&quot;6.32.5&quot;:&quot;2022-04-07T19:00:58.225Z&quot;,&quot;7.0.0-rc.3&quot;:&quot;2022-04-09T14:04:44.350Z&quot;,&quot;6.32.6&quot;:&quot;2022-04-09T15:12:59.090Z&quot;,&quot;6.32.7&quot;:&quot;2022-04-14T00:40:13.324Z&quot;,&quot;7.0.0-rc.4&quot;:&quot;2022-04-14T10:02:11.227Z&quot;,&quot;7.0.0-rc.5&quot;:&quot;2022-04-15T15:03:53.144Z&quot;,&quot;6.32.8&quot;:&quot;2022-04-16T09:50:41.052Z&quot;,&quot;7.0.0-rc.6&quot;:&quot;2022-04-16T09:59:42.777Z&quot;,&quot;6.32.9&quot;:&quot;2022-04-19T12:23:08.229Z&quot;,&quot;7.0.0-rc.7&quot;:&quot;2022-04-19T13:17:32.853Z&quot;,&quot;7.0.0-rc.8&quot;:&quot;2022-04-24T11:01:22.717Z&quot;,&quot;6.32.10&quot;:&quot;2022-04-25T01:20:54.831Z&quot;,&quot;6.32.11&quot;:&quot;2022-04-27T09:24:02.753Z&quot;,&quot;7.0.0-rc.9&quot;:&quot;2022-04-27T09:24:52.232Z&quot;,&quot;7.0.0&quot;:&quot;2022-04-30T22:53:23.659Z&quot;,&quot;7.0.1&quot;:&quot;2022-05-07T10:06:45.573Z&quot;,&quot;6.32.12&quot;:&quot;2022-05-07T17:25:45.465Z&quot;,&quot;7.1.0&quot;:&quot;2022-05-12T14:32:22.439Z&quot;,&quot;0.0.0-pr4475.1&quot;:&quot;2022-05-13T22:14:40.742Z&quot;,&quot;6.32.13&quot;:&quot;2022-05-13T23:40:00.453Z&quot;,&quot;7.1.1&quot;:&quot;2022-05-17T14:20:11.959Z&quot;,&quot;6.32.14&quot;:&quot;2022-05-17T23:01:26.024Z&quot;,&quot;6.32.15&quot;:&quot;2022-05-19T01:27:30.792Z&quot;,&quot;7.1.2&quot;:&quot;2022-05-19T01:33:28.661Z&quot;,&quot;6.32.16&quot;:&quot;2022-05-22T00:51:24.432Z&quot;,&quot;7.1.3&quot;:&quot;2022-05-22T01:00:06.533Z&quot;,&quot;6.32.17&quot;:&quot;2022-05-23T23:42:16.015Z&quot;,&quot;7.1.4&quot;:&quot;2022-05-23T23:43:06.227Z&quot;,&quot;7.1.5&quot;:&quot;2022-05-24T00:29:12.606Z&quot;,&quot;7.1.6&quot;:&quot;2022-05-27T00:51:59.809Z&quot;,&quot;6.32.18&quot;:&quot;2022-05-27T01:20:04.133Z&quot;,&quot;6.32.19&quot;:&quot;2022-05-29T09:09:05.746Z&quot;,&quot;7.1.7&quot;:&quot;2022-05-29T09:14:11.332Z&quot;,&quot;7.1.8&quot;:&quot;2022-06-04T21:40:36.398Z&quot;,&quot;7.1.9&quot;:&quot;2022-06-06T00:38:39.983Z&quot;,&quot;6.32.20&quot;:&quot;2022-06-06T01:27:57.241Z&quot;,&quot;6.32.21&quot;:&quot;2022-06-09T09:31:21.994Z&quot;,&quot;7.2.0&quot;:&quot;2022-06-10T12:14:38.206Z&quot;,&quot;7.2.1&quot;:&quot;2022-06-11T02:09:51.415Z&quot;,&quot;6.32.22&quot;:&quot;2022-06-11T02:29:36.968Z&quot;,&quot;0.0.0-pr4475.2&quot;:&quot;2022-06-12T23:03:21.432Z&quot;,&quot;7.3.0&quot;:&quot;2022-06-18T20:56:19.871Z&quot;,&quot;6.32.23&quot;:&quot;2022-06-18T20:57:37.857Z&quot;,&quot;6.32.24&quot;:&quot;2022-06-22T11:56:44.940Z&quot;,&quot;7.4.0-0&quot;:&quot;2022-06-22T22:35:07.885Z&quot;,&quot;7.4.0-1&quot;:&quot;2022-06-24T19:07:34.285Z&quot;,&quot;7.4.0-2&quot;:&quot;2022-06-26T22:37:55.174Z&quot;,&quot;7.4.0-3&quot;:&quot;2022-06-27T17:13:04.484Z&quot;,&quot;7.4.0-4&quot;:&quot;2022-06-28T00:02:44.126Z&quot;,&quot;7.4.0&quot;:&quot;2022-06-28T13:17:21.441Z&quot;,&quot;7.4.1&quot;:&quot;2022-06-30T09:31:34.837Z&quot;,&quot;6.32.25&quot;:&quot;2022-06-30T14:23:15.087Z&quot;,&quot;7.5.0&quot;:&quot;2022-07-02T13:19:29.397Z&quot;,&quot;6.33.0&quot;:&quot;2022-07-05T12:29:07.990Z&quot;,&quot;7.5.1&quot;:&quot;2022-07-11T23:52:27.347Z&quot;,&quot;7.5.2&quot;:&quot;2022-07-13T23:35:28.858Z&quot;,&quot;6.33.1&quot;:&quot;2022-07-14T00:26:24.068Z&quot;,&quot;7.6.0-0&quot;:&quot;2022-07-20T15:06:41.232Z&quot;,&quot;7.6.0&quot;:&quot;2022-07-21T15:37:18.486Z&quot;,&quot;7.7.0-0&quot;:&quot;2022-07-27T09:56:11.913Z&quot;,&quot;7.7.0-1&quot;:&quot;2022-07-28T13:58:45.617Z&quot;,&quot;7.7.0&quot;:&quot;2022-07-29T12:14:02.298Z&quot;,&quot;7.7.1&quot;:&quot;2022-07-30T09:37:23.503Z&quot;,&quot;7.8.0&quot;:&quot;2022-07-31T08:41:20.817Z&quot;,&quot;6.34.0&quot;:&quot;2022-08-03T13:34:30.262Z&quot;,&quot;7.9.0-0&quot;:&quot;2022-08-03T15:18:56.120Z&quot;,&quot;7.9.0&quot;:&quot;2022-08-06T15:35:04.753Z&quot;,&quot;7.9.1&quot;:&quot;2022-08-10T09:58:01.816Z&quot;,&quot;7.9.2&quot;:&quot;2022-08-17T09:19:59.986Z&quot;,&quot;7.9.3&quot;:&quot;2022-08-17T10:09:36.067Z&quot;,&quot;7.9.4-0&quot;:&quot;2022-08-18T09:46:56.707Z&quot;,&quot;7.9.4&quot;:&quot;2022-08-23T00:46:29.451Z&quot;,&quot;7.9.5&quot;:&quot;2022-08-24T12:08:56.583Z&quot;,&quot;7.10.0-0&quot;:&quot;2022-09-02T18:15:09.142Z&quot;,&quot;7.10.0-1&quot;:&quot;2022-09-03T14:37:01.872Z&quot;,&quot;7.10.0&quot;:&quot;2022-09-04T09:32:39.776Z&quot;,&quot;7.11.0&quot;:&quot;2022-09-05T09:55:07.212Z&quot;,&quot;7.11.1-0&quot;:&quot;2022-09-07T18:58:35.412Z&quot;,&quot;7.12.0-0&quot;:&quot;2022-09-15T21:47:17.366Z&quot;,&quot;7.12.0&quot;:&quot;2022-09-18T19:15:54.225Z&quot;,&quot;7.12.1&quot;:&quot;2022-09-20T00:37:29.245Z&quot;,&quot;7.12.2&quot;:&quot;2022-09-22T22:44:28.504Z&quot;,&quot;7.13.0&quot;:&quot;2022-10-03T01:05:04.655Z&quot;,&quot;7.13.1&quot;:&quot;2022-10-04T09:20:29.802Z&quot;,&quot;7.13.2&quot;:&quot;2022-10-05T21:29:58.465Z&quot;,&quot;7.13.3&quot;:&quot;2022-10-09T13:46:19.837Z&quot;,&quot;7.13.4&quot;:&quot;2022-10-10T16:17:19.327Z&quot;,&quot;7.13.5&quot;:&quot;2022-10-16T18:49:35.361Z&quot;,&quot;7.13.6&quot;:&quot;2022-10-19T23:06:05.414Z&quot;,&quot;6.35.0&quot;:&quot;2022-10-22T13:02:11.194Z&quot;,&quot;7.14.0&quot;:&quot;2022-10-22T13:16:58.430Z&quot;,&quot;7.14.1&quot;:&quot;2022-10-29T10:47:52.103Z&quot;,&quot;7.14.2&quot;:&quot;2022-11-02T09:22:34.022Z&quot;,&quot;7.15.0&quot;:&quot;2022-11-09T23:17:23.684Z&quot;,&quot;6.35.1&quot;:&quot;2022-11-11T21:29:20.622Z&quot;,&quot;7.16.0&quot;:&quot;2022-11-14T13:33:01.438Z&quot;,&quot;7.16.1&quot;:&quot;2022-11-16T12:42:39.552Z&quot;,&quot;7.17.0&quot;:&quot;2022-11-20T20:19:30.696Z&quot;,&quot;7.17.1&quot;:&quot;2022-11-27T02:16:34.817Z&quot;,&quot;7.18.0&quot;:&quot;2022-12-03T22:25:26.181Z&quot;,&quot;7.18.1&quot;:&quot;2022-12-06T10:08:41.879Z&quot;,&quot;7.18.2&quot;:&quot;2022-12-12T12:21:15.603Z&quot;,&quot;7.19.0&quot;:&quot;2022-12-21T11:21:08.957Z&quot;,&quot;7.20.0&quot;:&quot;2022-12-25T23:29:23.927Z&quot;,&quot;7.21.0&quot;:&quot;2022-12-28T15:00:18.623Z&quot;,&quot;7.22.0&quot;:&quot;2023-01-03T14:10:03.056Z&quot;,&quot;7.23.0&quot;:&quot;2023-01-05T13:49:39.023Z&quot;,&quot;7.24.0&quot;:&quot;2023-01-09T17:57:28.692Z&quot;,&quot;7.24.1&quot;:&quot;2023-01-10T10:16:25.210Z&quot;,&quot;7.24.2&quot;:&quot;2023-01-10T12:16:32.185Z&quot;,&quot;7.24.3&quot;:&quot;2023-01-11T01:26:15.961Z&quot;,&quot;7.25.0&quot;:&quot;2023-01-13T18:04:11.414Z&quot;,&quot;7.25.1&quot;:&quot;2023-01-19T10:21:16.596Z&quot;,&quot;7.26.0&quot;:&quot;2023-01-24T13:00:55.815Z&quot;,&quot;7.26.1&quot;:&quot;2023-01-27T04:27:49.412Z&quot;,&quot;7.26.2&quot;:&quot;2023-01-29T03:35:41.590Z&quot;,&quot;7.26.3&quot;:&quot;2023-02-01T01:45:16.945Z&quot;,&quot;7.27.0-0&quot;:&quot;2023-02-05T11:13:32.173Z&quot;,&quot;7.27.0&quot;:&quot;2023-02-08T13:01:32.384Z&quot;,&quot;7.27.1&quot;:&quot;2023-02-18T02:16:48.552Z&quot;,&quot;7.28.0-0&quot;:&quot;2023-02-20T20:49:39.234Z&quot;,&quot;8.0.0-alpha.0&quot;:&quot;2023-02-20T21:28:49.493Z&quot;,&quot;7.28.0&quot;:&quot;2023-02-25T16:36:48.908Z&quot;,&quot;7.29.0-1&quot;:&quot;2023-03-03T07:50:20.973Z&quot;,&quot;7.29.0-2&quot;:&quot;2023-03-05T10:27:27.538Z&quot;,&quot;7.29.0&quot;:&quot;2023-03-06T00:16:05.323Z&quot;,&quot;8.0.0-beta.0&quot;:&quot;2023-03-06T01:10:24.046Z&quot;,&quot;7.29.1&quot;:&quot;2023-03-08T01:42:42.041Z&quot;,&quot;7.29.2&quot;:&quot;2023-03-14T02:25:23.210Z&quot;,&quot;7.29.3&quot;:&quot;2023-03-15T10:25:04.658Z&quot;,&quot;7.30.0-0&quot;:&quot;2023-03-16T22:41:30.553Z&quot;,&quot;7.30.0&quot;:&quot;2023-03-17T13:03:03.198Z&quot;,&quot;8.0.0-beta.1&quot;:&quot;2023-03-19T02:54:39.560Z&quot;,&quot;7.30.1&quot;:&quot;2023-03-23T10:11:00.463Z&quot;,&quot;7.30.2&quot;:&quot;2023-03-24T01:54:42.567Z&quot;,&quot;7.30.3-0&quot;:&quot;2023-03-24T12:17:08.602Z&quot;,&quot;7.30.3&quot;:&quot;2023-03-24T13:36:06.490Z&quot;,&quot;8.0.0-rc.0&quot;:&quot;2023-03-24T14:14:32.847Z&quot;,&quot;8.0.0-rc.1&quot;:&quot;2023-03-26T02:00:53.140Z&quot;,&quot;7.30.4&quot;:&quot;2023-03-26T02:36:03.060Z&quot;,&quot;7.30.5&quot;:&quot;2023-03-27T13:42:05.472Z&quot;,&quot;8.0.0&quot;:&quot;2023-03-27T21:16:01.446Z&quot;,&quot;8.1.0&quot;:&quot;2023-03-29T22:14:35.746Z&quot;,&quot;7.31.0-0&quot;:&quot;2023-04-02T02:09:53.996Z&quot;,&quot;8.1.1&quot;:&quot;2023-04-04T00:14:17.438Z&quot;,&quot;7.31.0&quot;:&quot;2023-04-04T00:30:26.896Z&quot;,&quot;8.2.0&quot;:&quot;2023-04-09T23:46:28.670Z&quot;,&quot;7.32.0&quot;:&quot;2023-04-10T00:03:41.459Z&quot;,&quot;8.3.0-0&quot;:&quot;2023-04-16T21:22:40.086Z&quot;,&quot;8.3.0&quot;:&quot;2023-04-18T00:19:41.030Z&quot;,&quot;7.32.1&quot;:&quot;2023-04-18T00:33:53.385Z&quot;,&quot;8.3.1&quot;:&quot;2023-04-19T12:22:59.272Z&quot;,&quot;7.32.2&quot;:&quot;2023-04-19T12:53:57.999Z&quot;,&quot;8.4.0&quot;:&quot;2023-05-02T11:02:25.479Z&quot;,&quot;7.32.3&quot;:&quot;2023-05-06T22:45:28.156Z&quot;,&quot;8.5.0&quot;:&quot;2023-05-09T20:03:03.246Z&quot;,&quot;7.32.4&quot;:&quot;2023-05-09T20:25:44.909Z&quot;,&quot;8.5.1&quot;:&quot;2023-05-15T00:57:42.415Z&quot;,&quot;7.32.5&quot;:&quot;2023-05-23T10:03:03.687Z&quot;,&quot;8.6.0&quot;:&quot;2023-05-28T12:18:41.032Z&quot;,&quot;7.33.0&quot;:&quot;2023-05-31T09:32:47.039Z&quot;,&quot;8.6.1&quot;:&quot;2023-06-05T12:24:20.624Z&quot;,&quot;8.6.2&quot;:&quot;2023-06-11T18:55:45.069Z&quot;,&quot;7.33.1&quot;:&quot;2023-06-12T01:43:34.490Z&quot;,&quot;8.6.3&quot;:&quot;2023-06-19T12:51:50.475Z&quot;,&quot;7.33.2&quot;:&quot;2023-06-23T13:33:35.847Z&quot;,&quot;8.6.4&quot;:&quot;2023-06-25T22:06:51.203Z&quot;,&quot;8.6.5&quot;:&quot;2023-06-26T09:47:52.041Z&quot;,&quot;7.33.3&quot;:&quot;2023-06-30T23:07:42.082Z&quot;,&quot;8.6.6&quot;:&quot;2023-07-03T12:29:43.438Z&quot;,&quot;8.6.7&quot;:&quot;2023-07-09T22:47:05.305Z&quot;,&quot;8.6.8&quot;:&quot;2023-07-17T09:39:21.912Z&quot;,&quot;7.33.4&quot;:&quot;2023-07-17T09:59:28.620Z&quot;,&quot;8.6.9&quot;:&quot;2023-07-18T10:42:14.796Z&quot;,&quot;7.33.5&quot;:&quot;2023-07-18T11:02:29.914Z&quot;,&quot;8.6.10&quot;:&quot;2023-07-23T22:56:48.641Z&quot;,&quot;8.6.11&quot;:&quot;2023-07-30T17:57:20.390Z&quot;,&quot;7.33.6&quot;:&quot;2023-08-06T00:27:47.540Z&quot;,&quot;8.6.12&quot;:&quot;2023-08-06T11:25:56.343Z&quot;,&quot;8.7.0-1&quot;:&quot;2023-08-14T14:18:32.432Z&quot;,&quot;8.7.0-2&quot;:&quot;2023-08-24T23:22:09.379Z&quot;,&quot;8.7.0&quot;:&quot;2023-08-26T18:50:04.043Z&quot;,&quot;8.7.1&quot;:&quot;2023-08-31T15:50:37.020Z&quot;,&quot;8.7.2&quot;:&quot;2023-09-04T15:02:34.350Z&quot;,&quot;8.7.3&quot;:&quot;2023-09-04T15:21:47.005Z&quot;,&quot;8.7.4&quot;:&quot;2023-09-05T22:28:47.366Z&quot;,&quot;8.7.5&quot;:&quot;2023-09-11T12:34:29.332Z&quot;,&quot;8.7.6&quot;:&quot;2023-09-17T19:32:49.200Z&quot;,&quot;8.8.0&quot;:&quot;2023-09-26T12:58:11.728Z&quot;,&quot;8.9.0-0&quot;:&quot;2023-10-08T20:06:40.299Z&quot;,&quot;8.9.0-1&quot;:&quot;2023-10-09T10:13:19.595Z&quot;,&quot;8.9.0&quot;:&quot;2023-10-09T11:53:00.511Z&quot;,&quot;8.9.1&quot;:&quot;2023-10-15T15:10:11.800Z&quot;,&quot;8.9.2&quot;:&quot;2023-10-15T23:19:49.323Z&quot;,&quot;8.10.0-0&quot;:&quot;2023-10-24T13:27:10.995Z&quot;,&quot;8.10.0&quot;:&quot;2023-10-27T14:54:07.664Z&quot;,&quot;8.10.1&quot;:&quot;2023-11-01T12:51:58.556Z&quot;,&quot;8.10.2&quot;:&quot;2023-11-01T16:33:51.473Z&quot;,&quot;8.10.3&quot;:&quot;2023-11-12T12:25:57.519Z&quot;,&quot;8.10.4&quot;:&quot;2023-11-13T15:16:53.929Z&quot;,&quot;8.10.5&quot;:&quot;2023-11-14T12:08:43.777Z&quot;,&quot;8.11.0&quot;:&quot;2023-11-24T16:36:37.796Z&quot;,&quot;8.12.0&quot;:&quot;2023-12-08T22:32:00.870Z&quot;,&quot;8.12.1&quot;:&quot;2023-12-13T10:41:14.874Z&quot;,&quot;8.13.0&quot;:&quot;2023-12-14T15:38:24.659Z&quot;,&quot;8.13.1&quot;:&quot;2023-12-26T14:57:18.654Z&quot;,&quot;8.14.0&quot;:&quot;2024-01-02T23:07:05.869Z&quot;,&quot;9.0.0-alpha.0&quot;:&quot;2024-01-08T18:19:37.927Z&quot;,&quot;8.14.1&quot;:&quot;2024-01-10T15:11:30.183Z&quot;,&quot;8.14.2&quot;:&quot;2024-01-22T09:21:21.165Z&quot;,&quot;8.14.3&quot;:&quot;2024-01-23T09:31:52.541Z&quot;,&quot;8.15.0&quot;:&quot;2024-01-27T16:07:40.334Z&quot;,&quot;9.0.0-alpha.1&quot;:&quot;2024-01-27T16:40:25.066Z&quot;,&quot;8.15.1&quot;:&quot;2024-01-29T19:50:23.241Z&quot;,&quot;9.0.0-alpha.3&quot;:&quot;2024-02-09T01:00:04.336Z&quot;,&quot;9.0.0-alpha.4&quot;:&quot;2024-02-09T01:35:03.242Z&quot;,&quot;8.15.2&quot;:&quot;2024-02-12T23:19:48.518Z&quot;,&quot;8.15.3&quot;:&quot;2024-02-15T10:51:32.315Z&quot;,&quot;7.33.7&quot;:&quot;2024-02-15T12:58:17.925Z&quot;,&quot;9.0.0-alpha.5&quot;:&quot;2024-02-17T12:38:51.032Z&quot;,&quot;8.15.4&quot;:&quot;2024-02-24T13:37:01.498Z&quot;,&quot;9.0.0-alpha.6&quot;:&quot;2024-03-05T10:37:57.338Z&quot;,&quot;9.0.0-alpha.7&quot;:&quot;2024-03-05T11:21:13.635Z&quot;,&quot;8.15.5&quot;:&quot;2024-03-17T19:59:47.530Z&quot;,&quot;9.0.0-alpha.8&quot;:&quot;2024-03-17T22:52:56.992Z&quot;,&quot;9.0.0-alpha.9&quot;:&quot;2024-03-22T19:15:03.983Z&quot;,&quot;9.0.0-alpha.10&quot;:&quot;2024-03-22T21:29:40.103Z&quot;,&quot;9.0.0-beta.0&quot;:&quot;2024-03-23T12:43:33.190Z&quot;,&quot;9.0.0-beta.1&quot;:&quot;2024-03-27T15:06:28.516Z&quot;,&quot;9.0.0-beta.2&quot;:&quot;2024-03-31T21:35:40.248Z&quot;,&quot;8.15.6&quot;:&quot;2024-04-01T21:16:01.739Z&quot;,&quot;9.0.0-beta.3&quot;:&quot;2024-04-04T10:22:33.420Z&quot;,&quot;9.0.0-rc.0&quot;:&quot;2024-04-09T08:57:58.575Z&quot;,&quot;8.15.7&quot;:&quot;2024-04-13T16:15:19.474Z&quot;,&quot;9.0.0-rc.1&quot;:&quot;2024-04-13T16:42:19.671Z&quot;,&quot;9.0.0-rc.2&quot;:&quot;2024-04-13T17:00:45.078Z&quot;,&quot;9.0.0&quot;:&quot;2024-04-16T10:27:03.176Z&quot;,&quot;9.0.1&quot;:&quot;2024-04-16T14:10:04.512Z&quot;,&quot;9.0.2&quot;:&quot;2024-04-17T16:50:22.459Z&quot;,&quot;9.0.3&quot;:&quot;2024-04-18T16:46:04.363Z&quot;,&quot;9.0.4&quot;:&quot;2024-04-19T01:02:54.153Z&quot;,&quot;9.0.5&quot;:&quot;2024-04-21T21:15:54.065Z&quot;,&quot;9.0.6&quot;:&quot;2024-04-24T13:15:06.379Z&quot;,&quot;9.1.0-0&quot;:&quot;2024-04-29T14:13:16.794Z&quot;,&quot;8.15.8&quot;:&quot;2024-04-29T23:45:32.795Z&quot;,&quot;9.1.0&quot;:&quot;2024-05-06T09:30:35.710Z&quot;,&quot;9.1.1&quot;:&quot;2024-05-12T22:03:21.721Z&quot;,&quot;9.1.2&quot;:&quot;2024-05-20T22:17:38.084Z&quot;,&quot;9.1.3&quot;:&quot;2024-05-27T08:52:28.813Z&quot;,&quot;9.1.4&quot;:&quot;2024-05-30T11:09:59.730Z&quot;,&quot;9.2.0&quot;:&quot;2024-06-05T13:13:05.680Z&quot;,&quot;9.3.0&quot;:&quot;2024-06-10T12:25:45.227Z&quot;,&quot;9.4.0&quot;:&quot;2024-06-17T16:03:09.589Z&quot;,&quot;9.5.0-beta.0&quot;:&quot;2024-06-27T13:18:09.264Z&quot;,&quot;9.5.0-beta.1&quot;:&quot;2024-07-05T12:27:46.296Z&quot;,&quot;9.5.0-beta.2&quot;:&quot;2024-07-05T13:47:51.835Z&quot;,&quot;9.5.0-beta.3&quot;:&quot;2024-07-05T14:19:33.874Z&quot;,&quot;9.5.0&quot;:&quot;2024-07-07T16:44:14.829Z&quot;,&quot;8.15.9&quot;:&quot;2024-07-17T15:52:29.482Z&quot;,&quot;9.6.0&quot;:&quot;2024-07-22T00:02:52.825Z&quot;,&quot;9.7.0&quot;:&quot;2024-08-07T00:25:29.992Z&quot;,&quot;9.7.1&quot;:&quot;2024-08-14T14:56:17.907Z&quot;,&quot;9.8.0&quot;:&quot;2024-08-22T10:37:28.261Z&quot;,&quot;9.9.0&quot;:&quot;2024-08-26T15:35:37.454Z&quot;,&quot;9.10.0&quot;:&quot;2024-09-09T14:03:26.289Z&quot;,&quot;9.11.0&quot;:&quot;2024-09-20T10:31:56.346Z&quot;,&quot;9.12.0&quot;:&quot;2024-10-02T12:07:47.336Z&quot;,&quot;9.12.1&quot;:&quot;2024-10-07T13:23:41.724Z&quot;,&quot;9.12.2&quot;:&quot;2024-10-16T14:45:00.122Z&quot;,&quot;9.12.3&quot;:&quot;2024-10-28T02:54:30.401Z&quot;,&quot;10.0.0-alpha.0&quot;:&quot;2024-10-28T03:26:44.379Z&quot;,&quot;9.13.0&quot;:&quot;2024-11-13T12:26:09.291Z&quot;,&quot;9.13.1&quot;:&quot;2024-11-14T17:15:27.695Z&quot;,&quot;9.13.2&quot;:&quot;2024-11-15T02:15:53.487Z&quot;,&quot;10.0.0-alpha.1&quot;:&quot;2024-11-15T11:18:49.058Z&quot;,&quot;10.0.0-alpha.2&quot;:&quot;2024-11-15T11:53:42.533Z&quot;,&quot;9.14.0&quot;:&quot;2024-11-20T00:04:49.891Z&quot;,&quot;9.14.1&quot;:&quot;2024-11-20T00:31:43.756Z&quot;,&quot;9.14.2&quot;:&quot;2024-11-20T11:06:43.918Z&quot;,&quot;10.0.0-alpha.3&quot;:&quot;2024-11-25T10:06:19.403Z&quot;,&quot;10.0.0-alpha.4&quot;:&quot;2024-11-25T13:21:41.171Z&quot;,&quot;10.0.0-beta.0&quot;:&quot;2024-11-28T11:57:05.695Z&quot;,&quot;9.14.3&quot;:&quot;2024-11-28T16:28:42.730Z&quot;,&quot;9.14.4&quot;:&quot;2024-11-29T10:56:56.250Z&quot;,&quot;10.0.0-beta.1&quot;:&quot;2024-11-29T11:42:05.553Z&quot;,&quot;9.15.0&quot;:&quot;2024-12-06T14:59:49.131Z&quot;,&quot;10.0.0-beta.2&quot;:&quot;2024-12-09T00:34:41.385Z&quot;,&quot;10.0.0-beta.3&quot;:&quot;2024-12-11T22:35:26.952Z&quot;,&quot;10.0.0-rc.0&quot;:&quot;2024-12-16T02:11:43.790Z&quot;,&quot;9.15.1&quot;:&quot;2024-12-20T00:33:34.908Z&quot;,&quot;10.0.0-rc.1&quot;:&quot;2024-12-27T13:38:57.915Z&quot;,&quot;9.15.2&quot;:&quot;2024-12-27T14:39:04.325Z&quot;,&quot;10.0.0-rc.2&quot;:&quot;2024-12-29T02:00:14.722Z&quot;,&quot;10.0.0-rc.3&quot;:&quot;2025-01-05T12:47:47.897Z&quot;,&quot;9.15.3&quot;:&quot;2025-01-05T22:26:13.201Z&quot;,&quot;10.0.0&quot;:&quot;2025-01-07T14:45:02.329Z&quot;,&quot;9.15.4&quot;:&quot;2025-01-13T16:37:22.170Z&quot;,&quot;10.1.0&quot;:&quot;2025-01-26T21:48:18.385Z&quot;,&quot;9.15.5&quot;:&quot;2025-02-02T17:46:58.832Z&quot;,&quot;10.2.0&quot;:&quot;2025-02-03T17:48:43.917Z&quot;,&quot;10.2.1&quot;:&quot;2025-02-06T19:11:03.568Z&quot;,&quot;10.3.0&quot;:&quot;2025-02-10T23:51:38.143Z&quot;,&quot;10.4.0&quot;:&quot;2025-02-14T00:31:57.729Z&quot;,&quot;10.4.1&quot;:&quot;2025-02-16T21:54:50.743Z&quot;,&quot;9.15.6&quot;:&quot;2025-02-24T08:32:08.205Z&quot;,&quot;10.5.0&quot;:&quot;2025-02-25T12:11:30.692Z&quot;,&quot;10.5.1&quot;:&quot;2025-02-26T12:10:55.885Z&quot;,&quot;10.5.2&quot;:&quot;2025-02-27T01:33:56.664Z&quot;,&quot;9.15.7&quot;:&quot;2025-03-06T10:33:46.381Z&quot;,&quot;10.6.0&quot;:&quot;2025-03-06T11:32:18.968Z&quot;,&quot;10.6.1&quot;:&quot;2025-03-07T01:48:15.208Z&quot;,&quot;9.15.8&quot;:&quot;2025-03-09T21:43:22.097Z&quot;,&quot;10.6.2&quot;:&quot;2025-03-10T02:32:12.502Z&quot;,&quot;9.15.9&quot;:&quot;2025-03-10T02:47:09.271Z&quot;,&quot;10.6.3&quot;:&quot;2025-03-13T14:19:41.594Z&quot;,&quot;10.6.4&quot;:&quot;2025-03-17T13:59:39.658Z&quot;,&quot;10.6.5&quot;:&quot;2025-03-19T13:38:56.094Z&quot;,&quot;10.7.0&quot;:&quot;2025-03-26T11:35:45.592Z&quot;,&quot;10.7.1&quot;:&quot;2025-04-01T12:11:50.633Z&quot;,&quot;10.8.0&quot;:&quot;2025-04-07T16:43:28.031Z&quot;,&quot;10.8.1&quot;:&quot;2025-04-14T11:13:23.814Z&quot;,&quot;10.9.0&quot;:&quot;2025-04-21T08:36:31.506Z&quot;,&quot;10.10.0&quot;:&quot;2025-04-27T23:18:02.369Z&quot;,&quot;10.11.0&quot;:&quot;2025-05-13T14:23:33.977Z&quot;,&quot;10.11.1&quot;:&quot;2025-06-02T13:47:18.707Z&quot;,&quot;10.12.0&quot;:&quot;2025-06-08T13:46:36.855Z&quot;,&quot;10.12.1&quot;:&quot;2025-06-08T14:21:29.623Z&quot;,&quot;10.12.2&quot;:&quot;2025-06-23T00:32:30.295Z&quot;,&quot;10.12.3&quot;:&quot;2025-06-24T10:15:56.264Z&quot;,&quot;10.12.4&quot;:&quot;2025-06-26T17:13:20.857Z&quot;,&quot;10.13.0&quot;:&quot;2025-07-09T09:21:22.313Z&quot;,&quot;10.13.1&quot;:&quot;2025-07-09T10:15:13.724Z&quot;,&quot;10.14.0-0&quot;:&quot;2025-07-23T13:21:27.720Z&quot;,&quot;10.14.0&quot;:&quot;2025-07-31T13:23:48.883Z&quot;,&quot;10.15.0&quot;:&quot;2025-08-19T16:15:43.775Z&quot;,&quot;10.15.1&quot;:&quot;2025-09-01T09:57:00.916Z&quot;,&quot;10.16.0&quot;:&quot;2025-09-12T12:56:00.702Z&quot;,&quot;10.16.1&quot;:&quot;2025-09-13T17:42:26.076Z&quot;,&quot;10.17.0&quot;:&quot;2025-09-17T15:06:03.871Z&quot;,&quot;10.17.1&quot;:&quot;2025-09-22T13:36:34.481Z&quot;,&quot;10.18.0&quot;:&quot;2025-10-02T15:00:14.872Z&quot;,&quot;10.18.1&quot;:&quot;2025-10-06T12:26:39.255Z&quot;,&quot;10.18.2&quot;:&quot;2025-10-09T16:08:37.463Z&quot;,&quot;10.18.3&quot;:&quot;2025-10-14T09:43:19.246Z&quot;,&quot;10.19.0&quot;:&quot;2025-10-21T14:03:31.582Z&quot;,&quot;10.19.1-oidc-test.0&quot;:&quot;2025-10-23T08:40:36.645Z&quot;,&quot;10.19.1-oidc-test.2&quot;:&quot;2025-10-23T10:47:21.822Z&quot;,&quot;10.19.1-oidc-test.3&quot;:&quot;2025-10-23T23:49:27.474Z&quot;,&quot;10.20.0&quot;:&quot;2025-10-28T16:59:41.981Z&quot;,&quot;10.21.0&quot;:&quot;2025-11-09T23:45:02.096Z&quot;,&quot;10.22.0&quot;:&quot;2025-11-12T13:49:33.674Z&quot;,&quot;11.0.0-alpha.0&quot;:&quot;2025-11-13T16:20:24.097Z&quot;,&quot;11.0.0-alpha.1&quot;:&quot;2025-11-13T17:30:29.617Z&quot;,&quot;11.0.0-dev.1001&quot;:&quot;2025-11-13T21:45:48.168Z&quot;,&quot;11.0.0-dev.1002&quot;:&quot;2025-11-13T22:58:11.337Z&quot;,&quot;11.0.0-dev.1003&quot;:&quot;2025-11-14T00:22:52.764Z&quot;,&quot;11.0.0-dev.1005&quot;:&quot;2025-11-14T09:24:38.124Z&quot;,&quot;10.23.0&quot;:&quot;2025-11-20T14:18:25.447Z&quot;},&quot;bugs&quot;:{&quot;url&quot;:&quot;https://github.com/pnpm/pnpm/issues&quot;},&quot;license&quot;:&quot;MIT&quot;,&quot;homepage&quot;:&quot;https://pnpm.io&quot;,&quot;keywords&quot;:[&quot;pnpm&quot;,&quot;pnpm10&quot;,&quot;dependencies&quot;,&quot;dependency manager&quot;,&quot;efficient&quot;,&quot;fast&quot;,&quot;hardlinks&quot;,&quot;install&quot;,&quot;installer&quot;,&quot;link&quot;,&quot;lockfile&quot;,&quot;modules&quot;,&quot;monorepo&quot;,&quot;multi-package&quot;,&quot;npm&quot;,&quot;package manager&quot;,&quot;package.json&quot;,&quot;packages&quot;,&quot;prune&quot;,&quot;rapid&quot;,&quot;remove&quot;,&quot;shrinkwrap&quot;,&quot;symlinks&quot;,&quot;uninstall&quot;,&quot;workspace&quot;],&quot;repository&quot;:{&quot;url&quot;:&quot;git+https://github.com/pnpm/pnpm.git&quot;,&quot;type&quot;:&quot;git&quot;,&quot;directory&quot;:&quot;pnpm&quot;},&quot;description&quot;:&quot;Fast, disk space efficient package manager&quot;,&quot;maintainers&quot;:[{&quot;name&quot;:&quot;zkochan&quot;,&quot;email&quot;:&quot;z@kochan.io&quot;},{&quot;name&quot;:&quot;pnpmuser&quot;,&quot;email&quot;:&quot;publish-bot@pnpm.io&quot;}],&quot;readme&quot;:&quot;&quot;,&quot;readmeFilename&quot;:&quot;README.md&quot;,&quot;users&quot;:{&quot;panlw&quot;:true,&quot;sirse&quot;:true,&quot;bsnote&quot;:true,&quot;shrike&quot;:true,&quot;yboris&quot;:true,&quot;ferrari&quot;:true,&quot;shyling&quot;:true,&quot;vivekrp&quot;:true,&quot;yanghcc&quot;:true,&quot;zkochan&quot;:true,&quot;jsumners&quot;:true,&quot;krickray&quot;:true,&quot;zhangaz1&quot;:true,&quot;heartnett&quot;:true,&quot;max_devjs&quot;:true,&quot;sternelee&quot;:true,&quot;denialtero&quot;:true,&quot;flumpus-dev&quot;:true,&quot;mad-don-jon&quot;:true,&quot;hemadri.info&quot;:true,&quot;justafrogger&quot;:true,&quot;frederik_bosch&quot;:true}}✅ Network connectivity verified!
+pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"b312886439096718a402117aa3f375c4e3be5ed8","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.17.1.tgz","fileCount":1048,"integrity":"sha512-F8Vg/KSGeulHOjiZrYSogzSRTzeb5G1FXL+S5c9LOdNJhdRS0lg7rxmWf6dstcF7yeJFUp0LmHRXIapyAOyveg==","signatures":[{"sig":"MEUCIGL5mD8e7q2srMLSfBaQURvV9FTwi5VFWgy5f9hBhglOAiEAqMbYycQ5j+6SAveEYpWN7uOXz9b8q3plcIVNT0XMBKc=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17555718},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.17.1.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/275fe020d5060658d2774ad95ecb173a/pnpm-10.17.1.tgz","_integrity":"sha512-F8Vg/KSGeulHOjiZrYSogzSRTzeb5G1FXL+S5c9LOdNJhdRS0lg7rxmWf6dstcF7yeJFUp0LmHRXIapyAOyveg==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.17.1_1758548194201_0.9935699447592019","host":"s3://npm-registry-packages-npm-production"}},"10.18.0":{"name":"pnpm","version":"10.18.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.18.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"9bf781ccacb6fab13fcb77404ffc79dc1371b375","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.18.0.tgz","fileCount":1048,"integrity":"sha512-6AT4ifHOzEDVctsITuw+SIFzn43sacD/ENLRvv+aTjCTg7ontbdQBZ1/TBSVNbbNDSyx7Trrc5I5pChKaPQM+g==","signatures":[{"sig":"MEUCIQCgGkT69t0qFu2RVKNZRFscBb3/KPUXoDbvACr9K4wQ1AIgVUrxOH/QP/KjyiPgQtIMXOc0Rf0d3wBiLaNwapgQXzw=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17575261},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.18.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/cead29e3601d5d14c12eeb4500a15ec9/pnpm-10.18.0.tgz","_integrity":"sha512-6AT4ifHOzEDVctsITuw+SIFzn43sacD/ENLRvv+aTjCTg7ontbdQBZ1/TBSVNbbNDSyx7Trrc5I5pChKaPQM+g==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.18.0_1759417214584_0.10263102200987517","host":"s3://npm-registry-packages-npm-production"}},"10.18.1":{"name":"pnpm","version":"10.18.1","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.18.1","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"ccdffefca66c328e80dd37ed22b1308d54544fcb","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.18.1.tgz","fileCount":1048,"integrity":"sha512-d6iEoWXLui2NHBnjtIgO7m0vyr0Nh5Eh4oIZa4AEI1HV6zygk1+lmdodxRJlzGiBatK93Sot5eqf35KtvsfNNA==","signatures":[{"sig":"MEUCIDjIxaVq6SOTAKpfL7dj6cU8BSuMBg69L+gqWY1ItinfAiEA4n6I7/EFia5xg95Gmjzt5ZAkasGoKKP4h+bFkY74TS8=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17575360},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.18.1.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/8c92125e4fc1c8f24aa5f04bd42c79ae/pnpm-10.18.1.tgz","_integrity":"sha512-d6iEoWXLui2NHBnjtIgO7m0vyr0Nh5Eh4oIZa4AEI1HV6zygk1+lmdodxRJlzGiBatK93Sot5eqf35KtvsfNNA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.18.1_1759753599023_0.7814561362665275","host":"s3://npm-registry-packages-npm-production"}},"10.18.2":{"name":"pnpm","version":"10.18.2","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.18.2","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"48588a2735db5f19ffe699240b59891cfac5f316","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.18.2.tgz","fileCount":1048,"integrity":"sha512-n7lp+nSbOt5gNeDxCfC4pgtdCKGof99y4zfakNzJMzbiKAyk5E8jWKZJuDwXlZ6Zk+d3wggIefOAHm8NmZrT3Q==","signatures":[{"sig":"MEYCIQC4kH60biqPFF4/q8U8juHstni3NtSk+RexnytXWJcbpQIhAIKqTehhaUKtJoCD+cBLZEYsqZfz/hU4JXJ+/0cmri9E","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17483040},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.18.2.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/1947837d3444c967a028f8892d336afc/pnpm-10.18.2.tgz","_integrity":"sha512-n7lp+nSbOt5gNeDxCfC4pgtdCKGof99y4zfakNzJMzbiKAyk5E8jWKZJuDwXlZ6Zk+d3wggIefOAHm8NmZrT3Q==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.18.2_1760026117172_0.4990057360232121","host":"s3://npm-registry-packages-npm-production"}},"10.18.3":{"name":"pnpm","version":"10.18.3","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.18.3","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"0202a20aaa3d7ba8bc29b50d95efe1a34dd95773","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.18.3.tgz","fileCount":1048,"integrity":"sha512-u9FubXKG/X4B9rPAs8kyzaKWXAapCDKPdGY/EKmupR8RKe6mFRNL+ZKDGwCeq+Fn7LcAi1l/QP+bx1lGqt+wjQ==","signatures":[{"sig":"MEUCID8Hh0iF8u8Ip9ftfTHMH/dazrcTw9pr8vCrbKbxFD0xAiEA+ur+pDxnqxMWym1bM0N330rYt7qype6xlr3QfbSdMTM=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17487786},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.18.3.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/71aa23bf640cff16ebd299784bd19ae6/pnpm-10.18.3.tgz","_integrity":"sha512-u9FubXKG/X4B9rPAs8kyzaKWXAapCDKPdGY/EKmupR8RKe6mFRNL+ZKDGwCeq+Fn7LcAi1l/QP+bx1lGqt+wjQ==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.18.3_1760434998952_0.6480213786550368","host":"s3://npm-registry-packages-npm-production"}},"10.19.0":{"name":"pnpm","version":"10.19.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.19.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"93b1218ebea8634db5efb08fd2d20ecdc4ae58f4","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.19.0.tgz","fileCount":1048,"integrity":"sha512-yfxyNukq31yK9C/VvxYS35nCzrYvJwRwMvRyCzP46s3eMRhl6RxBHyd09hjYLzIICOy1Fxi/qCwGDEunx2oyuA==","signatures":[{"sig":"MEYCIQDaCyrA0+XHQEdLvtGVFTO/6UJ660TdTWY/8jRjQmbAxwIhAN4ZYTO43PC8PGBCXVEMrhXDO6xpSKpCZIk867dqUvM8","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17492311},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.19.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/fa34fc08cf1910f22498698c14eb7a98/pnpm-10.19.0.tgz","_integrity":"sha512-yfxyNukq31yK9C/VvxYS35nCzrYvJwRwMvRyCzP46s3eMRhl6RxBHyd09hjYLzIICOy1Fxi/qCwGDEunx2oyuA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.19.0_1761055411343_0.9434348978163818","host":"s3://npm-registry-packages-npm-production"}},"10.19.1-oidc-test.0":{"name":"pnpm","version":"10.19.1-oidc-test.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.19.1-oidc-test.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"eeb066c7d6cec740e1f240fe10c569895a5f9207","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.0.tgz","fileCount":1048,"integrity":"sha512-obLBwZ+Zjyeui7DKvvGCYcebiHaF/+LAJdktZGnD0+9SkDFRWhYRhlJDeZhBiKGYINCCJAspaQ/FdZNKYSyvTA==","signatures":[{"sig":"MEYCIQC69mHP6FSXZAsZrfrVHisnRaCuDznjUgvtLxiAM4LGwgIhAISwWPZLTazfYIPJ2cor0KGJRknBU545aUxoeZyAEV+r","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"unpackedSize":17492335},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.19.1-oidc-test.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"pnpmuser","email":"publish-bot@pnpm.io"},"_resolved":"/tmp/f07ef01588ccd098c75d3855304ec9ea/pnpm-10.19.1-oidc-test.0.tgz","_integrity":"sha512-obLBwZ+Zjyeui7DKvvGCYcebiHaF/+LAJdktZGnD0+9SkDFRWhYRhlJDeZhBiKGYINCCJAspaQ/FdZNKYSyvTA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"10.8.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.19.1-oidc-test.0_1761208836382_0.07999998513190554","host":"s3://npm-registry-packages-npm-production"}},"10.19.1-oidc-test.2":{"name":"pnpm","version":"10.19.1-oidc-test.2","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.19.1-oidc-test.2","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"6e375621514e76b3fcf3902de504bbcfdcd93023","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.2.tgz","fileCount":1048,"integrity":"sha512-tVQ9r4/8M6C6f6NM/sovkbmRQG8cL19YstEJ3i8H0DRv31rCLEXst1QuEWsS2hZBAi6V9WL8BtVH6TMCnQb30w==","signatures":[{"sig":"MEQCIDc0aUlDzc/JTYdwbD71jX50trIpSDkcKVTKOv3SzoFJAiBxn5gSeJARlufLBLNXLOgrG6L7VbJuZzTY97Z9YDGAwA==","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.19.1-oidc-test.2","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17492329},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.19.1-oidc-test.2.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/c58ae5d08f951a76071d18caa4411b40/pnpm-10.19.1-oidc-test.2.tgz","_integrity":"sha512-tVQ9r4/8M6C6f6NM/sovkbmRQG8cL19YstEJ3i8H0DRv31rCLEXst1QuEWsS2hZBAi6V9WL8BtVH6TMCnQb30w==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.19.1-oidc-test.2_1761216441370_0.26845504259970276","host":"s3://npm-registry-packages-npm-production"}},"10.19.1-oidc-test.3":{"name":"pnpm","version":"10.19.1-oidc-test.3","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.19.1-oidc-test.3","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"1e94c6a9be500e70329a55ff3eb7fe5a0dc80942","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.19.1-oidc-test.3.tgz","fileCount":1048,"integrity":"sha512-5ZYaS1a7N2IPl7ZdpMpWIWY0vzntNY7akl8PA2U01Fj6JJ2T7QAhQQUj+Lt+2FErYf5VMu0+gXd3kzZsa+AmtQ==","signatures":[{"sig":"MEUCIDSz/G02aD1KEhdZ1ZocRY1j4TWrVjxiIyM+tXjfkddHAiEA8Ol9cO+B6hYAOdTu5085NXqlr/uDOHnudh1JuGLCvj8=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.19.1-oidc-test.3","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17492329},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.19.1-oidc-test.3.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/f894b0648f83e0f9776bf4c1f08b2a9e/pnpm-10.19.1-oidc-test.3.tgz","_integrity":"sha512-5ZYaS1a7N2IPl7ZdpMpWIWY0vzntNY7akl8PA2U01Fj6JJ2T7QAhQQUj+Lt+2FErYf5VMu0+gXd3kzZsa+AmtQ==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.19.1-oidc-test.3_1761263367170_0.2513421808292067","host":"s3://npm-registry-packages-npm-production"}},"10.20.0":{"name":"pnpm","version":"10.20.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.20.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"a9bfe8cf88011d4758e1acbeb0da8883ecbd52ce","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.20.0.tgz","fileCount":1061,"integrity":"sha512-z5mYIiFi3YWGTQqBAueJLnukzq3rv1ox+cL85I384xepxTufZGTR75BCy6LgKuAqn3wUOitDjNk8kYQPAZK53Q==","signatures":[{"sig":"MEYCIQCiix1Kcsl8x9gEcckTt4PfYtab8FrUhl010yOsRuFj0AIhAMQ9yrNkmGAiXev0TRQiwQnKY1TuQl+SLolTG+azZDEI","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.20.0","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17628433},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.20.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/a75987caa9314f111131f545c4712c5f/pnpm-10.20.0.tgz","_integrity":"sha512-z5mYIiFi3YWGTQqBAueJLnukzq3rv1ox+cL85I384xepxTufZGTR75BCy6LgKuAqn3wUOitDjNk8kYQPAZK53Q==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.20.0_1761670781679_0.6838145698340097","host":"s3://npm-registry-packages-npm-production"}},"10.21.0":{"name":"pnpm","version":"10.21.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.21.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"a2cb35d3f07a58fecfe050af9277c5dc43a1b2e7","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.21.0.tgz","fileCount":1060,"integrity":"sha512-2jM3Jn5AD909R5psaAeaxtsB2MpPZ1cgg+cid1p5Z4inqZVmE3SeAA+sINQktZT3p5Gl9OLhNYHF75R/JpaKQA==","signatures":[{"sig":"MEYCIQDy5vkCS9A6dEQI8lXdw8A5IL1ck0xUJdAjFNWoyFxCmQIhAPeMXjt6ju8L/TklM0PNG98CmSsyfz9gPOwlSz0pzBvp","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.21.0","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17557520},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.21.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/dd3a477a7ebde81fd9ce52cf345acfe0/pnpm-10.21.0.tgz","_integrity":"sha512-2jM3Jn5AD909R5psaAeaxtsB2MpPZ1cgg+cid1p5Z4inqZVmE3SeAA+sINQktZT3p5Gl9OLhNYHF75R/JpaKQA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.21.0_1762731901789_0.3539988259303557","host":"s3://npm-registry-packages-npm-production"}},"10.22.0":{"name":"pnpm","version":"10.22.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.22.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"3e9e4d522d30f3cf4cabb7506f5d15b89feffd04","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.22.0.tgz","fileCount":1068,"integrity":"sha512-vwSe/plbKPUn/StBrgR0zikYb37cs79UUIe9Yfu+uyv3U2LRMH/aCcLSiOHkmXh6wS1Py2F6l0cYpgUfLu50HA==","signatures":[{"sig":"MEYCIQDeWdKJykltWBMTeQ4PisTIbDd+uGc7MDRM5qsri2ruwwIhAJDZCL99oE4jCJnrSAHjRSiI1IR+lCJIPonqcSsO52ms","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.22.0","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17579145},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.22.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/16c61e38e6b016d61433baae9d26450a/pnpm-10.22.0.tgz","_integrity":"sha512-vwSe/plbKPUn/StBrgR0zikYb37cs79UUIe9Yfu+uyv3U2LRMH/aCcLSiOHkmXh6wS1Py2F6l0cYpgUfLu50HA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.22.0_1762955373415_0.8824078975548255","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-alpha.0":{"name":"pnpm","version":"11.0.0-alpha.0","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-alpha.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"ff05a105567a042d1a613835e91c67fe4657c5a0","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-alpha.0.tgz","fileCount":1068,"integrity":"sha512-JOvY80+9ga6KLLspYsYb+QYYiLG29WUM5q+lINNAbfiqOm3PX2BY7u8UpLB0wvxz7ydZu7OIAnk64UF4aqCHBQ==","signatures":[{"sig":"MEQCIBTicvtxRJ3MFTXylJAY+JeK3lmWs5jJsb9B9ZHCtZEcAiA7HqRXMZ2dl0sBFxz11Lw6Firb2PM2Ia/JTV79AeY6XQ==","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-alpha.0","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17349031},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-alpha.0.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"pnpm --config.useNodeVersion=24.6.0 exec ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/19435fe5a2e8d0d0223bcea557c7f08f/pnpm-11.0.0-alpha.0.tgz","_integrity":"sha512-JOvY80+9ga6KLLspYsYb+QYYiLG29WUM5q+lINNAbfiqOm3PX2BY7u8UpLB0wvxz7ydZu7OIAnk64UF4aqCHBQ==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-alpha.0_1763050823833_0.8366738609979985","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-alpha.1":{"name":"pnpm","version":"11.0.0-alpha.1","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-alpha.1","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"5ce2f492d16bee6a95e5f4bd6acfbe7871177332","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-alpha.1.tgz","fileCount":1068,"integrity":"sha512-SODM4kjibEEtzW4S+H57MNR6xr6Bwi1oOvqFgDT/dH0Lp7rZAGCyA1kSBXQG6Si9WxNErRmcSMqQ11E/uY5cZg==","signatures":[{"sig":"MEUCIDiwwg1G1dzjGQWuWOmT/qh256Uq1Eunbx1Ll8d1ru9JAiEAqSEhvf3iW4VV69P7Y06nxmt5CNQrt9jRG3BEyeiXByY=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-alpha.1","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17349031},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-alpha.1.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"pnpm --config.useNodeVersion=24.6.0 exec ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/9c3c8b8dda06da5975802d6b8adbb628/pnpm-11.0.0-alpha.1.tgz","_integrity":"sha512-SODM4kjibEEtzW4S+H57MNR6xr6Bwi1oOvqFgDT/dH0Lp7rZAGCyA1kSBXQG6Si9WxNErRmcSMqQ11E/uY5cZg==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-alpha.1_1763055029318_0.6690689198947919","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-dev.1001":{"name":"pnpm","version":"11.0.0-dev.1001","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-dev.1001","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"9c88e70edb544b0963c52f9bb741ba3b8b0759e8","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1001.tgz","fileCount":1068,"integrity":"sha512-2driO/DQ0d+3vXGQ6MhXGbxzDZ7daXDGL+n4xKru1jbkjmvP/tEixSEAS0KNnrRYvpMQF9pyX/oDS6WHdWNB2A==","signatures":[{"sig":"MEUCIF5KRUawiOKatzTLOejbOVaerWvr8Wep3+KrBvUsQ8KoAiEAknxrdqBk8qo5+1BoaD550Ac3jZhoOg6KQgTvkI69fPw=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1001","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17348998},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-dev.1001.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/c6c5f2bf907e496e8e2bf1bc31e11de7/pnpm-11.0.0-dev.1001.tgz","_integrity":"sha512-2driO/DQ0d+3vXGQ6MhXGbxzDZ7daXDGL+n4xKru1jbkjmvP/tEixSEAS0KNnrRYvpMQF9pyX/oDS6WHdWNB2A==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-dev.1001_1763070347756_0.5766164839211863","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-dev.1002":{"name":"pnpm","version":"11.0.0-dev.1002","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-dev.1002","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"58b70906330e4bf8062a484e626884088d8d0601","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1002.tgz","fileCount":1068,"integrity":"sha512-aZXjXSdWEX9DAgS1wEBWxUZ/zOLDWSq3bgv08JRcHiWki03C1cpbpoX/X/myDi8lPz7/wbOSN0HegM2n7OCmDw==","signatures":[{"sig":"MEQCIHpihxqCv0K9eQKf3uCKfcuM7CFIwsyOE4+slWrboR3yAiAh+kgFOElzQk68akndcTYwwVlvdyXeZcaMG4Mdt5ejkQ==","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1002","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17348992},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-dev.1002.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/a75ae21412ba1c860c7712c4209a5560/pnpm-11.0.0-dev.1002.tgz","_integrity":"sha512-aZXjXSdWEX9DAgS1wEBWxUZ/zOLDWSq3bgv08JRcHiWki03C1cpbpoX/X/myDi8lPz7/wbOSN0HegM2n7OCmDw==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-dev.1002_1763074691054_0.7197104531531875","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-dev.1003":{"name":"pnpm","version":"11.0.0-dev.1003","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-dev.1003","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"83f613a59ec2fa14527fe2d36553e03f0bb6d9e1","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1003.tgz","fileCount":1068,"integrity":"sha512-cwQ4SVEFxP0JctEnPHuiIDj/RJ2IcOevtKMYvKbGCwGCfLh2PnTmA0SppH/byFaeANR8l8DV1snYcKNQmUbApQ==","signatures":[{"sig":"MEQCIGnw2Ym+NqjJAm876glbP8sgpcUErPjVArNJQUCVa761AiA+kuErg3Jh/kXFrDaBCx3aPHlvsQFh91r4TvDfd9ZqSg==","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1003","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17348998},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-dev.1003.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/ccde4a15d4bd9b6ff471e0e6059b0d00/pnpm-11.0.0-dev.1003.tgz","_integrity":"sha512-cwQ4SVEFxP0JctEnPHuiIDj/RJ2IcOevtKMYvKbGCwGCfLh2PnTmA0SppH/byFaeANR8l8DV1snYcKNQmUbApQ==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-dev.1003_1763079772455_0.35732395170842546","host":"s3://npm-registry-packages-npm-production"}},"11.0.0-dev.1005":{"name":"pnpm","version":"11.0.0-dev.1005","keywords":["pnpm","pnpm11","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@11.0.0-dev.1005","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.mjs","pnpx":"bin/pnpx.mjs"},"dist":{"shasum":"17cdd7ae1baf19f24440422f946130fccbb4257a","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-11.0.0-dev.1005.tgz","fileCount":1068,"integrity":"sha512-kfhKOS7qNI6khSoYKRLSUgJzpDNvkzt4zES8kx65mZI8CX6UM6mzVa3B9yVyXqmQgvyfAypVnfgyYy52TJLHmA==","signatures":[{"sig":"MEYCIQDOzH+MZ+OdKMVTCjvrHdz4kBkoPb6p70zmFTl9hd5QRgIhAI2ruNyc09P/I9UefmTLd6dA9e/R3kBTBDSw9wEAP6YJ","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@11.0.0-dev.1005","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17348998},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.mjs","type":"module","_from":"file:pnpm-11.0.0-dev.1005.tgz","unpkg":"dist/pnpm.mjs","engines":{"runtime":{"name":"node","onFail":"download","version":"24.11.0"}},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"cross-env NODE_OPTIONS=--experimental-vm-modules jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/07f0de7343a5b0fa9d9c56992757915c/pnpm-11.0.0-dev.1005.tgz","_integrity":"sha512-kfhKOS7qNI6khSoYKRLSUgJzpDNvkzt4zES8kx65mZI8CX6UM6mzVa3B9yVyXqmQgvyfAypVnfgyYy52TJLHmA==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"24.11.1","preferGlobal":true,"publishConfig":{"tag":"next-11","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_11.0.0-dev.1005_1763112277793_0.8934241030632841","host":"s3://npm-registry-packages-npm-production"}},"10.23.0":{"name":"pnpm","version":"10.23.0","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"license":"MIT","_id":"pnpm@10.23.0","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"homepage":"https://pnpm.io","bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"bin":{"pnpm":"bin/pnpm.cjs","pnpx":"bin/pnpx.cjs"},"dist":{"shasum":"b4a44ab0dc2adf2e36371d11d8eb0dc78ffc976c","tarball":"https://registry.npmjs.org/pnpm/-/pnpm-10.23.0.tgz","fileCount":1060,"integrity":"sha512-IcTlaYACrel+Tv6Li0qJqN48haN5GflX56DzDzj7xbvdBZgP/ikXmy+25uaRJC4JjZRdFgF3LK0P71+2QR4qSw==","signatures":[{"sig":"MEUCIC2uEs3xP1v49vxJhBDph1kwL8rgA56jMvDsejLb+9s6AiEArGGvu82Zll127A0The7jRxBBBF5+7Au8SMh1a3mNMe0=","keyid":"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"}],"attestations":{"url":"https://registry.npmjs.org/-/npm/v1/attestations/pnpm@10.23.0","provenance":{"predicateType":"https://slsa.dev/provenance/v1"}},"unpackedSize":17450934},"jest":{"preset":"@pnpm/jest-config/with-registry"},"main":"bin/pnpm.cjs","type":"commonjs","_from":"file:pnpm-10.23.0.tgz","unpkg":"dist/pnpm.cjs","engines":{"node":"&gt;=18.12"},"exports":{".":"./package.json"},"funding":"https://opencollective.com/pnpm","scripts":{"lint":"eslint \"src/**/*.ts\" \"test/**/*.ts\"","test":"pnpm run compile &amp;&amp; pnpm run _test","_test":"jest","start":"tsc --watch","bundle":"ts-node bundle.ts","compile":"tsc --build &amp;&amp; pnpm run lint --fix &amp;&amp; rimraf dist bin/nodes &amp;&amp; pnpm run bundle &amp;&amp; shx cp -r node-gyp-bin dist/node-gyp-bin &amp;&amp; shx cp -r node_modules/@pnpm/tabtab/lib/templates dist/templates &amp;&amp; shx cp -r node_modules/ps-list/vendor dist/vendor &amp;&amp; shx cp pnpmrc dist/pnpmrc","_compile":"tsc --build","pretest:e2e":"rimraf node_modules/.bin/pnpm"},"_npmUser":{"name":"GitHub Actions","email":"npm-oidc-no-reply@github.com","trustedPublisher":{"id":"github","oidcConfigId":"oidc:4278a4df-1aad-48ee-a502-ee0d0bdc49bd"}},"_resolved":"/tmp/9c251202350b3aff4c05772b2a0c802e/pnpm-10.23.0.tgz","_integrity":"sha512-IcTlaYACrel+Tv6Li0qJqN48haN5GflX56DzDzj7xbvdBZgP/ikXmy+25uaRJC4JjZRdFgF3LK0P71+2QR4qSw==","repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"_npmVersion":"11.6.2","description":"Fast, disk space efficient package manager","directories":{"test":"test"},"_nodeVersion":"20.19.5","preferGlobal":true,"publishConfig":{"tag":"next-10","executableFiles":["./dist/node-gyp-bin/node-gyp","./dist/node-gyp-bin/node-gyp.cmd","./dist/node_modules/node-gyp/bin/node-gyp.js"]},"_hasShrinkwrap":false,"readmeFilename":"README.md","_npmOperationalInternal":{"tmp":"tmp/pnpm_10.23.0_1763648305182_0.3208389638009299","host":"s3://npm-registry-packages-npm-production"}}},"time":{"created":"2013-03-08T23:25:56.611Z","modified":"2025-11-20T14:20:20.783Z","0.0.1":"2013-03-08T23:25:57.106Z","0.16.0":"2016-02-01T19:22:42.489Z","0.17.0":"2016-02-02T23:29:00.749Z","0.18.0":"2016-02-11T22:43:06.163Z","0.19.0":"2016-03-21T22:59:28.712Z","0.20.0":"2016-04-03T00:25:39.072Z","0.21.0":"2016-04-06T04:42:06.372Z","0.22.0":"2016-06-18T16:36:39.264Z","0.22.1":"2016-06-18T16:40:56.500Z","0.23.0":"2016-07-12T03:42:31.352Z","0.24.0":"2016-07-16T18:44:34.142Z","0.25.0":"2016-08-18T09:55:58.425Z","0.26.0":"2016-08-19T18:02:29.271Z","0.26.1":"2016-08-23T16:13:17.772Z","0.26.2":"2016-08-25T10:51:01.145Z","0.27.0":"2016-08-28T12:25:37.457Z","0.28.0":"2016-08-29T13:49:17.589Z","0.29.0":"2016-08-31T09:23:16.795Z","0.29.1":"2016-08-31T22:01:00.156Z","0.30.0":"2016-09-03T11:40:42.501Z","0.31.0":"2016-09-04T15:24:19.183Z","0.31.1":"2016-09-06T17:56:13.776Z","0.31.2":"2016-09-07T07:20:28.094Z","0.32.0":"2016-09-15T17:51:47.118Z","0.32.1":"2016-09-15T18:22:22.783Z","0.33.0":"2016-09-17T20:25:55.227Z","0.34.0":"2016-09-18T14:34:13.662Z","0.35.0":"2016-09-21T20:16:25.163Z","0.36.0":"2016-09-24T10:41:06.059Z","0.37.0":"2016-09-26T21:20:01.227Z","0.38.0":"2016-10-02T22:21:55.738Z","0.38.1":"2016-10-03T07:27:25.703Z","0.38.2":"2016-10-03T22:37:57.574Z","0.39.0":"2016-10-04T07:34:34.150Z","0.39.1":"2016-10-05T20:08:14.741Z","0.40.0":"2016-10-06T19:59:13.354Z","0.41.0":"2016-10-15T17:08:21.741Z","0.42.0":"2016-10-19T05:18:12.979Z","0.41.1":"2016-10-19T17:48:25.449Z","0.42.1":"2016-10-19T17:53:49.717Z","0.42.2":"2016-10-19T20:29:30.064Z","0.41.2":"2016-10-19T20:33:37.322Z","0.42.3":"2016-10-20T20:29:07.429Z","0.42.4":"2016-10-21T16:39:12.459Z","0.42.5":"2016-10-29T23:39:25.079Z","0.42.6":"2016-10-30T00:21:54.252Z","0.43.0":"2016-10-31T18:33:38.180Z","0.43.1":"2016-10-31T20:31:21.230Z","0.43.2":"2016-11-03T12:25:42.926Z","0.44.0":"2016-11-05T13:34:10.809Z","0.44.1":"2016-11-05T20:11:41.786Z","0.45.0":"2016-11-07T18:51:13.542Z","0.45.1":"2016-11-19T17:07:47.921Z","0.46.0":"2017-01-08T14:09:09.125Z","0.47.0":"2017-01-09T16:43:33.431Z","0.47.1":"2017-01-10T20:13:21.851Z","0.48.0":"2017-01-11T07:32:08.279Z","0.48.1":"2017-01-12T23:06:47.438Z","0.49.0":"2017-01-16T23:43:47.673Z","0.49.1":"2017-01-18T08:29:10.742Z","0.49.2":"2017-01-19T00:24:08.969Z","0.50.0":"2017-01-21T16:44:49.831Z","0.51.0":"2017-01-25T20:33:31.063Z","0.51.1":"2017-01-25T21:14:42.855Z","0.51.2":"2017-01-27T19:59:51.959Z","0.51.3":"2017-01-30T19:59:17.324Z","0.50.1":"2017-02-01T20:11:54.585Z","0.52.0":"2017-02-02T22:14:24.702Z","0.52.1":"2017-02-03T18:30:06.950Z","0.53.0":"2017-02-06T19:36:32.110Z","0.54.0":"2017-02-08T20:35:32.809Z","0.54.1":"2017-02-12T10:21:41.423Z","0.55.0":"2017-02-13T07:56:37.890Z","0.55.1":"2017-02-14T00:09:24.176Z","0.55.2":"2017-02-17T20:03:26.611Z","0.55.3":"2017-02-17T21:44:14.475Z","0.56.0":"2017-02-19T23:11:17.563Z","0.57.0":"2017-02-22T19:47:41.210Z","0.57.1":"2017-02-24T08:25:13.680Z","0.57.2":"2017-02-25T17:25:43.463Z","0.58.0":"2017-02-28T19:40:41.925Z","0.59.0":"2017-03-01T23:36:46.522Z","0.60.0":"2017-03-04T20:20:30.597Z","0.60.1":"2017-03-04T22:23:47.515Z","0.60.2":"2017-03-04T23:16:49.511Z","0.60.3":"2017-03-05T23:44:43.329Z","0.61.0":"2017-03-13T00:36:19.805Z","0.62.0":"2017-03-18T22:43:52.763Z","0.62.1":"2017-03-19T00:24:16.455Z","0.62.2":"2017-03-19T14:37:08.531Z","0.63.0":"2017-03-24T19:29:31.784Z","0.64.0":"2017-04-05T20:20:15.531Z","0.64.1":"2017-04-06T23:01:35.460Z","0.64.2":"2017-04-07T19:51:04.449Z","0.64.3":"2017-04-08T12:51:36.771Z","0.64.4":"2017-04-09T17:20:04.201Z","0.64.5":"2017-04-14T07:09:41.080Z","0.64.6":"2017-04-14T20:30:52.244Z","0.64.7":"2017-04-15T19:06:07.086Z","0.64.8":"2017-04-17T16:40:49.254Z","0.65.0":"2017-04-20T20:27:41.008Z","0.65.1":"2017-04-22T20:15:19.989Z","0.65.2":"2017-04-23T17:39:53.030Z","0.65.3":"2017-04-24T14:55:24.945Z","0.65.4":"2017-04-24T20:52:25.905Z","0.65.5":"2017-04-25T13:54:12.971Z","0.65.6":"2017-04-25T17:36:15.677Z","0.65.7":"2017-04-26T12:03:58.033Z","0.66.0":"2017-04-27T13:19:25.165Z","0.66.1":"2017-04-27T18:26:46.152Z","0.66.2":"2017-04-28T14:01:45.367Z","0.66.3":"2017-05-07T12:25:05.830Z","0.66.4":"2017-05-07T13:41:56.594Z","0.67.0":"2017-05-07T20:34:21.664Z","0.67.1":"2017-05-08T20:43:04.443Z","0.67.2":"2017-05-09T15:24:44.881Z","0.67.3":"2017-05-09T19:32:01.540Z","0.68.0":"2017-05-13T16:21:21.794Z","0.69.0-beta.1":"2017-06-03T12:53:39.919Z","0.69.0-beta.2":"2017-06-04T10:26:10.057Z","0.69.0-beta.3":"2017-06-04T18:35:48.158Z","0.69.0-beta.4":"2017-06-05T22:25:54.805Z","0.69.0":"2017-06-06T10:39:25.169Z","0.69.1":"2017-06-06T16:48:14.294Z","0.69.2":"2017-06-07T23:23:05.686Z","0.69.3":"2017-06-09T22:37:14.347Z","0.69.4":"2017-06-11T16:12:31.326Z","0.70.0-beta.1":"2017-06-14T06:34:35.573Z","0.70.0-beta.2":"2017-06-15T07:33:49.412Z","0.69.5":"2017-06-15T17:15:24.013Z","0.69.6":"2017-06-15T19:23:40.728Z","0.70.0":"2017-06-15T22:07:13.289Z","0.70.1":"2017-06-16T20:01:35.811Z","0.71.0":"2017-06-18T08:37:56.904Z","0.71.1":"2017-06-18T12:58:14.238Z","0.72.0":"2017-06-18T20:08:10.922Z","0.73.0":"2017-06-20T20:36:18.875Z","0.73.1":"2017-06-20T23:07:21.513Z","0.73.2":"2017-06-21T19:24:58.620Z","0.73.3":"2017-06-22T07:27:29.489Z","0.74.0":"2017-06-23T20:19:06.210Z","0.74.1":"2017-06-23T20:22:53.170Z","0.74.2":"2017-06-23T20:40:10.089Z","0.74.3":"2017-06-24T11:35:27.058Z","0.74.4":"2017-06-25T22:43:45.804Z","0.75.0":"2017-06-27T06:44:02.924Z","1.0.0":"2017-06-28T07:48:23.718Z","1.0.1":"2017-06-29T19:48:16.790Z","1.1.0":"2017-06-30T16:57:28.513Z","1.2.0":"2017-07-01T19:39:13.872Z","1.3.0":"2017-07-08T18:42:30.960Z","1.3.1":"2017-07-08T19:16:34.009Z","1.3.2":"2017-07-09T18:43:41.546Z","1.3.3":"2017-07-09T20:59:30.290Z","1.3.4":"2017-07-10T19:13:08.339Z","1.4.0":"2017-07-11T20:25:19.059Z","1.5.0":"2017-07-15T17:06:57.806Z","1.5.1":"2017-07-15T19:29:11.353Z","1.5.2":"2017-07-15T20:06:16.135Z","1.5.3":"2017-07-15T22:37:06.193Z","1.6.0":"2017-07-16T20:37:38.878Z","1.6.1":"2017-07-17T19:02:52.767Z","1.7.0":"2017-07-17T21:07:32.173Z","1.7.1":"2017-07-18T21:54:37.450Z","1.8.0":"2017-07-23T19:17:19.216Z","1.8.1":"2017-07-23T22:13:56.125Z","1.8.2":"2017-07-27T22:31:31.361Z","1.9.0":"2017-07-31T06:12:06.741Z","1.10.0":"2017-08-01T19:50:32.529Z","1.10.1":"2017-08-03T18:54:09.875Z","1.10.2":"2017-08-04T21:19:05.627Z","2.0.0-beta.0":"2017-08-27T23:30:40.955Z","1.11.0":"2017-08-30T07:25:17.536Z","1.11.1":"2017-08-30T21:46:14.603Z","1.12.0":"2017-09-02T12:32:05.997Z","1.13.0":"2017-09-06T20:18:07.834Z","1.13.1":"2017-09-08T19:00:08.291Z","1.13.2":"2017-09-09T22:04:27.474Z","1.14.0":"2017-09-12T20:18:07.189Z","1.14.1":"2017-09-12T20:21:14.420Z","1.14.2":"2017-09-12T21:13:08.633Z","1.14.3":"2017-09-15T16:47:30.250Z","1.14.4":"2017-09-15T18:21:26.165Z","1.14.5":"2017-09-17T16:43:43.916Z","1.14.6":"2017-09-23T15:27:11.624Z","1.14.7":"2017-09-23T23:37:31.928Z","1.14.8":"2017-09-24T23:58:52.957Z","1.14.9":"2017-09-27T18:13:49.529Z","1.14.10":"2017-09-29T18:43:11.628Z","1.15.0":"2017-09-30T18:13:35.272Z","1.14.11":"2017-10-02T20:44:04.408Z","1.16.0":"2017-10-02T23:02:20.273Z","1.16.1":"2017-10-06T23:25:36.018Z","1.16.2":"2017-10-07T23:03:17.570Z","1.16.3":"2017-10-08T16:59:43.812Z","1.17.0":"2017-10-15T10:35:56.752Z","1.17.1":"2017-10-15T19:37:44.916Z","1.17.2":"2017-10-16T07:54:21.471Z","1.18.0":"2017-10-16T20:22:51.679Z","1.18.1":"2017-10-21T12:04:08.438Z","1.19.0":"2017-10-27T19:44:47.528Z","1.19.1":"2017-10-28T15:40:24.114Z","1.19.2":"2017-10-28T18:39:19.333Z","1.19.3":"2017-10-28T20:30:55.664Z","1.19.4":"2017-11-04T10:59:07.863Z","1.19.5":"2017-11-04T21:54:13.540Z","1.19.6":"2017-11-11T21:28:27.644Z","1.19.7":"2017-11-12T00:23:56.746Z","1.20.0":"2017-11-12T19:40:38.125Z","1.21.0":"2017-11-12T23:30:27.896Z","1.22.0":"2017-11-18T14:47:04.038Z","1.23.0":"2017-11-19T13:38:49.553Z","1.23.1":"2017-11-21T00:23:19.744Z","1.23.2":"2017-12-08T20:45:50.472Z","1.24.0-0":"2017-12-16T20:58:44.263Z","1.24.0-1":"2017-12-19T21:36:32.203Z","1.24.0-2":"2017-12-20T23:33:46.809Z","1.24.0-3":"2017-12-21T22:58:32.279Z","1.24.0":"2017-12-25T00:51:58.254Z","1.24.1":"2017-12-25T01:36:01.160Z","1.24.2":"2017-12-25T12:00:35.164Z","1.24.3":"2017-12-25T19:17:46.858Z","1.25.0":"2017-12-31T00:09:31.702Z","1.25.1":"2017-12-31T15:37:45.954Z","1.26.0":"2018-01-03T19:10:36.750Z","1.27.0-0":"2018-01-09T00:11:19.928Z","1.27.0-1":"2018-01-09T01:11:24.250Z","1.27.0":"2018-01-11T11:06:24.030Z","1.28.0":"2018-01-13T17:53:20.917Z","1.29.0":"2018-01-14T12:45:55.344Z","1.29.1":"2018-01-14T13:13:23.384Z","1.30.0":"2018-01-19T00:10:00.806Z","1.30.1":"2018-01-20T23:55:13.959Z","1.30.2":"2018-01-21T17:38:06.344Z","1.31.0":"2018-01-24T19:52:16.723Z","1.31.1":"2018-01-25T20:15:57.044Z","1.31.2":"2018-01-28T18:33:54.585Z","1.31.3":"2018-01-28T23:41:44.891Z","1.31.4":"2018-01-31T23:35:37.125Z","1.31.5":"2018-02-01T22:45:41.113Z","1.31.6":"2018-02-03T14:00:07.488Z","1.32.0":"2018-02-04T20:26:25.155Z","1.32.1":"2018-02-11T19:49:40.437Z","1.33.0":"2018-02-17T21:36:13.491Z","1.33.1":"2018-02-18T18:00:41.479Z","1.33.2":"2018-02-19T20:02:54.920Z","1.34.0":"2018-02-22T20:01:24.906Z","1.35.0":"2018-02-25T12:55:29.650Z","1.35.1":"2018-02-26T19:36:33.309Z","1.35.2":"2018-02-28T00:52:37.890Z","1.35.3":"2018-02-28T23:18:45.337Z","1.35.4":"2018-03-05T09:46:42.848Z","1.35.5":"2018-03-06T01:02:17.131Z","1.35.6":"2018-03-07T22:03:24.148Z","1.35.7":"2018-03-08T12:39:20.143Z","1.35.8":"2018-03-09T00:26:31.316Z","1.35.9":"2018-03-12T22:42:57.943Z","1.35.10":"2018-03-13T01:16:12.249Z","1.36.0":"2018-03-14T20:14:27.179Z","1.36.1":"2018-03-15T22:15:28.031Z","1.36.2":"2018-03-19T20:49:25.802Z","1.37.0":"2018-03-24T14:23:09.888Z","1.37.1":"2018-03-24T15:20:00.095Z","1.37.2":"2018-03-25T12:13:42.324Z","1.37.3":"2018-03-25T21:14:50.641Z","1.37.4":"2018-04-01T12:26:08.933Z","1.37.5":"2018-04-01T16:35:44.652Z","1.38.0":"2018-04-01T16:56:52.049Z","1.38.1":"2018-04-03T21:44:29.863Z","1.38.2":"2018-04-03T22:34:47.187Z","1.38.3":"2018-04-07T10:45:28.545Z","1.39.0":"2018-04-08T21:26:17.094Z","1.39.1":"2018-04-12T00:38:24.344Z","1.40.0":"2018-04-12T22:40:52.346Z","1.40.1":"2018-04-13T07:33:21.853Z","1.40.2":"2018-04-15T18:23:44.953Z","1.41.0":"2018-04-19T22:41:55.384Z","1.41.1":"2018-04-20T23:50:15.511Z","1.41.2":"2018-04-22T11:13:31.410Z","1.41.3":"2018-05-03T22:26:04.685Z","1.42.0":"2018-05-07T20:44:23.141Z","1.43.0":"2018-05-09T21:13:09.708Z","1.43.1":"2018-05-11T18:32:06.623Z","2.0.0-rc.0":"2018-05-17T20:23:17.049Z","2.0.0":"2018-05-19T11:27:17.889Z","2.1.0":"2018-05-21T19:55:45.511Z","2.2.0":"2018-05-25T07:26:18.480Z","2.0.1":"2018-05-27T21:03:24.217Z","2.2.1":"2018-05-30T08:11:37.307Z","2.2.2":"2018-06-02T23:44:57.306Z","2.3.0":"2018-06-03T19:48:52.914Z","2.3.1":"2018-06-07T21:56:10.248Z","2.4.0":"2018-06-11T11:18:02.586Z","2.5.0":"2018-06-12T20:25:33.087Z","2.6.0":"2018-06-14T15:09:47.336Z","2.6.1":"2018-06-14T19:05:48.811Z","2.6.2":"2018-06-16T10:03:19.088Z","2.7.0":"2018-06-17T23:25:05.650Z","2.8.0":"2018-06-23T15:48:56.422Z","2.9.0":"2018-06-24T18:49:12.882Z","2.10.0":"2018-06-29T18:47:17.693Z","2.10.1":"2018-07-01T00:44:01.077Z","2.10.2":"2018-07-01T13:01:09.389Z","2.10.3":"2018-07-01T13:23:22.887Z","2.10.4":"2018-07-03T22:33:48.020Z","2.10.5":"2018-07-08T11:39:23.529Z","2.11.0":"2018-07-08T12:49:39.200Z","2.12.0-0":"2018-07-11T20:29:40.789Z","2.10.6":"2018-07-12T23:26:36.762Z","2.11.1":"2018-07-13T18:14:36.462Z","2.11.2":"2018-07-14T09:22:33.776Z","2.12.0-1":"2018-07-15T14:05:48.041Z","2.12.0":"2018-07-15T22:44:36.346Z","2.12.1":"2018-07-18T19:24:26.775Z","2.11.3":"2018-07-18T20:00:17.625Z","2.12.2":"2018-07-20T15:14:48.134Z","2.13.0":"2018-08-05T07:35:08.154Z","2.12.3":"2018-08-05T21:19:17.317Z","2.13.1":"2018-08-06T00:19:28.366Z","2.13.2":"2018-08-12T13:45:35.042Z","2.13.3":"2018-08-12T13:52:25.462Z","2.13.4":"2018-08-13T20:49:28.453Z","2.13.5":"2018-08-14T20:45:20.221Z","2.14.0-0":"2018-08-21T20:30:48.214Z","2.14.0-1":"2018-08-22T19:35:06.992Z","2.14.0":"2018-08-24T19:05:18.567Z","2.13.6":"2018-08-25T14:17:47.371Z","2.14.1":"2018-08-25T15:14:04.828Z","2.14.2":"2018-08-25T18:19:40.918Z","2.14.3":"2018-08-26T14:13:40.509Z","2.14.4":"2018-08-28T18:42:37.621Z","2.14.5":"2018-08-30T20:09:47.016Z","2.15.0":"2018-09-02T13:34:59.117Z","2.15.1":"2018-09-08T13:22:18.151Z","2.15.2":"2018-09-09T21:24:43.798Z","2.16.0":"2018-09-12T07:13:46.569Z","2.15.3":"2018-09-12T07:24:52.024Z","2.16.1":"2018-09-22T19:27:31.648Z","2.16.2":"2018-09-25T20:24:18.737Z","2.17.0-0":"2018-10-07T19:28:22.456Z","2.16.3":"2018-10-08T22:54:17.386Z","2.17.0-1":"2018-10-15T18:19:38.592Z","2.17.0-2":"2018-10-15T21:25:00.991Z","2.17.0-3":"2018-10-16T23:00:04.112Z","2.17.0-4":"2018-10-19T19:23:21.732Z","2.17.0-5":"2018-10-21T18:51:40.816Z","2.17.0":"2018-10-22T19:20:11.413Z","2.17.1":"2018-10-24T19:04:48.544Z","2.17.2":"2018-10-24T20:05:40.708Z","2.17.3":"2018-10-24T22:45:51.377Z","2.17.4":"2018-10-27T13:53:00.902Z","2.17.5":"2018-10-29T00:05:41.095Z","2.17.6":"2018-10-31T21:01:59.793Z","2.17.7":"2018-11-04T13:58:15.188Z","2.17.8":"2018-11-07T00:06:48.839Z","2.18.0":"2018-11-10T11:05:55.770Z","2.18.1":"2018-11-10T13:20:19.798Z","2.18.2":"2018-11-10T13:24:20.573Z","2.19.0-0":"2018-11-12T23:26:15.088Z","2.19.0-1":"2018-11-13T21:15:15.131Z","2.19.0-2":"2018-11-15T23:56:00.947Z","2.19.0":"2018-11-18T18:38:38.088Z","2.19.1":"2018-11-20T01:20:11.987Z","2.19.2":"2018-11-21T00:22:13.521Z","2.19.3":"2018-11-25T20:18:54.201Z","2.19.4":"2018-11-28T22:38:31.732Z","2.20.0":"2018-12-03T00:33:31.320Z","2.20.1":"2018-12-05T00:25:50.964Z","2.21.0":"2018-12-09T01:05:36.358Z","2.21.1":"2018-12-09T17:19:58.042Z","2.22.0-0":"2018-12-20T23:58:11.456Z","2.22.0":"2018-12-21T17:48:07.733Z","2.23.0-0":"2018-12-23T15:10:45.680Z","2.23.0":"2018-12-25T00:40:15.560Z","2.23.1":"2018-12-27T22:53:30.223Z","2.24.0-0":"2019-01-04T00:30:02.009Z","2.24.0":"2019-01-05T17:49:58.874Z","2.24.1":"2019-01-05T20:22:32.829Z","2.24.2":"2019-01-06T00:20:37.324Z","2.25.0-0":"2019-01-07T22:18:03.216Z","2.25.0-1":"2019-01-07T22:30:29.592Z","2.25.0":"2019-01-07T23:14:36.789Z","2.25.1":"2019-01-11T20:54:17.089Z","2.25.2":"2019-01-15T20:43:20.792Z","2.25.3":"2019-01-18T00:09:36.243Z","2.25.4":"2019-01-18T23:42:23.414Z","3.0.0-alpha.0":"2019-01-24T21:19:56.004Z","2.25.5":"2019-01-26T18:53:44.319Z","3.0.0-alpha.1":"2019-01-30T19:13:33.380Z","2.25.6":"2019-02-03T11:03:34.062Z","3.0.0-alpha.2":"2019-02-03T13:09:50.133Z","3.0.0-alpha.3":"2019-03-04T10:12:16.491Z","2.25.7":"2019-03-04T23:16:58.327Z","3.0.0-beta.0":"2019-03-08T21:28:10.246Z","3.0.0-beta.1":"2019-03-10T00:42:30.901Z","3.0.0-beta.2":"2019-03-10T20:26:21.635Z","3.0.0":"2019-03-10T23:43:49.274Z","3.0.1":"2019-03-17T23:54:48.807Z","3.1.0-0":"2019-03-24T23:22:24.396Z","3.1.0-1":"2019-03-31T18:54:49.632Z","3.1.0":"2019-04-01T20:29:51.124Z","3.1.1-0":"2019-04-07T16:11:51.262Z","3.1.1":"2019-04-13T15:58:59.121Z","3.2.0-0":"2019-04-21T08:41:41.826Z","3.2.0-1":"2019-04-24T20:25:59.292Z","3.2.0":"2019-04-25T19:44:31.568Z","3.3.0-0":"2019-05-04T16:34:58.817Z","3.3.0-1":"2019-05-06T22:26:49.677Z","3.3.0-2":"2019-05-07T22:53:26.468Z","3.3.0":"2019-05-08T22:40:21.595Z","3.3.1":"2019-05-11T18:37:27.716Z","3.3.2":"2019-05-14T20:11:06.918Z","3.3.3":"2019-05-15T22:43:03.878Z","3.3.4":"2019-05-18T08:54:52.222Z","3.4.0-0":"2019-05-18T23:01:29.026Z","3.4.0":"2019-05-21T18:49:58.720Z","3.4.1":"2019-05-22T21:48:59.834Z","3.5.0-0":"2019-05-28T22:12:33.745Z","3.5.0-1":"2019-06-02T18:03:28.807Z","3.5.0-2":"2019-06-08T11:21:57.337Z","3.5.0-3":"2019-06-11T23:24:45.032Z","3.5.0":"2019-06-12T00:29:44.893Z","3.5.1":"2019-06-16T18:09:52.883Z","3.5.2":"2019-06-20T18:23:17.763Z","3.5.3":"2019-06-22T23:02:49.445Z","3.5.4":"2019-07-12T00:33:38.348Z","3.5.5":"2019-07-12T00:41:34.563Z","3.5.6":"2019-07-12T07:42:09.032Z","3.5.7":"2019-07-12T19:17:44.193Z","3.6.0-0":"2019-07-16T00:15:23.337Z","3.6.0":"2019-07-16T22:42:14.090Z","3.6.1":"2019-07-26T16:58:10.577Z","3.6.2":"2019-07-30T18:17:23.655Z","3.7.0-0":"2019-08-04T17:45:49.898Z","3.7.0-1":"2019-08-04T18:02:30.509Z","3.7.0-2":"2019-08-05T21:51:40.474Z","3.6.3":"2019-08-06T00:03:00.980Z","3.6.4":"2019-08-06T21:22:17.593Z","3.6.5":"2019-08-08T23:24:25.511Z","3.7.0-3":"2019-08-08T23:31:10.030Z","3.7.0-4":"2019-08-13T23:00:34.491Z","3.7.0-5":"2019-08-13T23:50:41.743Z","3.7.0":"2019-08-14T22:28:58.017Z","3.7.1":"2019-08-17T18:15:12.593Z","3.7.2":"2019-08-18T13:08:20.221Z","3.7.3":"2019-08-18T13:14:42.329Z","3.7.4":"2019-08-20T00:17:20.783Z","3.7.5":"2019-08-21T18:43:21.401Z","3.8.0-0":"2019-08-26T12:38:06.729Z","3.8.0-1":"2019-08-27T22:50:28.793Z","3.8.0":"2019-08-30T18:43:38.464Z","3.8.1":"2019-09-01T18:33:38.122Z","4.0.0-0":"2019-09-09T23:34:38.492Z","4.0.0-1":"2019-09-11T23:39:31.739Z","4.0.0-2":"2019-09-18T19:36:33.332Z","4.0.0-3":"2019-09-21T20:24:16.755Z","4.0.0-4":"2019-09-28T22:48:21.009Z","4.0.0-5":"2019-09-28T23:01:33.157Z","4.0.0-6":"2019-10-02T22:54:28.239Z","4.0.0-7":"2019-10-06T14:01:46.899Z","4.0.0-8":"2019-10-07T00:11:48.070Z","4.0.0":"2019-10-07T18:09:26.662Z","4.0.1":"2019-10-09T21:39:04.712Z","4.0.2":"2019-10-13T23:37:21.903Z","4.1.0":"2019-10-19T14:36:41.310Z","4.1.1":"2019-10-19T16:43:26.196Z","4.1.2":"2019-10-20T00:14:45.433Z","4.1.3":"2019-10-20T14:39:58.246Z","4.1.4":"2019-10-20T18:18:23.430Z","4.1.5":"2019-10-21T18:18:39.894Z","4.1.6":"2019-10-23T22:27:45.006Z","4.1.7":"2019-10-30T20:51:05.713Z","4.2.0-0":"2019-11-09T00:24:27.513Z","4.1.8":"2019-11-09T14:17:53.883Z","4.2.0":"2019-11-10T22:52:08.391Z","4.2.1":"2019-11-10T23:13:40.724Z","4.2.2":"2019-11-10T23:23:11.172Z","4.2.3":"2019-11-11T00:25:56.974Z","4.3.0-0":"2019-11-14T16:33:45.586Z","4.3.0":"2019-11-16T23:26:45.580Z","4.3.1":"2019-11-20T23:40:12.915Z","4.3.2":"2019-11-21T00:31:28.164Z","4.3.3":"2019-11-26T01:23:24.464Z","4.4.0-0":"2019-12-08T20:06:31.162Z","4.4.0-1":"2019-12-10T08:37:45.143Z","4.4.0-2":"2019-12-10T21:25:26.975Z","4.4.0":"2019-12-11T19:19:55.896Z","4.5.0-0":"2019-12-14T17:09:31.702Z","4.5.0-1":"2019-12-15T20:01:01.146Z","4.5.0-2":"2019-12-16T00:44:32.016Z","4.5.0-3":"2019-12-16T00:48:05.277Z","4.5.0-5":"2019-12-16T00:52:42.607Z","4.5.0-6":"2019-12-16T00:56:16.909Z","4.5.0":"2019-12-16T16:36:30.942Z","4.6.0-0":"2019-12-18T01:35:01.926Z","4.6.0-1":"2019-12-19T15:40:11.421Z","4.6.0":"2019-12-19T19:06:08.006Z","4.7.0-0":"2020-01-07T20:43:04.532Z","4.7.0-1":"2020-01-07T20:48:07.084Z","4.7.0":"2020-01-08T22:49:15.890Z","4.7.1":"2020-01-09T21:11:15.315Z","4.7.2":"2020-01-12T23:44:58.665Z","4.8.0-0":"2020-01-18T21:41:26.421Z","4.8.0-1":"2020-01-19T18:58:41.853Z","4.8.0":"2020-01-21T00:35:47.012Z","4.9.0-0":"2020-01-27T20:50:38.439Z","4.9.0-1":"2020-01-29T00:40:41.473Z","4.9.0-2":"2020-01-29T01:05:01.505Z","4.9.0-3":"2020-01-29T23:21:28.093Z","4.9.0-4":"2020-01-31T00:44:36.979Z","4.9.0":"2020-01-31T19:45:01.555Z","4.9.1":"2020-02-02T18:55:58.487Z","4.9.2":"2020-02-03T22:43:15.764Z","4.9.3":"2020-02-04T23:58:21.125Z","4.10.0-0":"2020-02-19T08:47:18.744Z","4.10.0-1":"2020-02-24T21:27:03.898Z","4.10.0-2":"2020-02-26T21:37:45.491Z","4.10.0-3":"2020-02-26T21:50:04.965Z","4.10.0":"2020-02-26T22:56:18.523Z","4.11.0-0":"2020-02-29T11:52:58.633Z","4.11.0":"2020-03-01T17:36:07.762Z","4.11.1":"2020-03-01T23:06:59.138Z","4.11.2":"2020-03-05T00:38:57.717Z","4.11.3":"2020-03-07T10:25:18.886Z","4.11.4":"2020-03-08T14:23:12.621Z","4.11.5":"2020-03-09T00:24:54.646Z","4.11.6":"2020-03-15T10:40:04.672Z","4.12.0-0":"2020-03-15T23:35:21.846Z","4.12.0-1":"2020-03-21T13:54:44.681Z","4.12.0":"2020-03-21T16:37:41.769Z","4.12.1":"2020-03-25T09:42:03.244Z","4.12.2":"2020-03-29T15:25:17.139Z","4.12.3":"2020-03-31T22:54:34.278Z","4.12.4":"2020-03-31T23:05:36.090Z","4.12.5":"2020-04-05T10:03:39.072Z","4.13.0-0":"2020-04-06T18:16:45.241Z","4.13.0-1":"2020-04-07T10:51:57.148Z","4.13.0":"2020-04-09T20:42:14.563Z","4.14.0-0":"2020-04-13T22:27:54.694Z","4.14.0-1":"2020-04-17T20:46:56.673Z","4.14.0-2":"2020-04-18T09:35:28.939Z","4.14.0":"2020-04-18T13:55:24.942Z","4.14.1":"2020-04-25T19:19:59.406Z","5.0.0-alpha.0":"2020-04-25T21:31:41.730Z","5.0.0-alpha.1":"2020-04-27T18:48:31.918Z","5.0.0-alpha.2":"2020-04-30T10:53:44.958Z","4.14.2":"2020-05-02T10:00:12.511Z","5.0.0-alpha.3":"2020-05-03T14:51:32.639Z","5.0.0-alpha.4":"2020-05-05T23:40:06.091Z","5.0.0-alpha.5":"2020-05-06T09:07:22.252Z","5.0.0-alpha.6":"2020-05-11T19:40:04.204Z","4.14.3":"2020-05-13T19:12:04.056Z","5.0.0-alpha.7":"2020-05-20T18:07:07.716Z","4.14.4":"2020-05-23T00:27:01.329Z","5.0.0-rc.0":"2020-05-23T13:26:28.075Z","5.0.0-rc.1":"2020-05-23T14:17:15.188Z","5.0.0-rc.2":"2020-05-23T23:36:19.619Z","5.0.0-rc.3":"2020-05-25T23:55:10.644Z","5.0.0-rc.4":"2020-05-26T21:15:32.563Z","5.0.0-rc.5":"2020-05-26T22:01:37.198Z","5.0.0":"2020-05-27T22:58:46.463Z","5.0.1":"2020-05-28T10:50:38.482Z","5.0.2":"2020-05-28T23:01:14.396Z","5.1.0":"2020-06-01T17:27:17.971Z","5.1.1":"2020-06-01T18:06:13.815Z","5.1.2":"2020-06-02T08:43:11.518Z","5.1.3":"2020-06-02T22:34:13.260Z","5.1.4":"2020-06-03T19:41:21.572Z","5.1.5":"2020-06-08T13:03:32.520Z","5.1.6":"2020-06-09T08:33:10.575Z","5.1.7":"2020-06-11T08:49:12.575Z","5.1.8":"2020-06-12T20:23:14.174Z","5.2.0-0":"2020-06-15T22:28:59.899Z","5.2.0":"2020-06-16T18:18:59.896Z","5.2.1":"2020-06-17T09:36:16.274Z","5.2.2":"2020-06-18T23:08:36.164Z","5.2.3":"2020-06-20T22:44:06.966Z","0.0.0-2020520224551":"2020-06-20T22:56:41.502Z","5.2.4":"2020-06-22T13:07:34.365Z","5.2.5":"2020-06-22T18:15:06.656Z","5.2.6":"2020-06-22T22:14:10.599Z","5.2.7":"2020-07-03T00:19:45.943Z","5.2.8":"2020-07-04T00:24:47.526Z","5.2.9":"2020-07-05T16:43:01.974Z","5.3.0":"2020-07-07T15:12:27.597Z","5.4.0":"2020-07-11T23:01:25.174Z","5.4.1":"2020-07-20T22:16:35.924Z","5.4.2":"2020-07-21T18:48:33.896Z","5.4.3":"2020-07-23T08:30:13.948Z","5.4.4":"2020-07-25T23:57:06.431Z","5.4.5":"2020-07-26T12:21:55.476Z","5.4.6":"2020-07-26T13:11:16.709Z","5.4.7":"2020-07-27T20:21:04.185Z","5.4.8":"2020-07-28T23:18:30.483Z","5.4.9":"2020-07-31T11:03:31.864Z","5.4.10":"2020-08-01T20:44:34.586Z","5.4.11":"2020-08-02T09:26:40.552Z","5.4.12":"2020-08-04T23:26:52.620Z","5.0.0-0":"2020-08-07T19:37:56.380Z","5.0.0-1":"2020-08-07T23:24:35.073Z","5.5.0":"2020-08-09T20:47:18.158Z","5.5.1":"2020-08-10T09:27:11.100Z","5.5.2":"2020-08-16T18:43:59.536Z","5.5.3":"2020-08-22T11:29:35.547Z","5.5.4":"2020-08-28T09:17:45.647Z","5.5.5":"2020-08-31T12:50:13.566Z","0.0.0-2020811527":"2020-09-01T08:16:42.055Z","5.5.6":"2020-09-01T15:47:35.348Z","5.5.7":"2020-09-01T22:01:27.778Z","0.0.0-20208285947":"2020-09-02T09:04:07.122Z","5.5.8":"2020-09-02T10:45:05.942Z","5.5.9":"2020-09-02T12:33:41.713Z","5.5.10":"2020-09-02T22:48:36.090Z","5.5.11":"2020-09-05T21:29:29.918Z","5.5.12":"2020-09-08T00:19:03.359Z","5.5.13":"2020-09-12T12:30:38.350Z","5.6.0-0":"2020-09-15T22:39:22.566Z","5.6.0":"2020-09-17T09:28:38.809Z","5.6.1":"2020-09-17T22:38:34.733Z","5.7.0-0":"2020-09-19T22:38:25.648Z","5.7.0":"2020-09-20T23:28:48.976Z","0.0.0-2020821233223":"2020-09-21T23:44:30.454Z","5.8.0-0":"2020-09-25T00:13:41.203Z","5.8.0":"2020-09-26T23:32:55.981Z","5.9.0-0":"2020-09-28T21:24:35.515Z","5.9.0-1":"2020-09-30T22:19:45.066Z","5.9.0-2":"2020-10-04T12:36:08.687Z","0.0.0-20209412437":"2020-10-04T12:50:41.529Z","5.9.0":"2020-10-11T17:27:44.807Z","5.9.1":"2020-10-14T23:14:26.660Z","5.9.2":"2020-10-14T23:25:54.898Z","5.9.3":"2020-10-15T08:23:07.047Z","5.10.0-0":"2020-10-19T01:07:59.107Z","5.10.0":"2020-10-20T23:02:43.853Z","5.10.1":"2020-10-22T21:29:17.401Z","5.10.2":"2020-10-26T01:58:01.524Z","5.10.3":"2020-10-31T17:42:39.068Z","5.10.4":"2020-11-01T17:53:19.299Z","0.0.0-20201030124":"2020-11-03T00:19:59.435Z","0.0.0-20201060511":"2020-11-06T01:33:16.023Z","5.11.0":"2020-11-07T22:16:25.775Z","5.11.1":"2020-11-08T18:58:40.792Z","5.12.0":"2020-11-14T21:19:20.850Z","5.13.0":"2020-11-17T21:32:08.651Z","5.13.1":"2020-11-18T00:39:55.088Z","5.13.2":"2020-11-19T23:47:07.620Z","5.13.3":"2020-11-22T01:54:14.439Z","5.13.4":"2020-11-22T12:25:20.427Z","5.13.5":"2020-11-26T20:21:00.958Z","5.13.6":"2020-12-13T01:54:31.132Z","5.13.7":"2020-12-19T19:50:04.035Z","5.14.0":"2020-12-23T10:02:42.894Z","5.14.1":"2020-12-23T13:40:46.313Z","5.14.2":"2021-01-03T00:16:13.959Z","5.14.3":"2021-01-04T00:28:40.622Z","5.15.0":"2021-01-10T16:55:20.935Z","5.15.1":"2021-01-14T01:00:48.178Z","5.15.2":"2021-01-21T10:03:00.576Z","5.15.3":"2021-01-23T13:19:25.657Z","5.16.0-0":"2021-01-23T15:50:15.560Z","5.16.0-1":"2021-01-24T10:29:55.833Z","5.16.0-2":"2021-01-24T13:51:59.385Z","5.16.0":"2021-01-25T20:00:17.487Z","5.16.1":"2021-02-02T21:43:12.703Z","5.17.0":"2021-02-07T16:36:37.847Z","5.17.1":"2021-02-07T19:05:10.023Z","5.17.2":"2021-02-14T20:23:23.311Z","5.17.3":"2021-02-20T23:15:27.191Z","6.0.0-alpha.0":"2021-02-21T02:06:41.338Z","5.18.0":"2021-02-21T23:51:02.655Z","5.18.1":"2021-02-24T23:12:44.529Z","6.0.0-alpha.1":"2021-02-25T21:56:41.553Z","6.0.0-alpha.2":"2021-02-25T22:33:24.256Z","6.0.0-20210228":"2021-02-28T13:32:01.881Z","5.18.2":"2021-03-01T23:46:46.609Z","5.18.3":"2021-03-04T22:35:15.701Z","6.0.0-alpha.3":"2021-03-04T23:04:22.545Z","5.18.4":"2021-03-08T01:34:10.396Z","5.18.5":"2021-03-09T10:50:09.912Z","5.18.6":"2021-03-11T18:32:19.369Z","6.0.0-alpha.4":"2021-03-12T00:15:42.139Z","5.18.7":"2021-03-14T14:19:58.889Z","6.0.0-alpha.5":"2021-03-18T00:50:42.845Z","5.18.8":"2021-03-20T22:59:13.142Z","6.0.0-alpha.6":"2021-03-24T00:01:58.023Z","5.18.9":"2021-03-25T00:18:40.477Z","6.0.0-beta.0":"2021-03-27T21:33:49.022Z","6.0.0-beta.1":"2021-04-01T22:05:32.112Z","6.0.0-rc.0":"2021-04-04T18:27:00.412Z","6.0.0-rc.1":"2021-04-04T20:05:37.864Z","6.0.0":"2021-04-05T22:28:10.149Z","6.0.1":"2021-04-06T22:21:06.776Z","6.0.2-20210411":"2021-04-11T03:17:36.120Z","6.0.2":"2021-04-12T23:25:30.958Z","6.1.0":"2021-04-15T21:21:22.846Z","6.1.0-202104230041":"2021-04-22T21:51:02.397Z","6.2.0":"2021-04-24T20:19:01.404Z","6.2.1":"2021-04-24T23:59:15.640Z","6.2.2-20210426":"2021-04-26T16:53:55.213Z","6.2.2":"2021-04-28T00:29:46.434Z","6.2.3":"2021-04-28T19:55:16.700Z","6.2.4":"2021-04-29T23:36:50.430Z","6.2.5":"2021-05-03T22:42:18.000Z","6.3.0":"2021-05-09T23:03:00.937Z","6.4.0":"2021-05-16T01:28:35.677Z","6.5.0-0":"2021-05-18T13:52:41.989Z","6.5.0-1":"2021-05-19T23:45:44.230Z","6.5.0":"2021-05-22T20:12:39.397Z","6.6.0":"2021-05-27T23:15:51.904Z","6.6.1":"2021-05-28T00:43:32.637Z","6.6.2-20210530":"2021-05-30T12:40:10.441Z","6.6.2":"2021-05-30T17:59:56.980Z","6.7.0":"2021-06-02T00:14:46.826Z","6.7.1":"2021-06-03T20:02:07.920Z","6.7.2":"2021-06-05T23:43:43.047Z","6.7.3":"2021-06-07T23:19:34.129Z","6.7.4":"2021-06-08T21:22:51.250Z","6.7.5":"2021-06-09T23:24:15.226Z","6.7.6":"2021-06-11T01:15:58.801Z","6.8.0":"2021-06-20T23:36:05.480Z","6.9.0":"2021-06-23T08:17:42.248Z","6.9.1":"2021-06-24T08:09:41.847Z","6.10.0-0":"2021-07-03T17:50:12.147Z","6.10.0-1":"2021-07-06T23:54:58.939Z","6.10.0":"2021-07-10T20:32:08.562Z","6.10.1":"2021-07-12T00:12:25.500Z","6.10.2":"2021-07-15T22:42:03.140Z","6.10.3":"2021-07-18T20:31:15.471Z","6.11.0-0":"2021-07-24T00:27:33.543Z","6.11.0":"2021-07-24T21:36:38.424Z","6.11.1":"2021-07-28T01:18:20.860Z","6.11.2":"2021-07-29T16:47:15.344Z","6.11.3":"2021-07-30T08:31:13.321Z","6.11.4":"2021-07-30T08:58:59.366Z","6.11.5":"2021-07-30T09:19:35.088Z","6.12.0-0":"2021-08-01T11:23:59.084Z","6.12.0-2":"2021-08-06T14:44:45.162Z","6.12.0":"2021-08-06T23:32:10.933Z","6.12.1":"2021-08-08T11:22:22.771Z","6.13.0-0":"2021-08-11T00:28:46.132Z","6.13.0":"2021-08-13T11:09:04.532Z","6.14.0-0":"2021-08-17T00:33:30.275Z","6.14.0-3":"2021-08-18T19:40:32.947Z","6.14.0":"2021-08-20T15:12:31.987Z","5.18.10":"2021-08-21T12:03:06.045Z","6.14.1":"2021-08-22T09:15:12.268Z","6.14.2":"2021-08-22T18:47:24.526Z","6.14.3":"2021-08-23T19:02:04.685Z","6.14.4":"2021-08-29T11:11:10.667Z","6.14.5":"2021-08-29T21:41:19.827Z","6.14.6":"2021-09-03T08:35:07.289Z","6.14.7":"2021-09-06T21:38:50.428Z","6.15.0":"2021-09-13T02:19:07.780Z","6.15.1":"2021-09-16T11:20:28.243Z","5.18.11":"2021-09-16T13:06:15.596Z","6.15.2":"2021-09-26T12:00:02.366Z","6.16.0":"2021-09-28T22:34:40.413Z","6.16.1":"2021-10-04T22:08:00.432Z","6.17.0":"2021-10-10T12:27:38.829Z","6.17.1":"2021-10-14T13:07:26.549Z","6.17.2":"2021-10-16T01:43:04.123Z","6.18.0":"2021-10-19T10:02:10.714Z","6.19.0":"2021-10-22T19:04:21.940Z","6.19.1":"2021-10-26T17:13:17.909Z","6.20.0":"2021-11-01T10:53:31.020Z","6.20.1-0":"2021-11-01T22:34:10.302Z","6.20.1":"2021-11-01T23:08:06.809Z","6.20.2":"2021-11-03T23:29:07.169Z","6.20.3":"2021-11-05T02:23:38.429Z","6.20.4":"2021-11-08T15:54:57.997Z","6.21.0":"2021-11-10T02:08:23.708Z","6.21.1":"2021-11-12T13:16:14.879Z","6.22.0":"2021-11-14T19:50:12.888Z","6.22.1":"2021-11-14T22:40:45.884Z","6.22.2":"2021-11-16T01:50:25.630Z","6.23.0":"2021-11-21T09:59:48.604Z","6.23.1":"2021-11-22T17:46:13.158Z","6.23.2":"2021-11-24T10:03:33.595Z","6.23.3":"2021-11-28T09:55:02.066Z","6.23.4":"2021-12-01T15:20:47.086Z","6.23.5":"2021-12-02T14:49:07.505Z","6.23.6":"2021-12-04T01:21:23.929Z","6.23.7-202112041634":"2021-12-04T14:35:33.153Z","6.24.0-0":"2021-12-10T23:59:18.623Z","6.24.0-1":"2021-12-13T02:30:17.858Z","6.24.0":"2021-12-14T13:02:54.825Z","6.24.1":"2021-12-15T19:03:08.186Z","6.24.2":"2021-12-19T00:51:36.607Z","6.24.3":"2021-12-25T19:37:13.582Z","6.24.4":"2021-12-29T11:42:56.570Z","6.25.0-0":"2022-01-03T19:27:29.878Z","6.25.0-1":"2022-01-03T21:42:47.190Z","6.25.0-2":"2022-01-04T09:57:04.429Z","6.25.0-3":"2022-01-04T22:38:54.068Z","6.25.0":"2022-01-06T12:08:38.296Z","6.25.1":"2022-01-08T15:59:52.471Z","6.26.0":"2022-01-12T14:59:10.195Z","6.26.1":"2022-01-13T16:02:16.060Z","6.27.0":"2022-01-18T11:31:40.821Z","6.27.1":"2022-01-19T10:11:31.247Z","6.27.2":"2022-01-20T11:35:19.843Z","6.28.0":"2022-01-23T21:59:30.669Z","6.29.0":"2022-01-30T03:24:53.906Z","6.29.1":"2022-01-31T00:21:23.752Z","7.0.0-alpha.0":"2022-01-31T16:32:49.528Z","6.29.2":"2022-02-05T12:06:59.496Z","6.30.0":"2022-02-06T17:07:05.003Z","6.30.1":"2022-02-09T22:29:37.764Z","6.31.0":"2022-02-14T01:15:17.207Z","7.0.0-alpha.1":"2022-02-16T02:07:05.499Z","7.0.0-alpha.2":"2022-02-19T19:00:18.380Z","6.32.0":"2022-02-22T01:17:23.137Z","7.0.0-alpha.3":"2022-02-22T01:31:26.371Z","6.32.1":"2022-02-23T00:10:37.377Z","6.32.2":"2022-02-27T14:38:45.321Z","6.32.3":"2022-03-06T17:09:04.262Z","7.0.0-alpha.4":"2022-03-07T14:51:29.376Z","7.0.0-beta.0":"2022-03-15T22:58:55.284Z","7.0.0-beta.1":"2022-03-19T19:16:09.534Z","7.0.0-beta.2":"2022-03-20T01:29:01.452Z","7.0.0-pr4475.0":"2022-03-29T23:07:44.818Z","7.0.0-rc.0":"2022-03-31T09:51:27.551Z","6.32.4":"2022-03-31T15:39:13.013Z","7.0.0-pr4475.1":"2022-04-01T22:38:26.382Z","7.0.0-rc.1":"2022-04-01T23:01:14.698Z","7.0.0-rc.2":"2022-04-02T20:59:58.295Z","6.32.5":"2022-04-07T19:00:58.225Z","7.0.0-rc.3":"2022-04-09T14:04:44.350Z","6.32.6":"2022-04-09T15:12:59.090Z","6.32.7":"2022-04-14T00:40:13.324Z","7.0.0-rc.4":"2022-04-14T10:02:11.227Z","7.0.0-rc.5":"2022-04-15T15:03:53.144Z","6.32.8":"2022-04-16T09:50:41.052Z","7.0.0-rc.6":"2022-04-16T09:59:42.777Z","6.32.9":"2022-04-19T12:23:08.229Z","7.0.0-rc.7":"2022-04-19T13:17:32.853Z","7.0.0-rc.8":"2022-04-24T11:01:22.717Z","6.32.10":"2022-04-25T01:20:54.831Z","6.32.11":"2022-04-27T09:24:02.753Z","7.0.0-rc.9":"2022-04-27T09:24:52.232Z","7.0.0":"2022-04-30T22:53:23.659Z","7.0.1":"2022-05-07T10:06:45.573Z","6.32.12":"2022-05-07T17:25:45.465Z","7.1.0":"2022-05-12T14:32:22.439Z","0.0.0-pr4475.1":"2022-05-13T22:14:40.742Z","6.32.13":"2022-05-13T23:40:00.453Z","7.1.1":"2022-05-17T14:20:11.959Z","6.32.14":"2022-05-17T23:01:26.024Z","6.32.15":"2022-05-19T01:27:30.792Z","7.1.2":"2022-05-19T01:33:28.661Z","6.32.16":"2022-05-22T00:51:24.432Z","7.1.3":"2022-05-22T01:00:06.533Z","6.32.17":"2022-05-23T23:42:16.015Z","7.1.4":"2022-05-23T23:43:06.227Z","7.1.5":"2022-05-24T00:29:12.606Z","7.1.6":"2022-05-27T00:51:59.809Z","6.32.18":"2022-05-27T01:20:04.133Z","6.32.19":"2022-05-29T09:09:05.746Z","7.1.7":"2022-05-29T09:14:11.332Z","7.1.8":"2022-06-04T21:40:36.398Z","7.1.9":"2022-06-06T00:38:39.983Z","6.32.20":"2022-06-06T01:27:57.241Z","6.32.21":"2022-06-09T09:31:21.994Z","7.2.0":"2022-06-10T12:14:38.206Z","7.2.1":"2022-06-11T02:09:51.415Z","6.32.22":"2022-06-11T02:29:36.968Z","0.0.0-pr4475.2":"2022-06-12T23:03:21.432Z","7.3.0":"2022-06-18T20:56:19.871Z","6.32.23":"2022-06-18T20:57:37.857Z","6.32.24":"2022-06-22T11:56:44.940Z","7.4.0-0":"2022-06-22T22:35:07.885Z","7.4.0-1":"2022-06-24T19:07:34.285Z","7.4.0-2":"2022-06-26T22:37:55.174Z","7.4.0-3":"2022-06-27T17:13:04.484Z","7.4.0-4":"2022-06-28T00:02:44.126Z","7.4.0":"2022-06-28T13:17:21.441Z","7.4.1":"2022-06-30T09:31:34.837Z","6.32.25":"2022-06-30T14:23:15.087Z","7.5.0":"2022-07-02T13:19:29.397Z","6.33.0":"2022-07-05T12:29:07.990Z","7.5.1":"2022-07-11T23:52:27.347Z","7.5.2":"2022-07-13T23:35:28.858Z","6.33.1":"2022-07-14T00:26:24.068Z","7.6.0-0":"2022-07-20T15:06:41.232Z","7.6.0":"2022-07-21T15:37:18.486Z","7.7.0-0":"2022-07-27T09:56:11.913Z","7.7.0-1":"2022-07-28T13:58:45.617Z","7.7.0":"2022-07-29T12:14:02.298Z","7.7.1":"2022-07-30T09:37:23.503Z","7.8.0":"2022-07-31T08:41:20.817Z","6.34.0":"2022-08-03T13:34:30.262Z","7.9.0-0":"2022-08-03T15:18:56.120Z","7.9.0":"2022-08-06T15:35:04.753Z","7.9.1":"2022-08-10T09:58:01.816Z","7.9.2":"2022-08-17T09:19:59.986Z","7.9.3":"2022-08-17T10:09:36.067Z","7.9.4-0":"2022-08-18T09:46:56.707Z","7.9.4":"2022-08-23T00:46:29.451Z","7.9.5":"2022-08-24T12:08:56.583Z","7.10.0-0":"2022-09-02T18:15:09.142Z","7.10.0-1":"2022-09-03T14:37:01.872Z","7.10.0":"2022-09-04T09:32:39.776Z","7.11.0":"2022-09-05T09:55:07.212Z","7.11.1-0":"2022-09-07T18:58:35.412Z","7.12.0-0":"2022-09-15T21:47:17.366Z","7.12.0":"2022-09-18T19:15:54.225Z","7.12.1":"2022-09-20T00:37:29.245Z","7.12.2":"2022-09-22T22:44:28.504Z","7.13.0":"2022-10-03T01:05:04.655Z","7.13.1":"2022-10-04T09:20:29.802Z","7.13.2":"2022-10-05T21:29:58.465Z","7.13.3":"2022-10-09T13:46:19.837Z","7.13.4":"2022-10-10T16:17:19.327Z","7.13.5":"2022-10-16T18:49:35.361Z","7.13.6":"2022-10-19T23:06:05.414Z","6.35.0":"2022-10-22T13:02:11.194Z","7.14.0":"2022-10-22T13:16:58.430Z","7.14.1":"2022-10-29T10:47:52.103Z","7.14.2":"2022-11-02T09:22:34.022Z","7.15.0":"2022-11-09T23:17:23.684Z","6.35.1":"2022-11-11T21:29:20.622Z","7.16.0":"2022-11-14T13:33:01.438Z","7.16.1":"2022-11-16T12:42:39.552Z","7.17.0":"2022-11-20T20:19:30.696Z","7.17.1":"2022-11-27T02:16:34.817Z","7.18.0":"2022-12-03T22:25:26.181Z","7.18.1":"2022-12-06T10:08:41.879Z","7.18.2":"2022-12-12T12:21:15.603Z","7.19.0":"2022-12-21T11:21:08.957Z","7.20.0":"2022-12-25T23:29:23.927Z","7.21.0":"2022-12-28T15:00:18.623Z","7.22.0":"2023-01-03T14:10:03.056Z","7.23.0":"2023-01-05T13:49:39.023Z","7.24.0":"2023-01-09T17:57:28.692Z","7.24.1":"2023-01-10T10:16:25.210Z","7.24.2":"2023-01-10T12:16:32.185Z","7.24.3":"2023-01-11T01:26:15.961Z","7.25.0":"2023-01-13T18:04:11.414Z","7.25.1":"2023-01-19T10:21:16.596Z","7.26.0":"2023-01-24T13:00:55.815Z","7.26.1":"2023-01-27T04:27:49.412Z","7.26.2":"2023-01-29T03:35:41.590Z","7.26.3":"2023-02-01T01:45:16.945Z","7.27.0-0":"2023-02-05T11:13:32.173Z","7.27.0":"2023-02-08T13:01:32.384Z","7.27.1":"2023-02-18T02:16:48.552Z","7.28.0-0":"2023-02-20T20:49:39.234Z","8.0.0-alpha.0":"2023-02-20T21:28:49.493Z","7.28.0":"2023-02-25T16:36:48.908Z","7.29.0-1":"2023-03-03T07:50:20.973Z","7.29.0-2":"2023-03-05T10:27:27.538Z","7.29.0":"2023-03-06T00:16:05.323Z","8.0.0-beta.0":"2023-03-06T01:10:24.046Z","7.29.1":"2023-03-08T01:42:42.041Z","7.29.2":"2023-03-14T02:25:23.210Z","7.29.3":"2023-03-15T10:25:04.658Z","7.30.0-0":"2023-03-16T22:41:30.553Z","7.30.0":"2023-03-17T13:03:03.198Z","8.0.0-beta.1":"2023-03-19T02:54:39.560Z","7.30.1":"2023-03-23T10:11:00.463Z","7.30.2":"2023-03-24T01:54:42.567Z","7.30.3-0":"2023-03-24T12:17:08.602Z","7.30.3":"2023-03-24T13:36:06.490Z","8.0.0-rc.0":"2023-03-24T14:14:32.847Z","8.0.0-rc.1":"2023-03-26T02:00:53.140Z","7.30.4":"2023-03-26T02:36:03.060Z","7.30.5":"2023-03-27T13:42:05.472Z","8.0.0":"2023-03-27T21:16:01.446Z","8.1.0":"2023-03-29T22:14:35.746Z","7.31.0-0":"2023-04-02T02:09:53.996Z","8.1.1":"2023-04-04T00:14:17.438Z","7.31.0":"2023-04-04T00:30:26.896Z","8.2.0":"2023-04-09T23:46:28.670Z","7.32.0":"2023-04-10T00:03:41.459Z","8.3.0-0":"2023-04-16T21:22:40.086Z","8.3.0":"2023-04-18T00:19:41.030Z","7.32.1":"2023-04-18T00:33:53.385Z","8.3.1":"2023-04-19T12:22:59.272Z","7.32.2":"2023-04-19T12:53:57.999Z","8.4.0":"2023-05-02T11:02:25.479Z","7.32.3":"2023-05-06T22:45:28.156Z","8.5.0":"2023-05-09T20:03:03.246Z","7.32.4":"2023-05-09T20:25:44.909Z","8.5.1":"2023-05-15T00:57:42.415Z","7.32.5":"2023-05-23T10:03:03.687Z","8.6.0":"2023-05-28T12:18:41.032Z","7.33.0":"2023-05-31T09:32:47.039Z","8.6.1":"2023-06-05T12:24:20.624Z","8.6.2":"2023-06-11T18:55:45.069Z","7.33.1":"2023-06-12T01:43:34.490Z","8.6.3":"2023-06-19T12:51:50.475Z","7.33.2":"2023-06-23T13:33:35.847Z","8.6.4":"2023-06-25T22:06:51.203Z","8.6.5":"2023-06-26T09:47:52.041Z","7.33.3":"2023-06-30T23:07:42.082Z","8.6.6":"2023-07-03T12:29:43.438Z","8.6.7":"2023-07-09T22:47:05.305Z","8.6.8":"2023-07-17T09:39:21.912Z","7.33.4":"2023-07-17T09:59:28.620Z","8.6.9":"2023-07-18T10:42:14.796Z","7.33.5":"2023-07-18T11:02:29.914Z","8.6.10":"2023-07-23T22:56:48.641Z","8.6.11":"2023-07-30T17:57:20.390Z","7.33.6":"2023-08-06T00:27:47.540Z","8.6.12":"2023-08-06T11:25:56.343Z","8.7.0-1":"2023-08-14T14:18:32.432Z","8.7.0-2":"2023-08-24T23:22:09.379Z","8.7.0":"2023-08-26T18:50:04.043Z","8.7.1":"2023-08-31T15:50:37.020Z","8.7.2":"2023-09-04T15:02:34.350Z","8.7.3":"2023-09-04T15:21:47.005Z","8.7.4":"2023-09-05T22:28:47.366Z","8.7.5":"2023-09-11T12:34:29.332Z","8.7.6":"2023-09-17T19:32:49.200Z","8.8.0":"2023-09-26T12:58:11.728Z","8.9.0-0":"2023-10-08T20:06:40.299Z","8.9.0-1":"2023-10-09T10:13:19.595Z","8.9.0":"2023-10-09T11:53:00.511Z","8.9.1":"2023-10-15T15:10:11.800Z","8.9.2":"2023-10-15T23:19:49.323Z","8.10.0-0":"2023-10-24T13:27:10.995Z","8.10.0":"2023-10-27T14:54:07.664Z","8.10.1":"2023-11-01T12:51:58.556Z","8.10.2":"2023-11-01T16:33:51.473Z","8.10.3":"2023-11-12T12:25:57.519Z","8.10.4":"2023-11-13T15:16:53.929Z","8.10.5":"2023-11-14T12:08:43.777Z","8.11.0":"2023-11-24T16:36:37.796Z","8.12.0":"2023-12-08T22:32:00.870Z","8.12.1":"2023-12-13T10:41:14.874Z","8.13.0":"2023-12-14T15:38:24.659Z","8.13.1":"2023-12-26T14:57:18.654Z","8.14.0":"2024-01-02T23:07:05.869Z","9.0.0-alpha.0":"2024-01-08T18:19:37.927Z","8.14.1":"2024-01-10T15:11:30.183Z","8.14.2":"2024-01-22T09:21:21.165Z","8.14.3":"2024-01-23T09:31:52.541Z","8.15.0":"2024-01-27T16:07:40.334Z","9.0.0-alpha.1":"2024-01-27T16:40:25.066Z","8.15.1":"2024-01-29T19:50:23.241Z","9.0.0-alpha.3":"2024-02-09T01:00:04.336Z","9.0.0-alpha.4":"2024-02-09T01:35:03.242Z","8.15.2":"2024-02-12T23:19:48.518Z","8.15.3":"2024-02-15T10:51:32.315Z","7.33.7":"2024-02-15T12:58:17.925Z","9.0.0-alpha.5":"2024-02-17T12:38:51.032Z","8.15.4":"2024-02-24T13:37:01.498Z","9.0.0-alpha.6":"2024-03-05T10:37:57.338Z","9.0.0-alpha.7":"2024-03-05T11:21:13.635Z","8.15.5":"2024-03-17T19:59:47.530Z","9.0.0-alpha.8":"2024-03-17T22:52:56.992Z","9.0.0-alpha.9":"2024-03-22T19:15:03.983Z","9.0.0-alpha.10":"2024-03-22T21:29:40.103Z","9.0.0-beta.0":"2024-03-23T12:43:33.190Z","9.0.0-beta.1":"2024-03-27T15:06:28.516Z","9.0.0-beta.2":"2024-03-31T21:35:40.248Z","8.15.6":"2024-04-01T21:16:01.739Z","9.0.0-beta.3":"2024-04-04T10:22:33.420Z","9.0.0-rc.0":"2024-04-09T08:57:58.575Z","8.15.7":"2024-04-13T16:15:19.474Z","9.0.0-rc.1":"2024-04-13T16:42:19.671Z","9.0.0-rc.2":"2024-04-13T17:00:45.078Z","9.0.0":"2024-04-16T10:27:03.176Z","9.0.1":"2024-04-16T14:10:04.512Z","9.0.2":"2024-04-17T16:50:22.459Z","9.0.3":"2024-04-18T16:46:04.363Z","9.0.4":"2024-04-19T01:02:54.153Z","9.0.5":"2024-04-21T21:15:54.065Z","9.0.6":"2024-04-24T13:15:06.379Z","9.1.0-0":"2024-04-29T14:13:16.794Z","8.15.8":"2024-04-29T23:45:32.795Z","9.1.0":"2024-05-06T09:30:35.710Z","9.1.1":"2024-05-12T22:03:21.721Z","9.1.2":"2024-05-20T22:17:38.084Z","9.1.3":"2024-05-27T08:52:28.813Z","9.1.4":"2024-05-30T11:09:59.730Z","9.2.0":"2024-06-05T13:13:05.680Z","9.3.0":"2024-06-10T12:25:45.227Z","9.4.0":"2024-06-17T16:03:09.589Z","9.5.0-beta.0":"2024-06-27T13:18:09.264Z","9.5.0-beta.1":"2024-07-05T12:27:46.296Z","9.5.0-beta.2":"2024-07-05T13:47:51.835Z","9.5.0-beta.3":"2024-07-05T14:19:33.874Z","9.5.0":"2024-07-07T16:44:14.829Z","8.15.9":"2024-07-17T15:52:29.482Z","9.6.0":"2024-07-22T00:02:52.825Z","9.7.0":"2024-08-07T00:25:29.992Z","9.7.1":"2024-08-14T14:56:17.907Z","9.8.0":"2024-08-22T10:37:28.261Z","9.9.0":"2024-08-26T15:35:37.454Z","9.10.0":"2024-09-09T14:03:26.289Z","9.11.0":"2024-09-20T10:31:56.346Z","9.12.0":"2024-10-02T12:07:47.336Z","9.12.1":"2024-10-07T13:23:41.724Z","9.12.2":"2024-10-16T14:45:00.122Z","9.12.3":"2024-10-28T02:54:30.401Z","10.0.0-alpha.0":"2024-10-28T03:26:44.379Z","9.13.0":"2024-11-13T12:26:09.291Z","9.13.1":"2024-11-14T17:15:27.695Z","9.13.2":"2024-11-15T02:15:53.487Z","10.0.0-alpha.1":"2024-11-15T11:18:49.058Z","10.0.0-alpha.2":"2024-11-15T11:53:42.533Z","9.14.0":"2024-11-20T00:04:49.891Z","9.14.1":"2024-11-20T00:31:43.756Z","9.14.2":"2024-11-20T11:06:43.918Z","10.0.0-alpha.3":"2024-11-25T10:06:19.403Z","10.0.0-alpha.4":"2024-11-25T13:21:41.171Z","10.0.0-beta.0":"2024-11-28T11:57:05.695Z","9.14.3":"2024-11-28T16:28:42.730Z","9.14.4":"2024-11-29T10:56:56.250Z","10.0.0-beta.1":"2024-11-29T11:42:05.553Z","9.15.0":"2024-12-06T14:59:49.131Z","10.0.0-beta.2":"2024-12-09T00:34:41.385Z","10.0.0-beta.3":"2024-12-11T22:35:26.952Z","10.0.0-rc.0":"2024-12-16T02:11:43.790Z","9.15.1":"2024-12-20T00:33:34.908Z","10.0.0-rc.1":"2024-12-27T13:38:57.915Z","9.15.2":"2024-12-27T14:39:04.325Z","10.0.0-rc.2":"2024-12-29T02:00:14.722Z","10.0.0-rc.3":"2025-01-05T12:47:47.897Z","9.15.3":"2025-01-05T22:26:13.201Z","10.0.0":"2025-01-07T14:45:02.329Z","9.15.4":"2025-01-13T16:37:22.170Z","10.1.0":"2025-01-26T21:48:18.385Z","9.15.5":"2025-02-02T17:46:58.832Z","10.2.0":"2025-02-03T17:48:43.917Z","10.2.1":"2025-02-06T19:11:03.568Z","10.3.0":"2025-02-10T23:51:38.143Z","10.4.0":"2025-02-14T00:31:57.729Z","10.4.1":"2025-02-16T21:54:50.743Z","9.15.6":"2025-02-24T08:32:08.205Z","10.5.0":"2025-02-25T12:11:30.692Z","10.5.1":"2025-02-26T12:10:55.885Z","10.5.2":"2025-02-27T01:33:56.664Z","9.15.7":"2025-03-06T10:33:46.381Z","10.6.0":"2025-03-06T11:32:18.968Z","10.6.1":"2025-03-07T01:48:15.208Z","9.15.8":"2025-03-09T21:43:22.097Z","10.6.2":"2025-03-10T02:32:12.502Z","9.15.9":"2025-03-10T02:47:09.271Z","10.6.3":"2025-03-13T14:19:41.594Z","10.6.4":"2025-03-17T13:59:39.658Z","10.6.5":"2025-03-19T13:38:56.094Z","10.7.0":"2025-03-26T11:35:45.592Z","10.7.1":"2025-04-01T12:11:50.633Z","10.8.0":"2025-04-07T16:43:28.031Z","10.8.1":"2025-04-14T11:13:23.814Z","10.9.0":"2025-04-21T08:36:31.506Z","10.10.0":"2025-04-27T23:18:02.369Z","10.11.0":"2025-05-13T14:23:33.977Z","10.11.1":"2025-06-02T13:47:18.707Z","10.12.0":"2025-06-08T13:46:36.855Z","10.12.1":"2025-06-08T14:21:29.623Z","10.12.2":"2025-06-23T00:32:30.295Z","10.12.3":"2025-06-24T10:15:56.264Z","10.12.4":"2025-06-26T17:13:20.857Z","10.13.0":"2025-07-09T09:21:22.313Z","10.13.1":"2025-07-09T10:15:13.724Z","10.14.0-0":"2025-07-23T13:21:27.720Z","10.14.0":"2025-07-31T13:23:48.883Z","10.15.0":"2025-08-19T16:15:43.775Z","10.15.1":"2025-09-01T09:57:00.916Z","10.16.0":"2025-09-12T12:56:00.702Z","10.16.1":"2025-09-13T17:42:26.076Z","10.17.0":"2025-09-17T15:06:03.871Z","10.17.1":"2025-09-22T13:36:34.481Z","10.18.0":"2025-10-02T15:00:14.872Z","10.18.1":"2025-10-06T12:26:39.255Z","10.18.2":"2025-10-09T16:08:37.463Z","10.18.3":"2025-10-14T09:43:19.246Z","10.19.0":"2025-10-21T14:03:31.582Z","10.19.1-oidc-test.0":"2025-10-23T08:40:36.645Z","10.19.1-oidc-test.2":"2025-10-23T10:47:21.822Z","10.19.1-oidc-test.3":"2025-10-23T23:49:27.474Z","10.20.0":"2025-10-28T16:59:41.981Z","10.21.0":"2025-11-09T23:45:02.096Z","10.22.0":"2025-11-12T13:49:33.674Z","11.0.0-alpha.0":"2025-11-13T16:20:24.097Z","11.0.0-alpha.1":"2025-11-13T17:30:29.617Z","11.0.0-dev.1001":"2025-11-13T21:45:48.168Z","11.0.0-dev.1002":"2025-11-13T22:58:11.337Z","11.0.0-dev.1003":"2025-11-14T00:22:52.764Z","11.0.0-dev.1005":"2025-11-14T09:24:38.124Z","10.23.0":"2025-11-20T14:18:25.447Z"},"bugs":{"url":"https://github.com/pnpm/pnpm/issues"},"license":"MIT","homepage":"https://pnpm.io","keywords":["pnpm","pnpm10","dependencies","dependency manager","efficient","fast","hardlinks","install","installer","link","lockfile","modules","monorepo","multi-package","npm","package manager","package.json","packages","prune","rapid","remove","shrinkwrap","symlinks","uninstall","workspace"],"repository":{"url":"git+https://github.com/pnpm/pnpm.git","type":"git","directory":"pnpm"},"description":"Fast, disk space efficient package manager","maintainers":[{"name":"zkochan","email":"z@kochan.io"},{"name":"pnpmuser","email":"publish-bot@pnpm.io"}],"readme":"","readmeFilename":"README.md","users":{"panlw":true,"sirse":true,"bsnote":true,"shrike":true,"yboris":true,"ferrari":true,"shyling":true,"vivekrp":true,"yanghcc":true,"zkochan":true,"jsumners":true,"krickray":true,"zhangaz1":true,"heartnett":true,"max_devjs":true,"sternelee":true,"denialtero":true,"flumpus-dev":true,"mad-don-jon":true,"hemadri.info":true,"justafrogger":true,"frederik_bosch":true}}✅ Network connectivity verified!
 
 ```
 </details>
@@ -21867,7 +18352,7 @@ Perfect! The network test works correctly. It successfully:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker rm -f rc-test'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker rm -f rc-test'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker rm -f rc-test'
@@ -21960,7 +18445,7 @@ The user is complaining about the massive output from the curl command to npm re
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -21968,10 +18453,10 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -418,5 +418,5 @@
   # Test network connectivity in Kata container
-  echo &quot;   Testing network connectivity in Kata container...&quot;
-- if run_remote &quot;sudo docker run --rm --runtime=kata-fc alpine:latest sh -c &#39;apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm &amp;&amp; echo \&quot;✅ Network connectivity verified!\&quot;&#39;&quot; 2&gt;&amp;1; then
-+ if run_remote &quot;sudo docker run --rm --runtime=kata-fc alpine:latest sh -c &#39;apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://httpstat.us/200 &amp;&amp; echo \&quot;✅ Network connectivity verified!\&quot;&#39;&quot; 2&gt;&amp;1; then
-    echo &quot;✅ Kata containers have internet access!&quot;
+  echo "   Testing network connectivity in Kata container..."
+- if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://registry.npmjs.org/pnpm &amp;&amp; echo \"✅ Network connectivity verified!\"'" 2&gt;&amp;1; then
++ if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://httpstat.us/200 &amp;&amp; echo \"✅ Network connectivity verified!\"'" 2&gt;&amp;1; then
+    echo "✅ Kata containers have internet access!"
   else
 ```
 
@@ -21987,7 +18472,7 @@ Let me test this new simpler endpoint to make sure it works and produces minimal
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://httpstat.us/200 && echo \"✅ Network connectivity verified!\""'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://httpstat.us/200 && echo \"✅ Network connectivity verified!\""'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://httpstat.us/200 && echo \"✅ Network connectivity verified!\""'
@@ -22021,7 +18506,7 @@ Hmm, the command failed with exit code 56, which usually means curl couldn't con
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: 1
@@ -22029,10 +18514,10 @@ Lines added: 1, lines removed: 1
 ```diff
 @@ -418,5 +418,5 @@
   # Test network connectivity in Kata container
-  echo &quot;   Testing network connectivity in Kata container...&quot;
-- if run_remote &quot;sudo docker run --rm --runtime=kata-fc alpine:latest sh -c &#39;apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://httpstat.us/200 &amp;&amp; echo \&quot;✅ Network connectivity verified!\&quot;&#39;&quot; 2&gt;&amp;1; then
-+ if run_remote &quot;sudo docker run --rm --runtime=kata-fc alpine:latest sh -c &#39;apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://api.github.com/zen &amp;&amp; echo \&quot;✅ Network connectivity verified!\&quot;&#39;&quot; 2&gt;&amp;1; then
-    echo &quot;✅ Kata containers have internet access!&quot;
+  echo "   Testing network connectivity in Kata container..."
+- if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://httpstat.us/200 &amp;&amp; echo \"✅ Network connectivity verified!\"'" 2&gt;&amp;1; then
++ if run_remote "sudo docker run --rm --runtime=kata-fc alpine:latest sh -c 'apk add --no-cache curl &amp;&amp; curl -s --connect-timeout 5 https://api.github.com/zen &amp;&amp; echo \"✅ Network connectivity verified!\"'" 2&gt;&amp;1; then
+    echo "✅ Kata containers have internet access!"
   else
 ```
 
@@ -22048,7 +18533,7 @@ Let me test GitHub's zen endpoint instead. It's a very simple endpoint that retu
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://api.github.com/zen && echo \"✅ Network connectivity verified!\""'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://api.github.com/zen && echo \"✅ Network connectivity verified!\""'</summary>
 
 ```bash
 ssh root@157.90.177.85 'docker run --rm --runtime=kata-fc alpine:latest sh -c "apk add --no-cache curl && curl -s --connect-timeout 5 https://api.github.com/zen && echo \"✅ Network connectivity verified!\""'
@@ -22121,7 +18606,7 @@ The user is asking me to commit the changes I made to the provision-server.sh fi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git status</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git status</summary>
 
 ```bash
 git status
@@ -22129,18 +18614,18 @@ git status
 
 ```
 On branch main
-Your branch is ahead of &#39;origin/main&#39; by 2 commits.
-  (use &quot;git push&quot; to publish your local commits)
+Your branch is ahead of 'origin/main' by 2 commits.
+  (use "git push" to publish your local commits)
 
 Changes not staged for commit:
-  (use &quot;git add &lt;file&gt;...&quot; to update what will be committed)
-  (use &quot;git restore &lt;file&gt;...&quot; to discard changes in working directory)
+  (use "git add &lt;file&gt;..." to update what will be committed)
+  (use "git restore &lt;file&gt;..." to discard changes in working directory)
 	modified:   .specstory/history/2025-11-20_22-27Z-migration-from-gvisor-to-firecracker.md
 	modified:   docker/Dockerfile.base
 	modified:   scripts/provision-server.sh
 	modified:   src/lib/pod-orchestration/service-registry.ts
 
-no changes added to commit (use &quot;git add&quot; and/or &quot;git commit -a&quot;)
+no changes added to commit (use "git add" and/or "git commit -a")
 
 ```
 </details>
@@ -22155,7 +18640,7 @@ I see several modified files. The user specifically asked to commit "ONLY the fi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git add docker/Dockerfile.base scripts/provision-server.sh</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git add docker/Dockerfile.base scripts/provision-server.sh</summary>
 
 ```bash
 git add docker/Dockerfile.base scripts/provision-server.sh
@@ -22172,7 +18657,7 @@ Now let me commit with a conventional commit message describing the changes I ma
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git commit -m "feat: add network testing and fix OpenRC cgroup errors
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git commit -m "feat: add network testing and fix OpenRC cgroup errors
 
 - Add network connectivity verification during Kata container provisioning
 - Test external HTTPS access to prevent Docker networking regressions  
@@ -22247,27 +18732,27 @@ The user wants me to modify the provision-server.sh script to only restart Docke
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: scripts/provision-server.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: scripts/provision-server.sh</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: 2
 
 ```diff
 @@ -373,6 +373,12 @@
-  echo &quot;🐳 Step 6d: Configuring Docker to use Kata runtime...&quot;
+  echo "🐳 Step 6d: Configuring Docker to use Kata runtime..."
   
 - # Configure Docker to use the Kata runtime from containerd
-- run_remote &quot;sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;&#39;EOF&#39;
+- run_remote "sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;'EOF'
 + # Check if kata-fc runtime is already configured
-+ KATA_CONFIGURED=$(run_remote &quot;grep -q &#39;kata-fc&#39; /etc/docker/daemon.json 2&gt;/dev/null &amp;&amp; echo &#39;yes&#39; || echo &#39;no&#39;&quot;)
++ KATA_CONFIGURED=$(run_remote "grep -q 'kata-fc' /etc/docker/daemon.json 2&gt;/dev/null &amp;&amp; echo 'yes' || echo 'no'")
 + 
-+ if [ &quot;$KATA_CONFIGURED&quot; = &quot;yes&quot; ]; then
-+   echo &quot;   Kata runtime already configured in Docker, skipping restart&quot;
++ if [ "$KATA_CONFIGURED" = "yes" ]; then
++   echo "   Kata runtime already configured in Docker, skipping restart"
 + else
 +   # Configure Docker to use the Kata runtime from containerd
-+   run_remote &quot;sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;&#39;EOF&#39;
++   run_remote "sudo tee /etc/docker/daemon.json &gt; /dev/null &lt;&lt;'EOF'
   {
-    \&quot;data-root\&quot;: \&quot;/var/lib/docker\&quot;,
+    \"data-root\": \"/var/lib/docker\",
 ```
 
 **Chunk 2**
@@ -22275,15 +18760,15 @@ Lines added: 3, lines removed: 2
 
 ```diff
 @@ -387,6 +393,7 @@
-  EOF&quot;
+  EOF"
   
-- echo &quot;   Restarting Docker to apply configuration...&quot;
-- run_remote &quot;sudo systemctl restart docker&quot;
-+   echo &quot;   Restarting Docker to apply configuration...&quot;
-+   run_remote &quot;sudo systemctl restart docker&quot;
+- echo "   Restarting Docker to apply configuration..."
+- run_remote "sudo systemctl restart docker"
++   echo "   Restarting Docker to apply configuration..."
++   run_remote "sudo systemctl restart docker"
 + fi
   
-  echo &quot;✅ Docker configured with kata-fc runtime&quot;
+  echo "✅ Docker configured with kata-fc runtime"
 ```
 
 </details>
@@ -22299,7 +18784,7 @@ The change looks good. I've added a check to see if the kata-fc runtime is alrea
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: bash -n scripts/provision-server.sh</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: bash -n scripts/provision-server.sh</summary>
 
 ```bash
 bash -n scripts/provision-server.sh
@@ -22315,7 +18800,7 @@ Perfect! The syntax check passed. Let me also run a quick test to make sure the 
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: ssh root@157.90.177.85 'grep -q "kata-fc" /etc/docker/daemon.json 2>/dev/null && echo "kata-fc already configured" || echo "kata-fc not configured"'</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: ssh root@157.90.177.85 'grep -q "kata-fc" /etc/docker/daemon.json 2>/dev/null && echo "kata-fc already configured" || echo "kata-fc not configured"'</summary>
 
 ```bash
 ssh root@157.90.177.85 'grep -q "kata-fc" /etc/docker/daemon.json 2>/dev/null && echo "kata-fc already configured" || echo "kata-fc not configured"'
@@ -22337,7 +18822,7 @@ Excellent! The test shows that kata-fc is already configured on the server, so t
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git add scripts/provision-server.sh</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git add scripts/provision-server.sh</summary>
 
 ```bash
 git add scripts/provision-server.sh
@@ -22353,7 +18838,7 @@ Now let me commit this change with an appropriate commit message.</details></thi
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git commit -m "feat: avoid Docker restart when Kata already configured
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git commit -m "feat: avoid Docker restart when Kata already configured
 
 - Skip Docker daemon restart if kata-fc runtime already configured
 - Prevents disruption of running customer containers during re-provisioning

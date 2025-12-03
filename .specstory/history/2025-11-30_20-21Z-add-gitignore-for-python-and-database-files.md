@@ -77,7 +77,7 @@ Now I'll add the `.gitignore` creation command right after `uv init .`:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/template-registry.ts</summary>
 
 **Chunk 1**
 Lines added: 37, lines removed: undefined
@@ -85,8 +85,8 @@ Lines added: 37, lines removed: undefined
 ```diff
 @@ -502,4 +502,41 @@
       initScript: [
-        &quot;uv init .&quot;,
-+       &#96;cat &gt; .gitignore &lt;&lt; &#39;EOF&#39;
+        "uv init .",
++       &#96;cat &gt; .gitignore &lt;&lt; 'EOF'
 + # Byte-compiled / optimized / DLL files
 + __pycache__/
 + *.py[cod]
@@ -123,8 +123,8 @@ Lines added: 37, lines removed: undefined
 + .DS_Store
 + *.log
 + EOF&#96;,
-        &quot;uv add agno &#39;fastapi[standard]&#39; uvicorn openai sqlalchemy aiosqlite greenlet&quot;,
-        &#96;cat &gt; my_os.py &lt;&lt; &#39;EOF&#39;
+        "uv add agno 'fastapi[standard]' uvicorn openai sqlalchemy aiosqlite greenlet",
+        &#96;cat &gt; my_os.py &lt;&lt; 'EOF'
 ```
 
 </details>
@@ -213,17 +213,17 @@ I'll add a base `.gitignore` file creation right after the workspace directory s
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/docker/Dockerfile.base</summary>
 
 **Chunk 1**
 Lines added: 57, lines removed: undefined
 
 ```diff
 @@ -38,4 +38,61 @@
-      sed -i &#39;s|/root|/workspace|&#39; /etc/passwd
+      sed -i 's|/root|/workspace|' /etc/passwd
   
 + # Create a base .gitignore with common patterns
-+ RUN cat &gt; /workspace/.gitignore &lt;&lt; &#39;EOF&#39;
++ RUN cat &gt; /workspace/.gitignore &lt;&lt; 'EOF'
 + # Environment variables
 + .env
 + .env.*

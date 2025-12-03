@@ -44,22 +44,22 @@ I can see the code. I'll add a minimum size validation right after the image buf
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/screenshots/route.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/screenshots/route.ts</summary>
 
 **Chunk 1**
 Lines added: 12, lines removed: undefined
 
 ```diff
 @@ -45,4 +45,16 @@
-      const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, &quot;&quot;);
-      const imageBuffer = Buffer.from(base64Data, &quot;base64&quot;);
+      const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
 + 
 +     // Reject images that are too small (likely failed/corrupted captures)
 +     const MIN_VALID_IMAGE_SIZE = 1024; // 1KB minimum
 +     if (imageBuffer.length &lt; MIN_VALID_IMAGE_SIZE) {
 +       return NextResponse.json(
 +         {
-+           error: &quot;Invalid screenshot: image too small&quot;,
++           error: "Invalid screenshot: image too small",
 +           details: &#96;Image size ${imageBuffer.length} bytes is below minimum ${MIN_VALID_IMAGE_SIZE} bytes&#96;,
 +         },
 +         { status: 400 },
@@ -143,7 +143,7 @@ The user has attached a file `.cursor/rules/commit.md` which contains instructio
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/api/screenshots/route.ts</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/app/api/screenshots/route.ts</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git add src/app/api/screenshots/route.ts
@@ -160,7 +160,7 @@ Now I need to commit with a conventional commit message. The change I made was a
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat(screenshots): add minimum size validation for screenshots"</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git commit -m "feat(screenshots): add minimum size validation for screenshots"</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && git commit -m "feat(screenshots): add minimum size validation for screenshots"

@@ -38,7 +38,7 @@ I'll add a check for port 3000 right after the existing `.env` check:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/deploy.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/deploy.sh</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: undefined
@@ -50,13 +50,13 @@ Lines added: 8, lines removed: undefined
 + 
 + # Check if local dev server is running on port 3000
 + if lsof -i :3000 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then
-+   echo &quot;❌ Error: A server is already running on port 3000&quot;
-+   echo &quot;   Please kill the local dev server first to avoid .next folder conflicts.&quot;
-+   echo &quot;   Run: kill \$(lsof -t -i :3000)&quot;
++   echo "❌ Error: A server is already running on port 3000"
++   echo "   Please kill the local dev server first to avoid .next folder conflicts."
++   echo "   Run: kill \$(lsof -t -i :3000)"
 +   exit 1
 + fi
   
-  echo &quot;🔨 Building locally...&quot;
+  echo "🔨 Building locally..."
 ```
 
 </details>
@@ -85,7 +85,7 @@ The user wants me to also check for port 4000, not just 3000. Let me update the 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/deploy.sh</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/deploy.sh</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 4
@@ -96,13 +96,13 @@ Lines added: 4, lines removed: 4
   
 - # Check if local dev server is running on port 3000
 - if lsof -i :3000 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then
--   echo &quot;❌ Error: A server is already running on port 3000&quot;
+-   echo "❌ Error: A server is already running on port 3000"
 + # Check if local dev server is running on port 3000 or 4000
 + if lsof -i :3000 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1 || lsof -i :4000 -sTCP:LISTEN &gt;/dev/null 2&gt;&amp;1; then
-+   echo &quot;❌ Error: A server is already running on port 3000 or 4000&quot;
-    echo &quot;   Please kill the local dev server first to avoid .next folder conflicts.&quot;
--   echo &quot;   Run: kill \$(lsof -t -i :3000)&quot;
-+   echo &quot;   Run: kill \$(lsof -t -i :3000 -i :4000)&quot;
++   echo "❌ Error: A server is already running on port 3000 or 4000"
+    echo "   Please kill the local dev server first to avoid .next folder conflicts."
+-   echo "   Run: kill \$(lsof -t -i :3000)"
++   echo "   Run: kill \$(lsof -t -i :3000 -i :4000)"
     exit 1
   fi
 ```
@@ -137,7 +137,7 @@ The user has attached a commit rule file that says:
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git status --porcelain</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git status --porcelain</summary>
 
 ```bash
 git status --porcelain
@@ -160,7 +160,7 @@ I can see that only `deploy.sh` has been modified (the M indicates modified). Th
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git add deploy.sh</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git add deploy.sh</summary>
 
 ```bash
 git add deploy.sh
@@ -176,7 +176,7 @@ Now I'll commit with a conventional commit message. The change adds a check to p
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: git commit -m "feat: add server port check before deployment
+<details><summary>Tool use: **run_terminal_cmd** • Run command: git commit -m "feat: add server port check before deployment
 
 - Check if servers are running on ports 3000 or 4000 before deploying
 - Prevent .next folder conflicts by requiring local servers to be stopped first

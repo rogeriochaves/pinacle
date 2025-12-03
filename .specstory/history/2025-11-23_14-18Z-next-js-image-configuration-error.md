@@ -50,18 +50,18 @@ Looking at the current next.config.ts file, I can see that the images configurat
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: undefined
 
 ```diff
 @@ -24,4 +24,8 @@
-          pathname: &quot;/pinacle-dev/**&quot;,
+          pathname: "/pinacle-dev/**",
         },
 +       {
-+         protocol: &quot;https&quot;,
-+         hostname: &quot;s3.nl-ams.scw.cloud&quot;,
++         protocol: "https",
++         hostname: "s3.nl-ams.scw.cloud",
 +       },
       ],
     },
@@ -166,7 +166,7 @@ I see the issue now. The remotePatterns array only has one entry now - the hostn
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
 
 **Chunk 1**
 Lines added: 1, lines removed: undefined
@@ -175,7 +175,7 @@ Lines added: 1, lines removed: undefined
 @@ -13,4 +13,5 @@
     },
     images: {
-+     domains: [&quot;s3.nl-ams.scw.cloud&quot;],
++     domains: ["s3.nl-ams.scw.cloud"],
       remotePatterns: [
         {
 ```
@@ -193,7 +193,7 @@ I added the `domains` configuration as a backup. The `domains` property is the o
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev
@@ -266,22 +266,22 @@ I can see the current rewrites. PostHog is trying to POST to `/pt/ingest/e` but 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
 
 **Chunk 1**
 Lines added: 8, lines removed: undefined
 
 ```diff
 @@ -35,4 +35,12 @@
-          destination: &quot;https://eu.i.posthog.com/:path*&quot;,
+          destination: "https://eu.i.posthog.com/:path*",
         },
 +       {
-+         source: &quot;/pt/ingest/static/:path*&quot;,
-+         destination: &quot;https://eu-assets.i.posthog.com/static/:path*&quot;,
++         source: "/pt/ingest/static/:path*",
++         destination: "https://eu-assets.i.posthog.com/static/:path*",
 +       },
 +       {
-+         source: &quot;/pt/ingest/:path*&quot;,
-+         destination: &quot;https://eu.i.posthog.com/:path*&quot;,
++         source: "/pt/ingest/:path*",
++         destination: "https://eu.i.posthog.com/:path*",
 +       },
       ];
     },
@@ -300,7 +300,7 @@ I've added the rewrite rules for the `/pt/ingest/` paths. This should handle Pos
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev
@@ -356,7 +356,7 @@ Now I see! The user has 8 locales configured: ["en", "zh", "es", "ru", "pt", "de
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/next.config.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
@@ -365,14 +365,14 @@ Lines added: 2, lines removed: 2
 @@ -36,9 +36,9 @@
         },
         {
--         source: &quot;/pt/ingest/static/:path*&quot;,
-+         source: &quot;/:locale(en|zh|es|ru|pt|de|ja|fr)/ingest/static/:path*&quot;,
-          destination: &quot;https://eu-assets.i.posthog.com/static/:path*&quot;,
+-         source: "/pt/ingest/static/:path*",
++         source: "/:locale(en|zh|es|ru|pt|de|ja|fr)/ingest/static/:path*",
+          destination: "https://eu-assets.i.posthog.com/static/:path*",
         },
         {
--         source: &quot;/pt/ingest/:path*&quot;,
-+         source: &quot;/:locale(en|zh|es|ru|pt|de|ja|fr)/ingest/:path*&quot;,
-          destination: &quot;https://eu.i.posthog.com/:path*&quot;,
+-         source: "/pt/ingest/:path*",
++         source: "/:locale(en|zh|es|ru|pt|de|ja|fr)/ingest/:path*",
+          destination: "https://eu.i.posthog.com/:path*",
         },
 ```
 
@@ -389,7 +389,7 @@ Perfect! Now I've updated the rewrites to handle all the configured locales. The
 ---
 
 <tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
-<details><summary>Tool use: **command** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev</summary>
 
 ```bash
 cd /Users/rchaves/Projects/pinacle && pkill -f "next dev" && npm run dev

@@ -1405,7 +1405,7 @@ Now I need to implement the fix. The key changes are:
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 10, lines removed: 1
@@ -1417,7 +1417,7 @@ Lines added: 10, lines removed: 1
 +   /**
 +    * Parse volume mounts for gVisor with 9p filesystem support
 +    *
-+    * Uses bind mounts with consistency=cached to enable gVisor&#39;s virtio-9p filesystem,
++    * Uses bind mounts with consistency=cached to enable gVisor's virtio-9p filesystem,
 +    * which provides proper inotify events and prevents file watchers from falling back
 +    * to expensive polling that causes high CPU usage with dev tools like Vite, code-server, etc.
 +    */
@@ -1431,7 +1431,7 @@ Lines added: 10, lines removed: 1
 +         const hostPath = &#96;/var/lib/docker/volumes/${volumeName}/_data&#96;;
 +         return &#96;--mount type=bind,source=${hostPath},target=${v.path},consistency=cached&#96;;
         })
-        .join(&quot; &quot;);
+        .join(" ");
 ```
 
 </details>
@@ -1487,24 +1487,24 @@ Perfect! Now let me add some additional documentation at the top of the class to
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 11, lines removed: undefined
 
 ```diff
 @@ -8,4 +8,15 @@
-  } from &quot;./types&quot;;
+  } from "./types";
   
 + /**
 +  * gVisor-based container runtime with optimizations for development workloads
 +  *
 +  * Key optimizations for dev tools (Vite, code-server, TypeScript servers, etc.):
-+  * - Uses bind mounts with consistency=cached to enable gVisor&#39;s virtio-9p filesystem
++  * - Uses bind mounts with consistency=cached to enable gVisor's virtio-9p filesystem
 +  * - Provides proper inotify events, preventing expensive polling that causes 100%+ CPU usage
 +  * - All file watchers (chokidar, VS Code, tsserver) get native-like performance
 +  *
-+  * Without this optimization, gVisor&#39;s overlay2 filesystem emulation causes all dev tools
++  * Without this optimization, gVisor's overlay2 filesystem emulation causes all dev tools
 +  * to fall back to polling, resulting in massive CPU consumption and slow rebuilds.
 +  */
   export class GVisorRuntime {
@@ -1639,20 +1639,20 @@ The main Dockerfile also doesn't have an ENTRYPOINT set to `docker-entrypoint.sh
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 2, lines removed: 2
 
 ```diff
 @@ -199,7 +199,7 @@
-        &quot;--network&quot;,
-        &quot;bridge&quot;, // Will create custom network later
-+       &quot;--entrypoint&quot;,
-+       &quot;/sbin/init&quot;,
+        "--network",
+        "bridge", // Will create custom network later
++       "--entrypoint",
++       "/sbin/init",
         spec.baseImage,
 -       // Default command
--       &quot;/sbin/init&quot;,
+-       "/sbin/init",
       ].filter(Boolean);
   
 ```
@@ -2048,7 +2048,7 @@ The user is showing me the output of some container startup process, and they're
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 4, lines removed: 4
@@ -2060,11 +2060,11 @@ Lines added: 4, lines removed: 4
 -    * Parse volume mounts for gVisor with 9p filesystem support
 +    * Parse volume mounts for gVisor with optimized filesystem support
      *
--    * Uses bind mounts with consistency=cached to enable gVisor&#39;s virtio-9p filesystem,
+-    * Uses bind mounts with consistency=cached to enable gVisor's virtio-9p filesystem,
 -    * which provides proper inotify events and prevents file watchers from falling back
 -    * to expensive polling that causes high CPU usage with dev tools like Vite, code-server, etc.
 +    * Uses Docker volumes for persistence + initial content copying, combined with
-+    * gVisor&#39;s virtio-9p filesystem support via consistency=cached for proper inotify events.
++    * gVisor's virtio-9p filesystem support via consistency=cached for proper inotify events.
 +    * This prevents file watchers from falling back to expensive polling.
      */
     private parseVolumeMounts(podId: string): string {
@@ -2083,7 +2083,7 @@ Lines added: 2, lines removed: 3
 +         // Use Docker volume mounts which preserve image content, with gVisor 9p support
 +         return &#96;-v ${volumeName}:${v.path}&#96;;
         })
-        .join(&quot; &quot;);
+        .join(" ");
 ```
 
 </details>
@@ -2107,7 +2107,7 @@ Wait, I reverted back to using Docker volume mounts (`-v volumeName:path`), but 
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 3, lines removed: undefined
@@ -2141,7 +2141,7 @@ Now I need to implement the `initializeVolumeContents` method. This method shoul
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 46, lines removed: undefined
@@ -2170,10 +2170,10 @@ Lines added: 46, lines removed: undefined
 +           const volumeName = this.generateVolumeName(podId, v.name);
 +           return &#96;-v ${volumeName}:${v.path}&#96;;
 +         })
-+         .join(&quot; &quot;);
++         .join(" ");
 + 
 +       // Create and start the init container (briefly) to populate volumes with image content
-+       const createCommand = &#96;docker create --name ${initContainerName} ${volumeMountArgs} ${baseImage} /bin/sh -c &quot;echo &#39;Initializing volumes&#39;&quot;&#96;;
++       const createCommand = &#96;docker create --name ${initContainerName} ${volumeMountArgs} ${baseImage} /bin/sh -c "echo 'Initializing volumes'"&#96;;
 +       await this.exec(createCommand, true);
 + 
 +       // Start the container briefly to ensure volume initialization
@@ -2214,7 +2214,7 @@ Now I need to change the volume mounts back to bind mounts with consistency=cach
 
 <tool-use data-tool-type="write" data-tool-name="search_replace">
 
-<details><summary>Tool use: **code_edit** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/pod-orchestration/container-runtime.ts</summary>
 
 **Chunk 1**
 Lines added: 6, lines removed: 4
@@ -2227,9 +2227,9 @@ Lines added: 6, lines removed: 4
 +    * Parse volume mounts for gVisor with virtio-9p filesystem support
      *
 -    * Uses Docker volumes for persistence + initial content copying, combined with
--    * gVisor&#39;s virtio-9p filesystem support via consistency=cached for proper inotify events.
+-    * gVisor's virtio-9p filesystem support via consistency=cached for proper inotify events.
 -    * This prevents file watchers from falling back to expensive polling.
-+    * Uses bind mounts with consistency=cached to enable gVisor&#39;s virtio-9p filesystem,
++    * Uses bind mounts with consistency=cached to enable gVisor's virtio-9p filesystem,
 +    * which provides proper inotify events and prevents file watchers from falling back
 +    * to expensive polling that causes high CPU usage with dev tools like Vite, code-server, etc.
 +    *
@@ -2251,7 +2251,7 @@ Lines added: 3, lines removed: 2
 +         const hostPath = &#96;/var/lib/docker/volumes/${volumeName}/_data&#96;;
 +         return &#96;--mount type=bind,source=${hostPath},target=${v.path},consistency=cached&#96;;
         })
-        .join(&quot; &quot;);
+        .join(" ");
 ```
 
 </details>
