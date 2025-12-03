@@ -33,6 +33,9 @@ const server = z.object({
   // PostHog configuration (server-side)
   POSTHOG_PERSONAL_API_KEY: z.string().min(1).optional(), // For sourcemap uploads
   POSTHOG_ENV_ID: z.string().min(1).optional(), // Project ID for sourcemaps
+
+  // Reddit Conversions API
+  REDDIT_CONVERSIONS_ACCESS_TOKEN: z.string().min(1).optional(),
 });
 
 const client = z.object({
@@ -67,6 +70,7 @@ const processEnv = {
   POSTHOG_PERSONAL_API_KEY: process.env.POSTHOG_PERSONAL_API_KEY,
   POSTHOG_ENV_ID: process.env.POSTHOG_ENV_ID,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+  REDDIT_CONVERSIONS_ACCESS_TOKEN: process.env.REDDIT_CONVERSIONS_ACCESS_TOKEN,
 };
 
 const merged = server.merge(client);

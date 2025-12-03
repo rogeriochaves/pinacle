@@ -308,13 +308,16 @@ const SetupForm = () => {
                 }
 
                 // Reddit Pixel conversion tracking
+                // Use visitorId + date for deduplication with server-side
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                const redditConversionId = `purchase_${session?.user?.id}_${today}`;
                 trackRedditPurchase({
-                  transactionId: sessionId,
+                  conversionId: redditConversionId,
                   currency: currency.toUpperCase(),
                   value: tierPrice,
                 });
                 console.log("[Checkout] Reddit Pixel conversion tracked:", {
-                  transactionId: sessionId,
+                  conversionId: redditConversionId,
                   value: tierPrice,
                   currency: currency.toUpperCase(),
                 });

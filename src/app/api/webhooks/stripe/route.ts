@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import type { NextRequest } from "next/server";
 import type Stripe from "stripe";
 import type { Locale } from "../../../../i18n";
+import { trackRedditPurchaseServer } from "../../../../lib/analytics/reddit-server";
 import {
   activateSubscription,
   cancelSubscription,
@@ -27,7 +28,7 @@ import { stripe } from "../../../../lib/stripe";
 import { generateKSUID } from "../../../../lib/utils";
 
 // Force dynamic rendering - don't try to collect data at build time
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * Stripe Webhook Handler
@@ -276,7 +277,8 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           .where(eq(stripeCustomers.stripeCustomerId, customerId))
           .limit(1);
 
-        const wasInGracePeriod = customerBefore.length > 0 &&
+        const wasInGracePeriod =
+          customerBefore.length > 0 &&
           customerBefore[0].gracePeriodStartedAt !== null;
 
         await handlePaymentSuccess(customerId);
@@ -291,13 +293,39 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           })
           .where(eq(invoices.stripeInvoiceId, invoice.id));
 
+        // Track Reddit conversion for first subscription payment
+        const isFirstPayment = invoice.billing_reason === "subscription_create";
+        if (isFirstPayment) {
+          try {
+            const userInfo = await getUserFromCustomerId(customerId);
+            // Use userId + date for deduplication with client-side pixel
+            const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+            const conversionId = `purchase_${userInfo?.id}_${today}`;
+            await trackRedditPurchaseServer({
+              transactionId: conversionId,
+              currency: invoice.currency,
+              value: invoice.amount_paid / 100, // Convert cents to dollars
+              email: userInfo?.email,
+            });
+            console.log(
+              `[Webhook] Reddit conversion tracked: ${conversionId}`,
+            );
+          } catch (error) {
+            console.error(
+              "[Webhook] Failed to track Reddit conversion:",
+              error,
+            );
+          }
+        }
+
         // Send payment success email ONLY if recovering from failed payment
         // Don't spam users every month when their payment succeeds normally
         if (wasInGracePeriod) {
           try {
             const userInfo = await getUserFromCustomerId(customerId);
             if (userInfo) {
-              const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+              const baseUrl =
+                process.env.NEXTAUTH_URL || "http://localhost:3000";
               const amount = (invoice.amount_paid / 100).toFixed(2);
               await sendPaymentSuccessEmail({
                 to: userInfo.email,
@@ -318,7 +346,9 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
             );
           }
         } else {
-          console.log(`[Webhook] Skipping success email - normal monthly payment`);
+          console.log(
+            `[Webhook] Skipping success email - normal monthly payment`,
+          );
         }
       }
       break;
@@ -346,7 +376,8 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
           try {
             const userInfo = await getUserFromCustomerId(customerId);
             if (userInfo) {
-              const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+              const baseUrl =
+                process.env.NEXTAUTH_URL || "http://localhost:3000";
               const amount = (invoice.amount_due / 100).toFixed(2);
               await sendPaymentFailedEmail({
                 to: userInfo.email,
@@ -357,7 +388,9 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
                 graceDays: 1, // 24 hours grace period
                 locale: (userInfo.preferredLanguage as Locale) || "en",
               });
-              console.log(`[Webhook] Sent payment failure email to ${userInfo.email}`);
+              console.log(
+                `[Webhook] Sent payment failure email to ${userInfo.email}`,
+              );
             }
           } catch (error) {
             console.error(
@@ -366,7 +399,9 @@ const handleInvoiceEvent = async (event: Stripe.Event): Promise<void> => {
             );
           }
         } else {
-          console.log(`[Webhook] Skipping failure email - initial setup payment`);
+          console.log(
+            `[Webhook] Skipping failure email - initial setup payment`,
+          );
         }
       }
       break;
