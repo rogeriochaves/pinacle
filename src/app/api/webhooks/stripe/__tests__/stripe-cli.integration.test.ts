@@ -1,12 +1,17 @@
 import { execSync, spawn } from "node:child_process";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { usageTracker } from "../../../../../lib/billing/usage-tracker";
 import { db } from "../../../../../lib/db";
 import {
   invoices,
+  pods,
+  servers,
   stripeCustomers,
   stripeEvents,
   stripeSubscriptions,
+  teams,
+  usageRecords,
   users,
 } from "../../../../../lib/db/schema";
 
@@ -55,7 +60,10 @@ describe("Stripe CLI Integration Tests", () => {
     await db.delete(stripeSubscriptions).execute();
     await db.delete(stripeCustomers).execute();
     await db.delete(invoices).execute();
-    await db.delete(users).where(eq(users.email, "stripe-test@pinacle.dev")).execute();
+    await db
+      .delete(users)
+      .where(eq(users.email, "stripe-test@pinacle.dev"))
+      .execute();
     console.log("  ✓ Cleaned up test data");
 
     // STEP 1: Start stripe listen FIRST to get the webhook secret
@@ -98,7 +106,9 @@ describe("Stripe CLI Integration Tests", () => {
     });
 
     // STEP 2: Now start Next.js server with the webhook secret in env
-    console.log(`  ⏳ Starting Next.js server on port ${TEST_PORT} with webhook secret...`);
+    console.log(
+      `  ⏳ Starting Next.js server on port ${TEST_PORT} with webhook secret...`,
+    );
     serverProcess = spawn("pnpm", ["dev"], {
       env: {
         ...process.env,
@@ -170,12 +180,16 @@ describe("Stripe CLI Integration Tests", () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   });
 
-
   it("USER JOURNEY: Happy path - user signs up, subscribes, and payment succeeds", async () => {
-    console.log("\n🎬 JOURNEY 1: Happy Path - Signup → Subscribe → Payment Success\n");
+    console.log(
+      "\n🎬 JOURNEY 1: Happy Path - Signup → Subscribe → Payment Success\n",
+    );
 
     // Clean up any previous test data for this user
-    await db.delete(users).where(eq(users.email, "happy-user@pinacle.dev")).execute();
+    await db
+      .delete(users)
+      .where(eq(users.email, "happy-user@pinacle.dev"))
+      .execute();
 
     // STEP 1: Create a real test user in our DB
     console.log("  📝 Step 1: Creating user in our database...");
@@ -264,19 +278,9 @@ describe("Stripe CLI Integration Tests", () => {
     expect(dbCustomer[0].gracePeriodStartedAt).toBeNull();
     console.log(`    ✓ Customer status is active`);
 
-    // VERIFY: Check invoice was created and paid
-    const dbInvoices = await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.userId, testUser.id))
-      .orderBy(invoices.createdAt);
+    // NOTE: Metered billing subscriptions don't have an immediate invoice
 
-    expect(dbInvoices.length).toBeGreaterThan(0);
-    const latestInvoice = dbInvoices[dbInvoices.length - 1];
-    expect(latestInvoice.status).toBe("paid");
-    console.log(`    ✓ Invoice paid: ${latestInvoice.amountPaid / 100} ${latestInvoice.currency}`);
-
-    // VERIFY: Check all events were processed successfully
+    // VERIFY: Check subscription webhook was processed successfully
     const subscriptionEvents = await db
       .select()
       .from(stripeEvents)
@@ -286,18 +290,7 @@ describe("Stripe CLI Integration Tests", () => {
     const subscriptionEvent = subscriptionEvents[subscriptionEvents.length - 1];
     expect(subscriptionEvent.processed).toBe(true);
     expect(subscriptionEvent.processingError).toBeNull();
-
-    const paymentEvents = await db
-      .select()
-      .from(stripeEvents)
-      .where(eq(stripeEvents.eventType, "invoice.payment_succeeded"))
-      .orderBy(stripeEvents.createdAt);
-
-    const paymentEvent = paymentEvents[paymentEvents.length - 1];
-    expect(paymentEvent.processed).toBe(true);
-    expect(paymentEvent.processingError).toBeNull();
-
-    console.log(`    ✓ All webhooks processed successfully`);
+    console.log(`    ✓ Subscription webhook processed successfully`);
     console.log("\n  🎉 JOURNEY 1 COMPLETE: User is subscribed and active!\n");
   }, 90000);
 
@@ -305,7 +298,10 @@ describe("Stripe CLI Integration Tests", () => {
     console.log("\n🎬 JOURNEY 2: Payment Failure → Grace Period\n");
 
     // Clean up any previous test data for this user
-    await db.delete(users).where(eq(users.email, "payment-fail-user@pinacle.dev")).execute();
+    await db
+      .delete(users)
+      .where(eq(users.email, "payment-fail-user@pinacle.dev"))
+      .execute();
 
     // STEP 1: Create user
     console.log("  📝 Step 1: Creating user...");
@@ -340,7 +336,9 @@ describe("Stripe CLI Integration Tests", () => {
     console.log("  💰 Step 3: Simulating payment failure...");
 
     // Import and call handlePaymentFailure directly to simulate the webhook
-    const { handlePaymentFailure } = await import("../../../../../lib/billing/subscription-service");
+    const { handlePaymentFailure } = await import(
+      "../../../../../lib/billing/subscription-service"
+    );
     await handlePaymentFailure(stripeCustomer.id);
     console.log(`    ✓ Payment failure processed`);
 
@@ -354,17 +352,24 @@ describe("Stripe CLI Integration Tests", () => {
 
     expect(dbCustomer[0].gracePeriodStartedAt).not.toBeNull();
     expect(dbCustomer[0].status).toBe("past_due");
-    console.log(`    ✓ Grace period started: ${dbCustomer[0].gracePeriodStartedAt?.toISOString()}`);
-    console.log(`    ✓ Customer status: past_due`)
+    console.log(
+      `    ✓ Grace period started: ${dbCustomer[0].gracePeriodStartedAt?.toISOString()}`,
+    );
+    console.log(`    ✓ Customer status: past_due`);
 
-    console.log("\n  🎉 JOURNEY 2 COMPLETE: Payment failed, grace period active!\n");
+    console.log(
+      "\n  🎉 JOURNEY 2 COMPLETE: Payment failed, grace period active!\n",
+    );
   }, 90000);
 
   it("USER JOURNEY: Subscription cancellation - user cancels their subscription", async () => {
     console.log("\n🎬 JOURNEY 3: Subscription Cancellation\n");
 
     // Clean up any previous test data for this user
-    await db.delete(users).where(eq(users.email, "cancel-user@pinacle.dev")).execute();
+    await db
+      .delete(users)
+      .where(eq(users.email, "cancel-user@pinacle.dev"))
+      .execute();
 
     // STEP 1: Create user with active subscription (reuse happy path setup)
     console.log("  📝 Step 1: Setting up user with active subscription...");
@@ -410,7 +415,9 @@ describe("Stripe CLI Integration Tests", () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    console.log(`    ✓ User setup complete with subscription: ${subscription.id}`);
+    console.log(
+      `    ✓ User setup complete with subscription: ${subscription.id}`,
+    );
 
     // STEP 2: Cancel the subscription
     console.log("  ❌ Step 2: Cancelling subscription...");
@@ -455,6 +462,234 @@ describe("Stripe CLI Integration Tests", () => {
     expect(cancelEvent.processingError).toBeNull();
     console.log(`    ✓ Cancellation webhook processed`);
 
-    console.log("\n  🎉 JOURNEY 3 COMPLETE: Subscription cancelled successfully!\n");
+    console.log(
+      "\n  🎉 JOURNEY 3 COMPLETE: Subscription cancelled successfully!\n",
+    );
   }, 90000);
+
+  it("USER JOURNEY: Dynamic subscription items - user with dev.small subscription creates dev.medium pod", async () => {
+    console.log(
+      "\n🎬 JOURNEY 4: Dynamic Subscription Items - Multi-Tier Usage\n",
+    );
+
+    // Clean up any previous test data
+    await db.delete(usageRecords).execute();
+    await db
+      .delete(users)
+      .where(eq(users.email, "multi-tier-user@pinacle.dev"))
+      .execute();
+
+    // STEP 1: Create user with subscription
+    console.log("  📝 Step 1: Creating user with dev.small subscription...");
+    const [testUser] = await db
+      .insert(users)
+      .values({
+        email: "multi-tier-user@pinacle.dev",
+        name: "Multi Tier User",
+        password: "test",
+      })
+      .returning();
+
+    const { stripe } = await import("../../../../../lib/stripe");
+    const stripeCustomer = await stripe.customers.create({
+      email: testUser.email,
+      name: testUser.name ?? undefined,
+      metadata: { userId: testUser.id },
+    });
+
+    // Add payment method using tok_visa (test mode only)
+    const paymentMethod = await stripe.paymentMethods.create({
+      type: "card",
+      card: { token: "tok_visa" },
+    });
+    await stripe.paymentMethods.attach(paymentMethod.id, {
+      customer: stripeCustomer.id,
+    });
+    await stripe.customers.update(stripeCustomer.id, {
+      invoice_settings: { default_payment_method: paymentMethod.id },
+    });
+
+    // Find dev.small and dev.medium prices - prefer USD but use whatever is available
+    const prices = await stripe.prices.list({ limit: 100 });
+
+    // Try to find USD prices first, fallback to any currency
+    let devSmallPrice = prices.data.find(
+      (p) =>
+        p.metadata?.tierId === "dev.small" && p.active && p.currency === "usd",
+    );
+    let devMediumPrice = prices.data.find(
+      (p) =>
+        p.metadata?.tierId === "dev.medium" && p.active && p.currency === "usd",
+    );
+
+    // If no USD prices, use any available
+    if (!devSmallPrice) {
+      devSmallPrice = prices.data.find(
+        (p) => p.metadata?.tierId === "dev.small" && p.active,
+      );
+    }
+    if (!devMediumPrice) {
+      devMediumPrice = prices.data.find(
+        (p) => p.metadata?.tierId === "dev.medium" && p.active,
+      );
+    }
+
+    // Determine the currency to use (must match price currency)
+    const priceCurrency = devSmallPrice?.currency || "usd";
+    console.log(`    Using currency: ${priceCurrency}`);
+
+    if (!devSmallPrice) {
+      console.log(
+        "    ⚠️ dev.small price not found, using first available price",
+      );
+    }
+    if (!devMediumPrice) {
+      console.log("    ⚠️ dev.medium price not found in Stripe");
+    }
+
+    // Create subscription with dev.small
+    const subscription = await stripe.subscriptions.create({
+      customer: stripeCustomer.id,
+      items: [{ price: devSmallPrice?.id || prices.data[0].id }],
+      payment_settings: { payment_method_types: ["card"] },
+    });
+
+    // Save to our database with matching currency
+    await db.insert(stripeCustomers).values({
+      userId: testUser.id,
+      stripeCustomerId: stripeCustomer.id,
+      stripeSubscriptionId: subscription.id,
+      currency: priceCurrency,
+      status: "active",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    console.log(`    ✓ User has dev.small subscription: ${subscription.id}`);
+
+    // Check initial subscription items
+    const initialSub = await stripe.subscriptions.retrieve(subscription.id);
+    const initialItemCount = initialSub.items.data.length;
+    console.log(`    ✓ Initial subscription items: ${initialItemCount}`);
+
+    // STEP 2: Create a team and server for the pod
+    console.log("  🏗️ Step 2: Creating team and server for pod...");
+    const [team] = await db
+      .insert(teams)
+      .values({
+        name: "Multi Tier Team",
+        slug: "multi-tier-team",
+        ownerId: testUser.id,
+      })
+      .returning();
+
+    // Check if test server exists, create if not
+    let [server] = await db
+      .select()
+      .from(servers)
+      .where(eq(servers.hostname, "integration-test.example.com"))
+      .limit(1);
+
+    if (!server) {
+      [server] = await db
+        .insert(servers)
+        .values({
+          hostname: "integration-test.example.com",
+          ipAddress: "10.0.0.99",
+          sshHost: "integration-test.example.com",
+          sshPort: 22,
+          sshUser: "root",
+          status: "online",
+          cpuCores: 8,
+          memoryMb: 16384,
+          diskGb: 200,
+        })
+        .returning();
+    }
+    console.log(`    ✓ Team and server ready`);
+
+    // STEP 3: Create a dev.medium pod (just database record, no actual container)
+    console.log("  🚀 Step 3: Creating dev.medium pod (database only)...");
+    const podConfig = {
+      version: "1.0",
+      tier: "dev.medium",
+      services: ["code-server"],
+    };
+
+    const [pod] = await db
+      .insert(pods)
+      .values({
+        name: "Multi Tier Test Pod",
+        slug: "multi-tier-test-pod",
+        teamId: team.id,
+        ownerId: testUser.id,
+        serverId: server.id,
+        status: "running",
+        config: JSON.stringify(podConfig),
+        monthlyPrice: 1400, // $14/month for dev.medium
+      })
+      .returning();
+    console.log(`    ✓ Created dev.medium pod: ${pod.id}`);
+
+    // STEP 4: Run usage tracker to report usage and add subscription item
+    console.log("  📊 Step 4: Running usage tracker...");
+    await usageTracker.trackPodRuntime();
+    console.log(`    ✓ Usage tracker completed`);
+
+    // STEP 5: Verify subscription item was added
+    console.log("  ✅ Step 5: Verifying subscription item was added...");
+
+    // Give Stripe a moment to process
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const updatedSub = await stripe.subscriptions.retrieve(subscription.id);
+    const updatedItemCount = updatedSub.items.data.length;
+    console.log(`    ✓ Updated subscription items: ${updatedItemCount}`);
+
+    // Check if dev.medium item was added
+      const devMediumItem = updatedSub.items.data.find((item) => {
+        const priceId =
+          typeof item.price === "string" ? item.price : item.price.id;
+        return (
+          priceId === devMediumPrice?.id ||
+          item.metadata?.tierId === "dev.medium"
+        );
+      });
+
+      if (devMediumPrice) {
+        expect(updatedItemCount).toBeGreaterThan(initialItemCount);
+        expect(devMediumItem).toBeDefined();
+        console.log(
+          `    ✓ New subscription item added for dev.medium: ${devMediumItem?.id}`,
+        );
+      } else {
+        console.log(
+          `    ⚠️ Skipping item verification - dev.medium price not found in Stripe`,
+        );
+      }
+
+    // STEP 6: Verify usage record was created
+    console.log("  📈 Step 6: Verifying usage record...");
+    const usageRecord = await db
+      .select()
+      .from(usageRecords)
+      .where(eq(usageRecords.podId, pod.id))
+      .limit(1);
+
+    expect(usageRecord.length).toBe(1);
+    expect(usageRecord[0].tierId).toBe("dev.medium");
+    expect(usageRecord[0].quantity).toBe(1.0);
+    expect(usageRecord[0].reportedToStripe).toBe(true);
+    console.log(
+      `    ✓ Usage record created: ${usageRecord[0].quantity} hours for ${usageRecord[0].tierId}`,
+    );
+    console.log(`    ✓ Reported to Stripe: ${usageRecord[0].reportedToStripe}`);
+
+    // Clean up
+    await db.delete(pods).where(eq(pods.id, pod.id)).execute();
+    await db.delete(teams).where(eq(teams.id, team.id)).execute();
+
+    console.log(
+      "\n  🎉 JOURNEY 4 COMPLETE: Dynamic subscription items working!\n",
+    );
+  }, 120000);
 });

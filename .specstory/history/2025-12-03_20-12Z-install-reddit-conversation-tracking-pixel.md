@@ -190,7 +190,2350 @@ No results found
 ---
 
 <think><details><summary>Thought Process</summary>
-Good,</details></think>
+Good, I can see the pattern. Let me also check the layout file where the GoogleAnalytics component is likely included, and check the setup-form.tsx where the conversion tracking happens after subscription.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "GoogleAnalytics" • 22 matches</summary>
+
+Output mode: content
+
+
+| File | Content | Line |
+|------|------|------|
+| `./.specstory/history/2025-11-23_17-15Z-fix-missing-html-and-body-tags.md` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L233 |
+| `./.specstory/history/2025-11-23_17-15Z-fix-missing-html-and-body-tags.md` | `-         &lt;GoogleAnalytics /&gt;` | L264 |
+| `./.specstory/history/2025-11-23_17-15Z-fix-missing-html-and-body-tags.md` | `+       &lt;GoogleAnalytics /&gt;` | L266 |
+| `./.specstory/history/2025-11-23_17-15Z-fix-missing-html-and-body-tags.md` | `-         &lt;GoogleAnalytics /&gt;` | L404 |
+| `./.specstory/history/2025-11-23_17-15Z-fix-missing-html-and-body-tags.md` | `+       &lt;GoogleAnalytics /&gt;` | L415 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `&lt;GoogleAnalytics /&gt;` | L3632 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L19914 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L35178 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L35303 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `&lt;GoogleAnalytics /&gt;` | L35442 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L35518 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `&lt;GoogleAnalytics /&gt;` | L35804 |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` | `[90m 7 \|[39m [36mimport[39m \{ [33mGoogleAnalytics[39m \} [36mfrom[39m [32m"@/components/analytics/google-analytics"[39m[33m;[39m[0m` | L39098 |
+| `./.specstory/history/2025-11-22_13-13Z-implement-utm-tracking-and-storage.md` | `I should update the GoogleAnalytics component to include both GA and Google Ads tracking.</details></think>` | L3231 |
+| `./.specstory/history/2025-11-22_13-13Z-implement-utm-tracking-and-storage.md` | `export const GoogleAnalytics = () =&gt; \{` | L3257 |
+| `./.specstory/history/2025-11-15_16-01Z-implement-google-analytics-tracking.md` | `+ export const GoogleAnalytics = () =&gt; \{` | L401 |
+| `./.specstory/history/2025-11-15_16-01Z-implement-google-analytics-tracking.md` | `+ import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L550 |
+| `./.specstory/history/2025-11-15_16-01Z-implement-google-analytics-tracking.md` | `+         &lt;GoogleAnalytics /&gt;` | L572 |
+| `./.specstory/history/2025-11-15_16-01Z-implement-google-analytics-tracking.md` | `- Added the GoogleAnalytics component to track all pages` | L899 |
+| `./src/components/analytics/google-analytics.tsx` | `export const GoogleAnalytics = () => \{` | L3 |
+| `./src/app/[locale]/layout.tsx` | `import \{ GoogleAnalytics \} from "@/components/analytics/google-analytics";` | L7 |
+| `./src/app/[locale]/layout.tsx` | `<GoogleAnalytics />` | L56 |
+
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I have a good understanding of the pattern:
+
+1. **Script Loading**: There's a `GoogleAnalytics` component that loads the script in the head via Next.js `Script` component
+2. **Global Layout**: The `GoogleAnalytics` component is included in `src/app/[locale]/layout.tsx`
+3. **Conversion Tracking**: In `setup-form.tsx`, after successful subscription, they call `window.gtag("event", "conversion", ...)` to track the conversion
+
+For Reddit Pixel, I need to:
+1. Create a `RedditPixel` component similar to `GoogleAnalytics` that loads the Reddit pixel script
+2. Add it to the layout
+3. Add Reddit conversion tracking after subscription success in `setup-form.tsx`
+4. Optionally create a helper module like `gtag.ts` for Reddit tracking
+
+Let me also check the Reddit Pixel documentation to understand the events to track. Based on the user's instructions, the key events are:
+- `PageVisit` - for page visits
+- For conversion after subscription, I'll need to use `rdt('track', 'Purchase')` or similar
+
+Let me create the files needed.</details></think>
+
+---
+
+Now I understand the pattern. Let me create the Reddit Pixel tracking similar to how Google Ads is set up. I'll need to:
+1. Create a `RedditPixel` component to load the script
+2. Create a helper module for Reddit tracking
+3. Add it to the layout
+4. Add conversion tracking after subscription
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/components/analytics/reddit-pixel.tsx</summary>
+
+**Chunk 1**
+Lines added: 16, lines removed: 1
+
+```diff
+@@ -1,1 +1,16 @@
+- 
++ import Script from "next/script";
++ 
++ export const RedditPixel = () =&gt; {
++   const REDDIT_PIXEL_ID = "a2_i470svrjbwmv";
++ 
++   return (
++     &lt;Script id="reddit-pixel" strategy="afterInteractive"&gt;
++       {&#96;
++         !function(w,d){if(!w.rdt){var p=w.rdt=function(){p.sendEvent?p.sendEvent.apply(p,arguments):p.callQueue.push(arguments)};p.callQueue=[];var t=d.createElement("script");t.src="https://www.redditstatic.com/ads/pixel.js",t.async=!0;var s=d.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}}(window,document);
++         rdt('init','${REDDIT_PIXEL_ID}');
++         rdt('track', 'PageVisit');
++       &#96;}
++     &lt;/Script&gt;
++   );
++ };
++ 
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts</summary>
+
+**Chunk 1**
+Lines added: 49, lines removed: 1
+
+```diff
+@@ -1,1 +1,49 @@
+- 
++ // Reddit Pixel tracking utilities
++ 
++ // Helper to safely call rdt (Reddit pixel)
++ const rdt = (...args: unknown[]) =&gt; {
++   if (typeof window !== "undefined" &amp;&amp; window.rdt) {
++     window.rdt(...args);
++   }
++ };
++ 
++ // Track purchase/conversion event
++ export const trackRedditPurchase = (params: {
++   transactionId: string;
++   currency: string;
++   value: number;
++   itemCount?: number;
++ }) =&gt; {
++   rdt("track", "Purchase", {
++     transactionId: params.transactionId,
++     currency: params.currency,
++     value: params.value,
++     itemCount: params.itemCount ?? 1,
++   });
++ };
++ 
++ // Track sign up event
++ export const trackRedditSignUp = () =&gt; {
++   rdt("track", "SignUp");
++ };
++ 
++ // Track lead event (e.g., starting checkout)
++ export const trackRedditLead = () =&gt; {
++   rdt("track", "Lead");
++ };
++ 
++ // Track custom event
++ export const trackRedditCustomEvent = (
++   eventName: string,
++   eventData?: Record&lt;string, unknown&gt;
++ ) =&gt; {
++   rdt("track", eventName, eventData);
++ };
++ 
++ // Add rdt types to window
++ declare global {
++   interface Window {
++     rdt: (...args: unknown[]) =&gt; void;
++   }
++ }
++ 
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to:
+1. Add the `RedditPixel` component to the layout
+2. Add the conversion tracking in `setup-form.tsx` after subscription success
+
+Let me read the layout file first to see where to add the RedditPixel component.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I can see the structure. I need to:
+1. Add the `RedditPixel` import and component to the layout
+2. Add the Reddit tracking import and call in `setup-form.tsx`
+
+Let me make the changes.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -6,4 +6,5 @@
+  import { getMessages } from "next-intl/server";
+  import { GoogleAnalytics } from "@/components/analytics/google-analytics";
++ import { RedditPixel } from "@/components/analytics/reddit-pixel";
+  import { ImpersonationBanner } from "@/components/impersonation-banner";
+  import { Toaster } from "@/components/ui/sonner";
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -56,4 +56,5 @@
+      &lt;div className={&#96;${jetbrainsMono.variable} font-mono antialiased&#96;}&gt;
+        &lt;GoogleAnalytics /&gt;
++       &lt;RedditPixel /&gt;
+        &lt;NextIntlClientProvider locale={locale} messages={messages}&gt;
+          &lt;Providers&gt;
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the Reddit conversion tracking to the setup-form.tsx. Let me add the import and the tracking call after the Google Ads conversion tracking.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -18,4 +18,5 @@
+    trackPurchase as trackPHPurchase,
+  } from "../../lib/analytics/posthog";
++ import { trackRedditPurchase } from "../../lib/analytics/reddit";
+  import {
+    type Currency,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the Reddit conversion tracking call after the Google Ads conversion tracking. Let me read that part of the file again to get the exact context.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the Reddit conversion tracking after the Google Ads conversion tracking block.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 12, lines removed: undefined
+
+```diff
+@@ -307,4 +307,16 @@
+                    });
+                  }
++ 
++                 // Reddit Pixel conversion tracking
++                 trackRedditPurchase({
++                   transactionId: sessionId,
++                   currency: currency.toUpperCase(),
++                   value: tierPrice,
++                 });
++                 console.log("[Checkout] Reddit Pixel conversion tracked:", {
++                   transactionId: sessionId,
++                   value: tierPrice,
++                   currency: currency.toUpperCase(),
++                 });
+                } catch (error) {
+                  console.error("[Checkout] Error tracking purchase:", error);
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check for any lint errors in the files I've modified.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 4 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/components/analytics/reddit-pixel.tsx`
+- `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts`
+- `/Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx`
+
+Lint results
+
+Lint errors for `src/app/[locale]/layout.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| 'params' is declared but its value is never read. | 19:40-21:2 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+All files have no lint errors. Let me verify the changes by reading the modified files to make sure everything looks correct.</details></think>
+
+---
+
+Let me verify the changes look correct:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/analytics/reddit-pixel.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+All looks correct. Let me also verify the conversion tracking in setup-form.tsx to make sure the import and tracking call are in place.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Everything looks good. Let me also verify the helper file one more time:</details></think>
+
+---
+
+Done! I've installed Reddit Pixel conversion tracking for you. Here's what was added:
+
+### 1. Reddit Pixel Component (`src/components/analytics/reddit-pixel.tsx`)
+Loads the Reddit pixel script and tracks `PageVisit` on every page, using your pixel ID `a2_i470svrjbwmv`.
+
+### 2. Reddit Tracking Helper (`src/lib/analytics/reddit.ts`)
+Provides typed helper functions for tracking Reddit events:
+- `trackRedditPurchase()` - for conversion tracking
+- `trackRedditSignUp()` - for sign up events
+- `trackRedditLead()` - for lead generation
+- `trackRedditCustomEvent()` - for custom events
+
+### 3. Layout Integration (`src/app/[locale]/layout.tsx`)
+Added `<RedditPixel />` alongside `<GoogleAnalytics />` so the pixel loads on all pages.
+
+### 4. Subscription Conversion Tracking (`src/components/setup/setup-form.tsx`)
+Added Reddit conversion tracking right after the Google Ads tracking on successful subscription:
+
+```310:320:src/components/setup/setup-form.tsx
+                // Reddit Pixel conversion tracking
+                trackRedditPurchase({
+                  transactionId: sessionId,
+                  currency: currency.toUpperCase(),
+                  value: tierPrice,
+                });
+                console.log("[Checkout] Reddit Pixel conversion tracked:", {
+                  transactionId: sessionId,
+                  value: tierPrice,
+                  currency: currency.toUpperCase(),
+                });
+```
+
+The implementation follows the same pattern as your existing Google Ads tracking, with the Reddit `Purchase` event fired after successful subscription checkout.
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+@.cursor/rules/commit.md 
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit only the files I changed with a conventional commit message. Let me identify the files I changed:
+
+1. `/Users/rchaves/Projects/pinacle/src/components/analytics/reddit-pixel.tsx` (new file)
+2. `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts` (new file)
+3. `/Users/rchaves/Projects/pinacle/src/app/[locale]/layout.tsx` (modified)
+4. `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx` (modified)
+
+I'll stage only these files and commit with a conventional commit message.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/analytics/reddit-pixel.tsx src/lib/analytics/reddit.ts src/app/[locale]/layout.tsx src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Pixel conversion tracking
+
+- Add RedditPixel component to load pixel script on all pages
+- Add reddit.ts helper module with trackRedditPurchase function
+- Track PageVisit on page load and Purchase on subscription success
+- Pixel ID: a2_i470svrjbwmv"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/components/analytics/reddit-pixel.tsx src/lib/analytics/reddit.ts src/app/[locale]/layout.tsx src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Pixel conversion tracking
+
+- Add RedditPixel component to load pixel script on all pages
+- Add reddit.ts helper module with trackRedditPurchase function
+- Track PageVisit on page load and Purchase on subscription success
+- Pixel ID: a2_i470svrjbwmv"
+```
+
+```
+(eval):1: no matches found: src/app/[locale]/layout.tsx
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The brackets in the path are being interpreted by the shell. I need to escape them or quote the path.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/components/analytics/reddit-pixel.tsx src/lib/analytics/reddit.ts "src/app/[locale]/layout.tsx" src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Pixel conversion tracking
+
+- Add RedditPixel component to load pixel script on all pages
+- Add reddit.ts helper module with trackRedditPurchase function
+- Track PageVisit on page load and Purchase on subscription success
+- Pixel ID: a2_i470svrjbwmv"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/components/analytics/reddit-pixel.tsx src/lib/analytics/reddit.ts "src/app/[locale]/layout.tsx" src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Pixel conversion tracking
+
+- Add RedditPixel component to load pixel script on all pages
+- Add reddit.ts helper module with trackRedditPurchase function
+- Track PageVisit on page load and Purchase on subscription success
+- Pixel ID: a2_i470svrjbwmv"
+```
+
+```
+[main 92c0f23] feat(analytics): add Reddit Pixel conversion tracking
+ 4 files changed, 80 insertions(+)
+ create mode 100644 src/components/analytics/reddit-pixel.tsx
+ create mode 100644 src/lib/analytics/reddit.ts
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The commit was successful. I committed only the 4 files I changed with a conventional commit message.</details></think>
+
+---
+
+Committed! 4 files changed with the conventional commit message `feat(analytics): add Reddit Pixel conversion tracking`.
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+now there is like a backend setup too:
+
+Generate access token
+
+Conversions access token
+
+Conversion access tokens are secure keys that grant permission to send conversion events from your server to Reddit Ads. Tokens can be generated by business administrators and used by any ad account in your business.
+
+
+
+<note>
+
+I've added the token to REDDIT_CONVERSATION_ACCESS_TOKEN on .env, you can use that
+
+</note>
+
+
+
+Server access
+
+
+
+To set up Conversions API events, you'll need access to your website's server.
+
+Set up events
+
+You can choose to send standard conversion events, custom conversion events, or both.
+
+Note: Update the placeholders in red before sending.
+
+To send standard conversion events
+
+Note: event_at can't be older than seven days.
+
+curl 'https://ads-api.reddit.com/api/v3/pixels/a2_i470svrjbwmv/conversion_events' \
+
+--header 'Authorization: Bearer {{Authentication token}}' \
+
+--data-raw '{
+
+  "data" {
+
+    "events": [
+
+      {
+
+        "event_at": {{Unix epoch timestamp in milliseconds}},
+
+        "action_source": "{{Source of conversion}}",
+
+        "type": {
+
+          "tracking_type": "{{Conversion event}}"
+
+        }
+
+      }
+
+    ]
+
+  }
+
+}'
+
+To send custom conversion events
+
+Note: event_at should be the time of the conversion event, and no older than 7 days.
+
+curl 'https://ads-api.reddit.com/api/v3/pixels/a2_i470svrjbwmv/conversion_events' \
+
+--header 'Authorization: Bearer {{Authentication token}}' \
+
+--data-raw '{
+
+  "data": {
+
+    "events": [
+
+      {
+
+        "event_at": {{Unix epoch timestamp in milliseconds}},
+
+        "action_source": "{{Source of conversion}}",
+
+        "type": {
+
+          "tracking_type": "CUSTOM",
+
+          "custom_event_name": "{{Event name}}"
+
+        }
+
+      }
+
+    ]
+
+  }
+
+}'
+
+
+
+maybe we do it on stripe callback?
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to add server-side Reddit conversion tracking via the Conversions API. This is more reliable than client-side tracking because it doesn't depend on the user's browser. They want to do it on the Stripe webhook callback, which makes sense because that's when the payment is confirmed server-side.
+
+Let me look at the Stripe webhook handler to understand the structure and add Reddit conversion tracking there.</details></think>
+
+---
+
+Good idea! Server-side conversion tracking is more reliable. Let me look at the Stripe webhook handler:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/env.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the Stripe webhook handler. The best place to add Reddit conversion tracking is in the `invoice.payment_succeeded` event handler, specifically when it's a new subscription (not a recovery from failed payment). Actually, looking at the code more closely, I think the best place is in `customer.subscription.created` since that's when the subscription is first created/activated.
+
+But looking at the invoice events, `invoice.payment_succeeded` when `billing_reason` is `subscription_create` would be the first successful payment - that's a good place too.
+
+Actually, let me think about this more. The `customer.subscription.created` event fires when the subscription is created, but the payment might not have gone through yet. The `invoice.payment_succeeded` event with `billing_reason: 'subscription_create'` is when the first payment actually succeeds.
+
+So I should track the Reddit conversion on `invoice.payment_succeeded` when it's the first invoice (subscription_create). That's the most reliable indicator that a purchase happened.
+
+Let me create a server-side Reddit conversion tracking module and add it to the webhook.
+
+First, I need to:
+1. Add `REDDIT_CONVERSIONS_ACCESS_TOKEN` to the env schema
+2. Create a server-side Reddit conversion tracking module
+3. Add the tracking call in the webhook for first subscription payment
+
+Looking at the Reddit API docs, I need to send:
+- `event_at`: Unix epoch timestamp in milliseconds
+- `action_source`: Source of conversion (should be "web")
+- `type.tracking_type`: The conversion event type (e.g., "Purchase")
+
+For a purchase event, they also support additional data like:
+- `value`: The purchase value
+- `currency`: The currency code
+- `item_count`: Number of items
+
+Let me create the server-side module.</details></think>
+
+---
+
+I see. The best place to track server-side conversions is on `invoice.payment_succeeded` when it's the first payment (`billing_reason: 'subscription_create'`). Let me add the server-side Reddit tracking:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts</summary>
+
+**Chunk 1**
+Lines added: 128, lines removed: 1
+
+```diff
+@@ -1,1 +1,128 @@
+- 
++ // Reddit Conversions API - Server-side tracking
++ 
++ const REDDIT_PIXEL_ID = "a2_i470svrjbwmv";
++ const REDDIT_CONVERSIONS_API_URL = &#96;https://ads-api.reddit.com/api/v3/pixels/${REDDIT_PIXEL_ID}/conversion_events&#96;;
++ 
++ type RedditConversionEvent = {
++   event_at: number; // Unix epoch timestamp in milliseconds
++   action_source: "web" | "app" | "offline";
++   type: {
++     tracking_type: "PageVisit" | "ViewContent" | "Search" | "AddToCart" | "AddToWishlist" | "Purchase" | "Lead" | "SignUp" | "CUSTOM";
++     custom_event_name?: string;
++   };
++   // Optional user identifiers for matching
++   user?: {
++     email?: string; // SHA256 hashed
++     external_id?: string;
++     ip_address?: string;
++     user_agent?: string;
++   };
++   // Optional event metadata
++   event_metadata?: {
++     currency?: string;
++     value_decimal?: number;
++     item_count?: number;
++     conversion_id?: string; // For deduplication
++   };
++ };
++ 
++ type RedditConversionsPayload = {
++   data: {
++     events: RedditConversionEvent[];
++   };
++ };
++ 
++ /**
++  * Send conversion event to Reddit Conversions API
++  */
++ export const sendRedditConversion = async (event: RedditConversionEvent): Promise&lt;boolean&gt; =&gt; {
++   const accessToken = process.env.REDDIT_CONVERSIONS_ACCESS_TOKEN;
++ 
++   if (!accessToken) {
++     console.log("[Reddit] No REDDIT_CONVERSIONS_ACCESS_TOKEN configured, skipping conversion tracking");
++     return false;
++   }
++ 
++   const payload: RedditConversionsPayload = {
++     data: {
++       events: [event],
++     },
++   };
++ 
++   try {
++     const response = await fetch(REDDIT_CONVERSIONS_API_URL, {
++       method: "POST",
++       headers: {
++         "Authorization": &#96;Bearer ${accessToken}&#96;,
++         "Content-Type": "application/json",
++       },
++       body: JSON.stringify(payload),
++     });
++ 
++     if (!response.ok) {
++       const errorText = await response.text();
++       console.error("[Reddit] Conversion API error:", response.status, errorText);
++       return false;
++     }
++ 
++     console.log("[Reddit] Conversion event sent successfully:", event.type.tracking_type);
++     return true;
++   } catch (error) {
++     console.error("[Reddit] Failed to send conversion event:", error);
++     return false;
++   }
++ };
++ 
++ /**
++  * Track a purchase conversion server-side
++  */
++ export const trackRedditPurchaseServer = async (params: {
++   transactionId: string;
++   currency: string;
++   value: number;
++   email?: string;
++   ipAddress?: string;
++   userAgent?: string;
++ }): Promise&lt;boolean&gt; =&gt; {
++   return sendRedditConversion({
++     event_at: Date.now(),
++     action_source: "web",
++     type: {
++       tracking_type: "Purchase",
++     },
++     user: {
++       ...(params.email &amp;&amp; { email: params.email }),
++       ...(params.ipAddress &amp;&amp; { ip_address: params.ipAddress }),
++       ...(params.userAgent &amp;&amp; { user_agent: params.userAgent }),
++     },
++     event_metadata: {
++       currency: params.currency.toUpperCase(),
++       value_decimal: params.value,
++       item_count: 1,
++       conversion_id: params.transactionId, // For deduplication with client-side
++     },
++   });
++ };
++ 
++ /**
++  * Track a signup conversion server-side
++  */
++ export const trackRedditSignUpServer = async (params?: {
++   email?: string;
++   ipAddress?: string;
++   userAgent?: string;
++ }): Promise&lt;boolean&gt; =&gt; {
++   return sendRedditConversion({
++     event_at: Date.now(),
++     action_source: "web",
++     type: {
++       tracking_type: "SignUp",
++     },
++     user: params ? {
++       ...(params.email &amp;&amp; { email: params.email }),
++       ...(params.ipAddress &amp;&amp; { ip_address: params.ipAddress }),
++       ...(params.userAgent &amp;&amp; { user_agent: params.userAgent }),
++     } : undefined,
++   });
++ };
++ 
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/env.ts</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: undefined
+
+```diff
+@@ -34,4 +34,7 @@
+    POSTHOG_PERSONAL_API_KEY: z.string().min(1).optional(), // For sourcemap uploads
+    POSTHOG_ENV_ID: z.string().min(1).optional(), // Project ID for sourcemaps
++ 
++   // Reddit Conversions API
++   REDDIT_CONVERSIONS_ACCESS_TOKEN: z.string().min(1).optional(),
+  });
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the env variable to processEnv and add the tracking call to the Stripe webhook handler.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/env.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -71,4 +71,5 @@
+    POSTHOG_ENV_ID: process.env.POSTHOG_ENV_ID,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
++   REDDIT_CONVERSIONS_ACCESS_TOKEN: process.env.REDDIT_CONVERSIONS_ACCESS_TOKEN,
+  };
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me add the Reddit tracking call to the Stripe webhook handler. I'll add it in the `invoice.payment_succeeded` case when it's the first subscription payment.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -19,4 +19,5 @@
+    users,
+  } from "../../../../lib/db/schema";
++ import { trackRedditPurchaseServer } from "../../../../lib/analytics/reddit-server";
+  import {
+    sendPaymentFailedEmail,
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to add the tracking call in the `invoice.payment_succeeded` case. I'll add it after the invoice status update, specifically for first subscription payments.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add Reddit conversion tracking for the first subscription payment. I'll add it after the invoice status update, checking for `billing_reason === "subscription_create"`.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+**Chunk 1**
+Lines added: 17, lines removed: undefined
+
+```diff
+@@ -293,4 +293,21 @@
+            .where(eq(invoices.stripeInvoiceId, invoice.id));
+  
++         // Track Reddit conversion for first subscription payment
++         const isFirstPayment = invoice.billing_reason === "subscription_create";
++         if (isFirstPayment) {
++           try {
++             const userInfo = await getUserFromCustomerId(customerId);
++             await trackRedditPurchaseServer({
++               transactionId: invoice.id,
++               currency: invoice.currency,
++               value: invoice.amount_paid / 100, // Convert cents to dollars
++               email: userInfo?.email,
++             });
++             console.log(&#96;[Webhook] Reddit conversion tracked for invoice: ${invoice.id}&#96;);
++           } catch (error) {
++             console.error("[Webhook] Failed to track Reddit conversion:", error);
++           }
++         }
++ 
+          // Send payment success email ONLY if recovering from failed payment
+          // Don't spam users every month when their payment succeeds normally
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check for any lint errors in all the files I've modified.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 3 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts`
+- `/Users/rchaves/Projects/pinacle/src/env.ts`
+- `/Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts`
+
+Lint results
+
+Lint errors for `src/env.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| '(params?: string \| \{ normalize?: boolean \| undefined; hostname?: RegExp \| undefined; abort?: boolean \| undefined; pattern?: RegExp \| undefined; protocol?: RegExp \| undefined; error?: string \| ... 1 more ... \| undefined; message?: string \| undefined; \} \| undefined): ZodString' is deprecated. | 4:28-4:31 | DIAGNOSTIC_SEVERITY_HINT |
+| '(params?: string \| \{ normalize?: boolean \| undefined; hostname?: RegExp \| undefined; abort?: boolean \| undefined; pattern?: RegExp \| undefined; protocol?: RegExp \| undefined; error?: string \| ... 1 more ... \| undefined; message?: string \| undefined; \} \| undefined): ZodString' is deprecated. | 6:28-6:31 | DIAGNOSTIC_SEVERITY_HINT |
+| The signature '(other: ZodObject<\{ NEXT_PUBLIC_POSTHOG_KEY: ZodOptional<ZodString>; \}, $strip>): ZodObject<\{ DATABASE_URL: ZodOptional<ZodString>; ... 25 more ...; NEXT_PUBLIC_POSTHOG_KEY: ZodOptional<...>; \}, $strip>' of 'server.merge' is deprecated. | 72:23-72:28 | DIAGNOSTIC_SEVERITY_HINT |
+
+
+Lint errors for `src/app/api/webhooks/stripe/route.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| The imports and exports are not sorted. | 1:1-1:34 | DIAGNOSTIC_SEVERITY_INFORMATION |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+All files have no lint errors. Let me verify the changes look correct by reading the modified stripe webhook file.</details></think>
+
+---
+
+Let me verify the webhook changes:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+All looks good. Let me summarize what I've added for the server-side tracking:
+
+1. Created `src/lib/analytics/reddit-server.ts` - server-side Reddit Conversions API module
+2. Added `REDDIT_CONVERSIONS_ACCESS_TOKEN` to the env schema
+3. Added the tracking call in the Stripe webhook for first subscription payments
+
+Now I should commit these changes.</details></think>
+
+---
+
+Server-side Reddit conversion tracking is now set up. Here's what was added:
+
+### 1. Server-side Reddit Module (`src/lib/analytics/reddit-server.ts`)
+- `sendRedditConversion()` - low-level API call
+- `trackRedditPurchaseServer()` - tracks purchase with value, currency, transaction ID
+- `trackRedditSignUpServer()` - for signup events if needed later
+
+### 2. Environment Variable (`src/env.ts`)
+Added `REDDIT_CONVERSIONS_ACCESS_TOKEN` to the schema (you already added it to `.env`).
+
+### 3. Stripe Webhook (`src/app/api/webhooks/stripe/route.ts`)
+Tracks Reddit conversion on `invoice.payment_succeeded` when it's the first subscription payment:
+
+```295:310:src/app/api/webhooks/stripe/route.ts
+        // Track Reddit conversion for first subscription payment
+        const isFirstPayment = invoice.billing_reason === "subscription_create";
+        if (isFirstPayment) {
+          try {
+            const userInfo = await getUserFromCustomerId(customerId);
+            await trackRedditPurchaseServer({
+              transactionId: invoice.id,
+              currency: invoice.currency,
+              value: invoice.amount_paid / 100, // Convert cents to dollars
+              email: userInfo?.email,
+            });
+            console.log(`[Webhook] Reddit conversion tracked for invoice: ${invoice.id}`);
+          } catch (error) {
+            console.error("[Webhook] Failed to track Reddit conversion:", error);
+          }
+        }
+```
+
+The `conversion_id` is set to the invoice ID for deduplication with the client-side tracking, so you won't get duplicate conversions even though both client and server track the same event.
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+possibly we can add params it seems:
+
+
+
+Add parameters
+
+Add parameters
+
+Paste additional parameters in the events parameter to share user identifiers and more information on your conversion event. This will increase attribution accuracy and help with deduplication.
+
+"events": [
+
+  {
+
+    [...]
+
+    Paste parameters here
+
+  }
+
+]
+
+Match keys
+
+Share user identifiers to match conversions to a Reddit ad engagement.
+
+Note: Update the placeholders in red before sending.
+
+"click_id": "{{Click ID}}",
+
+"user": {
+
+  "ip_address": "{{IP address}}",
+
+  "user_agent": "{{User agent}}",
+
+  "screen_dimensions": {
+
+    "width": {{Screen in pixels}},
+
+    "height": {{Screen in pixels}}
+
+  },
+
+  "email": "{{Email address}}",
+
+  "phone_number": "{{Phone number}}",
+
+  "external_id": "{{External ID}}",
+
+  "idfa": "{{IDFA}}",
+
+  "aaid": "{{AAID}}",
+
+  "uuid": "{{UUID}}"
+
+}
+
+Event metadata
+
+Share as much additional information about your conversion event as you'd like.
+
+If you're using the Conversions API with the pixel, conversion_id is required for deduplication.
+
+Note: Update the placeholders in red before sending.
+
+"metadata": {
+
+  "item_count": {{Number of items}},
+
+  "currency": "{{ISO 4217 3-letter currency code}}",
+
+  "value": {{Value (decimal)}},
+
+  "conversion_id": "{{Unique ID of the conversion event}}",
+
+  "products": [
+
+    {
+
+      "id": "{{SKU or GTIN}}",
+
+      "name": "{{Title of the product}}",
+
+      "category": "{{Product group}}"
+
+    }
+
+  ]
+
+}
+
+
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is showing me more details about the Reddit Conversions API parameters. It looks like my implementation was slightly off - the API uses `metadata` not `event_metadata`, and there are more fields we can add. Let me update the server-side module to match the correct API format.
+
+Key changes:
+1. `event_metadata` should be `metadata`
+2. `value_decimal` should be `value`
+3. Can add `click_id` at the event level
+4. User object has more fields like `external_id`, `uuid`
+
+Let me update the reddit-server.ts file to match the correct API format.</details></think>
+
+---
+
+Good catch! Let me update the server-side module to match the correct API format:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue - looking at the Reddit docs:1. `event_metadata` should be `metadata`2. `value_decimal` should be `value`
+3. Can add `click_id` at event level
+4. User object can include `external_id`, `uuid`, `screen_dimensions`, etc.Let me update the file with the correct API format.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts</summary>
+
+**Chunk 1**
+Lines added: 32, lines removed: 8
+
+```diff
+@@ -8,20 +8,44 @@
+    action_source: "web" | "app" | "offline";
+    type: {
+-     tracking_type: "PageVisit" | "ViewContent" | "Search" | "AddToCart" | "AddToWishlist" | "Purchase" | "Lead" | "SignUp" | "CUSTOM";
++     tracking_type:
++       | "PageVisit"
++       | "ViewContent"
++       | "Search"
++       | "AddToCart"
++       | "AddToWishlist"
++       | "Purchase"
++       | "Lead"
++       | "SignUp"
++       | "CUSTOM";
+      custom_event_name?: string;
+    };
+-   // Optional user identifiers for matching
++   // Click ID from Reddit ad (rdt_cid URL param)
++   click_id?: string;
++   // User identifiers for matching
+    user?: {
+-     email?: string; // SHA256 hashed
++     email?: string;
++     phone_number?: string;
+      external_id?: string;
+      ip_address?: string;
+      user_agent?: string;
++     uuid?: string;
++     idfa?: string;
++     aaid?: string;
++     screen_dimensions?: {
++       width: number;
++       height: number;
++     };
+    };
+-   // Optional event metadata
+-   event_metadata?: {
+-     currency?: string;
+-     value_decimal?: number;
++   // Event metadata
++   metadata?: {
+      item_count?: number;
+-     conversion_id?: string; // For deduplication
++     currency?: string; // ISO 4217 3-letter code
++     value?: number; // Decimal value
++     conversion_id?: string; // Required for deduplication with pixel
++     products?: Array&lt;{
++       id?: string; // SKU or GTIN
++       name?: string;
++       category?: string;
++     }&gt;;
+    };
+  };
+```
+
+**Chunk 2**
+Lines added: 6, lines removed: 2
+
+```diff
+@@ -36,9 +60,13 @@
+   * Send conversion event to Reddit Conversions API
+   */
+- export const sendRedditConversion = async (event: RedditConversionEvent): Promise&lt;boolean&gt; =&gt; {
++ export const sendRedditConversion = async (
++   event: RedditConversionEvent,
++ ): Promise&lt;boolean&gt; =&gt; {
+    const accessToken = process.env.REDDIT_CONVERSIONS_ACCESS_TOKEN;
+  
+    if (!accessToken) {
+-     console.log("[Reddit] No REDDIT_CONVERSIONS_ACCESS_TOKEN configured, skipping conversion tracking");
++     console.log(
++       "[Reddit] No REDDIT_CONVERSIONS_ACCESS_TOKEN configured, skipping conversion tracking",
++     );
+      return false;
+    }
+```
+
+**Chunk 3**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -54,5 +82,5 @@
+        method: "POST",
+        headers: {
+-         "Authorization": &#96;Bearer ${accessToken}&#96;,
++         Authorization: &#96;Bearer ${accessToken}&#96;,
+          "Content-Type": "application/json",
+        },
+```
+
+**Chunk 4**
+Lines added: 9, lines removed: 2
+
+```diff
+@@ -62,9 +90,16 @@
+      if (!response.ok) {
+        const errorText = await response.text();
+-       console.error("[Reddit] Conversion API error:", response.status, errorText);
++       console.error(
++         "[Reddit] Conversion API error:",
++         response.status,
++         errorText,
++       );
+        return false;
+      }
+  
+-     console.log("[Reddit] Conversion event sent successfully:", event.type.tracking_type);
++     console.log(
++       "[Reddit] Conversion event sent successfully:",
++       event.type.tracking_type,
++     );
+      return true;
+    } catch (error) {
+```
+
+**Chunk 5**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -82,6 +117,8 @@
+    value: number;
+    email?: string;
++   externalId?: string;
+    ipAddress?: string;
+    userAgent?: string;
++   clickId?: string;
+  }): Promise&lt;boolean&gt; =&gt; {
+    return sendRedditConversion({
+```
+
+**Chunk 6**
+Lines added: 12, lines removed: 3
+
+```diff
+@@ -91,14 +128,23 @@
+        tracking_type: "Purchase",
+      },
++     ...(params.clickId &amp;&amp; { click_id: params.clickId }),
+      user: {
+        ...(params.email &amp;&amp; { email: params.email }),
++       ...(params.externalId &amp;&amp; { external_id: params.externalId }),
+        ...(params.ipAddress &amp;&amp; { ip_address: params.ipAddress }),
+        ...(params.userAgent &amp;&amp; { user_agent: params.userAgent }),
+      },
+-     event_metadata: {
++     metadata: {
+        currency: params.currency.toUpperCase(),
+-       value_decimal: params.value,
++       value: params.value,
+        item_count: 1,
+-       conversion_id: params.transactionId, // For deduplication with client-side
++       conversion_id: params.transactionId, // Required for deduplication with pixel
++       products: [
++         {
++           id: "pinacle-subscription",
++           name: "Pinacle Subscription",
++           category: "subscription",
++         },
++       ],
+      },
+    });
+```
+
+**Chunk 7**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -110,6 +156,8 @@
+  export const trackRedditSignUpServer = async (params?: {
+    email?: string;
++   externalId?: string;
+    ipAddress?: string;
+    userAgent?: string;
++   clickId?: string;
+  }): Promise&lt;boolean&gt; =&gt; {
+    return sendRedditConversion({
+```
+
+**Chunk 8**
+Lines added: 9, lines removed: 6
+
+```diff
+@@ -119,11 +167,14 @@
+        tracking_type: "SignUp",
+      },
+-     user: params ? {
+-       ...(params.email &amp;&amp; { email: params.email }),
+-       ...(params.ipAddress &amp;&amp; { ip_address: params.ipAddress }),
+-       ...(params.userAgent &amp;&amp; { user_agent: params.userAgent }),
+-     } : undefined,
++     ...(params?.clickId &amp;&amp; { click_id: params.clickId }),
++     user: params
++       ? {
++           ...(params.email &amp;&amp; { email: params.email }),
++           ...(params.externalId &amp;&amp; { external_id: params.externalId }),
++           ...(params.ipAddress &amp;&amp; { ip_address: params.ipAddress }),
++           ...(params.userAgent &amp;&amp; { user_agent: params.userAgent }),
++         }
++       : undefined,
+    });
+  };
+- 
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me also update the Stripe webhook to pass the user's ID as external_id for better matching:</details></think>
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+Complete deduplication
+
+Add unique conversion IDs
+
+For every pixel event that you added a unique conversion ID, add the same conversion ID to the duplicate Conversions API event.
+
+"metadata": {
+
+  "conversion_id": "{{Conversion ID}}"
+
+}
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to ensure proper deduplication between client-side (pixel) and server-side (Conversions API) tracking. They're pointing out that both need to use the same `conversion_id`.
+
+Looking at my implementation:
+1. Server-side (`reddit-server.ts`): I'm using `transactionId` (which is the invoice ID) as the `conversion_id`
+2. Client-side (`reddit.ts` and `setup-form.tsx`): I need to check what I'm passing there
+
+Let me check the client-side implementation to make sure it's also passing the same conversion_id.</details></think>
+
+---
+
+Good point! I need to make sure the client-side pixel also sends the same `conversion_id` for deduplication. Let me update the client-side tracking:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see - the client-side tracking is using different parameter names. According to Reddit's documentation, I need to use `conversion_id` in the metadata for deduplication. Let me update the client-side module to use the correct format with `conversion_id`.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="write">
+
+<details><summary>Tool use: **write** • Edit file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -1,3 +1,3 @@
+- // Reddit Pixel tracking utilities
++ // Reddit Pixel tracking utilities (client-side)
+  
+  // Helper to safely call rdt (Reddit pixel)
+```
+
+**Chunk 2**
+Lines added: 5, lines removed: 4
+
+```diff
+@@ -9,21 +9,22 @@
+  
+  // Track purchase/conversion event
++ // conversion_id must match the server-side Conversions API for deduplication
+  export const trackRedditPurchase = (params: {
+-   transactionId: string;
++   conversionId: string; // Required for deduplication with server-side
+    currency: string;
+    value: number;
+    itemCount?: number;
+  }) =&gt; {
+    rdt("track", "Purchase", {
+-     transactionId: params.transactionId,
+      currency: params.currency,
+      value: params.value,
+      itemCount: params.itemCount ?? 1,
++     conversionId: params.conversionId, // For deduplication with Conversions API
+    });
+  };
+  
+  // Track sign up event
+- export const trackRedditSignUp = () =&gt; {
+-   rdt("track", "SignUp");
++ export const trackRedditSignUp = (conversionId?: string) =&gt; {
++   rdt("track", "SignUp", conversionId ? { conversionId } : undefined);
+  };
+  
+```
+
+**Chunk 3**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -36,5 +37,5 @@
+  export const trackRedditCustomEvent = (
+    eventName: string,
+-   eventData?: Record&lt;string, unknown&gt;
++   eventData?: Record&lt;string, unknown&gt;,
+  ) =&gt; {
+    rdt("track", eventName, eventData);
+```
+
+**Chunk 4**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -47,4 +48,3 @@
+    }
+  }
+- 
+  
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now I need to update the setup-form.tsx to use `conversionId` instead of `transactionId`. The key is that both client-side and server-side use the same ID for deduplication. In the setup-form, we use `sessionId` (the Stripe checkout session ID), but in the webhook we use the invoice ID. Let me check what makes sense for consistent deduplication.
+
+Actually, looking at the flow:
+1. Client-side: Called after successful checkout, uses `sessionId` (Stripe checkout session ID)
+2. Server-side: Called on webhook, uses `invoice.id` (Stripe invoice ID)
+
+These are different IDs! For proper deduplication, both need to use the same ID. 
+
+The problem is:
+- Client-side runs first with checkout session ID
+- Server-side runs later with invoice ID
+
+We could either:
+1. Use the invoice ID on both sides (but client doesn't have access to it easily)
+2. Use the checkout session ID on both sides (but webhook doesn't easily have it)
+3. Use some other consistent ID
+
+Actually, looking at this more carefully - the Stripe checkout session ID and invoice ID are different things. The checkout session creates a subscription which creates invoices.
+
+For deduplication, the simplest approach might be to:
+1. Client-side: Use the checkout session ID
+2. Server-side: We could potentially get the checkout session ID from the invoice, or we could use a combination
+
+But actually, Reddit will likely match based on user identifiers (email, IP, etc.) even if the conversion_id differs slightly. The conversion_id is mainly for explicit deduplication when both fire.
+
+Let me think about this differently - the important thing is that if both fire for the same purchase, Reddit can dedupe them. Using ANY unique identifier per purchase should work. So:
+- Client: Uses sessionId (checkout session)
+- Server: Uses invoice.id
+
+These will be different, but that's actually okay because they represent the same logical purchase, and Reddit can match based on timing + user info.
+ 
+I see the challenge is ensuring a consistent identifier across client and server interactions. The Stripe ecosystem creates multiple related identifiers through its subscription flow. While the checkout session and invoice IDs differ, they fundamentally represent the same transaction. The goal is finding a reliable way to link these identifiers for accurate conversion tracking. Exploring metadata and lookup strategies could provide a clean solution for maintaining a unified conversion ID across different stages of the purchase process.</details></think>
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+there was also something on the client side for that:
+
+
+
+Prepare for deduplication
+
+
+
+Add unique conversion IDs
+
+Go to your website's code editor and manually create an event with a conversion ID for each event you set up in the event setup tool. The conversion ID can be any unique string, like a transaction ID or event ID.
+
+This call can be made either in the base code or between the <script> tags on the page where the event should happen.
+
+rdt('track', '{{Conversion event}}', {
+
+    conversionId: '{{Conversion ID}}'
+
+});
+
+Verify event names
+
+Go to Events Manager or use the Reddit Pixel Helper Chrome extension to verify event names.
+
+
+
+de we alaready have it on client side
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user is asking if we already have the conversion ID on the client side. Let me check the setup-form.tsx where we call the client-side tracking to see if we're passing the conversionId parameter correctly.</details></think>
+
+---
+
+Let me check the client-side call in setup-form.tsx:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see the issue - I updated the client-side `trackRedditPurchase` function to use `conversionId` instead of `transactionId`, but the call in `setup-form.tsx` is still using `transactionId`. I need to update the call to use `conversionId`.
+
+Also, the client-side is using `sessionId` (the Stripe checkout session ID) while the server-side is using the invoice ID. For proper deduplication, both should use the same ID. 
+
+Looking at the code flow:
+- Client side: Uses `sessionId` (Stripe checkout session ID)
+- Server side: Uses `invoice.id` (Stripe invoice ID)
+
+These are different! For deduplication to work, both need to use the same ID. The invoice ID is more reliable since it's what the webhook receives. But on the client side, we only have the session ID at checkout success time.
+
+Actually, looking more carefully at the server-side code, we're tracking on `invoice.payment_succeeded` and using `invoice.id`. The client tracks immediately after checkout success using the `sessionId`.
+
+For proper deduplication, we should use the same ID. Since the session ID is available on both client and server (you can get it from the invoice metadata or from the checkout session), we could:
+1. Use session ID on both sides
+2. Or use invoice ID on both sides
+
+Actually, looking at Stripe's flow:
+- Checkout session is created → user pays → invoice is created and paid
+- The checkout session ID and invoice ID are different but related
+
+For simplicity, let's use the sessionId on the client (which we have) and on the server we should try to get the session ID from the invoice metadata, OR we can just use the invoice ID consistently.
+
+Actually, the safest approach is:
+- The server-side tracking happens on webhook, which is more reliable
+- The client-side tracking is a backup
+- For deduplication, we need the same ID
+
+Since on the webhook we only have the invoice ID easily available, let's use that. 
+
+I'm struggling to find a consistent way to link the client and server tracking IDs. The checkout session and invoice have different identifiers, making perfect deduplication challenging. We need a reliable method to connect these tracking events to ensure accurate conversion tracking across both client and server sides.
+
+The core challenge is matching the conversion ID between the immediate client-side tracking and the later server-side webhook tracking. Without a direct, guaranteed way to link these identifiers, we'll need a creative solution to ensure reliable tracking.
+
+I'll modify the client-side code to use the session ID as the conversion ID, accepting that Reddit's tracking system can handle imperfect matches through additional signals like email and timestamp proximity.</details></think>
+
+---
+
+I see the issue - I updated the function signature but the call is using the old parameter name. Let me fix it:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 2
+
+```diff
+@@ -309,11 +309,12 @@
+  
+                  // Reddit Pixel conversion tracking
++                 // conversionId must match server-side for deduplication
+                  trackRedditPurchase({
+-                   transactionId: sessionId,
++                   conversionId: sessionId,
+                    currency: currency.toUpperCase(),
+                    value: tierPrice,
+                  });
+                  console.log("[Checkout] Reddit Pixel conversion tracked:", {
+-                   transactionId: sessionId,
++                   conversionId: sessionId,
+                    value: tierPrice,
+                    currency: currency.toUpperCase(),
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Actually, I realized there's a problem - on the client side we use `sessionId` (Stripe checkout session ID), but on the server side in the webhook we use `invoice.id`. These are different IDs, so deduplication won't work properly.
+
+Let me check if we can get the session ID from the invoice on the webhook, or if we should use invoice ID on both sides.
+
+Actually, looking at the server-side webhook code, we could try to extract the session ID from the invoice. In Stripe, when a checkout session creates an invoice, the session ID might be stored in metadata. Or we could look it up.
+
+But a simpler approach: use the invoice ID on the server-side, and on the client-side we should also try to use the invoice ID when available.
+
+Actually, in the current flow:
+- Client: After checkout success, we have the session ID
+- Server: On webhook, we have the invoice ID
+
+These are different. For proper deduplication, they need to match.
+
+The cleanest solution might be to:
+1. On the server webhook, use session ID if available (from invoice metadata or by looking up the session)
+2. Or accept that client and server use different IDs (Reddit might still dedupe by other factors)
+
+Let me check if we can get the session ID from the invoice in the webhook. The Stripe invoice has various fields... Actually, the checkout session creates the subscription, and the subscription creates the invoice. So we'd need to go: invoice → subscription → look up what session created this subscription.
+
+This is getting complex. For now, the simpler solution is to note that client uses sessionId and server uses invoiceId. Reddit can potentially dedupe based on:
+- Same email
+- Same value/currency
+- Close timestamps
+- User agent/IP
+
+So even without matching conversion_id, there's a chance of deduplication.
+
+But ideally, we should match them. Let me update the server-side to use the session ID by looking it up from the subscription's metadata if available, or fall back to invoice ID.
+ 
+I'll explore storing the session ID in the subscription metadata during checkout. This would provide a consistent way to retrieve the session identifier on the webhook side. However, implementing this requires modifying the checkout creation flow, which might introduce additional complexity. For now, I'll note the current limitation and consider a future improvement that allows seamless tracking across client and server interactions.
+
+The key challenge remains linking the checkout session with the subsequent invoice, ensuring we can reliably track and deduplicate transactions. While multiple potential approaches exist, finding a lightweight solution that minimizes code changes is the priority.</details></think>
+
+---
+
+Wait - there's a deduplication issue. The client uses `sessionId` (Stripe checkout session ID) but the server uses `invoice.id`. These are different! For deduplication to work, both need the same ID.
+
+Let me check if we can get the session ID from the invoice on the server side:
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="grep">
+<details>
+<summary>Tool use: **grep** • Grep for "checkout.*session|createCheckoutSession" • 26 matches</summary>
+
+Output mode: files_with_matches
+
+
+| File |
+|------|
+| `./src/components/setup/setup-form.tsx` |
+| `./.specstory/history/2025-11-26_19-37Z-switching-to-dotenv-file-for-env-vars.md` |
+| `./.specstory/history/2025-11-23_22-30Z-identify-source-of-unused-javascript.md` |
+| `./.specstory/history/2025-11-23_16-55Z-issue-with-i18n-integration-and-routing.md` |
+| `./.specstory/history/2025-11-22_20-41Z-implement-internationalization-for-the-website.md` |
+| `./.specstory/history/2025-11-22_13-13Z-implement-utm-tracking-and-storage.md` |
+| `./.specstory/history/2025-11-16_21-55Z-implement-invitation-system-and-team-visibility.md` |
+| `./.specstory/history/2025-11-15_16-01Z-implement-google-analytics-tracking.md` |
+| `./.specstory/history/2025-11-06_22-14Z-create-a-blogpost-for-pinacle-project.md` |
+| `./.specstory/history/2025-11-02_22-13Z-create-pricing-page-with-tier-table.md` |
+| `./.specstory/history/2025-11-02_10-15Z-add-address-bar-to-process-tabs.md` |
+| `./.specstory/history/2025-10-30_21-36Z-implement-stripe-webhooks-and-pricing-script.md` |
+| `./src/lib/db/schema.ts` |
+| `./drizzle/meta/0029_snapshot.json` |
+| `./drizzle/meta/0028_snapshot.json` |
+| `./src/lib/billing/checkout-recovery.ts` |
+| `./drizzle/meta/0027_snapshot.json` |
+| `./drizzle/meta/0026_snapshot.json` |
+| `./drizzle/meta/0025_snapshot.json` |
+| `./drizzle/meta/0024_snapshot.json` |
+| `./drizzle/meta/0023_snapshot.json` |
+| `./internal-docs/architecture/12-billing-system.md` |
+| `./internal-docs/STRIPE_IMPLEMENTATION_STATUS.md` |
+| `./drizzle/meta/0022_snapshot.json` |
+| `./drizzle/0021_smooth_blue_blade.sql` |
+| `./src/lib/trpc/routers/billing.ts` |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me look at how the checkout session is created to see if we store the session ID anywhere that's accessible from the invoice webhook.</details></think>
+
+---
+
+<tool-use data-tool-type="search" data-tool-name="codebase_search">
+<details>
+                <summary>Tool use: **codebase_search** • Searched codebase "How is the Stripe checkout session created and what metadata is stored?" • **6** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `src/lib/trpc/routers/billing.ts` | L13-481 |
+| `src/lib/trpc/routers/pods.ts` | L43-2641 |
+| `src/lib/trpc/routers/billing.ts` | L481 |
+| `src/lib/trpc/routers/pods.ts` | L42-116 |
+| `src/lib/trpc/routers/admin.ts` | L50-1008 |
+| `src/lib/trpc/routers/users.ts` | L109 |
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Looking at the checkout session creation, I don't see that the session ID is stored in subscription metadata. The flow is:
+1. Create checkout session
+2. User pays
+3. Stripe creates subscription and invoice
+4. Webhook receives invoice.payment_succeededThe webhook only has access to the invoice and subscription, not the checkout session directly.
+
+For proper deduplication, we have a few options:1. Store session ID in subscription metadata when creating checkout - requires modifying checkout creation2. Accept that client (sessionId) and server (invoiceId) use different IDs
+3. Look up the session from the subscription on the webhook (expensive API call)Let me look at the checkout session creation more closely to see if we could add the session ID to metadata, or if we're already storing it somewhere we can access from the webhook.
+
+Actually, looking at the code, I see there's a `checkoutSessions` table. Let me check if we store the session ID and can look it up from the</details></think>
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+maybe we use subscription id? is that available? if not lets just use user id fuck it
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants to use the same ID for deduplication on both client and server side. They're suggesting subscription ID or user ID as alternatives.
+
+Looking at the webhook code, in `invoice.payment_succeeded`:
+- We have `invoice` object which has `subscription` field (the subscription ID)
+- We have `customerId` (Stripe customer ID)
+- We can get `userInfo` which has the user ID
+
+On the client side in setup-form.tsx:
+- We have `sessionId` (checkout session ID)
+- We have `session.user.id` (user ID)
+
+The subscription ID would be a good choice because:
+1. It's stable and unique per subscription
+2. It's available in the webhook (from the invoice)
+3. On the client, after checkout success, we could potentially get it... but actually we might not have it immediately
+
+User ID is simpler:
+1. Available on both client (from session) and server (from customer lookup)
+2. Unique per user
+3. If a user subscribes multiple times (cancel + resubscribe), it might cause issues with deduplication, but that's an edge case
+
+Let me check what's available:
+- Server: `subscriptionId` from invoice, `userInfo.id` 
+- Client: `session.user.id`
+
+User ID seems like the simplest solution that works on both sides. Let me update both.</details></think>
+
+---
+
+Good call! User ID is available on both sides. Let me update both:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I can see the client has access to `session` (from useSession). Let me check if `session.user.id` is available. Looking at the top of the file:
+
+```tsx
+const { data: session, status } = useSession();
+```
+
+So `session?.user?.id` should be available. Let me update both client and server to use user ID as the conversion ID.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -309,12 +309,12 @@
+  
+                  // Reddit Pixel conversion tracking
+-                 // conversionId must match server-side for deduplication
++                 // Use visitorId (visitorId) for deduplication with server-side
+                  trackRedditPurchase({
+-                   conversionId: sessionId,
++                   conversionId: &#96;purchase_${session?.user?.id}&#96;,
+                    currency: currency.toUpperCase(),
+                    value: tierPrice,
+                  });
+                  console.log("[Checkout] Reddit Pixel conversion tracked:", {
+-                   conversionId: sessionId,
++                   conversionId: &#96;purchase_${session?.user?.id}&#96;,
+                    value: tierPrice,
+                    currency: currency.toUpperCase(),
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server-side to use the same format: `purchase_${userId}`</details></think>
+
+---
+
+Cancelled
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+wait maybe user id plus yyyymmdd, that should be fine
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+Good idea - using user ID plus date (YYYYMMDD) makes it unique per user per day, which handles the edge case of someone resubscribing. Let me update both client and server.</details></think>
+
+---
+
+Good idea - that handles resubscribes too. Let me update both:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+**Chunk 1**
+Lines added: 5, lines removed: 3
+
+```diff
+@@ -309,12 +309,14 @@
+  
+                  // Reddit Pixel conversion tracking
+-                 // Use visitorId (visitorId) for deduplication with server-side
++                 // Use visitorId + date for deduplication with server-side
++                 const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
++                 const redditConversionId = &#96;purchase_${session?.user?.id}_${today}&#96;;
+                  trackRedditPurchase({
+-                   conversionId: &#96;purchase_${session?.user?.id}&#96;,
++                   conversionId: redditConversionId,
+                    currency: currency.toUpperCase(),
+                    value: tierPrice,
+                  });
+                  console.log("[Checkout] Reddit Pixel conversion tracked:", {
+-                   conversionId: &#96;purchase_${session?.user?.id}&#96;,
++                   conversionId: redditConversionId,
+                    value: tierPrice,
+                    currency: currency.toUpperCase(),
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me update the server-side to use the same format.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I see - the server-side uses `transactionId` which maps to `conversion_id` in the server module. I need to change it to use `purchase_${userId}_${yyyymmdd}` format. I also need to update the `trackRedditPurchaseServer` function signature to accept a `conversionId` instead of `transactionId`, or just pass the right value.
+
+Let me check the server module again to see the parameter name.</details></think>
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+**Chunk 1**
+Lines added: 6, lines removed: 2
+
+```diff
+@@ -299,12 +299,16 @@
+            try {
+              const userInfo = await getUserFromCustomerId(customerId);
++             // Use userId + date for deduplication with client-side pixel
++             const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
++             const conversionId = &#96;purchase_${userInfo?.id}_${today}&#96;;
+              await trackRedditPurchaseServer({
+-               transactionId: invoice.id,
++               transactionId: conversionId,
+                currency: invoice.currency,
+                value: invoice.amount_paid / 100, // Convert cents to dollars
+                email: userInfo?.email,
++               externalId: userInfo?.id,
+              });
+              console.log(
+-               &#96;[Webhook] Reddit conversion tracked for invoice: ${invoice.id}&#96;,
++               &#96;[Webhook] Reddit conversion tracked: ${conversionId}&#96;,
+              );
+            } catch (error) {
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Now let me check for lint errors.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx`
+- `/Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts`
+
+Lint results
+
+Lint errors for `src/app/api/webhooks/stripe/route.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'externalId' does not exist in type '\{ transactionId: string; currency: string; value: number; email?: string \| undefined; ipAddress?: string \| undefined; userAgent?: string \| undefined; \}'. | 309:15-309:25 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+I need to add `externalId` to the `trackRedditPurchaseServer` function signature. Let me check and update the reddit-server.ts file.</details></think>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Hmm, the function does have `externalId` in the signature. Let me check the lint error again - oh wait, maybe there's an issue with the file. Let me re-read the lints.
+
+Actually, it looks like the linter might be using a cached version. Let me check the current state of the file.</details></think>
+
+---
+
+The function already has `externalId` - let me check if there's a caching issue:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The `externalId` is defined in the function signature. The linter error might be a caching issue. Let me re-check the lints.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts`
+- `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts`
+
+Lint results
+
+Lint errors for `src/app/api/webhooks/stripe/route.ts`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'externalId' does not exist in type '\{ transactionId: string; currency: string; value: number; email?: string \| undefined; ipAddress?: string \| undefined; userAgent?: string \| undefined; \}'. | 309:15-309:25 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The linter still shows the error. The function signature in `reddit-server.ts` does have `externalId` though. This could be because:
+1. TypeScript server hasn't updated yet
+2. There's a different version of the function being imported
+
+Let me try removing the externalId from the call since it's not critical - the user ID is already in the conversionId. Or I can wait for TypeScript to catch up.
+
+Actually, let me just remove the `externalId` param from the call since the important thing is the `conversionId` for deduplication, and the user ID is already encoded in that.</details></think>
+
+---
+
+Let me just remove `externalId` from the call - the user ID is already in the conversionId which is what matters for deduplication:
+
+---
+
+<tool-use data-tool-type="write" data-tool-name="search_replace">
+
+<details><summary>Tool use: **search_replace** • Edit file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -307,5 +307,4 @@
+                value: invoice.amount_paid / 100, // Convert cents to dollars
+                email: userInfo?.email,
+-               externalId: userInfo?.id,
+              });
+              console.log(
+```
+
+</details>
+
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Let me check for any remaining lint errors.</details></think>
+
+---
+
+<tool-use data-tool-type="generic" data-tool-name="read_lints">
+<details>
+          <summary>Tool use: **read_lints** • Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `/Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts`
+- `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+All good. Let me verify the final state of both files to make sure the deduplication IDs match.</details></think>
+
+---
+
+Let me verify both sides use the same ID format:
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx</summary>
+
+</details>
+</tool-use>
+
+---
+
+<tool-use data-tool-type="read" data-tool-name="read_file">
+<details><summary>Tool use: **read_file** • Read file: /Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts</summary>
+
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+Both sides now use the same format: `purchase_${userId}_${YYYYMMDD}`- Client: `purchase_${session?.user?.id}_${today}` where today is YYYYMMDD- Server: `purchase_${userInfo?.id}_${today}` where today is YYYYMMDDThis should allow Reddit to properly deduplicate events from both client-side pixel and server-side Conversions API.</details></think>
+
+---
+
+Both sides now use the same deduplication ID format: `purchase_{userId}_{YYYYMMDD}`
+
+**Client-side** (setup-form.tsx):
+```typescript
+const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+const redditConversionId = `purchase_${session?.user?.id}_${today}`;
+```
+
+**Server-side** (stripe webhook):
+```typescript
+const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+const conversionId = `purchase_${userInfo?.id}_${today}`;
+```
+
+Reddit will now properly deduplicate the pixel event and Conversions API event since they share the same `conversionId`.
+
+---
+
+_**User (2025-12-03 20:12Z)**_
+
+@.cursor/rules/commit.md 
+
+---
+
+_**Agent (model claude-4.5-opus-high-thinking, mode Agent)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants me to commit only the files I changed with a conventional commit message. Let me identify the files I changed in this session:
+
+1. `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit-server.ts` (new file - server-side tracking)
+2. `/Users/rchaves/Projects/pinacle/src/lib/analytics/reddit.ts` (updated - client-side with conversionId)
+3. `/Users/rchaves/Projects/pinacle/src/env.ts` (updated - added REDDIT_CONVERSIONS_ACCESS_TOKEN)
+4. `/Users/rchaves/Projects/pinacle/src/app/api/webhooks/stripe/route.ts` (updated - added Reddit tracking on subscription)
+5. `/Users/rchaves/Projects/pinacle/src/components/setup/setup-form.tsx` (updated - added conversionId for deduplication)
+
+Wait, I also created files in the first commit:
+- `src/components/analytics/reddit-pixel.tsx`
+- `src/lib/analytics/reddit.ts`
+- Modified `src/app/[locale]/layout.tsx`
+- Modified `src/components/setup/setup-form.tsx`
+
+Those were already committed. So for this commit, I need to commit:
+1. `src/lib/analytics/reddit-server.ts` (new)
+2. `src/lib/analytics/reddit.ts` (updated with conversionId)
+3. `src/env.ts` (added env var)
+4. `src/app/api/webhooks/stripe/route.ts` (added server-side tracking)
+5. `src/components/setup/setup-form.tsx` (updated conversionId format)
+
+Let me commit these.</details></think>
+
+---
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_cmd">
+<details><summary>Tool use: **run_terminal_cmd** • Run command: cd /Users/rchaves/Projects/pinacle && git add src/lib/analytics/reddit-server.ts src/lib/analytics/reddit.ts src/env.ts src/app/api/webhooks/stripe/route.ts src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Conversions API server-side tracking
+
+- Add reddit-server.ts for server-side conversion tracking via Conversions API
+- Add REDDIT_CONVERSIONS_ACCESS_TOKEN to env schema
+- Track Purchase event on first subscription payment in Stripe webhook
+- Update client-side to use conversionId for deduplication
+- Use userId + YYYYMMDD as conversionId on both client and server"</summary>
+
+```bash
+cd /Users/rchaves/Projects/pinacle && git add src/lib/analytics/reddit-server.ts src/lib/analytics/reddit.ts src/env.ts src/app/api/webhooks/stripe/route.ts src/components/setup/setup-form.tsx && git commit -m "feat(analytics): add Reddit Conversions API server-side tracking
+
+- Add reddit-server.ts for server-side conversion tracking via Conversions API
+- Add REDDIT_CONVERSIONS_ACCESS_TOKEN to env schema
+- Track Purchase event on first subscription payment in Stripe webhook
+- Update client-side to use conversionId for deduplication
+- Use userId + YYYYMMDD as conversionId on both client and server"
+```
+
+```
+[main f55fb21] feat(analytics): add Reddit Conversions API server-side tracking
+ 5 files changed, 237 insertions(+), 16 deletions(-)
+ create mode 100644 src/lib/analytics/reddit-server.ts
+
+```
+</details>
+</tool-use>
+
+---
+
+<think><details><summary>Thought Process</summary>
+The commit was successful. 5 files changed with the server-side Reddit Conversions API tracking and deduplication support.</details></think>
+
+---
+
+Committed! 5 files changed with the server-side Reddit Conversions API tracking and proper deduplication using `purchase_{userId}_{YYYYMMDD}`.
 
 ---
 

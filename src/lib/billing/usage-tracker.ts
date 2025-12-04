@@ -1,6 +1,12 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { podSnapshots, pods, stripeCustomers, usageRecords } from "../db/schema";
+import {
+  podSnapshots,
+  pods,
+  stripeCustomers,
+  stripePrices,
+  usageRecords,
+} from "../db/schema";
 import type { TierId } from "../pod-orchestration/resource-tier-registry";
 import { stripe } from "../stripe";
 import { generateKSUID } from "../utils";
@@ -10,6 +16,108 @@ import { generateKSUID } from "../utils";
  * Tracks hourly usage and reports to Stripe
  */
 export class UsageTracker {
+  /**
+   * Ensure a subscription item exists for a given tier/meter before reporting usage.
+   * If the subscription doesn't have an item for this tier, it will be created dynamically.
+   * This allows users to create pods of different tiers without manual subscription changes.
+   *
+   * @param stripeCustomerId - The Stripe customer ID
+   * @param stripeSubscriptionId - The Stripe subscription ID
+   * @param tierId - The tier ID (e.g., "dev.small", "dev.medium", or "snapshot_storage")
+   * @param currency - The user's billing currency
+   */
+  async ensureSubscriptionItem(
+    stripeCustomerId: string,
+    stripeSubscriptionId: string,
+    tierId: string,
+    currency: string,
+  ): Promise<void> {
+    try {
+      // Get the subscription to check current items
+      const subscription = await stripe.subscriptions.retrieve(
+        stripeSubscriptionId,
+        { expand: ["items.data.price"] },
+      );
+
+      // Check if subscription is in a state that allows adding items
+      if (!["active", "trialing"].includes(subscription.status)) {
+        console.log(
+          `[UsageTracker] Subscription ${stripeSubscriptionId} is ${subscription.status}, skipping item creation`,
+        );
+        return;
+      }
+
+      // Look up the price ID for this tier and currency from our database
+      const [priceRecord] = await db
+        .select()
+        .from(stripePrices)
+        .where(
+          and(
+            eq(stripePrices.tierId, tierId),
+            eq(stripePrices.currency, currency),
+            eq(stripePrices.active, true),
+          ),
+        )
+        .limit(1);
+
+      if (!priceRecord) {
+        console.error(
+          `[UsageTracker] No price found for tier ${tierId} in currency ${currency}`,
+        );
+        return;
+      }
+
+      // Check if the subscription already has an item for this price
+      const existingItem = subscription.items.data.find((item) => {
+        const priceId =
+          typeof item.price === "string" ? item.price : item.price.id;
+        return priceId === priceRecord.stripePriceId;
+      });
+
+      if (existingItem) {
+        // Item already exists, nothing to do
+        return;
+      }
+
+      // Create the subscription item for this tier
+      console.log(
+        `[UsageTracker] Adding subscription item for tier ${tierId} to subscription ${stripeSubscriptionId}`,
+      );
+
+      await stripe.subscriptionItems.create({
+        subscription: stripeSubscriptionId,
+        price: priceRecord.stripePriceId,
+        metadata: {
+          tierId: tierId,
+          currency: currency,
+          addedAutomatically: "true",
+        },
+      });
+
+      console.log(
+        `[UsageTracker]   ✓ Added subscription item for tier ${tierId}`,
+      );
+    } catch (error) {
+      // Handle race conditions where another process might have added the item
+      const stripeError = error as { code?: string; message?: string };
+      if (
+        stripeError.code === "resource_already_exists" ||
+        stripeError.message?.includes("already exists")
+      ) {
+        console.log(
+          `[UsageTracker] Subscription item for tier ${tierId} already exists (race condition)`,
+        );
+        return;
+      }
+
+      console.error(
+        `[UsageTracker] Failed to ensure subscription item for tier ${tierId}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   /**
    * Track pod runtime for all running pods
    * Called every hour by the worker
@@ -178,6 +286,15 @@ export class UsageTracker {
         return;
       }
 
+      // Ensure subscription has an item for snapshot storage before reporting usage
+      // This dynamically adds the snapshot_storage subscription item if not present
+      await this.ensureSubscriptionItem(
+        stripeCustomer.stripeCustomerId,
+        stripeCustomer.stripeSubscriptionId,
+        "snapshot_storage",
+        stripeCustomer.currency,
+      );
+
       // Report usage to Stripe using Billing Meters
       const meterEvent = await stripe.billing.meterEvents.create({
         event_name: "snapshot_storage",
@@ -239,6 +356,15 @@ export class UsageTracker {
         );
         return;
       }
+
+      // Ensure subscription has an item for this tier before reporting usage
+      // This dynamically adds subscription items for new tiers (e.g., user had dev.small, now has dev.medium)
+      await this.ensureSubscriptionItem(
+        stripeCustomer.stripeCustomerId,
+        stripeCustomer.stripeSubscriptionId,
+        usageRecord.tierId,
+        stripeCustomer.currency,
+      );
 
       // Create meter event name from tier ID
       // e.g., "dev.small" -> "pod_runtime_dev_small"

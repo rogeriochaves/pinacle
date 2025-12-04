@@ -6,6 +6,7 @@ import {
   pods,
   servers,
   stripeCustomers,
+  stripePrices,
   teams,
   usageRecords,
   users,
@@ -32,6 +33,26 @@ vi.mock("../../stripe", () => ({
           event_name: "pod_runtime_dev_small",
         }),
       },
+    },
+    subscriptions: {
+      retrieve: vi.fn().mockResolvedValue({
+        id: "sub_test_usage",
+        status: "active",
+        items: {
+          data: [
+            {
+              id: "si_existing_item",
+              price: { id: "price_dev_small_usd" },
+            },
+          ],
+        },
+      }),
+    },
+    subscriptionItems: {
+      create: vi.fn().mockResolvedValue({
+        id: "si_new_item",
+        price: { id: "price_dev_medium_usd" },
+      }),
     },
   },
 }));
@@ -64,6 +85,23 @@ describe("Usage Tracker Tests", () => {
     await db
       .delete(servers)
       .where(eq(servers.hostname, "usage-test.example.com"))
+      .execute();
+    // Clean up test prices
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_small_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_medium_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_large_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_snapshot_storage_usd"))
       .execute();
 
     // Create test user
@@ -117,6 +155,50 @@ describe("Usage Tracker Tests", () => {
       })
       .returning();
     testStripeCustomerId = stripeCustomer.stripeCustomerId;
+
+    // Create test prices for ensureSubscriptionItem to find
+    await db.insert(stripePrices).values([
+      {
+        tierId: "dev.small",
+        currency: "usd",
+        stripePriceId: "price_dev_small_usd",
+        stripeProductId: "prod_dev_small",
+        unitAmountDecimal: "0.9589",
+        interval: "month",
+        usageType: "metered",
+        active: true,
+      },
+      {
+        tierId: "dev.medium",
+        currency: "usd",
+        stripePriceId: "price_dev_medium_usd",
+        stripeProductId: "prod_dev_medium",
+        unitAmountDecimal: "1.9178",
+        interval: "month",
+        usageType: "metered",
+        active: true,
+      },
+      {
+        tierId: "dev.large",
+        currency: "usd",
+        stripePriceId: "price_dev_large_usd",
+        stripeProductId: "prod_dev_large",
+        unitAmountDecimal: "3.8356",
+        interval: "month",
+        usageType: "metered",
+        active: true,
+      },
+      {
+        tierId: "snapshot_storage",
+        currency: "usd",
+        stripePriceId: "price_snapshot_storage_usd",
+        stripeProductId: "prod_snapshot_storage",
+        unitAmountDecimal: "0.000014",
+        interval: "month",
+        usageType: "metered",
+        active: true,
+      },
+    ]);
   });
 
   beforeEach(async () => {
@@ -145,6 +227,23 @@ describe("Usage Tracker Tests", () => {
     if (testServerId) {
       await db.delete(servers).where(eq(servers.id, testServerId)).execute();
     }
+    // Clean up test prices
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_small_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_medium_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_dev_large_usd"))
+      .execute();
+    await db
+      .delete(stripePrices)
+      .where(eq(stripePrices.stripePriceId, "price_snapshot_storage_usd"))
+      .execute();
   });
 
   it("should track hourly usage for running pods with correct quantity (1.0)", async () => {
