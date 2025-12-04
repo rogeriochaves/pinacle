@@ -355,7 +355,10 @@ export const adminRouter = createTRPCRouter({
         );
       }
 
-      const usersData = await query.limit(input.limit).offset(input.offset);
+      const usersData = await query
+        .orderBy(desc(users.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
 
       return usersData;
     }),
@@ -418,11 +421,105 @@ export const adminRouter = createTRPCRouter({
         )
         .where(eq(userGithubInstallations.userId, input.userId));
 
+      // Get Stripe customer from database
+      const [stripeCustomer] = await ctx.db
+        .select()
+        .from(stripeCustomers)
+        .where(eq(stripeCustomers.userId, input.userId))
+        .limit(1);
+
+      // Fetch Stripe events for this customer (shows complete activity timeline)
+      let stripeEvents: Array<{
+        id: string;
+        type: string;
+        created: number;
+        data: {
+          objectId: string | null;
+          objectType: string | null;
+          amount: number | null;
+          currency: string | null;
+          status: string | null;
+          description: string | null;
+        };
+      }> | null = null;
+
+      // Also fetch current subscriptions for quick status view
+      let stripeSubscriptions: Array<{
+        id: string;
+        status: string;
+        currentPeriodStart: number;
+        currentPeriodEnd: number;
+        cancelAtPeriodEnd: boolean;
+        created: number;
+      }> | null = null;
+
+      if (stripeCustomer) {
+        try {
+          // Fetch all events for this customer (Stripe keeps 30 days of events)
+          // We need to fetch events and filter by customer since events.list doesn't support customer filter directly
+          const allEvents = await stripe.events.list({
+            limit: 100,
+            // We'll filter by customer in the results
+          });
+
+          // Filter events related to this customer
+          const customerEvents = allEvents.data.filter((event) => {
+            const obj = event.data.object as unknown as Record<string, unknown>;
+            // Check if the event's object has this customer ID
+            return (
+              obj.customer === stripeCustomer.stripeCustomerId ||
+              obj.id === stripeCustomer.stripeCustomerId
+            );
+          });
+
+          stripeEvents = customerEvents.map((event) => {
+            const obj = event.data.object as unknown as Record<string, unknown>;
+            return {
+              id: event.id,
+              type: event.type,
+              created: event.created,
+              data: {
+                objectId: (obj.id as string) ?? null,
+                objectType: (obj.object as string) ?? null,
+                amount: (obj.amount as number) ?? (obj.amount_total as number) ?? null,
+                currency: (obj.currency as string) ?? null,
+                status: (obj.status as string) ?? (obj.payment_status as string) ?? null,
+                description: (obj.description as string) ?? null,
+              },
+            };
+          });
+
+          // Also get current subscriptions
+          const subscriptionsData = await stripe.subscriptions.list({
+            customer: stripeCustomer.stripeCustomerId,
+            limit: 10,
+          });
+
+          stripeSubscriptions = subscriptionsData.data.map((sub) => {
+            const firstItem = sub.items.data[0];
+            return {
+              id: sub.id,
+              status: sub.status,
+              currentPeriodStart: firstItem?.current_period_start ?? sub.created,
+              currentPeriodEnd: firstItem?.current_period_end ?? sub.created,
+              cancelAtPeriodEnd: sub.cancel_at_period_end,
+              created: sub.created,
+            };
+          });
+        } catch (error) {
+          console.error("Failed to fetch Stripe data:", error);
+          // Don't fail the request, just return null
+        }
+      }
+
       return {
         user,
         teams: userTeams,
         pods: userPods,
         githubInstallations: githubInstalls,
+        stripeCustomer,
+        stripeEvents,
+        stripeSubscriptions,
       };
     }),
 

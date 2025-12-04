@@ -1,10 +1,46 @@
 "use client";
 
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, CreditCard, ExternalLink, Tag } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { podRecordToPinacleConfig } from "@/lib/pod-orchestration/pinacle-config";
 import { api } from "@/lib/trpc/client";
+
+const formatCurrency = (amount: number, currency: string) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+  }).format(amount / 100);
+};
+
+const formatDate = (timestamp: number) => {
+  return new Date(timestamp * 1000).toLocaleString();
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "complete":
+    case "paid":
+    case "succeeded":
+    case "active":
+      return "bg-green-100 text-green-800";
+    case "open":
+    case "pending":
+    case "processing":
+    case "requires_payment_method":
+    case "requires_confirmation":
+    case "requires_action":
+      return "bg-yellow-100 text-yellow-800";
+    case "canceled":
+    case "expired":
+    case "failed":
+    case "void":
+    case "uncollectible":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
 
 export default function UserDetailPage() {
   const params = useParams();
@@ -40,7 +76,15 @@ export default function UserDetailPage() {
     );
   }
 
-  const { user, teams, pods, githubInstallations } = data;
+  const {
+    user,
+    teams,
+    pods,
+    githubInstallations,
+    stripeCustomer,
+    stripeEvents,
+    stripeSubscriptions,
+  } = data;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -116,6 +160,227 @@ export default function UserDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* UTM Parameters */}
+      {(user.utmSource ||
+        user.utmMedium ||
+        user.utmCampaign ||
+        user.utmTerm ||
+        user.utmContent) && (
+        <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Tag className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Sign Up Attribution (UTM)
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {user.utmSource && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">Source</div>
+                <div className="mt-1 text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded">
+                  {user.utmSource}
+                </div>
+              </div>
+            )}
+            {user.utmMedium && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">Medium</div>
+                <div className="mt-1 text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded">
+                  {user.utmMedium}
+                </div>
+              </div>
+            )}
+            {user.utmCampaign && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">
+                  Campaign
+                </div>
+                <div className="mt-1 text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded">
+                  {user.utmCampaign}
+                </div>
+              </div>
+            )}
+            {user.utmTerm && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">Term</div>
+                <div className="mt-1 text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded">
+                  {user.utmTerm}
+                </div>
+              </div>
+            )}
+            {user.utmContent && (
+              <div>
+                <div className="text-xs font-medium text-gray-500">Content</div>
+                <div className="mt-1 text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded">
+                  {user.utmContent}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Stripe Activity */}
+      <div className="mb-8 rounded-lg border border-gray-200 bg-white">
+        <div className="border-b border-gray-200 p-4">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold text-gray-900">
+              Stripe Activity
+            </h2>
+          </div>
+          {stripeCustomer && (
+            <p className="mt-1 text-sm text-gray-500">
+              Customer ID:{" "}
+              <a
+                href={`https://dashboard.stripe.com/customers/${stripeCustomer.stripeCustomerId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-blue-600 hover:text-blue-700"
+              >
+                {stripeCustomer.stripeCustomerId}
+                <ExternalLink className="ml-1 inline h-3 w-3" />
+              </a>
+            </p>
+          )}
+        </div>
+
+        {!stripeCustomer ? (
+          <div className="p-8 text-center text-sm text-gray-500">
+            No Stripe customer record
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {/* Current Subscriptions */}
+            {stripeSubscriptions && stripeSubscriptions.length > 0 && (
+              <div className="p-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Active Subscriptions
+                </h3>
+                <div className="space-y-2">
+                  {stripeSubscriptions.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <a
+                            href={`https://dashboard.stripe.com/subscriptions/${sub.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-blue-600 hover:text-blue-700"
+                          >
+                            {sub.id}
+                            <ExternalLink className="ml-1 inline h-3 w-3" />
+                          </a>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(sub.status)}`}
+                          >
+                            {sub.status}
+                          </span>
+                          {sub.cancelAtPeriodEnd && (
+                            <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                              cancels at period end
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Period: {formatDate(sub.currentPeriodStart)} →{" "}
+                          {formatDate(sub.currentPeriodEnd)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Events Timeline */}
+            <div className="p-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Events Timeline (last 30 days)
+              </h3>
+              {!stripeEvents ? (
+                <div className="text-sm text-gray-500">
+                  Failed to load events
+                </div>
+              ) : stripeEvents.length === 0 ? (
+                <div className="text-sm text-gray-500">
+                  No events found for this customer
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {stripeEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-start gap-3 bg-gray-50 p-3 rounded-lg"
+                    >
+                      <div
+                        className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${
+                          event.type.includes("succeeded") ||
+                          event.type.includes("complete") ||
+                          event.type.includes("created") ||
+                          event.type.includes("paid")
+                            ? "bg-green-500"
+                            : event.type.includes("failed") ||
+                                event.type.includes("canceled") ||
+                                event.type.includes("deleted")
+                              ? "bg-red-500"
+                              : event.type.includes("pending") ||
+                                  event.type.includes("processing") ||
+                                  event.type.includes("updated")
+                                ? "bg-yellow-500"
+                                : "bg-gray-400"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm text-gray-900">
+                            {event.type.replace(/\./g, " → ")}
+                          </span>
+                          {event.data.status && (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(event.data.status)}`}
+                            >
+                              {event.data.status}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          {event.data.amount !== null &&
+                            event.data.currency && (
+                              <span className="font-medium text-gray-700">
+                                {formatCurrency(
+                                  event.data.amount,
+                                  event.data.currency,
+                                )}
+                              </span>
+                            )}
+                          {event.data.objectId && (
+                            <span className="font-mono truncate max-w-[200px]">
+                              {event.data.objectId}
+                            </span>
+                          )}
+                        </div>
+                        {event.data.description && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {event.data.description}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 flex-shrink-0">
+                        {formatDate(event.created)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* GitHub Installations */}
@@ -204,8 +469,7 @@ export default function UserDetailPage() {
                   <div className="text-xs text-gray-500">
                     {membership.joinedAt
                       ? `Joined ${new Date(membership.joinedAt).toLocaleDateString()}`
-                      : "Invitation pending"
-                    }
+                      : "Invitation pending"}
                   </div>
                 </div>
               </Link>
