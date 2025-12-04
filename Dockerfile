@@ -4,7 +4,10 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Install system dependencies
-RUN apk add --no-cache openssh
+# - openssh: for SSH connections
+# - postgresql16-client: for pg_dump backups
+# - aws-cli: for S3 uploads to Scaleway
+RUN apk add --no-cache openssh postgresql16-client aws-cli
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -34,9 +37,19 @@ COPY drizzle.config.ts ./
 # Copy database migrations
 COPY drizzle ./drizzle
 
+# Copy backup and entrypoint scripts
+COPY scripts/pg-backup.sh /usr/local/bin/pg-backup.sh
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/pg-backup.sh /usr/local/bin/entrypoint.sh
+
+# Create cron job for daily database backup at 3:00 AM UTC
+# The cron entry runs the backup script and logs output
+RUN echo "0 3 * * * /usr/local/bin/pg-backup.sh >> /var/log/pg-backup.log 2>&1" > /etc/crontabs/root
+
 # Expose the default port
 EXPOSE 4000
 
-# Start the application using concurrently (auto-restarts individual processes)
+# Use entrypoint to set up cron environment, then start the main application
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["pnpm", "start:prod"]
 
