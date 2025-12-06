@@ -87,6 +87,7 @@
     "subtitle": "Build、Code、Deployに必要なもの全部 — Browserで直接",
     "clickToContinue": "クリックして続行 →",
     "tapToContinue": "タップして続行 →",
+    "swipeOrTapToContinue": "スワイプまたはタップして続行 →",
     "tour": {
       "yourApp": "あなたのApp",
       "yourAppLabel": "Appとローカルポートをプレビュー",

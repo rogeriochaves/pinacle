@@ -87,6 +87,7 @@
     "subtitle": "Tudo que você precisa pra buildar, codar e lançar — direto no seu browser",
     "clickToContinue": "Clique pra continuar →",
     "tapToContinue": "Toca pra continuar →",
+    "swipeOrTapToContinue": "Deslize ou toque pra continuar →",
     "tour": {
       "yourApp": "Seu App",
       "yourAppLabel": "Preview do seu app e de qualquer porta local",

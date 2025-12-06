@@ -87,6 +87,7 @@
     "subtitle": "Build、Code、Deploy需要的一切 — 都在browser里",
     "clickToContinue": "点击继续 →",
     "tapToContinue": "点按继续 →",
+    "swipeOrTapToContinue": "滑动或点按继续 →",
     "tour": {
       "yourApp": "你的App",
       "yourAppLabel": "预览你的app和任何本地端口",

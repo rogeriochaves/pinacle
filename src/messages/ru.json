@@ -87,6 +87,7 @@
     "subtitle": "Всё что нужно для build, code и deploy — прямо в браузере",
     "clickToContinue": "Нажмите, чтобы продолжить →",
     "tapToContinue": "Нажмите, чтобы продолжить →",
+    "swipeOrTapToContinue": "Свайпните или нажмите, чтобы продолжить →",
     "tour": {
       "yourApp": "Твой App",
       "yourAppLabel": "Preview твоего app'а и любых локальных портов",

@@ -87,6 +87,7 @@
     "subtitle": "Everything you need to build, code, and ship — right in your browser",
     "clickToContinue": "Click to continue →",
     "tapToContinue": "Tap to continue →",
+    "swipeOrTapToContinue": "Swipe or tap to continue →",
     "tour": {
       "yourApp": "Your App",
       "yourAppLabel": "Preview your app and any local ports",

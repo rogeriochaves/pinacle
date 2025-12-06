@@ -72,6 +72,32 @@ export const SneakPeek = () => {
     setActiveStep((prev) => (prev + 1) % tourSteps.length);
   };
 
+  const goToPrevStep = () => {
+    setActiveStep((prev) => (prev - 1 + tourSteps.length) % tourSteps.length);
+  };
+
+  const handleDragEnd = (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: { offset: { x: number; y: number }; velocity: { x: number; y: number } },
+  ) => {
+    const swipeThreshold = 50;
+    const swipeVelocityThreshold = 500;
+
+    if (
+      info.offset.x < -swipeThreshold ||
+      info.velocity.x < -swipeVelocityThreshold
+    ) {
+      // Swiped left - go to next
+      goToNextStep();
+    } else if (
+      info.offset.x > swipeThreshold ||
+      info.velocity.x > swipeVelocityThreshold
+    ) {
+      // Swiped right - go to previous
+      goToPrevStep();
+    }
+  };
+
   return (
     <section className="bg-gradient-to-b from-white to-gray-50 py-16 sm:py-24 border-b border-gray-200">
       <div className="mx-auto max-w-7xl px-6 lg:px-8" id="features">
@@ -118,12 +144,16 @@ export const SneakPeek = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
                   className="relative w-full h-full"
+                  drag="x"
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.2}
+                  onDragEnd={handleDragEnd}
                 >
                   {/* Clickable image overlay */}
                   <button
                     type="button"
                     onClick={goToNextStep}
-                    className="absolute inset-0 w-full h-full cursor-pointer z-10"
+                    className="absolute inset-0 w-full h-full cursor-pointer z-10 touch-none"
                     aria-label="Continue tour"
                   />
 
@@ -131,7 +161,7 @@ export const SneakPeek = () => {
                     src={currentStep.image}
                     alt={`${currentStep.name} screenshot`}
                     fill
-                    className="object-cover object-top"
+                    className="object-cover object-top pointer-events-none"
                     priority={activeStep === 0}
                   />
 
@@ -205,7 +235,7 @@ export const SneakPeek = () => {
                     {currentStep.label}
                   </div>
                   <div className="text-xs font-mono text-orange-100">
-                    {t("tapToContinue")}
+                    {t("swipeOrTapToContinue")}
                   </div>
                 </motion.div>
               </AnimatePresence>

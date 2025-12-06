@@ -74,6 +74,7 @@
     "subtitle": "Tout ce qu'il te faut pour build, code et deploy — direct dans ton browser",
     "clickToContinue": "Cliquez pour continuer →",
     "tapToContinue": "Appuyez pour continuer →",
+    "swipeOrTapToContinue": "Glissez ou appuyez pour continuer →",
     "tour": {
       "yourApp": "Ton App",
       "yourAppLabel": "Preview de ton app et tous les ports locaux",
