@@ -169,7 +169,7 @@ const TemplateCard = ({
       </CardContent>
       <CardFooter className="flex-col w-full">
         <hr className="my-4 border-gray-200" />
-        <div className="flex items-start justify-between w-full gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between w-full gap-4">
           <TierSelector
             value={selectedTier}
             onChange={setSelectedTier}
@@ -180,6 +180,7 @@ const TemplateCard = ({
           />
           <Link
             href={`/setup?type=new&template=${template.id}&tier=${selectedTier}&agent=${selectedAgent}`}
+            className="w-full sm:w-auto"
           >
             <Button variant="accent" className="w-full">
               {t("startBuilding")}

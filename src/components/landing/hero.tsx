@@ -117,11 +117,11 @@ export const Hero = () => {
         <Header />
         <div className="flex gap-10 align-start w-full justify-between">
           <div className="flex flex-col gap-4 pb-8 max-w-2xl">
-            <h1 className="text-4xl font-bold font-mono tracking-tight">
+            <h1 className="text-4xl font-bold font-mono tracking-tight break-words">
               {t("title")}
             </h1>
-            <h2>{t("subtitle")}</h2>
-            <div className="flex gap-4 pt-4">
+            <h2 className="break-words">{t("subtitle")}</h2>
+            <div className="flex flex-wrap gap-4 pt-4">
               <Button asChild>
                 <a href="/setup?type=repository">
                   <GithubIcon size={16} />
