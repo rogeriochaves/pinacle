@@ -113,42 +113,42 @@ export const SneakPeek = () => {
 
         {/* Mac-style Browser Window */}
         <div className="mx-auto max-w-6xl">
-          <div className="rounded-2xl shadow-2xl overflow-hidden border border-gray-300 bg-white">
-            {/* Browser Chrome */}
-            <div className="bg-gray-100 border-b border-gray-300 px-4 py-3">
-              <div className="flex items-center gap-2">
-                {/* Traffic Lights */}
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
-                </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={handleDragEnd}
+              className="touch-pan-y"
+            >
+              <div className="rounded-2xl shadow-2xl overflow-hidden border border-gray-300 bg-white">
+                {/* Browser Chrome */}
+                <div className="bg-gray-100 border-b border-gray-300 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {/* Traffic Lights */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
 
-                {/* URL Bar */}
-                <div className="flex-1 ml-4">
-                  <div className="bg-white rounded px-3 py-1 text-xs text-gray-600 font-mono">
-                    pinacle.dev/
-                    {currentStep.name.toLowerCase().replace(/\s+/g, "-")}
+                    {/* URL Bar */}
+                    <div className="flex-1 ml-4">
+                      <div className="bg-white rounded px-3 py-1 text-xs text-gray-600 font-mono">
+                        pinacle.dev/
+                        {currentStep.name.toLowerCase().replace(/\s+/g, "-")}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Browser Content */}
-            <div className="relative bg-white aspect-[16/10] overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="relative w-full h-full"
-                  drag="x"
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.2}
-                  onDragEnd={handleDragEnd}
-                >
+                {/* Browser Content */}
+                <div className="relative bg-white aspect-[16/10] overflow-hidden">
                   {/* Clickable image overlay */}
                   <button
                     type="button"
@@ -216,48 +216,37 @@ export const SneakPeek = () => {
                       </div>
                     </div>
                   )}
-                </motion.div>
-              </AnimatePresence>
-            </div>
+                </div>
 
-            {/* Mobile Description Below Image */}
-            <div className="lg:hidden bg-orange-500 px-4 py-3">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep.id}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex flex-col items-center gap-2"
-                >
+                {/* Mobile Description Below Image */}
+                <div className="lg:hidden bg-orange-500 px-4 py-3">
                   <div className="text-sm font-mono font-bold text-white text-center">
                     {currentStep.label}
                   </div>
                   <div className="text-xs font-mono text-orange-100">
                     {t("swipeOrTapToContinue")}
                   </div>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
+                </div>
+              </div>
 
-          {/* Navigation Dots */}
-          <div className="flex justify-center gap-2 mt-8">
-            {tourSteps.map((step, index) => (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setActiveStep(index)}
-                className={`w-3 h-3 rounded-full transition-all ${
-                  activeStep === index
-                    ? "bg-orange-500 w-8"
-                    : "bg-gray-300 hover:bg-gray-400"
-                }`}
-                aria-label={`View ${step.name}`}
-              />
-            ))}
-          </div>
+              {/* Navigation Dots */}
+              <div className="flex justify-center gap-2 mt-8">
+                {tourSteps.map((step, index) => (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveStep(index)}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      activeStep === index
+                        ? "bg-orange-500 w-8"
+                        : "bg-gray-300 hover:bg-gray-400"
+                    }`}
+                    aria-label={`View ${step.name}`}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </section>
