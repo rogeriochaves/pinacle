@@ -113,19 +113,14 @@ export const SneakPeek = () => {
 
         {/* Mac-style Browser Window */}
         <div className="mx-auto max-w-6xl">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={handleDragEnd}
-              className="touch-pan-y"
-            >
+          <motion.div
+            key={currentStep.id}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={handleDragEnd}
+            className="touch-pan-y"
+          >
               <div className="rounded-2xl shadow-2xl overflow-hidden border border-gray-300 bg-white">
                 {/* Browser Chrome */}
                 <div className="bg-gray-100 border-b border-gray-300 px-4 py-3">
@@ -246,7 +241,6 @@ export const SneakPeek = () => {
                 ))}
               </div>
             </motion.div>
-          </AnimatePresence>
         </div>
       </div>
     </section>

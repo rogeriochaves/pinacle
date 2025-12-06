@@ -15,8 +15,13 @@ export default function Home() {
       <JumpRightBack />
       <Templates />
       <SneakPeek />
+      {/* CTA always shown here (before FAQ) */}
       <CTA />
       <FAQ />
+      {/* CTA shown here again on mobile only (after FAQ) */}
+      <div className="lg:hidden">
+        <CTA />
+      </div>
       <Footer />
     </div>
   );
