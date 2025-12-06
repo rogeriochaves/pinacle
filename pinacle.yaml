@@ -1,0 +1,27 @@
+# Pinacle Pod Configuration
+# https://pinacle.dev/docs/pinacle-yaml
+version: "1.0"
+tier: dev.large
+services:
+  - code-server
+  - cursor-cli
+  - vibe-kanban
+  - web-terminal
+template: nodejs-blank
+install: pnpm install
+processes:
+  - name: app
+    startCommand: pnpm dev
+    url: http://localhost:3000
+tabs:
+  - name: app
+    url: http://localhost:3000
+  - name: Cursor CLI
+    service: cursor-cli
+  - name: VS Code
+    service: code-server
+  - name: Terminal
+    service: web-terminal
+  - name: Vibe Kanban
+    service: vibe-kanban
+
