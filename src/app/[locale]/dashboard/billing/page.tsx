@@ -1,16 +1,23 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, CreditCard, FileText, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CreditCard,
+  FileText,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/trpc/client";
 
 export default function BillingPage() {
   const [isLoadingPortal, setIsLoadingPortal] = useState(false);
   const t = useTranslations("billing");
+  const tDashboard = useTranslations("dashboard");
 
   const { data: subscriptionStatus, isLoading: isLoadingStatus } =
     api.billing.getSubscriptionStatus.useQuery();
@@ -118,9 +125,7 @@ export default function BillingPage() {
           <h1 className="text-3xl font-mono font-bold text-slate-900 mb-2">
             {t("title")}
           </h1>
-          <p className="text-slate-600 font-mono text-sm">
-            {t("subtitle")}
-          </p>
+          <p className="text-slate-600 font-mono text-sm">{t("subtitle")}</p>
         </div>
 
         {isLoading ? (
@@ -146,7 +151,7 @@ export default function BillingPage() {
                     {t("noActiveSubscription")}
                   </p>
                   <Button asChild className="font-mono">
-                    <Link href="/setup">{t("createFirstPod")}</Link>
+                    <Link href="/setup">{tDashboard("createFirstPod")}</Link>
                   </Button>
                 </div>
               ) : (
@@ -210,36 +215,38 @@ export default function BillingPage() {
                   </p>
                 ) : (
                   <div className="space-y-3">
-                    {currentUsage.upcomingInvoice.lineItems.map((item: {
-                      description: string | null;
-                      amount: number;
-                      currency: string;
-                      quantity: number | null;
-                    }, idx: number) => (
-                      <div
-                        key={`line-item-${idx}`}
-                        className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200"
-                      >
-                        <div>
-                          <p className="font-mono font-bold text-slate-900">
-                            {item.description || t("usage")}
-                          </p>
-                          {item.quantity && (
-                            <p className="font-mono text-sm text-slate-600">
-                              {t("units", { count: item.quantity })}
+                    {currentUsage.upcomingInvoice.lineItems.map(
+                      (
+                        item: {
+                          description: string | null;
+                          amount: number;
+                          currency: string;
+                          quantity: number | null;
+                        },
+                        idx: number,
+                      ) => (
+                        <div
+                          key={`line-item-${idx}`}
+                          className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200"
+                        >
+                          <div>
+                            <p className="font-mono font-bold text-slate-900">
+                              {item.description || t("usage")}
                             </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-bold text-slate-900">
-                            {formatCurrency(
-                              item.amount,
-                              item.currency,
+                            {item.quantity && (
+                              <p className="font-mono text-sm text-slate-600">
+                                {t("units", { count: item.quantity })}
+                              </p>
                             )}
-                          </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-bold text-slate-900">
+                              {formatCurrency(item.amount, item.currency)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ),
+                    )}
 
                     <div className="pt-4 border-t border-slate-200">
                       <div className="flex items-center justify-between">
@@ -248,7 +255,18 @@ export default function BillingPage() {
                             {t("total")}
                           </p>
                           <p className="font-mono text-xs text-slate-600">
-                            {t("period")}: {formatDate(new Date(currentUsage.upcomingInvoice.periodStart * 1000))} - {formatDate(new Date(currentUsage.upcomingInvoice.periodEnd * 1000))}
+                            {t("period")}:{" "}
+                            {formatDate(
+                              new Date(
+                                currentUsage.upcomingInvoice.periodStart * 1000,
+                              ),
+                            )}{" "}
+                            -{" "}
+                            {formatDate(
+                              new Date(
+                                currentUsage.upcomingInvoice.periodEnd * 1000,
+                              ),
+                            )}
                           </p>
                         </div>
                         <p className="font-mono font-bold text-2xl text-slate-900">
@@ -335,15 +353,15 @@ export default function BillingPage() {
                                 <a
                                   href={invoice.hostedInvoiceUrl}
                                   target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                {t("view")}
-                              </a>
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                                  rel="noopener noreferrer"
+                                >
+                                  {t("view")}
+                                </a>
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -355,4 +373,3 @@ export default function BillingPage() {
     </div>
   );
 }
-

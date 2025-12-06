@@ -55,6 +55,8 @@ docker/Dockerfile*
 scripts/*.sh
 scripts/test-*.ts
 scripts/seed.ts
+!scripts/pg-backup.sh
+!scripts/entrypoint.sh
 
 # Logs
 logs
