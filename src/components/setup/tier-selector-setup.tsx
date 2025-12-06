@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import { formatCurrency } from "@/lib/currency-utils";
 import {
   type Currency,
@@ -15,6 +16,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "../ui/tooltip";
+
+// Average hours per month for hourly pricing calculation
+const HOURS_PER_MONTH = 730;
 
 type TierSelectorSetupProps = {
   value?: string;
@@ -32,6 +36,11 @@ export const TierSelectorSetup = ({
   minimumTier = "dev.small",
 }: TierSelectorSetupProps) => {
   const t = useTranslations("setup");
+
+  // A/B test: show hourly pricing instead of monthly in tier selector
+  // Test with: ?ph_show-hourly-tier-pricing=test
+  const pricingVariant = useFeatureFlag("show-hourly-tier-pricing");
+  const showHourlyPricing = pricingVariant === "test";
   return (
     <div className="flex flex-col gap-2">
       {Object.values(RESOURCE_TIERS).map((tier) => {
@@ -81,10 +90,13 @@ export const TierSelectorSetup = ({
               >
                 {isCurrencyLoading
                   ? "..."
-                  : formatCurrency(tierPrice, currency, {
-                      showDecimals: false,
-                    })}
-                /mo
+                  : showHourlyPricing
+                    ? `${formatCurrency(tierPrice / HOURS_PER_MONTH, currency, {
+                        showDecimals: true,
+                      })}${t("perHr")}`
+                    : `${formatCurrency(tierPrice, currency, {
+                        showDecimals: false,
+                      })}${t("perMo")}`}
               </span>
               <div
                 className={`

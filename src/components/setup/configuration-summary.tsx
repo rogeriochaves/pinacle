@@ -3,6 +3,7 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useFeatureFlag } from "../../hooks/use-feature-flag";
 import { formatCurrency } from "../../lib/currency-utils";
 import {
   PRICING_TABLE,
@@ -13,6 +14,9 @@ import { SERVICE_TEMPLATES } from "../../lib/pod-orchestration/service-registry"
 import type { getTemplateUnsafe } from "../../lib/pod-orchestration/template-registry";
 import { api } from "../../lib/trpc/client";
 import { Button } from "../ui/button";
+
+// Average hours per month for hourly pricing calculation
+const HOURS_PER_MONTH = 730;
 
 type ConfigurationSummaryProps = {
   projectName: string;
@@ -39,6 +43,12 @@ export const ConfigurationSummary = ({
   selectedServices,
 }: ConfigurationSummaryProps) => {
   const t = useTranslations("setup");
+
+  // A/B test: show hourly pricing instead of monthly
+  // Test with: ?ph_show-hourly-pricing=test
+  const pricingVariant = useFeatureFlag("show-hourly-pricing");
+  const showHourlyPricing = pricingVariant === "test";
+
   // Detect currency from IP using tRPC
   const { data: currencyData, isLoading: isCurrencyLoading } =
     api.currency.detectCurrency.useQuery();
@@ -47,6 +57,7 @@ export const ConfigurationSummary = ({
   // Get pricing for the selected tier in the detected currency
   const tierPrice =
     PRICING_TABLE[tierData.id as keyof typeof PRICING_TABLE]?.[currency];
+  const tierHourlyPrice = tierPrice / HOURS_PER_MONTH;
 
   // Use selectedServices if provided, otherwise fall back to template's default services
   const allServices: ServiceId[] = (selectedServices ||
@@ -230,25 +241,55 @@ export const ConfigurationSummary = ({
               <p className="text-slate-400 font-mono text-xs mb-1">
                 {t("estimatedCost")}
               </p>
-              <div className="flex items-baseline gap-2">
-                {isCurrencyLoading ? (
-                  <span className="text-white font-mono text-3xl font-bold">
-                    ...
-                  </span>
-                ) : (
-                  <span className="text-white font-mono text-3xl font-bold">
-                    {formatCurrency(tierPrice, currency, {
-                      showDecimals: false,
+              {showHourlyPricing ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    {isCurrencyLoading ? (
+                      <span className="text-white font-mono text-3xl font-bold">
+                        ...
+                      </span>
+                    ) : (
+                      <span className="text-white font-mono text-3xl font-bold">
+                        {formatCurrency(tierHourlyPrice, currency, {
+                          showDecimals: true,
+                        })}
+                      </span>
+                    )}
+                    <span className="text-slate-400 font-mono text-sm">
+                      {t("perHourOfUsage")}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 font-mono text-xs mt-1">
+                    {t("fullMonthCost", {
+                      price: formatCurrency(tierPrice, currency, {
+                        showDecimals: false,
+                      }),
                     })}
-                  </span>
-                )}
-                <span className="text-slate-400 font-mono text-sm">
-                  {t("perMonth")}
-                </span>
-              </div>
-              <p className="text-slate-500 font-mono text-xs mt-1">
-                {t("billedHourly")}
-              </p>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    {isCurrencyLoading ? (
+                      <span className="text-white font-mono text-3xl font-bold">
+                        ...
+                      </span>
+                    ) : (
+                      <span className="text-white font-mono text-3xl font-bold">
+                        {formatCurrency(tierPrice, currency, {
+                          showDecimals: false,
+                        })}
+                      </span>
+                    )}
+                    <span className="text-slate-400 font-mono text-sm">
+                      {t("perMonth")}
+                    </span>
+                  </div>
+                  <p className="text-slate-500 font-mono text-xs mt-1">
+                    {t("billedHourly")}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Create Button */}
