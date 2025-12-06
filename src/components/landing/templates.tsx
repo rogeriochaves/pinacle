@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
+import { RESOURCE_TIERS } from "@/lib/pod-orchestration/resource-tier-registry";
 import {
   CODING_ASSISTANTS,
   type CodingAssistantId,
@@ -59,12 +61,22 @@ const TemplateCard = ({
   isCurrencyLoading,
 }: TemplateCardProps) => {
   const [selectedAgent, setSelectedAgent] = useState<string>("claude");
-  const [selectedTier, setSelectedTier] = useState<string>("dev.small");
+  const [selectedTier, setSelectedTier] = useState<string>(template.tier);
   const t = useTranslations("templates");
+
+  // A/B test: hide pricing and show only resource specs
+  // Test with: ?ph_hide-template-pricing=test
+  const pricingVariant = useFeatureFlag("hide-template-pricing", "test");
+  const showResourcesOnly = pricingVariant === "test";
 
   const selectedCodingAgent =
     CODING_AGENTS.find((agent) => agent.id === selectedAgent) ||
     CODING_AGENTS[0];
+
+  // Get the resource tier information
+  const tierInfo =
+    RESOURCE_TIERS[selectedTier as keyof typeof RESOURCE_TIERS] ||
+    RESOURCE_TIERS["dev.small"];
 
   // Get services with icons, excluding terminal (respects template order)
   const servicesWithIcons = template.services
@@ -170,14 +182,24 @@ const TemplateCard = ({
       <CardFooter className="flex-col w-full">
         <hr className="my-4 border-gray-200" />
         <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between w-full gap-4">
-          <TierSelector
-            value={selectedTier}
-            onChange={setSelectedTier}
-            compact
-            currency={currency}
-            isLoading={isCurrencyLoading}
-            ariaLabel={t("selectTier")}
-          />
+          {showResourcesOnly ? (
+            // Variant B: Show only resource specs
+            <div className="flex flex-col gap-1 h-full items-center justify-center">
+              <div className="text-sm font-mono text-muted-foreground">
+                {tierInfo.cpu} vCPU • {tierInfo.memory} GB RAM
+              </div>
+            </div>
+          ) : (
+            // Variant A (Control): Show pricing selector
+            <TierSelector
+              value={selectedTier}
+              onChange={setSelectedTier}
+              compact
+              currency={currency}
+              isLoading={isCurrencyLoading}
+              ariaLabel={t("selectTier")}
+            />
+          )}
           <Link
             href={`/setup?type=new&template=${template.id}&tier=${selectedTier}&agent=${selectedAgent}`}
             className="w-full sm:w-auto"
